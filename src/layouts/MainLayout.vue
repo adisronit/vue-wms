@@ -72,6 +72,15 @@
           <span class="menu-text">Stock Adjustment</span>
         </router-link>
 
+        <router-link
+          to="/inventory/check-stock"
+          class="menu-item"
+          active-class="menu-active"
+        >
+          <span class="menu-icon">🧾</span>
+          <span class="menu-text">Check Stock</span>
+        </router-link>
+
         <div class="menu-title">Outbound</div>
 
         <router-link
@@ -120,10 +129,19 @@
             <span class="menu-icon">🏭</span>
             <span class="menu-text">Warehouse Setup</span>
           </router-link>
+
+          <router-link
+            to="/administration/products"
+            class="menu-item"
+            active-class="menu-active"
+          >
+            <span class="menu-icon">📦</span>
+            <span class="menu-text">Product Master</span>
+          </router-link>
       </nav>
 
       <div class="p-4 border-t border-slate-700">
-        <button         
+        <button @click="logout"       
           class="w-full bg-slate-800 hover:bg-red-600 text-white py-3 rounded-xl transition"
         >
           Logout
@@ -170,6 +188,16 @@
     </div>
   </div>
 </template>
+
+<script>
+export default {
+  methods: {
+    logout() {
+      this.$router.push('/login')
+    }
+  }
+}
+</script>
 
 <style scoped>
 

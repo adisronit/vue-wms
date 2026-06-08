@@ -14,6 +14,10 @@ import RolePermissionView from '../views/administration/RolePermissionView.vue'
 import WarehouseView from '../views/administration/WarehouseView.vue'
 import NewReceivingView from '../views/inbound/NewReceivingView.vue'
 import NewQualityCheckView from '../views/inbound/NewQualityCheckView.vue'
+import NewPutawayView from '../views/inbound/NewPutawayView.vue'
+import CheckStockView from '../views/inventory/CheckStockView.vue'
+import ProductMasterView from '../views/administration/ProductMasterView.vue'
+
 const routes = [
   {
     path: '/',
@@ -91,6 +95,21 @@ const routes = [
         path: 'inbound/quality-check/new',
         name: 'NewQualityCheck',
         component: NewQualityCheckView
+      },
+      {
+        path: 'inbound/putaway/new',
+        name: 'NewPutAway',
+        component: NewPutawayView
+      },
+      {
+        path: 'inventory/check-stock',
+        name: 'CheckStock',
+        component: CheckStockView
+      },
+      {
+        path: 'administration/products',
+        name: 'ProductMaster',
+        component: ProductMasterView
       }
     ]
   }

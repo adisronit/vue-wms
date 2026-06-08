@@ -275,7 +275,7 @@
     </div>
 
     <!-- Action Bar -->
-    <div class="sticky bottom-0 bg-slate-100 border-t border-slate-200 py-4">
+    <div class="bg-white border border-slate-200 rounded-2xl p-6">
       <div class="flex flex-col md:flex-row justify-end gap-3">
         <button
           @click="saveDraft"

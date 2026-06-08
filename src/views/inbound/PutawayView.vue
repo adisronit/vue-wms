@@ -8,7 +8,10 @@
         </p>
       </div>
 
-      <button class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold">
+      <button
+        @click="$router.push('/inbound/putaway/new')"
+        class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
+      >
         + New Putaway Task
       </button>
     </div>
