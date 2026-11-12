@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "78fc7443-f774-4988-9a55-f9bb9403bf89",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "C:\\vue\\vue-wms\\.archify\\workflow-putaway-20261112-212614\\candidate.json",
+  "output": "C:\\vue\\vue-wms\\docs\\architecture\\diagrams\\workflow-putaway.html",
+  "specification": {
+    "sha256": "a50d952b67cc1336f7878e14e081170b26ccb439d8a7cae96fe4b4b8816216f0",
+    "bytes": 8521
+  },
+  "artifact": {
+    "sha256": "e05cca68e21a650128d2ddd43779462c5b0109b84e688253b0008bb802938705",
+    "bytes": 777351
+  }
+}

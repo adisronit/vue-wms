@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>API Architecture · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><span class="current">API Architecture</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">API Architecture</h1>
+    <p class="page-desc">The request pipeline every <code>/api/v1/*</code> call passes through, and a complete reference of all ~90 endpoints across 20 modules. Live, testable docs are in Swagger at <a href="http://localhost:8080/swagger/index.html" target="_blank" rel="noopener">localhost:8080/swagger/index.html</a> when the backend is running.</p>
+    <div class="card-grid">
+      <a class="card" href="request-pipeline.html"><h3>Request Pipeline<span class="status-badge status-implemented">Implemented</span></h3><p>Recovery → RequestID → Logging → CORS → RequireJWT → RequirePermission → Handler, plus the async export branch.</p></a>
+      <a class="card" href="endpoints.html"><h3>Endpoint Reference<span class="status-badge status-implemented">Implemented</span></h3><p>Every route, method, handler file:line, and permission code, grouped by module in registration order.</p></a>
+    </div>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

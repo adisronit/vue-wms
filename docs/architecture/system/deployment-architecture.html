@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Deployment Architecture · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../system/index.html">System Architecture</a><span class="sep">/</span><span class="current">Deployment Architecture</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Deployment Architecture<span class="status-badge status-implemented">Implemented</span></h1>
+    <p class="page-desc">The UAT docker-compose.yml topology: five Compose services (frontend, backend, worker, migrate, rabbitmq) plus two named volumes, with SQL Server deliberately left outside the Docker network and reached via host.docker.internal.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/deployment-architecture.html" loading="lazy" title="Deployment Architecture diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/deployment-architecture.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li>This UAT compose file has no sqlserver service at all — SQL Server runs natively on the Windows host, a deliberate deviation from a fully-containerized pattern.</li>
+        <li>backend, worker, and migrate all connect out via DB_HOST=host.docker.internal, with extra_hosts: host.docker.internal:host-gateway added to each so the alias resolves reliably on any Docker Engine.</li>
+        <li>migrate is a one-shot container (target: migrate) that runs "wms-migrate up && wms-migrate seed" and exits; backend and worker both depends_on it with condition: service_completed_successfully.</li>
+        <li>export_files is the only volume shared between two services — it is mounted into both backend (serves the download endpoint) and worker (writes the generated CSV) at the same path.</li>
+        <li>Only two named volumes exist: rabbitmq_data and export_files. There is no sqlserver_data volume, consistent with SQL Server living outside Docker entirely.</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>docker-compose.yml:3-14</code> — the UAT configuration comment explaining SQL Server runs on the host, not in a container.</li>
+        <li><code>docker-compose.yml:36-48</code> — the migrate service: build target, one-shot command, and restart: "no".</li>
+        <li><code>docker-compose.yml:50-69</code> and <code>71-88</code> — backend and worker service definitions, including their shared depends_on conditions and extra_hosts entries.</li>
+        <li><code>docker-compose.yml:103-110</code> — the volumes block: rabbitmq_data and export_files, with the comment identifying export_files as Phase 22's shared backend+worker storage.</li>
+        <li><code>backend/Dockerfile:7-21</code> — the shared builder stage that compiles all three Go binaries and regenerates Swagger docs.</li>
+        <li><code>backend/Dockerfile:30-34</code> and <code>fontend/Dockerfile:27-29</code> — HEALTHCHECK directives targeting 127.0.0.1 instead of localhost to avoid musl's IPv6-first DNS resolution.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

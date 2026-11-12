@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "0e1c30d7-94b9-4464-81b3-e1f152e5e4f0",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "C:\\vue\\vue-wms\\.archify\\workflow-inventory-management-20261112-212614\\candidate.json",
+  "output": "C:\\vue\\vue-wms\\docs\\architecture\\diagrams\\workflow-inventory-management.html",
+  "specification": {
+    "sha256": "215dcc4b61f45a643648c5759423f13bd4714fd4bf12b6fcd7926f4067fc5a96",
+    "bytes": 6825
+  },
+  "artifact": {
+    "sha256": "87987e09fd2c39b5135748a24136a32bcdbddf1513f2d1a4c3598ba95e58a419",
+    "bytes": 768298
+  }
+}

@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>API Endpoint Reference · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../api/index.html">API Architecture</a><span class="sep">/</span><span class="current">Endpoint Reference</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">API Endpoint Reference<span class="status-badge status-implemented">Implemented</span></h1>
+    <p class="page-desc">Every REST endpoint actually wired up in <code>cmd/server/main.go</code>, grouped by module in registration order. All paths are mounted under <code>/api/v1</code>. "Auth" shows the real middleware chain — most routes are <code>RequireJWT → RequirePermission(code) → Handler</code>; a few are JWT-only or fully public. Live, testable docs: <a href="http://localhost:8080/swagger/index.html" target="_blank" rel="noopener">Swagger UI</a> (when the backend is running).</p>
+
+    <input class="search-box" type="text" placeholder="Filter endpoints (path, module, permission)…" data-search="tbody.filterable tr" />
+
+    <section class="block">
+      <h2>health — <code>internal/health/</code></h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Auth</th><th>Mode</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/health</code></td><td><code>health/handler.go:35</code></td><td>Public</td><td>sync</td><td>Pings SQL Server + cached RabbitMQ connection state; 503 if degraded. Only unauthenticated route besides login.</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>role — <code>internal/role/</code> (mounted at <code>/roles</code>, <code>/permissions</code> — no path prefix group)</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Permission</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/roles</code></td><td><code>role/handler.go:53</code></td><td>roles.view</td><td>List roles</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/permissions</code></td><td><code>role/handler.go:79</code></td><td>roles.view</td><td>Flat permission catalog for the RBAC matrix UI</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/roles/:id/permissions</code></td><td><code>role/handler.go:106</code></td><td>roles.view</td><td>Get a role's granted permissions</td></tr>
+      <tr><td>PUT</td><td><code>/api/v1/roles/:id/permissions</code></td><td><code>role/handler.go:139</code></td><td>roles.update</td><td>Replace a role's full permission set (full-matrix overwrite)</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/roles/:id/warehouse-access</code></td><td><code>role/handler.go:181</code></td><td>roles.view</td><td>Get a role's warehouse access</td></tr>
+      <tr><td>PUT</td><td><code>/api/v1/roles/:id/warehouse-access</code></td><td><code>role/handler.go:214</code></td><td>roles.update</td><td>Replace a role's warehouse access</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>user — <code>internal/user/</code> (<code>/users</code>)</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Permission</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/users</code></td><td><code>user/handler.go:52</code></td><td>users.view</td><td>List; search + role/status filter + pagination</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/users/:id</code></td><td><code>user/handler.go:103</code></td><td>users.view</td><td>Get by ID</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/users</code></td><td><code>user/handler.go:129</code></td><td>users.create</td><td>Create (201)</td></tr>
+      <tr><td>PUT</td><td><code>/api/v1/users/:id</code></td><td><code>user/handler.go:161</code></td><td>users.update</td><td>Update</td></tr>
+      <tr><td>DELETE</td><td><code>/api/v1/users/:id</code></td><td><code>user/handler.go:189</code></td><td>users.delete</td><td>Delete (204)</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>auth — <code>internal/auth/</code> (<code>/auth</code>)</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Auth</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>POST</td><td><code>/api/v1/auth/login</code></td><td><code>auth/handler.go:45</code></td><td>Public</td><td>bcrypt verify + issue HS256 JWT with permissions embedded (exp = JWT_EXPIRES_IN)</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/auth/me</code></td><td><code>auth/handler.go:78</code></td><td>RequireJWT only</td><td>Current user's profile/role/permission codes, live from DB</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>warehouse / zone / location — <code>internal/{warehouse,zone,location}/</code></h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Permission</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/warehouses</code></td><td><code>warehouse/handler.go:50</code></td><td>warehouse.view</td><td>List, search+type/status filter, pagination</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/warehouses/:id</code></td><td><code>warehouse/handler.go:98</code></td><td>warehouse.view</td><td>Get by ID</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/warehouses</code></td><td><code>warehouse/handler.go:124</code></td><td>warehouse.create</td><td>Create</td></tr>
+      <tr><td>PUT</td><td><code>/api/v1/warehouses/:id</code></td><td><code>warehouse/handler.go:156</code></td><td>warehouse.update</td><td>Update</td></tr>
+      <tr><td>DELETE</td><td><code>/api/v1/warehouses/:id</code></td><td><code>warehouse/handler.go:186</code></td><td>warehouse.delete</td><td>Delete</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/zones</code></td><td><code>zone/handler.go:50</code></td><td>warehouse.view</td><td>List zones for a warehouse</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/zones/:id</code></td><td><code>zone/handler.go:80</code></td><td>warehouse.view</td><td>Get zone</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/zones</code></td><td><code>zone/handler.go:107</code></td><td>warehouse.update</td><td>Create zone (no distinct zone.* permission)</td></tr>
+      <tr><td>PUT</td><td><code>/api/v1/zones/:id</code></td><td><code>zone/handler.go:139</code></td><td>warehouse.update</td><td>Update zone</td></tr>
+      <tr><td>DELETE</td><td><code>/api/v1/zones/:id</code></td><td><code>zone/handler.go:169</code></td><td>warehouse.update</td><td>Delete zone</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/locations</code></td><td><code>location/handler.go:48</code></td><td>warehouse.view</td><td>List locations for a zone</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/locations/:id</code></td><td><code>location/handler.go:78</code></td><td>warehouse.view</td><td>Get location</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/locations</code></td><td><code>location/handler.go:105</code></td><td>warehouse.update</td><td>Create location</td></tr>
+      <tr><td>PUT</td><td><code>/api/v1/locations/:id</code></td><td><code>location/handler.go:137</code></td><td>warehouse.update</td><td>Update location</td></tr>
+      <tr><td>DELETE</td><td><code>/api/v1/locations/:id</code></td><td><code>location/handler.go:165</code></td><td>warehouse.update</td><td>Delete location</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>product — <code>internal/product/</code> (<code>/products</code>)</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Permission</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/products</code></td><td><code>product/handler.go:51</code></td><td>product.view</td><td>List products</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/products/:id</code></td><td><code>product/handler.go:104</code></td><td>product.view</td><td>Get by ID</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/products</code></td><td><code>product/handler.go:130</code></td><td>product.create</td><td>Create</td></tr>
+      <tr><td>PUT</td><td><code>/api/v1/products/:id</code></td><td><code>product/handler.go:162</code></td><td>product.update</td><td>Update</td></tr>
+      <tr><td>DELETE</td><td><code>/api/v1/products/:id</code></td><td><code>product/handler.go:191</code></td><td>product.delete</td><td>Delete</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>inventory — <code>internal/inventory/</code> (<code>/inventory</code>) — read-only, mutation methods exist but are never routed</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Permission</th><th>Mode</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/inventory/summary</code></td><td><code>inventory/handler.go:145</code></td><td>stock_inquiry.view</td><td>sync</td><td>Summary totals</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/inventory</code></td><td><code>inventory/handler.go:65</code></td><td>stock_inquiry.view</td><td>sync</td><td>Balances; search + warehouse/zone/location/status/lot filter</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/inventory/:id</code></td><td><code>inventory/handler.go:115</code></td><td>stock_inquiry.view</td><td>sync</td><td>One balance by ID</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/inventory/:id/transactions</code></td><td><code>inventory/handler.go:167</code></td><td>stock_inquiry.view</td><td>sync</td><td>Ledger entries for one balance</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/inventory/export</code></td><td><code>inventory/handler.go:204</code></td><td>stock_inquiry.view + .export</td><td>sync (CSV stream)</td><td>Export Inventory Stock Report</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>receiving — <code>internal/receiving/</code> (<code>/receipts</code>)</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Permission</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/receipts</code></td><td><code>receiving/handler.go:72</code></td><td>receiving.view</td><td>List</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/receipts/export</code></td><td><code>receiving/handler.go:125</code></td><td>receiving.view</td><td>Export CSV (sync)</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/receipts/:id</code></td><td><code>receiving/handler.go:170</code></td><td>receiving.view</td><td>Get + lines</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/receipts</code></td><td><code>receiving/handler.go:205</code></td><td>receiving.create</td><td>Create</td></tr>
+      <tr><td>PUT</td><td><code>/api/v1/receipts/:id</code></td><td><code>receiving/handler.go:240</code></td><td>receiving.update</td><td>Update header</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/receipts/:id/items</code></td><td><code>receiving/handler.go:279</code></td><td>receiving.update</td><td>Add line</td></tr>
+      <tr><td>PUT</td><td><code>/api/v1/receipts/:id/items/:itemId</code></td><td><code>receiving/handler.go:320</code></td><td>receiving.update</td><td>Update line</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/receipts/:id/confirm</code></td><td><code>receiving/handler.go:364</code></td><td>receiving.approve</td><td>Confirm — mutates inventory (AddStockTx)</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/receipts/:id/cancel</code></td><td><code>receiving/handler.go:405</code></td><td>receiving.update</td><td>Cancel</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>putaway — <code>internal/putaway/</code> (<code>/putaway</code>)</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Permission</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/putaway</code></td><td><code>putaway/handler.go:68</code></td><td>putaway.view</td><td>List</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/putaway/export</code></td><td><code>putaway/handler.go:115</code></td><td>putaway.view</td><td>Export CSV (sync)</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/putaway/sources/:receiptId</code></td><td><code>putaway/handler.go:156</code></td><td>putaway.view</td><td>Receipt lines still eligible for putaway</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/putaway/:id</code></td><td><code>putaway/handler.go:187</code></td><td>putaway.view</td><td>Get + lines</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/putaway</code></td><td><code>putaway/handler.go:222</code></td><td>putaway.create</td><td>Create task</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/putaway/:id/confirm</code></td><td><code>putaway/handler.go:258</code></td><td>putaway.approve</td><td>Confirm — mutates inventory (MoveStockTx)</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/putaway/:id/cancel</code></td><td><code>putaway/handler.go:299</code></td><td>putaway.update</td><td>Cancel</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>picking — <code>internal/picking/</code> (<code>/picking</code>)</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Permission</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/picking</code></td><td><code>picking/handler.go:78</code></td><td>picking.view</td><td>List</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/picking/export</code></td><td><code>picking/handler.go:132</code></td><td>picking.view</td><td>Export CSV (sync)</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/picking/:id</code></td><td><code>picking/handler.go:176</code></td><td>picking.view</td><td>Get + lines</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/picking</code></td><td><code>picking/handler.go:211</code></td><td>picking.create</td><td>Create task — reserves stock</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/picking/:id/confirm</code></td><td><code>picking/handler.go:247</code></td><td>picking.update</td><td>Confirm — consumes reservation</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/picking/:id/cancel</code></td><td><code>picking/handler.go:288</code></td><td>picking.approve</td><td>Cancel — releases reservation (note: approve, not update)</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>shipping — <code>internal/shipping/</code> (<code>/shipping</code>)</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Permission</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/shipping</code></td><td><code>shipping/handler.go:71</code></td><td>shipping.view</td><td>List</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/shipping/export</code></td><td><code>shipping/handler.go:123</code></td><td>shipping.view</td><td>Export CSV (sync)</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/shipping/sources</code></td><td><code>shipping/handler.go:169</code></td><td>shipping.view</td><td>Completed picking tasks not yet shipped</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/shipping/:id</code></td><td><code>shipping/handler.go:190</code></td><td>shipping.view</td><td>Get + lines</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/shipping</code></td><td><code>shipping/handler.go:226</code></td><td>shipping.create</td><td>Create from a completed picking task</td></tr>
+      <tr><td>PUT</td><td><code>/api/v1/shipping/:id</code></td><td><code>shipping/handler.go:262</code></td><td>shipping.update</td><td>Update header</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/shipping/:id/confirm</code></td><td><code>shipping/handler.go:301</code></td><td>shipping.approve</td><td>Dispatch / deliver / report issue — no inventory mutation</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/shipping/:id/cancel</code></td><td><code>shipping/handler.go:342</code></td><td>shipping.update</td><td>Cancel</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>stock-adjustments — <code>internal/stockadjustment/</code></h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Permission</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/stock-adjustments</code></td><td><code>stockadjustment/handler.go:69</code></td><td>stock_adjustment.view</td><td>List</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/stock-adjustments/export</code></td><td><code>stockadjustment/handler.go:130</code></td><td>stock_adjustment.view</td><td>Export CSV (sync)</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/stock-adjustments/:id</code></td><td><code>stockadjustment/handler.go:186</code></td><td>stock_adjustment.view</td><td>Get</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/stock-adjustments</code></td><td><code>stockadjustment/handler.go:221</code></td><td>stock_adjustment.create</td><td>Create (no inventory mutation yet)</td></tr>
+      <tr><td>PUT</td><td><code>/api/v1/stock-adjustments/:id</code></td><td><code>stockadjustment/handler.go:257</code></td><td>stock_adjustment.update</td><td>Update (DRAFT only)</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/stock-adjustments/:id/confirm</code></td><td><code>stockadjustment/handler.go:296</code></td><td>stock_adjustment.approve</td><td>Approve/reject — only moment inventory mutates</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>stock-counts — <code>internal/stockcount/</code> (reuses <code>stock_adjustment.*</code> permissions)</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Permission</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/stock-counts</code></td><td><code>stockcount/handler.go:66</code></td><td>stock_adjustment.view</td><td>List</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/stock-counts/export</code></td><td><code>stockcount/handler.go:119</code></td><td>stock_adjustment.view</td><td>Export CSV (sync)</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/stock-counts/:id</code></td><td><code>stockcount/handler.go:168</code></td><td>stock_adjustment.view</td><td>Get + lines</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/stock-counts</code></td><td><code>stockcount/handler.go:203</code></td><td>stock_adjustment.create</td><td>Create — freezes expected qty</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/stock-counts/:id/items</code></td><td><code>stockcount/handler.go:238</code></td><td>stock_adjustment.update</td><td>Add line</td></tr>
+      <tr><td>PUT</td><td><code>/api/v1/stock-counts/:id/items/:itemId</code></td><td><code>stockcount/handler.go:279</code></td><td>stock_adjustment.update</td><td>Record counted quantity</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/stock-counts/:id/confirm</code></td><td><code>stockcount/handler.go:323</code></td><td>stock_adjustment.approve</td><td>Apply variance, with stale-balance conflict check (409)</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/stock-counts/:id/create-adjustments</code></td><td><code>stockcount/handler.go:362</code></td><td>stock_adjustment.create</td><td>Alternate path: spin variances into Stock Adjustment docs (mutually exclusive with Confirm)</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>notifications — <code>internal/notification/</code> (<code>/notifications</code>) — JWT only, no permission check (scoped to caller's own user ID)</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Auth</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/notifications</code></td><td><code>notification/handler.go:48</code></td><td>RequireJWT only</td><td>List my notifications</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/notifications/:id/read</code></td><td><code>notification/handler.go:98</code></td><td>RequireJWT only</td><td>Mark one of my notifications read</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>reports — <code>internal/report/</code> (<code>/reports</code>) — the one genuinely async / job-based module</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Permission</th><th>Mode</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>POST</td><td><code>/api/v1/reports/inventory-transactions/export</code></td><td><code>report/handler.go:49</code></td><td>stock_inquiry.export</td><td><strong>202 Accepted</strong> (async job)</td><td>Creates PENDING export_jobs row + publishes to <code>wms.report.export</code></td></tr>
+      <tr><td>GET</td><td><code>/api/v1/reports/export-jobs/:id</code></td><td><code>report/handler.go:85</code></td><td>stock_inquiry.export</td><td>sync</td><td>Poll job status (404 if not owned by caller)</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/reports/export-jobs/:id/download</code></td><td><code>report/handler.go:118</code></td><td>stock_inquiry.export</td><td>sync</td><td>Download completed file (409 if not COMPLETED)</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>dashboard — <code>internal/dashboard/</code> (<code>/dashboard</code>)</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Permission</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/dashboard/summary</code></td><td><code>dashboard/handler.go:41</code></td><td>dashboard.view</td><td>Operational summary, composed in-process from receiving/picking/inventory services — no own repository</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>replenishment — <code>internal/replenishment/</code> (<code>/replenishment</code>)</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Permission</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/replenishment</code></td><td><code>replenishment/handler.go:62</code></td><td>replenishment.view</td><td>List tasks</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/replenishment/recommendations</code></td><td><code>replenishment/handler.go:107</code></td><td>replenishment.view</td><td>Generate simple replenishment recommendations</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/replenishment/:id</code></td><td><code>replenishment/handler.go:138</code></td><td>replenishment.view</td><td>Get task</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/replenishment</code></td><td><code>replenishment/handler.go:172</code></td><td>replenishment.create</td><td>Create (manual) — reserves stock</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/replenishment/:id/start</code></td><td><code>replenishment/handler.go:203</code></td><td>replenishment.update</td><td>Mark task as being worked</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/replenishment/:id/confirm</code></td><td><code>replenishment/handler.go:235</code></td><td>replenishment.update</td><td>Confirm task — moves stock</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/replenishment/:id/cancel</code></td><td><code>replenishment/handler.go:273</code></td><td>replenishment.approve</td><td>Cancel — releases reservation</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/replenishment/:id/issue</code></td><td><code>replenishment/handler.go:314</code></td><td>replenishment.approve</td><td>Report an issue on task</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>orders — <code>internal/order/</code> (<code>/orders</code>) — last module registered</h2>
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Method</th><th>Path</th><th>Handler</th><th>Permission</th><th>Purpose</th></tr></thead><tbody class="filterable">
+      <tr><td>GET</td><td><code>/api/v1/orders</code></td><td><code>order/handler.go:58</code></td><td>order.view</td><td>List</td></tr>
+      <tr><td>GET</td><td><code>/api/v1/orders/:id</code></td><td><code>order/handler.go:102</code></td><td>order.view</td><td>Get</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/orders</code></td><td><code>order/handler.go:137</code></td><td>order.create</td><td>Create (header + lines)</td></tr>
+      <tr><td>PUT</td><td><code>/api/v1/orders/:id</code></td><td><code>order/handler.go:172</code></td><td>order.update</td><td>Update (full replace of header+lines)</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/orders/:id/create-picking-task</code></td><td><code>order/handler.go:211</code></td><td>order.update</td><td>Spawn a picking task from the order</td></tr>
+      <tr><td>POST</td><td><code>/api/v1/orders/:id/cancel</code></td><td><code>order/handler.go:249</code></td><td>order.approve</td><td>Cancel — never touches inventory (nothing reserved by Order itself)</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="block">
+      <h2>Swagger / OpenAPI</h2>
+      <ul class="note-list">
+        <li>Mounted conditionally: <code>cmd/server/main.go:196-199</code> — only when <code>SWAGGER_ENABLED</code> is true. Reachable at <a href="http://localhost:8080/swagger/index.html" target="_blank" rel="noopener"><code>http://localhost:8080/swagger/index.html</code></a>.</li>
+        <li>Top-level doc block: <code>cmd/server/main.go:1-11</code> — <code>@title Smart WMS API</code>, <code>@BasePath /api/v1</code>, <code>@securityDefinitions.apikey BearerAuth</code>.</li>
+        <li>Every protected handler carries <code>@Security BearerAuth</code> matching its real middleware wiring; public handlers (<code>auth.Login</code>, <code>health.Get</code>) omit it — annotations are synchronized with actual code, not aspirational.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Picking · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../workflows/index.html">Program Workflows</a><span class="sep">/</span><span class="current">Picking</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Picking<span class="status-badge status-implemented">Implemented</span></h1>
+    <p class="page-desc">Creating a picking task reserves stock immediately; only Confirm's PICKED lines actually remove it and write the inventory ledger. Cancel and SHORT lines only ever release a reservation that was never drawn down.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/workflow-picking.html" loading="lazy" title="Picking diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/workflow-picking.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li>Create (<code>POST /picking</code>, gated by <code>picking.create</code>) validates warehouse existence, priority, <code>ordered_qty&gt;0</code>, product existence, and that the location resolves, belongs to the same warehouse, and is ACTIVE — then <strong>reserves</strong> each line's full quantity via <code>ReserveStockTx</code> inside one transaction with the header insert; the header's status is always PENDING at creation (handler.go:211, service.go:111-239).</li>
+        <li>Reservation is a claim, not a movement: <code>ReserveStockTx</code> only ever touches <code>reserved_quantity</code>. It never touches <code>quantity</code> and never writes an <code>inventory_transactions</code> row (service.go:220-239).</li>
+        <li>Confirm (<code>POST /picking/{id}/confirm</code>, gated by <code>picking.update</code> — a lower bar than Cancel) processes one or more lines per call, each flagged PICKED or SHORT. PICKED calls <code>ConsumeReservationTx</code>, which atomically decrements the reservation <em>and</em> removes the real stock, writing the PICK ledger row in the same call. SHORT only calls <code>ReleaseReservationTx</code> for the unpicked remainder — it writes no ledger row at all (service.go:261-390).</li>
+        <li>The whole Confirm request is one transaction: any single line's error (insufficient stock, reservation underflow, an already-resolved line) rolls back <strong>every</strong> line in that call, including ones already processed earlier in the same call (service.go:296-390).</li>
+        <li>Confirm's idempotency guard inserts into <code>picking_confirmations</code> before checking <code>CanConfirm()</code>, deliberately, so a nonexistent task id raises a clean 404 instead of a raw FK-violation 500; a duplicate <code>idempotency_key</code> hits that table's PRIMARY KEY and is treated as a successful no-op, returning the task's current state rather than mutating stock a second time (service.go:280-294, 400-405).</li>
+        <li>Cancel (<code>POST /picking/{id}/cancel</code>) is gated on <code>picking.approve</code> — not <code>picking.update</code> — the one other <code>picking.*</code> permission code, deliberately set at a higher bar than Confirm's execution-level gate (handler.go:40-57, 288).</li>
+        <li>Cancel only ever releases whatever a still-open line's remaining (ordered − picked) quantity reserved; it never calls <code>RemoveStockTx</code> and never writes a ledger row. Lines already COMPLETED or SHORT are skipped by status, not by remaining quantity, since a SHORT line's remainder is not a reliable "still reserved" signal (service.go:419-495).</li>
+        <li>The header's status is derived, never stored imperatively: <code>computeTaskStatus</code> reads every line's terminal/non-terminal state to decide COMPLETED, SHORT_PICK, IN_PROGRESS, or PENDING (model.go:188-229).</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/internal/picking/handler.go:52-57</code> — route table: Create → <code>picking.create</code>, Confirm → <code>picking.update</code>, Cancel → <code>picking.approve</code>.</li>
+        <li><code>backend/internal/picking/service.go:111-131</code> — <code>Create</code> detaches the request context, then opens the transaction via <code>s.repo.Transaction</code>.</li>
+        <li><code>backend/internal/picking/service.go:164-217</code> — <code>validateCreate</code> + <code>createItem</code>: warehouse/priority/product/location checks.</li>
+        <li><code>backend/internal/picking/service.go:229-239</code> — <code>ReserveStockTx</code> call; <code>ErrNoStock</code>/<code>ErrInsufficientStock</code> mapped to 404/422.</li>
+        <li><code>backend/internal/picking/service.go:261-294</code> — <code>Confirm</code>'s transaction open, existence check, and idempotency insert.</li>
+        <li><code>backend/internal/picking/service.go:357-369</code> — <code>ConsumeReservationTx</code> for the PICKED branch.</li>
+        <li><code>backend/internal/picking/service.go:334-338</code> — <code>ReleaseReservationTx</code> for the SHORT branch.</li>
+        <li><code>backend/internal/picking/service.go:374</code> — <code>AdjustPickedQty</code>, a guarded atomic increment, not a read-modify-write.</li>
+        <li><code>backend/internal/picking/service.go:391</code> and <code>model.go:199-229</code> — <code>computeTaskStatus</code> recomputes header status from all lines.</li>
+        <li><code>backend/internal/picking/service.go:419-495</code> — <code>Cancel</code>: existence check, <code>CanCancel()</code> gate, per-line release loop, audit stamping.</li>
+        <li><code>backend/internal/picking/model.go:34-60</code> — <code>CanConfirm</code> and <code>CanCancel</code>, both PENDING/IN_PROGRESS only.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

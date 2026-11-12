@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "663ecb3b-8459-4c8b-8f4c-73c69d9a24dd",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "C:\\vue\\vue-wms\\.archify\\architecture-overall-system-architecture-20261112-212411\\candidate.json",
+  "output": "C:\\vue\\vue-wms\\docs\\architecture\\diagrams\\overall-system-architecture.html",
+  "specification": {
+    "sha256": "2ccd8c82371cc0efc0d07a5eecdf9e32204eeaa1c090c823f24ecbbc7d720d4a",
+    "bytes": 4333
+  },
+  "artifact": {
+    "sha256": "9eb081ffbb649e98e031799c52710ceea3ce59b08b31ad693fad0d6135e0b247",
+    "bytes": 763459
+  }
+}

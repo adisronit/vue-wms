@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "41d255fb-b5a9-4997-b34f-164c7ee1297e",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "C:\\vue\\vue-wms\\.archify\\workflow-stock-adjustment-20261112-212907\\candidate.json",
+  "output": "C:\\vue\\vue-wms\\docs\\architecture\\diagrams\\workflow-stock-adjustment.html",
+  "specification": {
+    "sha256": "f87b96124dfc06a8de2f9df2c84465136aabcd33a5191d0690a06cf5e147f4c7",
+    "bytes": 9780
+  },
+  "artifact": {
+    "sha256": "14143700761f54e60340efa81bb1251e0f2e15e86cdbc7b07f309fe4218e44ce",
+    "bytes": 780980
+  }
+}

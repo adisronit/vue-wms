@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stock Adjustment · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../workflows/index.html">Program Workflows</a><span class="sep">/</span><span class="current">Stock Adjustment</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Stock Adjustment<span class="status-badge status-implemented">Implemented</span></h1>
+    <p class="page-desc">A stock adjustment is a controlled correction document. Create and Update never touch inventory regardless of status — only Confirm's APPROVE action does, and a background reminder scanner nudges approvers about documents left pending too long.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/workflow-stock-adjustment.html" loading="lazy" title="Stock Adjustment diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/workflow-stock-adjustment.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li><strong>Only Approve ever mutates inventory.</strong> Create (<code>POST /stock-adjustments</code>, <code>stock_adjustment.create</code>) never calls <code>AddStockTx</code>/<code>RemoveStockTx</code> regardless of whether the client creates the document as DRAFT or PENDING — it is a controlled correction document, not a movement in itself (service.go:115-161).</li>
+        <li>Create's <code>before_qty</code> snapshot is <strong>display-only</strong>: it is read from the live balance at creation time purely for the UI, and is never used to compute the Confirm-time mutation (service.go:134-139).</li>
+        <li>Update (<code>PUT /stock-adjustments/{id}</code>, <code>stock_adjustment.update</code>) is only allowed while the document is DRAFT (<code>CanEdit()</code>) — PENDING documents are frozen for editing (service.go:220-232, model.go:37-41).</li>
+        <li>Confirm (<code>POST /stock-adjustments/{id}/confirm</code>, <code>stock_adjustment.approve</code>) is gated to PENDING only via <code>CanConfirm()</code>, with the usual idempotency guard inserted before that gate check (service.go:289-318).</li>
+        <li>APPROVE calls <code>inventory.AddStockTx</code> (increase) or <code>RemoveStockTx</code> (decrease) inside the same transaction as the status update — the <strong>one and only point</strong> in this package's entire lifecycle where <code>inventory.quantity</code> ever changes. <code>AfterQty</code> is populated from the mutation's <em>returned</em> balance, never from client input (service.go:328-364).</li>
+        <li>REJECT makes <strong>zero</strong> <code>inventory.*</code> calls. It only requires a remark and sets status to REJECTED — there is no separate Cancel endpoint for this package; REJECT is the only non-approve terminal transition (service.go:366-376).</li>
+        <li>The reminder pipeline is a <strong>separate, non-critical, asynchronous side-process</strong>: a server-owned ticker (not the HTTP handler) scans for overdue PENDING adjustments past a cooldown, using a claim-based read (<code>ClaimAndListOverdueForReminder</code>) specifically to prevent duplicate publishes under concurrent ticks (main.go:346-371).</li>
+        <li>The Worker ACKs a reminder delivery only after <code>NotifyStockAdjustmentReminder</code> succeeds, which resolves every ACTIVE user holding <code>stock_adjustment.approve</code> and inserts one notification row per recipient, unique on <code>(message_id, user_id)</code> for idempotent redelivery (worker/main.go:195-210).</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/internal/stockadjustment/handler.go:40-45</code> — route table: Create/create-adjustments → <code>.create</code>, Update → <code>.update</code>, Confirm → <code>.approve</code>.</li>
+        <li><code>backend/internal/stockadjustment/service.go:117-161</code> — <code>Create</code>: validation, display-only <code>before_qty</code> snapshot, header + line insert.</li>
+        <li><code>backend/internal/stockadjustment/service.go:220-232</code> — <code>Update</code>, gated by <code>CanEdit()</code>.</li>
+        <li><code>backend/internal/stockadjustment/service.go:289-318</code> — <code>Confirm</code>'s transaction open, idempotency insert, <code>CanConfirm()</code> gate.</li>
+        <li><code>backend/internal/stockadjustment/service.go:328-354</code> — APPROVE branch: <code>AddStockTx</code>/<code>RemoveStockTx</code>, <code>AfterQty</code> from the returned balance.</li>
+        <li><code>backend/internal/stockadjustment/service.go:366-376</code> — REJECT branch: remark required, no inventory call.</li>
+        <li><code>backend/internal/stockadjustment/model.go:37-48</code> — <code>CanEdit</code>/<code>CanConfirm</code> status predicates.</li>
+        <li><code>backend/cmd/server/main.go:346-371</code> — <code>startStockAdjustmentReminderScanner</code>: claim-based scan and RabbitMQ publish to <code>wms.stock_adjustment.pending_reminder</code>.</li>
+        <li><code>backend/cmd/worker/main.go:195-210</code> — <code>stockAdjustmentReminderHandler</code>: ACK only after <code>NotifyStockAdjustmentReminder</code> succeeds.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

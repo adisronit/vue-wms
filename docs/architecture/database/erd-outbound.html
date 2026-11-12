@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Outbound ERD · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../database/index.html">Database / ER Diagrams</a><span class="sep">/</span><span class="current">Outbound</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Outbound (Picking, Shipping &amp; Orders)<span class="status-badge status-implemented">Migration-Verified</span></h1>
+    <p class="page-desc">Full column/PK/FK detail for the 8 Outbound tables: <code>picking_tasks</code>, <code>picking_task_items</code>, <code>picking_confirmations</code>, <code>shipments</code>, <code>shipment_items</code>, <code>shipment_confirmations</code>, <code>orders</code>, <code>order_items</code>. <code>picking_tasks</code> is the hub both other headers point back at.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/erd-outbound.html" loading="lazy" title="Outbound ERD diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/erd-outbound.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li><strong>Migration-verified</strong> — all 8 tables trace to real <code>CREATE TABLE</code>/<code>ALTER TABLE</code> statements in <code>backend/migrations/0017</code>–<code>0022</code>, <code>0029</code>, <code>0032</code>, and <code>0038</code>; no model-only tables exist in this schema.</li>
+        <li><strong><code>picking_tasks</code> is the fulfillment hub:</strong> <code>shipments.picking_task_id</code> is a required <code>UNIQUE</code> FK — exactly one shipment per picking task, no partial shipment supported — and <code>orders.picking_task_id</code> is a nullable <code>UNIQUE</code> FK, at most one order per picking task. Both FKs live on the <em>other</em> table, pointing back at <code>picking_tasks.id</code>.</li>
+        <li><code>picking_tasks.order_no</code> is plain text, not a foreign key — the Order Management module (<code>orders</code>/<code>order_items</code>, migration 0038) did not exist when <code>picking_tasks</code> was first created, so no Sales Order entity was available to reference. <code>customer</code> is plain text for the same reason.</li>
+        <li><code>picking_task_items.location_id</code> is the <em>source</em> location only — picking never has a destination the way putaway does, since Confirm only ever removes stock.</li>
+        <li><code>shipment_items.qty</code> is copied from the linked <code>picking_task_items.picked_qty</code> at shipment-creation time and never independently edited afterward — there is no per-line quantity input anywhere in the Shipping UI.</li>
+        <li><code>shipment_items.location_id</code> and <code>picking_task_item_id</code> exist purely for traceability — Shipping performs no inventory mutation of its own (no <code>AddStock</code>/<code>RemoveStock</code>/<code>MoveStock</code> call anywhere in <code>internal/shipping</code>).</li>
+        <li><code>order_items</code> carries no location or lot column — Order Management is deliberately location-agnostic, the same way a real sales order would be; Picking is where a location/lot actually gets chosen.</li>
+        <li><code>orders.external_reference</code> is a nullable <code>UNIQUE</code> column reserved as a future ERP idempotency key, not yet populated by any current workflow.</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/migrations/0017_create_picking_tasks_table.up.sql:17-43</code> — <code>CREATE TABLE picking_tasks</code>; <code>order_no</code> plain text at line 20.</li>
+        <li><code>backend/migrations/0018_create_picking_task_items_table.up.sql:26-46</code> — <code>CREATE TABLE picking_task_items</code>; source-only <code>location_id</code> at line 31.</li>
+        <li><code>backend/migrations/0019_create_picking_confirmations_table.up.sql:9-15</code> — <code>CREATE TABLE picking_confirmations</code>, idempotency guard.</li>
+        <li><code>backend/migrations/0020_create_shipments_table.up.sql:28-63</code> — <code>CREATE TABLE shipments</code>; <code>UNIQUE(picking_task_id)</code> at line 47.</li>
+        <li><code>backend/migrations/0021_create_shipment_items_table.up.sql:21-37</code> — <code>CREATE TABLE shipment_items</code>; FK to <code>picking_task_item_id</code> at line 33.</li>
+        <li><code>backend/migrations/0022_create_shipment_confirmations_table.up.sql:18-24</code> — <code>CREATE TABLE shipment_confirmations</code>, idempotency guard.</li>
+        <li><code>backend/migrations/0029_add_cancelled_status_to_shipments.up.sql:8-11</code> — adds <code>CANCELLED</code> to <code>shipments.status</code>'s CHECK constraint.</li>
+        <li><code>backend/migrations/0032_add_cancellation_audit_to_workflow_tables.up.sql:22-26,40-44</code> — adds cancellation audit columns to <code>picking_tasks</code> and <code>shipments</code>.</li>
+        <li><code>backend/migrations/0038_create_orders_tables.up.sql:17-47</code> — <code>CREATE TABLE orders</code>; <code>UNIQUE(picking_task_id)</code> at line 41, nullable at line 29.</li>
+        <li><code>backend/migrations/0038_create_orders_tables.up.sql:57-67</code> — <code>CREATE TABLE order_items</code>, no location/lot column.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

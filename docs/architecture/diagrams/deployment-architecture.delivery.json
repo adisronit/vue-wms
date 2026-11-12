@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "decb8cc5-7cd9-46ed-956f-4440016af7e1",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "C:\\vue\\vue-wms\\.archify\\architecture-deployment-architecture-20261112-212411\\candidate.json",
+  "output": "C:\\vue\\vue-wms\\docs\\architecture\\diagrams\\deployment-architecture.html",
+  "specification": {
+    "sha256": "08146e3aee8a4bd4351db7865f253340671cd93d4d5ae146a2622c64631b5724",
+    "bytes": 5333
+  },
+  "artifact": {
+    "sha256": "8e7b16bed01a21a83a8eee140d2add91a1bc21d3ad09c115d576927a5066cd61",
+    "bytes": 768857
+  }
+}

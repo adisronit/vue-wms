@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "3c764734-b7a3-4a6d-b685-c053c71fef57",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "C:\\vue\\vue-wms\\.archify\\workflow-picking-20261112-212907\\candidate.json",
+  "output": "C:\\vue\\vue-wms\\docs\\architecture\\diagrams\\workflow-picking.html",
+  "specification": {
+    "sha256": "4406622a512de5fea00795199a4c6e0c956f982a96d499a88a82f42b20b1ae58",
+    "bytes": 8521
+  },
+  "artifact": {
+    "sha256": "005023554b5768ffdaa71e11979414087b634bf2d0d6d08a788b364767301f23",
+    "bytes": 772936
+  }
+}

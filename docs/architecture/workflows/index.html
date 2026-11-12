@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Program Workflows · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><span class="current">Program Workflows</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Program Workflows</h1>
+    <p class="page-desc">Every business process traced end-to-end: trigger endpoint, validation, business rules, transaction boundaries, error/rollback behavior, and completion — each claim backed by a file:line citation into the actual Go source.</p>
+    <div class="card-grid">
+      <a class="card" href="authentication.html"><h3>Authentication<span class="status-badge status-implemented">Implemented</span></h3><p>Login, bcrypt, JWT issuance with permissions embedded at login time.</p></a>
+      <a class="card" href="receiving.html"><h3>Receiving<span class="status-badge status-implemented">Implemented</span></h3><p>Confirm receipt lines, mutate inventory via AddStockTx, idempotent by key.</p></a>
+      <a class="card" href="putaway.html"><h3>Putaway<span class="status-badge status-implemented">Implemented</span></h3><p>Move stock from staging to a STORAGE-zone location via MoveStockTx.</p></a>
+      <a class="card" href="inventory-management.html"><h3>Inventory Management (Core)<span class="status-badge status-implemented">Implemented</span></h3><p>The shared AddStock/RemoveStock/MoveStock/Reserve library every workflow calls into.</p></a>
+      <a class="card" href="picking.html"><h3>Picking<span class="status-badge status-implemented">Implemented</span></h3><p>Reserve at creation, consume at confirm, release on short-pick or cancel.</p></a>
+      <a class="card" href="shipping.html"><h3>Shipping<span class="status-badge status-implemented">Implemented</span></h3><p>Requires a completed picking task; never touches inventory itself.</p></a>
+      <a class="card" href="stock-adjustment.html"><h3>Stock Adjustment<span class="status-badge status-implemented">Implemented</span></h3><p>A controlled correction document — inventory only mutates at Approve.</p></a>
+      <a class="card" href="stock-count.html"><h3>Stock Count<span class="status-badge status-implemented">Implemented</span></h3><p>Freezes expected qty, applies variance on Confirm with a stale-balance conflict check.</p></a>
+      <a class="card" href="reservation-cancellation.html"><h3>Reservation &amp; Cancellation<span class="status-badge status-implemented">Implemented</span></h3><p>Lives inside Inventory Core (reserved_quantity), not a dedicated module.</p></a>
+    </div>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Overview ERD · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../database/index.html">Database / ER Diagrams</a><span class="sep">/</span><span class="current">Overview ERD</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Overview ERD<span class="status-badge status-implemented">Migration-Verified</span></h1>
+    <p class="page-desc">All 36 tables in the schema, grouped into 7 domain boundaries (Identity &amp; RBAC, Warehouse Structure &amp; Catalog, Inventory Core, Inbound, Outbound, Stock Control, Supporting). Only the key cross-domain relationships are drawn as edges here, not every foreign key, to keep this view readable — full column/PK/FK detail for every table lives on the 5 domain-specific ERD pages linked in the sidebar.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/erd-overview.html" loading="lazy" title="Overview ERD diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/erd-overview.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li><strong>Migration-verified</strong> — all 36 tables trace to real <code>CREATE TABLE</code>/<code>ALTER TABLE</code> statements in <code>backend/migrations/0001</code>–<code>0040</code>; no model-only tables exist in this schema.</li>
+        <li>Identity reaches every other domain as creator/approver via <code>users.created_by</code>/<code>approved_by</code> (summarized in notes here rather than drawn as individual edges, since nearly every table has one) and scopes roles to warehouses via <code>role_warehouse_access</code>.</li>
+        <li>Inbound, Outbound, and Stock Control each mutate <code>inventory</code> through the same shared primitives (<code>AddStock</code>/<code>RemoveStock</code>/<code>MoveStock</code>/<code>Reserve</code>); one representative edge per domain is drawn (<code>receipts</code>, <code>picking_tasks</code>, <code>stock_adjustments</code>) rather than every mutating table.</li>
+        <li><code>picking_tasks</code> is the Outbound fulfillment hub: a required 1:1 with <code>shipments</code> and a nullable 0..1:1 with <code>orders</code>, both enforced by <code>UNIQUE</code> foreign keys on the <em>other</em> table pointing back at <code>picking_tasks.id</code>.</li>
+        <li><code>stock_counts</code> can generate <code>stock_adjustments</code> via the nullable <code>source_stock_count_id</code> column, added later by migration 0031.</li>
+        <li>Shipping performs no inventory mutation of its own and so has no direct edge into Inventory Core — see the Outbound ERD for the full picking/shipping/orders shape.</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/migrations/0001_create_roles_table.up.sql:4-14</code> — <code>CREATE TABLE roles</code>.</li>
+        <li><code>backend/migrations/0004_create_users_table.up.sql:5-20</code> — <code>CREATE TABLE users</code>.</li>
+        <li><code>backend/migrations/0009_create_inventory_table.up.sql:32-52</code> — <code>CREATE TABLE inventory</code>, the shared balance table every mutating domain writes through.</li>
+        <li><code>backend/migrations/0011_create_receipts_table.up.sql:20-46</code> — <code>CREATE TABLE receipts</code> (Inbound's representative writer).</li>
+        <li><code>backend/migrations/0017_create_picking_tasks_table.up.sql:17-43</code> — <code>CREATE TABLE picking_tasks</code>, the Outbound hub.</li>
+        <li><code>backend/migrations/0020_create_shipments_table.up.sql:28-63</code> — <code>shipments.picking_task_id</code> is a required <code>UNIQUE</code> FK back to <code>picking_tasks</code>.</li>
+        <li><code>backend/migrations/0023_create_stock_adjustments_table.up.sql:10-33</code> — <code>CREATE TABLE stock_adjustments</code> (Stock Control's representative writer).</li>
+        <li><code>backend/migrations/0031_add_source_stock_count_to_stock_adjustments.up.sql:14-19</code> — adds the nullable <code>stock_adjustments.source_stock_count_id</code> FK to <code>stock_counts</code>.</li>
+        <li><code>backend/migrations/0038_create_orders_tables.up.sql:17-47</code> — <code>orders.picking_task_id</code> is a nullable <code>UNIQUE</code> FK back to <code>picking_tasks</code>.</li>
+        <li><code>backend/migrations/0040_create_role_warehouse_access_table.up.sql:30-42</code> — <code>CREATE TABLE role_warehouse_access</code>, the newest table in the Identity domain.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

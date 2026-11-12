@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WMS Architecture Portal</title>
+<link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="index.html" class="active">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="system/index.html">Section Overview</a>
+      <a href="system/overall-system-architecture.html">Overall System</a>
+      <a href="system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="database/index.html">Section Overview</a>
+      <a href="database/erd-overview.html">Overview ERD</a>
+      <a href="database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="database/erd-inventory-core.html">Inventory Core</a>
+      <a href="database/erd-inbound.html">Inbound</a>
+      <a href="database/erd-outbound.html">Outbound</a>
+      <a href="database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="workflows/index.html">Section Overview</a>
+      <a href="workflows/authentication.html">Authentication</a>
+      <a href="workflows/receiving.html">Receiving</a>
+      <a href="workflows/putaway.html">Putaway</a>
+      <a href="workflows/inventory-management.html">Inventory Management</a>
+      <a href="workflows/picking.html">Picking</a>
+      <a href="workflows/shipping.html">Shipping</a>
+      <a href="workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="workflows/stock-count.html">Stock Count</a>
+      <a href="workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="api/index.html">Section Overview</a>
+      <a href="api/request-pipeline.html">Request Pipeline</a>
+      <a href="api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · branch <code>main</code><br>Generated from source inspection<br>2026-11-12</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <span class="current">Architecture Home</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+
+    <h1 class="page-title">WMS Architecture Portal</h1>
+    <p class="page-desc">
+      A complete, evidence-based map of the actual WMS implementation at <code>C:\vue\vue-wms</code> — Go/Gin backend,
+      SQL Server via GORM, RabbitMQ for the two genuinely asynchronous workflows, and a Vue 3 frontend. Every diagram
+      and claim on this site traces to real source: a file path and line number, not an assumption. Works fully
+      offline — open this file directly, no backend required.
+    </p>
+
+    <div class="pill-row">
+      <span class="pill">20 backend modules</span>
+      <span class="pill">~90 REST endpoints</span>
+      <span class="pill">36 DB tables, migration-verified</span>
+      <span class="pill">9 workflows traced</span>
+      <span class="pill">2 RabbitMQ queues (business) + 1 dev queue</span>
+    </div>
+
+    <input class="search-box" type="text" placeholder="Search pages (e.g. &quot;picking&quot;, &quot;rabbitmq&quot;, &quot;erd&quot;)…" data-search=".card" />
+
+    <section class="block">
+      <h2>1 · System Architecture</h2>
+      <div class="card-grid">
+        <a class="card" href="system/overall-system-architecture.html"><h3>Overall System Architecture<span class="status-badge status-implemented">Implemented</span></h3><p>Browser → Nginx → Go API → SQL Server / RabbitMQ → Worker.</p></a>
+        <a class="card" href="system/frontend-component-architecture.html"><h3>Frontend Component Architecture<span class="status-badge status-implemented">Implemented</span></h3><p>Router, MainLayout, 20 views — no Pinia, hand-rolled fetch client.</p></a>
+        <a class="card" href="system/backend-layered-architecture.html"><h3>Backend Layered Architecture<span class="status-badge status-implemented">Implemented</span></h3><p>3 entrypoints, 20 modules, shared platform + messaging packages.</p></a>
+        <a class="card" href="system/deployment-architecture.html"><h3>Deployment Architecture<span class="status-badge status-partial">Partial — UAT variant</span></h3><p>Docker Compose services; SQL Server runs outside Docker on the host.</p></a>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2>2 · Database / ER Diagrams</h2>
+      <div class="card-grid">
+        <a class="card" href="database/erd-overview.html"><h3>Overview ERD<span class="status-badge status-implemented">Verified</span></h3><p>All 36 tables, grouped by domain.</p></a>
+        <a class="card" href="database/erd-identity-warehouse.html"><h3>Identity &amp; Warehouse<span class="status-badge status-implemented">Verified</span></h3><p>RBAC, users, warehouses/zones/locations, products.</p></a>
+        <a class="card" href="database/erd-inventory-core.html"><h3>Inventory Core<span class="status-badge status-implemented">Verified</span></h3><p>Balances + append-only transaction ledger.</p></a>
+        <a class="card" href="database/erd-inbound.html"><h3>Inbound<span class="status-badge status-implemented">Verified</span></h3><p>Receiving &amp; Putaway.</p></a>
+        <a class="card" href="database/erd-outbound.html"><h3>Outbound<span class="status-badge status-implemented">Verified</span></h3><p>Picking, Shipping, Orders.</p></a>
+        <a class="card" href="database/erd-stock-control-supporting.html"><h3>Stock Control &amp; Supporting<span class="status-badge status-implemented">Verified</span></h3><p>Adjustments, Counts, Notifications, Export Jobs, Replenishment.</p></a>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2>3 · Program Workflows</h2>
+      <div class="card-grid">
+        <a class="card" href="workflows/authentication.html"><h3>Authentication<span class="status-badge status-implemented">Implemented</span></h3><p>Login, bcrypt, JWT with permissions embedded.</p></a>
+        <a class="card" href="workflows/receiving.html"><h3>Receiving<span class="status-badge status-implemented">Implemented</span></h3><p>Confirm → AddStockTx, idempotent.</p></a>
+        <a class="card" href="workflows/putaway.html"><h3>Putaway<span class="status-badge status-implemented">Implemented</span></h3><p>Confirm → MoveStockTx, STORAGE-zone rule.</p></a>
+        <a class="card" href="workflows/inventory-management.html"><h3>Inventory Management (Core)<span class="status-badge status-implemented">Implemented</span></h3><p>The shared stock-mutation library, never exposed via HTTP.</p></a>
+        <a class="card" href="workflows/picking.html"><h3>Picking<span class="status-badge status-implemented">Implemented</span></h3><p>Reserve → consume/release, batched confirm.</p></a>
+        <a class="card" href="workflows/shipping.html"><h3>Shipping<span class="status-badge status-implemented">Implemented</span></h3><p>Requires a completed picking task; no inventory calls.</p></a>
+        <a class="card" href="workflows/stock-adjustment.html"><h3>Stock Adjustment<span class="status-badge status-implemented">Implemented</span></h3><p>Mutates inventory only at Approve.</p></a>
+        <a class="card" href="workflows/stock-count.html"><h3>Stock Count<span class="status-badge status-implemented">Implemented</span></h3><p>Freeze → variance on Confirm, stale-balance 409.</p></a>
+        <a class="card" href="workflows/reservation-cancellation.html"><h3>Reservation &amp; Cancellation<span class="status-badge status-implemented">Implemented</span></h3><p>Lives in Inventory Core, not a dedicated module.</p></a>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2>4 · API Architecture</h2>
+      <div class="card-grid">
+        <a class="card" href="api/request-pipeline.html"><h3>Request Pipeline<span class="status-badge status-implemented">Implemented</span></h3><p>Middleware chain, auth gate, the one real async branch.</p></a>
+        <a class="card" href="api/endpoints.html"><h3>Endpoint Reference<span class="status-badge status-implemented">Implemented</span></h3><p>All ~90 routes with handler file:line and permission codes.</p></a>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2>5 · Known Gaps &amp; Deviations</h2>
+      <p class="page-desc" style="margin-bottom:14px;">Surfaced explicitly rather than glossed over — found while tracing the actual code, not assumed from the spec.</p>
+      <ul class="note-list">
+        <li><span class="status-badge status-gap">Gap</span> No purchase-order entity — Receiving's <code>expected_qty</code> is user-entered at creation, never validated against an external PO/ASN record.</li>
+        <li><span class="status-badge status-gap">Gap</span> No location capacity/volume constraint — Putaway only checks the destination zone's <em>type</em> is <code>STORAGE</code>, not any numeric capacity.</li>
+        <li><span class="status-badge status-gap">Gap</span> No explicit row-locking or optimistic-version column on <code>inventory</code> — concurrency safety relies entirely on single-statement guarded UPDATEs plus DB CHECK constraints.</li>
+        <li><span class="status-badge status-partial">Deviation</span> The committed <code>docker-compose.yml</code> is a UAT configuration with no containerized SQL Server — all three Go binaries reach SQL Server on the host via <code>host.docker.internal</code>.</li>
+        <li><span class="status-badge status-gap">Dead code</span> <code>fontend/src/views/inventory/NewStockAdjustmentView.vue</code> exists on disk but is never imported or routed anywhere.</li>
+        <li><span class="status-badge status-partial">Stale doc</span> <code>PROJECT_STATUS.md</code> claims QC/Putaway/Shipping roles have zero permissions — the current <code>internal/rbac/catalog.go</code> grants them real permission sets; the doc comment predates a later-phase fix.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="assets/app.js"></script>
+</body>
+</html>

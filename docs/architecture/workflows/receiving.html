@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Receiving · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../workflows/index.html">Program Workflows</a><span class="sep">/</span><span class="current">Receiving</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Receiving<span class="status-badge status-implemented">Implemented</span></h1>
+    <p class="page-desc">Confirming a receipt validates each line against business rules, then writes inventory and the receipt's own received quantities inside one SQL Server transaction guarded by an idempotency key, so retried or duplicate confirmations are handled safely.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/workflow-receiving.html" loading="lazy" title="Receiving diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/workflow-receiving.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li>Trigger is <code>POST /api/v1/receipts/{id}/confirm</code>, gated by the <code>receiving.approve</code> permission — a deliberately higher bar than <code>receiving.create</code>/<code>receiving.update</code>, so RECEIVING staff can build and edit receipts but not confirm the stock movement itself (handler.go:26-34, 51).</li>
+        <li>The HTTP request context is detached (<code>dbctx.Detach</code>) before the transaction opens, specifically to avoid orphaning the transaction if the client disconnects mid-request — a real bug found and fixed in an earlier phase (service.go:322-328).</li>
+        <li>Receipt existence is checked <strong>before</strong> the idempotency-key insert, deliberately, to avoid a raw FK-violation 500 in place of a clean 404 (service.go:332-345).</li>
+        <li>A duplicate idempotency key is <strong>not</strong> treated as an error: the insert fails on its UNIQUE constraint, and the service returns the current (already-correct) receipt state as an idempotent no-op (service.go:347-350, 449-454).</li>
+        <li><code>AddStockTx</code> is called <strong>inside the same open transaction</strong> as the receipt-line updates, via an <code>inventory.Repository</code> bound to the same <code>*gorm.DB</code> — not a second, disconnected transaction (service.go:358, 410-416).</li>
+        <li><code>received_qty</code> is updated with a guarded atomic UPDATE (<code>AdjustReceivedQty</code>), replacing an earlier read-modify-write that had a lost-update race under concurrent confirms (repository.go:323-330).</li>
+        <li>Any error anywhere in the transaction closure — a validation failure, a product/location lookup failure, an inventory-write failure — rolls back the <strong>whole</strong> transaction, including lines already processed earlier in the same call (service.go:312-316).</li>
+        <li><strong>Known gap:</strong> there is no purchase-order entity in this system. <code>expected_qty</code> is simply user-entered when the receipt is created; it is never validated against an external PO.</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/internal/receiving/handler.go:51</code> — route registration: <code>POST /:id/confirm</code> gated by <code>receiving.approve</code>.</li>
+        <li><code>backend/internal/receiving/handler.go:364-386</code> — <code>Handler.Confirm</code> binds the request and calls the service.</li>
+        <li><code>backend/internal/receiving/dto.go:117-120</code> — <code>ConfirmRequest</code> requires <code>idempotency_key</code> and <code>items</code> (min 1).</li>
+        <li><code>backend/internal/receiving/service.go:317-320</code> — empty-items guard returns <code>ErrValidation</code>.</li>
+        <li><code>backend/internal/receiving/service.go:327-331</code> — <code>dbctx.Detach</code>, then <code>s.repo.Transaction(...)</code> opens the real GORM transaction boundary.</li>
+        <li><code>backend/internal/receiving/repository.go:32-36</code> — <code>Repository.Transaction</code> implementation.</li>
+        <li><code>backend/internal/receiving/service.go:332-356</code> — existence check, idempotency insert, and <code>Status.CanConfirm()</code> gate.</li>
+        <li><code>backend/internal/receiving/service.go:363-408</code> — per-line validation: quantity, line ownership, already-COMPLETED guard, serial/lot/expiry rules, destination existence.</li>
+        <li><code>backend/internal/receiving/service.go:410-416</code> and <code>424</code> — <code>AddStockTx</code> call and <code>AdjustReceivedQty</code>, both inside the open transaction.</li>
+        <li><code>backend/internal/receiving/service.go:508-529</code> — <code>computeReceiptStatus</code> recomputes header status from all lines.</li>
+        <li><code>backend/internal/receiving/service.go:449-454</code> — duplicate idempotency key handled as a successful no-op.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

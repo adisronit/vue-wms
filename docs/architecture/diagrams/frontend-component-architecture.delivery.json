@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "bf689d5d-02f6-4dad-af48-bd1ee04b3e24",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "C:\\vue\\vue-wms\\.archify\\architecture-frontend-component-architecture-20261112-212411\\candidate.json",
+  "output": "C:\\vue\\vue-wms\\docs\\architecture\\diagrams\\frontend-component-architecture.html",
+  "specification": {
+    "sha256": "f25ebdca25ae06a6564e885d0a2dc0ef3511e51f69019400d820879d49800a84",
+    "bytes": 5952
+  },
+  "artifact": {
+    "sha256": "c60b45c9966cd849ba76b8065fa31b3f9510b590efde8aae071118ca1f484bb8",
+    "bytes": 772671
+  }
+}

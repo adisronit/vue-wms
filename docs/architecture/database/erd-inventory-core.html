@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Inventory Core ERD · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../database/index.html">Database / ER Diagrams</a><span class="sep">/</span><span class="current">Inventory Core</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Inventory Core<span class="status-badge status-implemented">Migration-Verified</span></h1>
+    <p class="page-desc">Full column/PK/FK detail for the 2 tables at the center of the schema: <code>inventory</code> (the current on-hand balance per product/location/lot) and <code>inventory_transactions</code> (the append-only movement ledger every other domain writes through). <code>products</code>, <code>locations</code>, and <code>users</code> appear here only as external reference nodes — see the Identity &amp; Warehouse ERD for their full detail.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/erd-inventory-core.html" loading="lazy" title="Inventory Core ERD diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/erd-inventory-core.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li><strong>Migration-verified</strong> — both tables trace to real <code>CREATE TABLE</code> statements in <code>backend/migrations/0009</code> and <code>0010</code>; no model-only tables exist in this schema.</li>
+        <li><strong>No explicit row-locking or optimistic-version column exists</strong> on <code>inventory</code>. Concurrency safety relies entirely on single-statement guarded <code>UPDATE</code>s — <code>AdjustBalance</code>/<code>AdjustReservation</code> in <code>internal/inventory/repository.go</code> — plus the table's own <code>CHECK</code> constraints as a database-level backstop, not application-level locking.</li>
+        <li><code>inventory.lot_no</code> is <code>VARCHAR(50) NOT NULL DEFAULT ''</code>, deliberately not nullable: a nullable <code>lot_no</code> would let SQL Server's unique-index NULL semantics silently allow duplicate "no-lot" balance rows for the same product+location instead of merging into one row (the same lesson learned the hard way with <code>products.barcode</code> in migration 0008).</li>
+        <li><code>inventory_transactions.reference_type</code> / <code>reference_id</code> are loosely-typed strings, deliberately not foreign keys — they point at whatever document a workflow uses (a receiving number, an adjustment number, ...) without taking a schema dependency on those workflow tables.</li>
+        <li><code>inventory_transactions</code> is append-only by design: no <code>updated_at</code> column and no <code>UPDATE</code>/<code>DELETE</code> code path anywhere in the codebase.</li>
+        <li><code>inventory</code>'s own <code>CHECK</code> constraints enforce <code>quantity &gt;= 0</code> and <code>0 &lt;= reserved_quantity &lt;= quantity</code> as a hard backstop, independent of whatever the application layer does.</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/migrations/0009_create_inventory_table.up.sql:32-52</code> — <code>CREATE TABLE inventory</code>.</li>
+        <li><code>backend/migrations/0009_create_inventory_table.up.sql:46</code> — <code>UNIQUE(product_id, location_id, lot_no)</code>, the balance identity.</li>
+        <li><code>backend/migrations/0009_create_inventory_table.up.sql:50-51</code> — the two <code>CHECK</code> constraints guarding non-negative and within-bounds quantities.</li>
+        <li><code>backend/migrations/0010_create_inventory_transactions_table.up.sql:26-45</code> — <code>CREATE TABLE inventory_transactions</code>.</li>
+        <li><code>backend/migrations/0010_create_inventory_transactions_table.up.sql:43-44</code> — <code>CHECK(transaction_type IN ('RECEIVE','PUTAWAY','MOVE','PICK','SHIP','ADJUST','RETURN','COUNT'))</code>.</li>
+        <li><code>backend/migrations/0008_create_products_table.up.sql:10-33</code> — <code>products</code>, the external reference target of <code>inventory.product_id</code>.</li>
+        <li><code>backend/migrations/0007_create_locations_table.up.sql:6-20</code> — <code>locations</code>, the external reference target of <code>inventory.location_id</code>.</li>
+        <li><code>backend/migrations/0004_create_users_table.up.sql:5-20</code> — <code>users</code>, the external reference target of <code>inventory_transactions.created_by</code> (nullable).</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

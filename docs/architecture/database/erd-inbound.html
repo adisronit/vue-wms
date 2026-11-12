@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Inbound ERD · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../database/index.html">Database / ER Diagrams</a><span class="sep">/</span><span class="current">Inbound</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Inbound (Receiving &amp; Putaway)<span class="status-badge status-implemented">Migration-Verified</span></h1>
+    <p class="page-desc">Full column/PK/FK detail for the 6 Inbound tables: <code>receipts</code>, <code>receipt_items</code>, <code>receipt_confirmations</code>, <code>putaway_tasks</code>, <code>putaway_task_items</code>, <code>putaway_confirmations</code>.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/erd-inbound.html" loading="lazy" title="Inbound ERD diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/erd-inbound.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li><strong>Migration-verified</strong> — all 6 tables trace to real <code>CREATE TABLE</code>/<code>ALTER TABLE</code> statements in <code>backend/migrations/0011</code>–<code>0016</code> and <code>0032</code>; no model-only tables exist in this schema.</li>
+        <li><strong>No PO cross-validation:</strong> <code>receipts.vendor</code> is a plain string, not a foreign key to a supplier/purchase-order entity — no such entity exists anywhere in this codebase, so there is nothing to validate a receipt's vendor or expected quantities against.</li>
+        <li><code>receipt_items</code> has no <code>CHECK(received_qty &lt;= expected_qty)</code> — over-receipt is a deliberately supported business case, not a rejected one; the create form's own variance display colors a positive variance green rather than flagging it as an error.</li>
+        <li><strong>No location capacity check:</strong> no numeric location capacity/volume constraint exists anywhere in this schema — only zone-type classification (RECEIVING/STORAGE/PICKING/...) constrains where stock can sit, not how much.</li>
+        <li><code>putaway_tasks.receipt_id</code> is a <em>nullable</em> FK to <code>receipts</code> — the normal path pre-loads items from a completed receipt, but the same screen also supports ad-hoc putaway with no source document at all; <code>putaway_task_items.receipt_item_id</code> is nullable for the same reason, line by line.</li>
+        <li><code>putaway_task_items</code> carries two separate FK roles into <code>locations</code> — <code>source_location_id</code> and <code>destination_location_id</code> — both shown as distinct relationships on the diagram.</li>
+        <li>Every <code>*_confirmations</code> table here (<code>receipt_confirmations</code>, <code>putaway_confirmations</code>) is a pure idempotency guard: PK is the client-generated <code>idempotency_key</code>, with one FK back to its own header table — not a classic parent-child relationship.</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/migrations/0011_create_receipts_table.up.sql:20-46</code> — <code>CREATE TABLE receipts</code> (receiving_type/status CHECKs, FK warehouse_id/staging_location_id).</li>
+        <li><code>backend/migrations/0012_create_receipt_items_table.up.sql:18-38</code> — <code>CREATE TABLE receipt_items</code>; no CHECK against <code>expected_qty</code> (see note above).</li>
+        <li><code>backend/migrations/0013_create_receipt_confirmations_table.up.sql:11-17</code> — <code>CREATE TABLE receipt_confirmations</code>, idempotency guard.</li>
+        <li><code>backend/migrations/0014_create_putaway_tasks_table.up.sql:24-48</code> — <code>CREATE TABLE putaway_tasks</code>; <code>receipt_id</code> nullable at line 27.</li>
+        <li><code>backend/migrations/0015_create_putaway_task_items_table.up.sql:31-55</code> — <code>CREATE TABLE putaway_task_items</code>; the two location FK roles at lines 37-38.</li>
+        <li><code>backend/migrations/0016_create_putaway_confirmations_table.up.sql:8-14</code> — <code>CREATE TABLE putaway_confirmations</code>, idempotency guard.</li>
+        <li><code>backend/migrations/0032_add_cancellation_audit_to_workflow_tables.up.sql:28-38</code> — adds <code>cancelled_at</code>/<code>cancelled_by</code>/<code>cancel_remark</code> to both <code>receipts</code> and <code>putaway_tasks</code>.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

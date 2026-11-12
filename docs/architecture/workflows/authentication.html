@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Authentication · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../workflows/index.html">Program Workflows</a><span class="sep">/</span><span class="current">Authentication</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Authentication<span class="status-badge status-implemented">Implemented</span></h1>
+    <p class="page-desc">Login verifies credentials with bcrypt and issues an HS256 JWT that embeds the user's role and permission codes; every protected route then authorizes purely from that token, without a per-request database lookup.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/workflow-authentication.html" loading="lazy" title="Authentication diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/workflow-authentication.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li>Login is fully synchronous: a sequence of independent reads plus one best-effort write, with no multi-statement atomicity requirement, so no SQL transaction and no RabbitMQ are involved (service.go:61-105).</li>
+        <li><strong>ErrInvalidCredentials is deliberately identical</strong> for "no such user" and "wrong password" to prevent username enumeration via the login endpoint (service.go:15-18, 63-65, 70).</li>
+        <li>Account status is checked only after credentials verify, so an inactive/locked account gets its own distinct error (ErrAccountNotActive, 403) once identity is already confirmed (service.go:74-76).</li>
+        <li><code>UpdateLastLogin</code> runs <em>after</em> the token is issued and is best-effort: a failure is logged but never turns a successful login into an error response (service.go:88-96).</li>
+        <li><strong>Known tradeoff / gap:</strong> permissions are embedded directly in the JWT at login time rather than re-queried from SQL Server on every request. A role or permission change for a logged-in user only takes effect the next time that user logs in again — there is no per-request database re-check (permission.go:18-23).</li>
+        <li>Every protected route chains <code>RequireJWT</code> (validates HS256 signature + expiry) then <code>RequirePermission</code> (string-matches the requested code against the JWT's embedded <code>permissions</code> claim) before reaching the handler.</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/internal/auth/handler.go:45</code> — <code>POST /api/v1/auth/login</code> is registered as a public route, no JWT middleware.</li>
+        <li><code>backend/internal/auth/service.go:61-62</code> — <code>Service.Login</code> looks up the user via <code>FindByUsername</code>.</li>
+        <li><code>backend/internal/auth/service.go:63-65</code> and <code>15-18</code> — not-found and wrong-password both map to the same <code>ErrInvalidCredentials</code>, by design.</li>
+        <li><code>backend/internal/auth/service.go:70</code> — <code>bcrypt.CompareHashAndPassword</code> verifies the password hash.</li>
+        <li><code>backend/internal/auth/service.go:74-76</code> — account status gate; non-ACTIVE accounts return <code>ErrAccountNotActive</code>.</li>
+        <li><code>backend/internal/auth/service.go:120-147</code> — <code>buildSummary</code> resolves the role and current permission codes via <code>FindRoleByID</code> + <code>RolePermissionCodes</code>.</li>
+        <li><code>backend/internal/auth/token.go:25-44</code> — <code>IssueToken</code> signs an HS256 JWT embedding <code>username</code>, <code>role_code</code>, and the <code>permissions</code> array directly in the token claims.</li>
+        <li><code>backend/internal/auth/service.go:88-96</code> — best-effort <code>UpdateLastLogin</code> after token issuance; failure is logged, never fails the response.</li>
+        <li><code>backend/internal/platform/middleware/jwt.go:25-59</code> — <code>RequireJWT</code> validates the HS256 signature and expiry on every protected request.</li>
+        <li><code>backend/internal/platform/middleware/permission.go:18-23, 24-42</code> — <code>RequirePermission</code> checks the JWT's embedded claims only; documents the re-login tradeoff.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Inventory Management · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../workflows/index.html">Program Workflows</a><span class="sep">/</span><span class="current">Inventory Management</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Inventory Management<span class="status-badge status-implemented">Implemented</span></h1>
+    <p class="page-desc">This is not an HTTP-triggered workflow but the shared core library every other inventory-moving workflow calls into: a small set of guarded-UPDATE primitives for balance writes and reservation claims, always composed inside the caller's own open transaction.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/workflow-inventory-management.html" loading="lazy" title="Inventory Management diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/workflow-inventory-management.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li><strong>There is deliberately no direct route into this module's mutations.</strong> <code>Handler</code> only wires <code>List</code>/<code>Get</code>/<code>Summary</code>/<code>Transactions</code>/<code>Export</code> (read-only); <code>AddStock</code>/<code>RemoveStock</code>/<code>MoveStock</code> are never reachable from HTTP (handler.go:16-25).</li>
+        <li><code>AddStockTx</code>/<code>addStockTx</code> performs one guarded UPDATE (<code>AdjustBalance</code>); if it affects 0 rows because the balance row doesn't exist yet, it inserts a new balance row, then <strong>always</strong> inserts one <code>inventory_transactions</code> ledger row (service.go:186-191, 417-452).</li>
+        <li><code>RemoveStockTx</code>/<code>removeStockTx</code> uses the same guarded UPDATE with a negative delta; a 0-row result is disambiguated with a follow-up read into <code>ErrNoStock</code> (row absent) vs <code>ErrInsufficientStock</code> (row exists, insufficient) (service.go:198-233, 454-490).</li>
+        <li><code>MoveStockTx</code>/<code>moveStockTx</code> is composed as <code>removeStockTx</code>-at-source plus <code>addStockTx</code>-at-destination sharing one <code>reference_id</code>, both inside one transaction (service.go:239-268, 382-415).</li>
+        <li>Reservation primitives — <code>ReserveStockTx</code>, <code>ReleaseReservationTx</code>, <code>ConsumeReservationTx</code> — only ever claim against the balance's <code>reserved_quantity</code> column: they never write a ledger row and never touch <code>quantity</code> directly. <code>ConsumeReservationTx</code> composes a release with <code>removeStockTx</code>, which does write a PICK-type ledger row (service.go:280-299, 305-320, 333-348).</li>
+        <li><strong>Known gap / explicit design choice:</strong> the guarded single-statement UPDATEs (<code>AdjustBalance</code>, <code>AdjustReservation</code>) are the <strong>sole</strong> concurrency control in this module. There are no explicit row locks (<code>SELECT ... FOR UPDATE</code> / <code>WITH (UPDLOCK)</code>) and no optimistic-version column anywhere. DB CHECK constraints (<code>CK_inventory_quantity_non_negative</code>, <code>CK_inventory_reserved_within_quantity</code>) are the backstop (repository.go:303-333; migrations/0009:50-51).</li>
+        <li>Eight transaction types are enforced by a CHECK constraint: <code>RECEIVE, PUTAWAY, MOVE, PICK, SHIP, ADJUST, RETURN, COUNT</code> (migrations/0010:43-44).</li>
+        <li><strong>Every real caller composes through the <code>*Tx</code> variants</strong>, constructing <code>inventory.NewRepository(tx)</code> bound to its own already-open <code>*gorm.DB</code> — never the self-transacting non-Tx variants. Receiving calls <code>AddStockTx</code>; Putaway calls <code>MoveStockTx</code>; Picking calls Reserve/Release/<code>ConsumeReservationTx</code>; Replenishment calls Reserve/Release/<code>MoveStockTx</code>; Stock Adjustment and Stock Count both call <code>AddStockTx</code>/<code>RemoveStockTx</code>.</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/internal/inventory/handler.go:16-25</code> — only read endpoints are wired to routes; mutation methods are not.</li>
+        <li><code>backend/internal/inventory/service.go:186-191, 417-452</code> — <code>AddStockTx</code> / <code>addStockTx</code>.</li>
+        <li><code>backend/internal/inventory/service.go:198-233, 454-490</code> — <code>RemoveStockTx</code> / <code>removeStockTx</code>.</li>
+        <li><code>backend/internal/inventory/service.go:239-268, 382-415</code> — <code>MoveStockTx</code> / <code>moveStockTx</code> composition.</li>
+        <li><code>backend/internal/inventory/service.go:280-299</code> — <code>ReserveStockTx</code>.</li>
+        <li><code>backend/internal/inventory/service.go:305-320</code> — <code>ReleaseReservationTx</code>.</li>
+        <li><code>backend/internal/inventory/service.go:333-348</code> — <code>ConsumeReservationTx</code> (release + removeStockTx, PICK ledger row).</li>
+        <li><code>backend/internal/inventory/repository.go:303-310</code> — <code>AdjustBalance</code> guarded UPDATE.</li>
+        <li><code>backend/internal/inventory/repository.go:312-333</code> — <code>AdjustReservation</code> guarded UPDATE.</li>
+        <li><code>backend/migrations/0009_create_inventory_table.up.sql:50-51</code> — <code>CK_inventory_quantity_non_negative</code> and <code>CK_inventory_reserved_within_quantity</code> CHECK constraints.</li>
+        <li><code>backend/migrations/0010_create_inventory_transactions_table.up.sql:43-44</code> — transaction-type CHECK constraint listing all 8 types.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

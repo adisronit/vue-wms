@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "d53c88f8-f463-419e-bee7-3a821b8876b1",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "C:\\vue\\vue-wms\\.archify\\workflow-authentication-20261112-212614\\candidate.json",
+  "output": "C:\\vue\\vue-wms\\docs\\architecture\\diagrams\\workflow-authentication.html",
+  "specification": {
+    "sha256": "8082b45686e6ba9006d08bc8171424bdd23ce1c6c84c60a898508fa7ef90b106",
+    "bytes": 8808
+  },
+  "artifact": {
+    "sha256": "ed330e8c96aa69cd9a151a9d6df89f74aac58e246e0a610988725a44d179c752",
+    "bytes": 782359
+  }
+}

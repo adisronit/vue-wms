@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "d7621722-e1b1-4d92-812c-a4ecd1d61e7a",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "C:\\vue\\vue-wms\\.archify\\architecture-backend-layered-architecture-20261112-212411\\candidate.json",
+  "output": "C:\\vue\\vue-wms\\docs\\architecture\\diagrams\\backend-layered-architecture.html",
+  "specification": {
+    "sha256": "74d332df9c7cf1a1a79d3168e5ee62f73073bd4c8b51672977bc22b093e6f0c3",
+    "bytes": 7284
+  },
+  "artifact": {
+    "sha256": "c68fc3a3fe003245cd32fe17bd2500a6c531cc9879596e8ae3f71f593e893254",
+    "bytes": 778259
+  }
+}

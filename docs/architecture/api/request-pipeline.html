@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Request Pipeline · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../api/index.html">API Architecture</a><span class="sep">/</span><span class="current">Request Pipeline</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Request Pipeline<span class="status-badge status-implemented">Implemented</span></h1>
+    <p class="page-desc">Every request to <code>/api/v1/*</code> passes through engine-level middleware, a two-stage JWT + permission gate, and into one of 20 business modules; a small number of named exceptions bypass part of that gate, and exactly one endpoint runs asynchronously through RabbitMQ instead of returning a result directly.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/api-request-pipeline.html" loading="lazy" title="Request Pipeline diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/api-request-pipeline.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li>Engine-level middleware — <code>Recovery</code>, <code>RequestID</code>, <code>RequestLogging</code>, <code>CORS</code> — is wired via <code>engine.Use(...)</code> and must run before <code>engine.Group("/api/v1")</code> creates the route group, because Gin copies the parent's current middleware chain at the moment <code>Group()</code> is called.</li>
+        <li>This ordering was a real, previously-undetected bug: middleware added via a bare <code>engine.Use()</code> call after the group already existed never actually ran for any <code>/api/v1/*</code> route. It was discovered when <code>request_id</code> showed up empty in every transaction log. Most seriously, <code>Recovery()</code> not running meant an unrecovered panic in any handler could have crashed the entire process for every in-flight request.</li>
+        <li>Every protected route passes through two stages in order: <code>RequireJWT(secret)</code> validates the Bearer HS256 token and returns 401 on failure, then <code>RequirePermission(code)</code> string-matches the JWT's embedded <code>permissions</code> claim array and returns 403 on failure.</li>
+        <li>Three named exceptions to the two-stage gate: <code>GET /health</code> has no auth at all; <code>POST /auth/login</code> is public (it is what issues the JWT in the first place); <code>GET /auth/me</code> only requires <code>RequireJWT</code>, with no <code>RequirePermission</code> check.</li>
+        <li>All other routes — 20 business modules in total — sit behind both stages and follow the standard Handler → Service → Repository → SQL Server layering.</li>
+        <li>Exactly one endpoint is asynchronous: <code>POST /reports/inventory-transactions/export</code> creates a PENDING row in <code>export_jobs</code>, publishes a message to the RabbitMQ queue <code>wms.report.export</code>, and returns <code>202 Accepted</code> immediately. The caller polls <code>GET /reports/export-jobs/{id}</code> for status and downloads the result once COMPLETED.</li>
+        <li>This is easy to confuse with the CSV "Export" endpoints that exist on inventory, receiving, putaway, picking, shipping, stockadjustment, and stockcount — those are all synchronous streamed file downloads. They are not jobs, they do not touch <code>export_jobs</code>, and they never involve RabbitMQ.</li>
+        <li>Swagger UI is mounted directly on the raw Gin engine at <code>/swagger/*any</code>, conditionally on <code>cfg.SwaggerEnabled</code> — it sits outside the <code>/api/v1</code> route group entirely, so it is unaffected by the group's auth middleware. It is reachable at <code>http://localhost:8080/swagger/index.html</code>.</li>
+        <li>Every protected handler's swaggo annotation block declares <code>@Security BearerAuth</code>, matching its actual middleware wiring — verified by sampling handlers across modules rather than assumed.</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/cmd/server/main.go:97-102</code> — the four middlewares (<code>Recovery</code>, <code>RequestID</code>, <code>RequestLogging</code>, <code>CORS</code>) passed into <code>apihttp.NewEngine(...)</code>.</li>
+        <li><code>backend/internal/platform/http/router.go:13-27</code> — <code>NewEngine</code>'s doc comment, explaining the historical middleware-ordering bug and its fix in full.</li>
+        <li><code>backend/internal/platform/middleware/jwt.go:25-59</code> — <code>RequireJWT</code>: Bearer HS256 validation, 401 on missing/invalid/expired token.</li>
+        <li><code>backend/internal/platform/middleware/permission.go:24-42</code> — <code>RequirePermission</code>: reads the claims <code>RequireJWT</code> stored in context, 403 if the permission code is absent.</li>
+        <li><code>backend/internal/auth/handler.go:28-29</code> — route registration showing <code>POST /auth/login</code> is public and <code>GET /auth/me</code> is wired with <code>RequireJWT</code> only, no permission check.</li>
+        <li><code>backend/internal/report/handler.go:28-70</code> — the async export route group (gated on <code>stock_inquiry.export</code>) and <code>CreateInventoryTransactionsExport</code>, which creates the PENDING job and returns <code>202 Accepted</code>.</li>
+        <li><code>backend/internal/messaging/rabbitmq/topology.go:38</code> — the <code>wms.report.export</code> queue name constant.</li>
+        <li><code>backend/internal/inventory/handler.go:204</code>, <code>backend/internal/receiving/handler.go:125</code>, <code>backend/internal/putaway/handler.go:115</code>, <code>backend/internal/picking/handler.go:132</code>, <code>backend/internal/shipping/handler.go:123</code>, <code>backend/internal/stockadjustment/handler.go:130</code>, <code>backend/internal/stockcount/handler.go:119</code> — the seven synchronous CSV <code>Export</code> endpoints, each a streamed download rather than a job.</li>
+        <li><code>backend/cmd/server/main.go:196-199</code> — Swagger UI mounted on the raw engine at <code>/swagger/*any</code>, conditional on <code>cfg.SwaggerEnabled</code>.</li>
+        <li><code>backend/internal/user/handler.go:36-51</code> — a sampled protected handler whose swaggo block declares <code>@Security BearerAuth</code>, matching its real route's middleware wiring.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

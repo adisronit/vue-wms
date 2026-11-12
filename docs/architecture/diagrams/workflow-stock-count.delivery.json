@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "4acf037d-4111-4930-9272-4de35f3cd6eb",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "C:\\vue\\vue-wms\\.archify\\workflow-stock-count-20261112-212907\\candidate.json",
+  "output": "C:\\vue\\vue-wms\\docs\\architecture\\diagrams\\workflow-stock-count.html",
+  "specification": {
+    "sha256": "2a1465dfa7cfa51f6993c12e07daf9c879456d164db3bbb0f1d070dfaeb208e1",
+    "bytes": 9257
+  },
+  "artifact": {
+    "sha256": "479fbac64a4339b4cddd90822793dee220e4ee74d38f366c675acad7af33328c",
+    "bytes": 774455
+  }
+}

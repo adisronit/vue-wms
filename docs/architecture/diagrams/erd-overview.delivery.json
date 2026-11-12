@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "965292a4-218c-4de0-998b-3388caa6e93c",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "C:\\vue\\vue-wms\\.archify\\architecture-erd-overview-20261112-212616\\candidate.json",
+  "output": "C:\\vue\\vue-wms\\.archify\\architecture-erd-overview-20261112-212616\\erd-overview.html",
+  "specification": {
+    "sha256": "b7a78972a2f82ababbda9e59874c591af3b481f97a8813a77ab7d9acadfebf39",
+    "bytes": 20784
+  },
+  "artifact": {
+    "sha256": "52767378fcc5c447c71ec7485484c8c218758b11b26c7ccbac3c2eea55de6875",
+    "bytes": 810816
+  }
+}

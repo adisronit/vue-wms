@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Putaway · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../workflows/index.html">Program Workflows</a><span class="sep">/</span><span class="current">Putaway</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Putaway<span class="status-badge status-implemented">Implemented</span></h1>
+    <p class="page-desc">Confirming a putaway task moves stock from a source location to a destination within one SQL Server transaction, enforcing a single zone-type placement rule and recording an issue flag per line when a line cannot be put away.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/workflow-putaway.html" loading="lazy" title="Putaway diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/workflow-putaway.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li>Trigger is <code>POST /api/v1/putaway/{id}/confirm</code>, gated by <code>putaway.approve</code> — the same segregation-of-duties pattern as Receiving: PUTAWAY staff can create tasks but not confirm the stock move (handler.go:25-39, 47).</li>
+        <li>A putaway task optionally links back to the receipt it came from via <code>Task.ReceiptID</code>; <code>GET /putaway/sources/{receiptId}</code> computes the remaining puttable quantity per line as <code>received_qty - SUM(moved_qty)</code> (model.go:103; repository.go:397-428).</li>
+        <li>Per-line confirmation branches on <code>Action</code>: an <code>ISSUE</code> line requires a non-empty remark, flags the item, and skips stock movement entirely — it does not touch inventory or fail the transaction (service.go:315-326).</li>
+        <li><strong>The zone-type check is the entire placement rule.</strong> A CONFIRMED line's destination must be in the same warehouse, <code>ACTIVE</code>, and in a <code>STORAGE</code>-type zone. <strong>Known gap:</strong> there is no numeric capacity or volume check anywhere in putaway (service.go:340-352).</li>
+        <li>Lot number and expiry date are carried forward from the source balance row itself (via <code>FindBalance</code>), not from user input — so "lot identity matches source" and "expiry unchanged" hold by construction, not by a separate check (service.go:361-367).</li>
+        <li><code>MoveStockTx</code> runs inside the same open transaction and is internally composed as a <code>removeStockTx</code>-at-source leg plus an <code>addStockTx</code>-at-destination leg sharing one <code>reference_id</code> — two ledger rows, one all-or-nothing unit (service.go:369-379).</li>
+        <li><code>moved_qty</code> is updated via a guarded atomic UPDATE (<code>AdjustMovedQty</code>), the same lost-update-race fix pattern applied to Receiving's <code>AdjustReceivedQty</code> (repository.go:301-321).</li>
+        <li><code>ErrInsufficientStock</code>/<code>ErrNoStock</code> from the inventory core are translated into a validation error at the putaway layer, and the whole transaction rolls back (service.go:375-378).</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/internal/putaway/handler.go:47</code> — route registration: <code>POST /:id/confirm</code> gated by <code>putaway.approve</code>.</li>
+        <li><code>backend/internal/putaway/handler.go:258-280</code> — <code>Handler.Confirm</code> binds the request and calls the service.</li>
+        <li><code>backend/internal/putaway/model.go:103</code> — <code>Task.ReceiptID</code> is a nullable link back to the originating receipt.</li>
+        <li><code>backend/internal/putaway/repository.go:397-428</code> — remaining puttable quantity computation for <code>GET /sources/{receiptId}</code>.</li>
+        <li><code>backend/internal/putaway/service.go:269-273</code> — <code>dbctx.Detach</code>, then <code>s.repo.Transaction(...)</code> opens the transaction boundary.</li>
+        <li><code>backend/internal/putaway/service.go:291, 295-297</code> — idempotency insert into <code>putaway_confirmations</code> and the <code>CanConfirm</code> status gate.</li>
+        <li><code>backend/internal/putaway/service.go:315-326</code> — ISSUE vs CONFIRMED per-line action branch.</li>
+        <li><code>backend/internal/putaway/service.go:340-352</code> — destination warehouse match, ACTIVE status, and <code>zone_type == STORAGE</code> rule.</li>
+        <li><code>backend/internal/putaway/repository.go:359-375</code> — <code>resolveLocation</code> joins locations to zones to warehouses.</li>
+        <li><code>backend/internal/putaway/service.go:369-379</code> — <code>MoveStockTx</code> call inside the open transaction.</li>
+        <li><code>backend/internal/putaway/repository.go:301-321</code> — <code>AdjustMovedQty</code> guarded atomic UPDATE.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

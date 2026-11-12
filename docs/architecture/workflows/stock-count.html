@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stock Count · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../workflows/index.html">Program Workflows</a><span class="sep">/</span><span class="current">Stock Count</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Stock Count<span class="status-badge status-implemented">Implemented</span></h1>
+    <p class="page-desc">Counting a location freezes a live balance snapshot the moment a line is added, then offers two mutually exclusive ways to apply the resulting variance: Confirm applies it directly, or Create Adjustments defers it into separately-approved stock-adjustment documents.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/workflow-stock-count.html" loading="lazy" title="Stock Count diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/workflow-stock-count.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li>Create (<code>POST /stock-counts</code>) and AddItem (<code>POST /stock-counts/{id}/items</code>, <code>stock_adjustment.update</code>) both reuse <code>stock_adjustment.*</code> permission codes — there are no distinct <code>stock_count.*</code> codes anywhere in this system, including for Confirm (handler.go:39-46).</li>
+        <li><strong>Freeze is literal.</strong> Adding a line reads the LIVE balance via <code>inventory.FindBalance</code> at that exact instant and stores it as the item's <code>SystemQty</code>. Nothing in this package ever writes to that column again (service.go:245-268).</li>
+        <li>RecordCount (<code>PUT /stock-counts/{id}/items/{itemId}</code>) only runs while the count is DRAFT. It computes <code>variance := countQty - item.SystemQty</code> immediately and stores both values as a historical fact, well before Confirm ever runs (service.go:278-324).</li>
+        <li><strong>The stale-balance check is a live-vs-frozen-snapshot comparison, not a version or timestamp column.</strong> Inventory balances carry no version field at all. Confirm re-reads the current live balance inside the same transaction and compares it against the item's frozen <code>SystemQty</code> for every counted line (service.go:398-418).</li>
+        <li>A mismatch returns <code>ErrStaleCount</code> → HTTP 409 <code>STALE_COUNT_CONFLICT</code>, rolling back the <strong>entire</strong> Confirm call, including lines whose variance was already applied earlier in that same call (service.go:417).</li>
+        <li><strong>Confirm and Create Adjustments are mutually exclusive by construction, not by application-level checking alone.</strong> Both call the identical <code>Repository.ClaimStatus</code> — a guarded <code>UPDATE ... WHERE status='DRAFT'</code> — targeting different destination statuses (CONFIRMED vs. ADJUSTMENT_CREATED). Zero rows affected means the other path already won the race (service.go:373-374, 514-515).</li>
+        <li>Confirm applies nonzero variances directly via <code>AddStockTx</code>/<code>RemoveStockTx</code>, type COUNT, inside the claimed transaction (service.go:420-432).</li>
+        <li>Create Adjustments (<code>POST /stock-counts/{id}/create-adjustments</code>, <code>stock_adjustment.create</code>) instead generates one PENDING <code>stockadjustment</code> document per nonzero-variance line via <code>CreateTx</code>, in the same transaction as its own claim. Neither this method nor the documents it creates mutate inventory themselves — that only happens later, when a separate approver confirms each document through stockadjustment's own normal lifecycle (service.go:487-548).</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/internal/stockcount/handler.go:39-46</code> — route table, all five endpoints reusing <code>stock_adjustment.*</code> permissions.</li>
+        <li><code>backend/internal/stockcount/service.go:215-254</code> — <code>AddItem</code> / <code>addItem</code>: live <code>FindBalance</code> read, frozen into <code>SystemQty</code>.</li>
+        <li><code>backend/internal/stockcount/service.go:278-316</code> — <code>RecordCount</code>: DRAFT-only gate, variance computed and stored.</li>
+        <li><code>backend/internal/stockcount/service.go:337-374</code> — <code>Confirm</code>'s idempotency guard and claim-based <code>ClaimStatus(StatusConfirmed)</code>.</li>
+        <li><code>backend/internal/stockcount/service.go:398-418</code> — the stale-balance re-read and comparison against frozen <code>SystemQty</code>; <code>ErrStaleCount</code> defined at line 40.</li>
+        <li><code>backend/internal/stockcount/service.go:420-432</code> — variance application via <code>AddStockTx</code>/<code>RemoveStockTx</code>.</li>
+        <li><code>backend/internal/stockcount/service.go:487-527</code> — <code>CreateAdjustments</code>: variance check and <code>ClaimStatus(StatusAdjustmentCreated)</code>.</li>
+        <li><code>backend/internal/stockcount/service.go:535-543</code> — <code>s.adjustments.CreateTx</code> call, one PENDING document per nonzero line, <code>SourceStockCountID</code> set.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

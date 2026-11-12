@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Backend Layered Architecture · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../system/index.html">System Architecture</a><span class="sep">/</span><span class="current">Backend Layered Architecture</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Backend Layered Architecture<span class="status-badge status-implemented">Implemented</span></h1>
+    <p class="page-desc">The Go backend's internal layering: three cmd/ entrypoints sharing a common platform, messaging, and RBAC layer, and 20 business modules that mostly follow handler → service → repository → model, with two documented exceptions.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/backend-layered-architecture.html" loading="lazy" title="Backend Layered Architecture diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/backend-layered-architecture.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li>auth has no repository.go of its own — it delegates lookups to user.Repository and role.Repository through narrow interfaces.</li>
+        <li>dashboard and health have no repository either — they aggregate other modules' own services (receiving, picking, inventory) instead of owning a table.</li>
+        <li>Every handler's Register(rg, jwtSecret) wires middleware.RequireJWT(secret) first, then a per-route middleware.RequirePermission(code), before the handler method runs.</li>
+        <li>inventory exposes zero HTTP mutation routes. Six modules — receiving, putaway, picking, replenishment, stockadjustment, stockcount — call its *Tx primitives directly as a shared library, joining the caller's own open GORM transaction.</li>
+        <li>Contrary to a naive reading of the call graph, shipping and order do NOT call inventory directly — picking performs the reserve/consume at task-creation and confirm time instead.</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/internal/auth/service.go:32-42</code> — userFinder/roleReader interfaces auth delegates to instead of owning a repository.</li>
+        <li><code>backend/internal/dashboard/service.go:1-9</code> — package doc confirming dashboard owns no table and reads live through other services.</li>
+        <li><code>backend/internal/platform/middleware/jwt.go:25</code> and <code>permission.go:24</code> — RequireJWT and RequirePermission, the two-stage middleware chain every handler wires.</li>
+        <li><code>backend/internal/inventory/handler.go:33-42</code> — Register() shows only GET routes, confirming zero mutation routes.</li>
+        <li><code>backend/internal/receiving/service.go:410</code> and <code>backend/internal/picking/service.go:229-357</code> — real call sites of AddStockTx and ReserveStockTx/ConsumeReservationTx/ReleaseReservationTx.</li>
+        <li><code>backend/internal/shipping/service.go:40,338</code> — explicit comments confirming shipping has no dependency on internal/inventory at all.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

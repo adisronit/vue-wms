@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Identity &amp; Warehouse ERD · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../database/index.html">Database / ER Diagrams</a><span class="sep">/</span><span class="current">Identity &amp; Warehouse</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Identity &amp; Warehouse Structure<span class="status-badge status-implemented">Migration-Verified</span></h1>
+    <p class="page-desc">Full column/PK/FK detail for the 9 tables backing authentication, role-based access control, and the warehouse/zone/location/product hierarchy: <code>roles</code>, <code>permissions</code>, <code>role_permissions</code>, <code>users</code>, <code>role_warehouse_access</code>, <code>warehouses</code>, <code>zones</code>, <code>locations</code>, <code>products</code>.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/erd-identity-warehouse.html" loading="lazy" title="Identity and Warehouse ERD diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/erd-identity-warehouse.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li><strong>Migration-verified</strong> — all 9 tables trace to real <code>CREATE TABLE</code>/<code>ALTER TABLE</code> statements in <code>backend/migrations/0001</code>–<code>0040</code>; no model-only tables exist in this schema.</li>
+        <li><code>products.barcode</code> uses a filtered <code>UNIQUE INDEX ... WHERE barcode IS NOT NULL</code> rather than a plain <code>UNIQUE</code> constraint, because SQL Server treats every <code>NULL</code> as distinct under a plain unique constraint — a plain constraint would still allow duplicate non-null barcodes to slip through once a NULL row exists, so the filtered index is the deliberate workaround.</li>
+        <li><code>products.default_zone</code> is a plain <code>VARCHAR</code>, not a foreign key to <code>zones(id)</code> — the frontend's zone picker has no warehouse context, so it cannot be resolved to a real <code>zones</code> row without inventing a relationship the UI doesn't establish.</li>
+        <li><code>users.warehouse_id</code> (nullable, FK → <code>warehouses</code>) and <code>users.last_login_at</code> were both added later by migration 0039 — no warehouse-scoped authorization logic exists anywhere in the codebase yet, so <code>NULL</code> simply means "not assigned to a specific warehouse."</li>
+        <li><code>role_warehouse_access</code> (migration 0040) is the newest table in this domain, added to back the Role &amp; Permission screen's previously mock-only "Warehouse Access" panel. Its <code>role_id</code> FK cascades on delete (matching <code>role_permissions</code>); its <code>warehouse_id</code> FK does not.</li>
+        <li><code>role_permissions</code> and <code>role_warehouse_access</code> are both pure composite-primary-key join tables with no surrogate <code>id</code> column.</li>
+        <li><code>zones.type</code> is <code>CHECK</code>-constrained to 7 values (RECEIVING/STORAGE/PICKING/PACKING/SHIPPING/QC/HOLD); <code>zones</code> also carries <code>UNIQUE(warehouse_id, code)</code> and <code>locations</code> carries <code>UNIQUE(zone_id, code)</code>.</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/migrations/0001_create_roles_table.up.sql:4-14</code> — <code>CREATE TABLE roles</code> (id PK, UQ code, is_active, timestamps).</li>
+        <li><code>backend/migrations/0002_create_permissions_table.up.sql:5-13</code> — <code>CREATE TABLE permissions</code> (id PK, UQ code, module indexed, action).</li>
+        <li><code>backend/migrations/0003_create_role_permissions_table.up.sql:5-13</code> — <code>CREATE TABLE role_permissions</code>, composite PK, both FKs <code>ON DELETE CASCADE</code>.</li>
+        <li><code>backend/migrations/0004_create_users_table.up.sql:5-20</code> — <code>CREATE TABLE users</code> (UQ username/email, FK role_id, status CHECK).</li>
+        <li><code>backend/migrations/0005_create_warehouses_table.up.sql:7-22</code> — <code>CREATE TABLE warehouses</code>.</li>
+        <li><code>backend/migrations/0006_create_zones_table.up.sql:4-18</code> — <code>CREATE TABLE zones</code> (FK warehouse_id, UQ(warehouse_id, code), type CHECK).</li>
+        <li><code>backend/migrations/0007_create_locations_table.up.sql:6-20</code> — <code>CREATE TABLE locations</code> (FK zone_id, UQ(zone_id, code), aisle/rack/bin).</li>
+        <li><code>backend/migrations/0008_create_products_table.up.sql:10-39</code> — <code>CREATE TABLE products</code> plus the filtered unique barcode index at line 39.</li>
+        <li><code>backend/migrations/0039_add_warehouse_and_last_login_to_users.up.sql:18-32</code> — adds <code>users.warehouse_id</code> (FK, nullable) and <code>users.last_login_at</code>.</li>
+        <li><code>backend/migrations/0040_create_role_warehouse_access_table.up.sql:30-42</code> — <code>CREATE TABLE role_warehouse_access</code> (composite PK, 3 FKs).</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

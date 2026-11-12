@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reservation &amp; Cancellation · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../workflows/index.html">Program Workflows</a><span class="sep">/</span><span class="current">Reservation &amp; Cancellation</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Reservation &amp; Cancellation<span class="status-badge status-implemented">Implemented</span></h1>
+    <p class="page-desc">There is no dedicated Reservation module, service, or table anywhere in the codebase. Reservation is a single column plus three guarded functions inside Inventory Core, consumed by Picking and Replenishment; Order, Receiving, Putaway, and Shipping cancel without ever touching a reservation because none of them ever created one.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/workflow-reservation-cancellation.html" loading="lazy" title="Reservation &amp; Cancellation diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/workflow-reservation-cancellation.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li>Reservation lives entirely inside <code>internal/inventory</code> (Inventory Core) as the <code>inventory.reserved_quantity</code> column. <code>Available()</code> is derived as <code>Quantity - ReservedQuantity</code> and is never itself stored, so it can never drift out of sync.</li>
+        <li>The entire mechanism is one guarded SQL statement, <code>AdjustReservation</code>, wrapped by three service functions: <code>ReserveStockTx</code> (positive delta, claims stock), <code>ReleaseReservationTx</code> (negative delta, frees a claim without moving stock), and <code>ConsumeReservationTx</code> (release paired 1:1 with a real stock deduction at confirm time).</li>
+        <li>None of the three functions write a row to <code>inventory_transactions</code>. A reservation is a claim against an existing balance, never a movement of it — this is stated explicitly in the source comments and is the reason reservation and the movement ledger are two independent concerns.</li>
+        <li>Picking reserves the full ordered quantity at task creation, releases the short/unpicked remainder and consumes the picked portion at confirm, and releases whatever remains on any still-open line at cancel.</li>
+        <li>Picking's <code>Cancel</code> is only reachable while the task is PENDING or IN_PROGRESS — the <code>CanCancel()</code> status guard runs before any reservation line is touched, which is what makes a retried or duplicate cancel call safe (it is rejected before it can double-release).</li>
+        <li>Replenishment follows the identical reserve-at-create pattern, releasing on either <code>Cancel</code> or <code>ReportIssue</code> — two different trigger points that both call the same <code>ReleaseReservationTx</code>.</li>
+        <li>Order's own <code>Cancel</code> deliberately never calls <code>ReleaseReservationTx</code> and never touches inventory at all, because Order itself never reserves anything — reservation ownership belongs entirely to Picking once a picking task exists for the order. Order's cancel is only permitted while the order is still PENDING (pre-picking).</li>
+        <li>Receiving, Putaway, and Shipping all expose a <code>Cancel</code> endpoint, but each is confirmed by source inspection to involve zero reservation or stock-movement calls: Receiving's cancellable state by definition has no stock movement to undo, Putaway never reserves at task-creation time and rejects cancellation once any line has already moved stock, and Shipping's cancel has no inventory dependency at all.</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/internal/inventory/model.go:53</code> — the <code>reserved_quantity</code> column on the <code>Inventory</code> GORM model; <code>model.go:64</code> defines <code>Available()</code> as the derived, never-stored balance.</li>
+        <li><code>backend/internal/inventory/repository.go:324-333</code> — <code>AdjustReservation</code>, the single guarded UPDATE statement that both reserves and releases, with the on-hand and non-negative checks in its WHERE clause.</li>
+        <li><code>backend/internal/inventory/service.go:280-300</code> — <code>ReserveStockTx</code> (positive delta; 0 rows affected means insufficient available stock).</li>
+        <li><code>backend/internal/inventory/service.go:305-321</code> — <code>ReleaseReservationTx</code> (negative delta; 0 rows affected returns <code>ErrReservationUnderflow</code>).</li>
+        <li><code>backend/internal/inventory/service.go:333-349</code> — <code>ConsumeReservationTx</code>, the release-then-remove composite used at Picking confirm time.</li>
+        <li><code>backend/internal/picking/service.go:229</code> — Picking <code>Create</code> reserves the line's full ordered quantity.</li>
+        <li><code>backend/internal/picking/service.go:334</code> and <code>:357</code> — Picking <code>Confirm</code> releases a short line's remainder and consumes a picked line's reservation, respectively.</li>
+        <li><code>backend/internal/picking/handler.go:57</code> — route <code>POST /picking/{id}/cancel</code>, gated on permission <code>picking.approve</code>.</li>
+        <li><code>backend/internal/picking/service.go:419-489</code> — Picking <code>Cancel</code>: the <code>CanCancel()</code> status guard runs before any reservation line is released; only PENDING/IN_PROGRESS tasks qualify.</li>
+        <li><code>backend/internal/replenishment/service.go:147</code>, <code>:290</code>, <code>:327</code> — Replenishment's reserve-at-create, release-on-cancel, and release-on-report-issue call sites.</li>
+        <li><code>backend/internal/order/handler.go:39</code> and <code>backend/internal/order/service.go:397</code> — Order's <code>Cancel</code> route and service method, which never call into Inventory Core's reservation functions.</li>
+        <li><code>backend/internal/receiving/service.go:470</code>, <code>backend/internal/putaway/service.go:442</code>, <code>backend/internal/shipping/service.go:343</code> — the Cancel implementations for Receiving, Putaway, and Shipping, each confirmed to be a pure status transition.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

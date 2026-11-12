@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Shipping · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+    </nav>
+    <div class="meta">Commit <code>acd089c</code> · main<br>Generated from source inspection</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><a href="../workflows/index.html">Program Workflows</a><span class="sep">/</span><span class="current">Shipping</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Shipping<span class="status-badge status-implemented">Implemented</span></h1>
+    <p class="page-desc">Shipping represents outbound dispatch confirmation only — it has no inventory dependency at all, because Picking already removed the stock when it picked the lines this shipment covers.</p>
+    <section class="block">
+      <h2>Diagram</h2>
+      <div class="diagram-frame-wrap">
+        <iframe src="../diagrams/workflow-shipping.html" loading="lazy" title="Shipping diagram"></iframe>
+      </div>
+      <a class="diagram-open-link" href="../diagrams/workflow-shipping.html" target="_blank" rel="noopener">Open interactive diagram in new tab ↗</a>
+    </section>
+    <section class="block">
+      <h2>Implementation Notes</h2>
+      <ul class="note-list">
+        <li><strong>Shipping has no inventory dependency, by design:</strong> the package is grepped and confirmed to import neither <code>internal/inventory</code> nor its <code>Service</code> type. Across Create, Confirm, and Cancel, no method in this package ever calls <code>AddStock</code>, <code>RemoveStock</code>, or <code>MoveStock</code> (package doc comment, model.go:1-16, service.go:1-14).</li>
+        <li>Create (<code>POST /shipping</code>, <code>shipping.create</code>) requires the linked picking task to be <code>picking.StatusCompleted</code> or <code>picking.StatusShortPick</code>, checked through a narrow <code>pickingChecker</code> interface backed by <code>picking.Service.Get</code> — not a direct dependency on Picking's full service (service.go:129-143).</li>
+        <li>Shippable lines are picking items with <code>ItemStatusCompleted &amp;&amp; PickedQty&gt;0</code>; none found returns <code>ErrNoShippableItems</code> before any database write happens (service.go:138-145).</li>
+        <li>One shipment per picking task is enforced <strong>twice</strong>: an application-level pre-check against <code>FindByPickingTaskID</code>, and a database UNIQUE constraint as the final backstop — either path returns <code>ErrAlreadyShipped</code> (service.go:160-164, 196-201).</li>
+        <li>Item quantities are copied verbatim from the picking task's <code>PickedQty</code>; <code>CreateRequest</code> has no client-supplied <code>Items</code> field at all, so "shipment qty ≤ picked qty" is enforced by construction, not a range check (service.go:129-134, 186-193).</li>
+        <li>Confirm (<code>POST /shipping/{id}/confirm</code>, <code>shipping.approve</code>) applies exactly one of DISPATCH / DELIVER / ISSUE per call, gated by <code>CanDispatch</code>/<code>CanDeliver</code>/<code>CanReportIssue</code>; <strong>no inventory mutation happens anywhere in Confirm</strong> — annotated explicitly in the source, since Picking already removed the stock (service.go:249-320, model.go:47-70).</li>
+        <li>Cancel (<code>POST /shipping/{id}/cancel</code>, <code>shipping.update</code>) is only allowed from READY, i.e. before dispatch, and <strong>never restores or mutates inventory</strong> — cancelling a shipment is not an un-pick; the stock stays removed (service.go:343-376, model.go:85-87).</li>
+        <li>Confirm's idempotency guard follows the same pattern as Picking/Receiving: insert into <code>shipment_confirmations</code> after confirming the shipment exists, so a duplicate key returns the current state instead of re-applying a transition (service.go:264-278, 324-329).</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2>Source Code References</h2>
+      <ul class="evidence-list">
+        <li><code>backend/internal/shipping/handler.go:44-51</code> — route table: Create → <code>shipping.create</code>, Update → <code>shipping.update</code>, Confirm → <code>shipping.approve</code>, Cancel → <code>shipping.update</code>.</li>
+        <li><code>backend/internal/shipping/service.go:1-14</code> — package doc: "no inventory mutation of its own ... grepped to confirm neither internal/inventory nor its Service type is even imported."</li>
+        <li><code>backend/internal/shipping/service.go:129-145</code> — picking-status check and shippable-items filter.</li>
+        <li><code>backend/internal/shipping/service.go:160-164</code> and <code>196-201</code> — duplicate-shipment pre-check and unique-constraint fallback.</li>
+        <li><code>backend/internal/shipping/service.go:177-193</code> — <code>CreateShipment</code> + per-item <code>CreateItem</code>, quantities copied from <code>PickedQty</code>.</li>
+        <li><code>backend/internal/shipping/service.go:249-320</code> — <code>Confirm</code>'s DISPATCH/DELIVER/ISSUE switch; no <code>inventory.*</code> call anywhere in the method.</li>
+        <li><code>backend/internal/shipping/service.go:343-376</code> — <code>Cancel</code>, gated by <code>CanCancel()=READY</code>, no inventory restoration.</li>
+        <li><code>backend/internal/shipping/model.go:1-16</code> — package doc restating the no-inventory-mutation design decision.</li>
+        <li><code>backend/internal/shipping/model.go:47-70</code> — <code>CanDispatch</code>/<code>CanDeliver</code>/<code>CanReportIssue</code> status-machine predicates.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

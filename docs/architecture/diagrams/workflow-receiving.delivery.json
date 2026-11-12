@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "674a8493-8bfc-480f-a660-fb9d0696b1ac",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "C:\\vue\\vue-wms\\.archify\\workflow-receiving-20261112-212614\\candidate.json",
+  "output": "C:\\vue\\vue-wms\\docs\\architecture\\diagrams\\workflow-receiving.html",
+  "specification": {
+    "sha256": "3c0c9f0ed0b94ba3026aad8785b0f7db88d78e9ebdf9d5dd318121a911b6d617",
+    "bytes": 7361
+  },
+  "artifact": {
+    "sha256": "5fcb326b33bf7ee740e56874a648993d32f7301a9a60facd082c5b5361fc12b5",
+    "bytes": 774336
+  }
+}
