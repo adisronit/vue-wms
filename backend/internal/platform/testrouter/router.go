@@ -77,7 +77,8 @@ func BuildTestRouter(db *gorm.DB, jwtSecret string) RouterDeps {
 	userService := user.NewService(userRepo, roleRepo, warehouseRepo)
 	user.NewHandler(userService).Register(v1, jwtSecret)
 
-	tenantService := tenant.NewService(tenant.NewRepository(db))
+	tenantRepo := tenant.NewRepository(db)
+	tenantService := tenant.NewService(tenantRepo, tenantRepo)
 
 	authService := auth.NewService(userRepo, roleRepo, tenantService, jwtSecret, time.Hour)
 	auth.NewHandler(authService).Register(v1, jwtSecret)
