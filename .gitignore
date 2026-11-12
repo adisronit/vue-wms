@@ -16,8 +16,10 @@ backend/docs/docs.go
 backend/docs/swagger.json
 backend/docs/swagger.yaml
 
-# Frontend is its own independent git repository (separate GitHub remote) — do not absorb it here
-/fontend/
+# Frontend build/dependency artifacts (frontend itself IS tracked in this monorepo)
+fontend/node_modules/
+fontend/dist/
+fontend/.vite/
 
 # Database backup — large binary, must never be committed
 wms.bak

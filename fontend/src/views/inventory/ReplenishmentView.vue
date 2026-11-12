@@ -1,0 +1,554 @@
+<template>
+  <div class="space-y-6">
+    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800">Replenishment</h1>
+        <p class="text-slate-500">
+          Move stock from bulk/reserve locations to pick-face locations
+        </p>
+      </div>
+
+      <div class="flex gap-3">
+        <button
+          v-if="canCreate"
+          @click="openRecommendations"
+          class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold"
+        >
+          🎯 Recommendations
+        </button>
+
+        <button
+          v-if="canCreate"
+          @click="openNewTask"
+          class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
+        >
+          + New Task
+        </button>
+      </div>
+    </div>
+
+    <div v-if="loadError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
+      {{ loadError }}
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-200 p-5">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <input v-model="filters.search" type="text" placeholder="Search Task No, SKU, Product..." class="input" />
+
+        <select v-model="filters.status" class="input">
+          <option value="">All Status</option>
+          <option value="PENDING">Pending</option>
+          <option value="IN_PROGRESS">In Progress</option>
+          <option value="COMPLETED">Completed</option>
+          <option value="CANCELLED">Cancelled</option>
+          <option value="ISSUE">Issue</option>
+        </select>
+
+        <select v-model="filters.warehouseId" class="input">
+          <option value="">All Warehouses</option>
+          <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }}</option>
+        </select>
+
+        <button @click="clearFilter" class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold">
+          Clear Filter
+        </button>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="w-full overflow-x-auto">
+        <table class="min-w-[1000px] w-full text-sm">
+          <thead class="bg-slate-50 text-slate-500">
+            <tr>
+              <th class="table-th">Task No.</th>
+              <th class="table-th">SKU</th>
+              <th class="table-th">Product</th>
+              <th class="table-th">From</th>
+              <th class="table-th">To</th>
+              <th class="table-th">Qty</th>
+              <th class="table-th">Warehouse</th>
+              <th class="table-th">Status</th>
+              <th class="table-th text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="loading">
+              <td colspan="9" class="text-center py-10 text-slate-400">Loading replenishment tasks…</td>
+            </tr>
+            <tr v-else-if="taskList.length === 0">
+              <td colspan="9" class="text-center py-10 text-slate-400">No replenishment tasks found</td>
+            </tr>
+            <template v-else>
+              <tr v-for="t in taskList" :key="t.id" class="border-t hover:bg-orange-50">
+                <td class="table-td font-semibold text-slate-800">{{ t.task_no }}</td>
+                <td class="table-td">{{ t.sku }}</td>
+                <td class="table-td">{{ t.product_name }}</td>
+                <td class="table-td">{{ t.from_location_code }}</td>
+                <td class="table-td">{{ t.to_location_code }}</td>
+                <td class="table-td">{{ t.quantity }}</td>
+                <td class="table-td">{{ t.warehouse_code }}</td>
+                <td class="table-td"><span :class="statusBadgeClass(t.status)">{{ t.status }}</span></td>
+                <td class="table-td text-right">
+                  <button @click="openDetail(t.id)" class="text-orange-600 hover:underline font-semibold">View</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- New Task panel -->
+    <div v-if="showNewForm" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-slate-800">New Replenishment Task</h2>
+          <button @click="showNewForm = false" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <p v-if="formError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">{{ formError }}</p>
+
+        <div class="grid grid-cols-1 gap-3">
+          <select v-model="form.warehouseId" @change="onFormWarehouseChange" class="input">
+            <option value="">Select Warehouse</option>
+            <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
+          </select>
+
+          <input v-model="form.sku" type="text" placeholder="Product SKU" class="input" />
+
+          <input v-model="form.lotNo" type="text" placeholder="Lot No (optional)" class="input" />
+
+          <select v-model="form.fromLocationId" class="input">
+            <option value="">From Location</option>
+            <option v-for="l in formLocations" :key="l.id" :value="l.id">{{ l.code }}</option>
+          </select>
+
+          <select v-model="form.toLocationId" class="input">
+            <option value="">To Location</option>
+            <option v-for="l in formLocations" :key="l.id" :value="l.id">{{ l.code }}</option>
+          </select>
+
+          <input v-model.number="form.quantity" type="number" min="0" step="0.01" placeholder="Quantity" class="input" />
+
+          <textarea v-model="form.remark" placeholder="Remark (optional)" class="input" rows="2"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-3">
+          <button @click="showNewForm = false" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold">Cancel</button>
+          <button @click="submitNewTask" :disabled="submitting" class="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold disabled:opacity-60">
+            {{ submitting ? 'Creating…' : 'Create Task' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recommendations panel -->
+    <div v-if="showRecommendations" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-slate-800">Replenishment Recommendations</h2>
+          <button @click="showRecommendations = false" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <div class="flex gap-3">
+          <select v-model="recommendWarehouseId" class="input">
+            <option value="">Select Warehouse</option>
+            <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
+          </select>
+          <button @click="loadRecommendations" :disabled="!recommendWarehouseId || recommendLoading" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold disabled:opacity-60">
+            {{ recommendLoading ? 'Loading…' : 'Load' }}
+          </button>
+        </div>
+
+        <p v-if="recommendError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">{{ recommendError }}</p>
+
+        <div class="overflow-x-auto max-h-96 overflow-y-auto">
+          <table class="min-w-[700px] w-full text-sm">
+            <thead class="bg-slate-50 text-slate-500">
+              <tr>
+                <th class="table-th">SKU</th>
+                <th class="table-th">Product</th>
+                <th class="table-th">From</th>
+                <th class="table-th">To</th>
+                <th class="table-th">Suggested Qty</th>
+                <th class="table-th text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="recommendations.length === 0">
+                <td colspan="6" class="text-center py-8 text-slate-400">No recommendations loaded</td>
+              </tr>
+              <tr v-for="(r, i) in recommendations" :key="i" class="border-t">
+                <td class="table-td">{{ r.sku }}</td>
+                <td class="table-td">{{ r.product_name }}</td>
+                <td class="table-td">{{ r.from_location_code }}</td>
+                <td class="table-td">{{ r.to_location_code }}</td>
+                <td class="table-td">{{ r.suggested_qty }}</td>
+                <td class="table-td text-right">
+                  <button @click="useRecommendation(r)" class="text-orange-600 hover:underline font-semibold">Use</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail drawer -->
+    <div v-if="selectedTask" class="fixed inset-0 bg-black/30 flex items-center justify-end z-50">
+      <div class="bg-white h-full w-full max-w-md p-6 space-y-4 overflow-y-auto">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-slate-800">{{ selectedTask.task_no }}</h2>
+          <button @click="selectedTask = null" class="text-slate-400 hover:text-slate-600">✕</button>
+        </div>
+
+        <p v-if="detailError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">{{ detailError }}</p>
+
+        <div class="space-y-2 text-sm">
+          <p><span class="text-slate-500">Status:</span> <span :class="statusBadgeClass(selectedTask.status)">{{ selectedTask.status }}</span></p>
+          <p><span class="text-slate-500">Product:</span> {{ selectedTask.sku }} — {{ selectedTask.product_name }}</p>
+          <p><span class="text-slate-500">Lot:</span> {{ selectedTask.lot_no || '—' }}</p>
+          <p><span class="text-slate-500">From:</span> {{ selectedTask.from_location_code }}</p>
+          <p><span class="text-slate-500">To:</span> {{ selectedTask.to_location_code }}</p>
+          <p><span class="text-slate-500">Quantity:</span> {{ selectedTask.quantity }}</p>
+          <p><span class="text-slate-500">Warehouse:</span> {{ selectedTask.warehouse_code }}</p>
+          <p v-if="selectedTask.remark"><span class="text-slate-500">Remark:</span> {{ selectedTask.remark }}</p>
+          <p v-if="selectedTask.issue_remark" class="text-red-600"><span class="text-slate-500">Issue:</span> {{ selectedTask.issue_remark }}</p>
+          <p v-if="selectedTask.cancel_remark" class="text-slate-600"><span class="text-slate-500">Cancel Remark:</span> {{ selectedTask.cancel_remark }}</p>
+          <p><span class="text-slate-500">Created By:</span> {{ selectedTask.created_by_name || '—' }}</p>
+        </div>
+
+        <div v-if="canUpdate && selectedTask.status === 'PENDING'" class="flex gap-3">
+          <button @click="doStart" :disabled="actionBusy" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold disabled:opacity-60">
+            Start
+          </button>
+        </div>
+
+        <div v-if="canUpdate && (selectedTask.status === 'PENDING' || selectedTask.status === 'IN_PROGRESS')">
+          <button @click="doConfirm" :disabled="actionBusy" class="w-full px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold disabled:opacity-60">
+            {{ actionBusy ? 'Confirming…' : 'Confirm Move' }}
+          </button>
+        </div>
+
+        <div v-if="canApprove && (selectedTask.status === 'PENDING' || selectedTask.status === 'IN_PROGRESS')" class="space-y-2 pt-2 border-t">
+          <textarea v-model="cancelRemark" placeholder="Cancel remark (optional)" class="input" rows="2"></textarea>
+          <button @click="doCancel" :disabled="actionBusy" class="w-full px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold disabled:opacity-60">
+            Cancel Task
+          </button>
+
+          <textarea v-model="issueRemark" placeholder="Issue remark (required)" class="input" rows="2"></textarea>
+          <button @click="doReportIssue" :disabled="actionBusy" class="w-full px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold disabled:opacity-60">
+            Report Issue
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import {
+  listReplenishment, getReplenishmentTask, createReplenishmentTask,
+  startReplenishmentTask, confirmReplenishmentTask, cancelReplenishmentTask,
+  reportReplenishmentIssue, getReplenishmentRecommendations, newIdempotencyKey
+} from '../../services/replenishment'
+import { listWarehouses, listZones, listLocations } from '../../services/warehouses'
+import { listProducts } from '../../services/products'
+import { hasPermission } from '../../services/auth'
+
+export default {
+  name: 'ReplenishmentPage',
+  data() {
+    return {
+      loading: false,
+      loadError: '',
+      taskList: [],
+      warehouses: [],
+      filters: { search: '', status: '', warehouseId: '' },
+
+      showNewForm: false,
+      formError: '',
+      submitting: false,
+      form: { warehouseId: '', sku: '', lotNo: '', fromLocationId: '', toLocationId: '', quantity: null, remark: '' },
+      formLocations: [],
+
+      showRecommendations: false,
+      recommendWarehouseId: '',
+      recommendLoading: false,
+      recommendError: '',
+      recommendations: [],
+
+      selectedTask: null,
+      detailError: '',
+      actionBusy: false,
+      cancelRemark: '',
+      issueRemark: ''
+    }
+  },
+  computed: {
+    canCreate() { return hasPermission('replenishment.create') },
+    canUpdate() { return hasPermission('replenishment.update') },
+    canApprove() { return hasPermission('replenishment.approve') }
+  },
+  async mounted() {
+    await this.fetchWarehouses()
+    await this.fetchTasks()
+  },
+  methods: {
+    async fetchWarehouses() {
+      try {
+        const res = await listWarehouses({ limit: 100 })
+        this.warehouses = res.data
+      } catch (err) {
+        this.loadError = err.message || 'Failed to load warehouses'
+      }
+    },
+
+    async fetchTasks() {
+      this.loading = true
+      this.loadError = ''
+      try {
+        const res = await listReplenishment(this.filters)
+        this.taskList = res.data
+      } catch (err) {
+        this.loadError = err.message || 'Failed to load replenishment tasks'
+      } finally {
+        this.loading = false
+      }
+    },
+
+    clearFilter() {
+      this.filters = { search: '', status: '', warehouseId: '' }
+      this.fetchTasks()
+    },
+
+    statusBadgeClass(status) {
+      if (status === 'COMPLETED') return 'badge-green'
+      if (status === 'IN_PROGRESS') return 'badge-orange'
+      if (status === 'ISSUE' || status === 'CANCELLED') return 'badge-gray'
+      return 'badge-gray'
+    },
+
+    openNewTask() {
+      this.formError = ''
+      this.form = { warehouseId: '', sku: '', lotNo: '', fromLocationId: '', toLocationId: '', quantity: null, remark: '' }
+      this.formLocations = []
+      this.showNewForm = true
+    },
+
+    async onFormWarehouseChange() {
+      this.formLocations = []
+      if (!this.form.warehouseId) return
+      try {
+        const zonesRes = await listZones(this.form.warehouseId)
+        const allLocations = []
+        for (const zone of zonesRes.data) {
+          const locRes = await listLocations(zone.id)
+          allLocations.push(...locRes.data)
+        }
+        this.formLocations = allLocations
+      } catch (err) {
+        this.formError = err.message || 'Failed to load locations'
+      }
+    },
+
+    async submitNewTask() {
+      this.formError = ''
+      if (!this.form.warehouseId || !this.form.fromLocationId || !this.form.toLocationId || !this.form.quantity) {
+        this.formError = 'Warehouse, from/to location, and quantity are required'
+        return
+      }
+      const trimmedSku = (this.form.sku || '').trim()
+      if (!trimmedSku) {
+        this.formError = 'Product SKU is required'
+        return
+      }
+
+      this.submitting = true
+      try {
+        const productRes = await listProducts({ search: trimmedSku, limit: 20 })
+        const product = productRes.data.find((p) => p.sku === trimmedSku || p.barcode === trimmedSku)
+        if (!product) {
+          this.formError = `No product found for SKU/barcode "${trimmedSku}"`
+          return
+        }
+
+        await createReplenishmentTask({
+          product_id: product.id,
+          from_location_id: this.form.fromLocationId,
+          to_location_id: this.form.toLocationId,
+          lot_no: this.form.lotNo || '',
+          quantity: this.form.quantity,
+          warehouse_id: this.form.warehouseId,
+          remark: this.form.remark || undefined
+        })
+
+        this.showNewForm = false
+        await this.fetchTasks()
+      } catch (err) {
+        this.formError = err.message || 'Failed to create replenishment task'
+      } finally {
+        this.submitting = false
+      }
+    },
+
+    openRecommendations() {
+      this.recommendError = ''
+      this.recommendations = []
+      this.showRecommendations = true
+    },
+
+    async loadRecommendations() {
+      if (!this.recommendWarehouseId) return
+      this.recommendLoading = true
+      this.recommendError = ''
+      try {
+        const res = await getReplenishmentRecommendations(this.recommendWarehouseId)
+        this.recommendations = res.data
+      } catch (err) {
+        this.recommendError = err.message || 'Failed to load recommendations'
+      } finally {
+        this.recommendLoading = false
+      }
+    },
+
+    async useRecommendation(r) {
+      this.showRecommendations = false
+      this.formError = ''
+      this.form = {
+        warehouseId: this.recommendWarehouseId, sku: r.sku, lotNo: r.lot_no,
+        fromLocationId: r.from_location_id, toLocationId: r.to_location_id,
+        quantity: r.suggested_qty, remark: ''
+      }
+      await this.onFormWarehouseChange()
+      this.showNewForm = true
+    },
+
+    async openDetail(id) {
+      this.detailError = ''
+      this.cancelRemark = ''
+      this.issueRemark = ''
+      try {
+        const res = await getReplenishmentTask(id)
+        this.selectedTask = res.data
+      } catch (err) {
+        this.loadError = err.message || 'Failed to load task detail'
+      }
+    },
+
+    async doStart() {
+      this.actionBusy = true
+      this.detailError = ''
+      try {
+        const res = await startReplenishmentTask(this.selectedTask.id)
+        this.selectedTask = res.data
+        await this.fetchTasks()
+      } catch (err) {
+        this.detailError = err.message
+      } finally {
+        this.actionBusy = false
+      }
+    },
+
+    async doConfirm() {
+      this.actionBusy = true
+      this.detailError = ''
+      try {
+        const res = await confirmReplenishmentTask(this.selectedTask.id, { idempotency_key: newIdempotencyKey() })
+        this.selectedTask = res.data
+        await this.fetchTasks()
+      } catch (err) {
+        this.detailError = err.message
+      } finally {
+        this.actionBusy = false
+      }
+    },
+
+    async doCancel() {
+      this.actionBusy = true
+      this.detailError = ''
+      try {
+        const res = await cancelReplenishmentTask(this.selectedTask.id, { remark: this.cancelRemark })
+        this.selectedTask = res.data
+        await this.fetchTasks()
+      } catch (err) {
+        this.detailError = err.message
+      } finally {
+        this.actionBusy = false
+      }
+    },
+
+    async doReportIssue() {
+      if (!this.issueRemark.trim()) {
+        this.detailError = 'Issue remark is required'
+        return
+      }
+      this.actionBusy = true
+      this.detailError = ''
+      try {
+        const res = await reportReplenishmentIssue(this.selectedTask.id, { remark: this.issueRemark })
+        this.selectedTask = res.data
+        await this.fetchTasks()
+      } catch (err) {
+        this.detailError = err.message
+      } finally {
+        this.actionBusy = false
+      }
+    }
+  }
+}
+</script>
+
+<style scoped>
+.input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 11px 14px;
+  outline: none;
+}
+
+.input:focus {
+  border-color: #ea580c;
+  box-shadow: 0 0 0 2px #fed7aa;
+}
+
+.table-th {
+  padding: 14px 16px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.table-td {
+  padding: 14px 16px;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.badge-gray {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.badge-orange {
+  background: #ffedd5;
+  color: #ea580c;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.badge-green {
+  background: #dcfce7;
+  color: #16a34a;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+}
+</style>
