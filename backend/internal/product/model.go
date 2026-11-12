@@ -69,7 +69,10 @@ func (u UOM) IsValid() bool {
 
 // Product is the GORM model for the products table (migrations/0008).
 type Product struct {
-	ID             int64     `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0043, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID       int64     `gorm:"column:tenant_id;not null;default:1"`
 	SKU            string    `gorm:"column:sku"`
 	Name           string    `gorm:"column:name"`
 	Description    string    `gorm:"column:description"`

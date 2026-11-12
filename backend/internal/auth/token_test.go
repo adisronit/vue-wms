@@ -8,7 +8,7 @@ import (
 )
 
 func TestIssueToken_RoundTrip(t *testing.T) {
-	signed, expiresAt, err := IssueToken("test-secret", time.Hour, 42, "admin", "ADMIN", []string{"users.view"})
+	signed, expiresAt, err := IssueToken("test-secret", time.Hour, 42, "admin", 7, "ADMIN", []string{"users.view"})
 	if err != nil {
 		t.Fatalf("IssueToken failed: %v", err)
 	}
@@ -27,8 +27,17 @@ func TestIssueToken_RoundTrip(t *testing.T) {
 	if claims.Subject != "42" {
 		t.Fatalf("subject = %q, want 42", claims.Subject)
 	}
-	if claims.Username != "admin" || claims.RoleCode != "ADMIN" {
-		t.Fatalf("unexpected claims: %+v", claims)
+	if claims.Username != "admin" {
+		t.Fatalf("username = %q, want admin", claims.Username)
+	}
+	if claims.TenantID != 7 {
+		t.Fatalf("tenant id = %d, want 7", claims.TenantID)
+	}
+	if claims.TenantRoleCode != "ADMIN" {
+		t.Fatalf("tenant role code = %q, want ADMIN", claims.TenantRoleCode)
+	}
+	if claims.SessionType != SessionTypeTenant {
+		t.Fatalf("session type = %q, want %q", claims.SessionType, SessionTypeTenant)
 	}
 	if len(claims.Permissions) != 1 || claims.Permissions[0] != "users.view" {
 		t.Fatalf("permissions = %v", claims.Permissions)
@@ -39,7 +48,7 @@ func TestIssueToken_RoundTrip(t *testing.T) {
 }
 
 func TestIssueToken_WrongSecretFailsValidation(t *testing.T) {
-	signed, _, err := IssueToken("secret-a", time.Hour, 1, "admin", "ADMIN", nil)
+	signed, _, err := IssueToken("secret-a", time.Hour, 1, "admin", 7, "ADMIN", nil)
 	if err != nil {
 		t.Fatalf("IssueToken failed: %v", err)
 	}
@@ -54,7 +63,7 @@ func TestIssueToken_WrongSecretFailsValidation(t *testing.T) {
 }
 
 func TestIssueToken_ExpiredTokenFailsValidation(t *testing.T) {
-	signed, _, err := IssueToken("test-secret", -time.Hour, 1, "admin", "ADMIN", nil)
+	signed, _, err := IssueToken("test-secret", -time.Hour, 1, "admin", 7, "ADMIN", nil)
 	if err != nil {
 		t.Fatalf("IssueToken failed: %v", err)
 	}

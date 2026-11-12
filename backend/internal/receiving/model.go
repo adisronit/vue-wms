@@ -97,7 +97,10 @@ const (
 // CancelledAt/CancelledBy/CancelRemark (migrations/0032, Phase 18) are
 // nil until a successful Cancel — see Service.Cancel's own doc.
 type Receipt struct {
-	ID                int64         `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID          int64         `gorm:"column:tenant_id;not null;default:1"`
 	ReceiptNo         string        `gorm:"column:receipt_no"`
 	ReceivingType     ReceivingType `gorm:"column:receiving_type"`
 	ReferenceNo       *string       `gorm:"column:reference_no"`
@@ -137,7 +140,10 @@ func (r *Receipt) applyCancel(userID int64, remark *string, now time.Time) {
 // (migrations/0012). ReceivedQty is cumulative across every confirm
 // call for this line, not one batch's delta.
 type ReceiptItem struct {
-	ID          int64      `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID    int64      `gorm:"column:tenant_id;not null;default:1"`
 	ReceiptID   int64      `gorm:"column:receipt_id"`
 	ProductID   int64      `gorm:"column:product_id"`
 	ExpectedQty float64    `gorm:"column:expected_qty"`
@@ -156,9 +162,12 @@ func (ReceiptItem) TableName() string { return "receipt_items" }
 // Confirmation is the GORM model for the receipt_confirmations table
 // (migrations/0013) — the idempotency guard for Confirm.
 type Confirmation struct {
-	IdempotencyKey string    `gorm:"column:idempotency_key;primaryKey"`
-	ReceiptID      int64     `gorm:"column:receipt_id"`
-	CreatedAt      time.Time `gorm:"column:created_at"`
+	IdempotencyKey string `gorm:"column:idempotency_key;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID  int64     `gorm:"column:tenant_id;not null;default:1"`
+	ReceiptID int64     `gorm:"column:receipt_id"`
+	CreatedAt time.Time `gorm:"column:created_at"`
 }
 
 func (Confirmation) TableName() string { return "receipt_confirmations" }

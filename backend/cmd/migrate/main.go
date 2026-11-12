@@ -307,8 +307,22 @@ func seed(ctx context.Context, db *sql.DB, logger *slog.Logger, cfg *config.Conf
 		return fmt.Errorf("seed role_permissions: %w", err)
 	}
 
-	if err := seedAdminUser(ctx, db, logger, roleIDs); err != nil {
+	adminUserID, err := seedAdminUser(ctx, db, logger, roleIDs)
+	if err != nil {
 		return fmt.Errorf("seed admin user: %w", err)
+	}
+
+	// Phase 29B: give the seeded dev admin an ACTIVE membership in a
+	// bootstrap tenant, so RequireTenantContext's fail-closed check (no
+	// handler ever runs without a verified active tenant membership) has
+	// something to succeed against in a fresh dev/CI environment.
+	// adminUserID is 0 when SEED_ADMIN_USERNAME/PASSWORD were not set —
+	// seedAdminUser already warned about that, so this step is skipped
+	// the same way, silently.
+	if adminUserID != 0 {
+		if err := seedDefaultTenantMembership(ctx, db, logger, adminUserID, roleIDs["ADMIN"]); err != nil {
+			return fmt.Errorf("seed default tenant membership: %w", err)
+		}
 	}
 
 	return nil
@@ -403,45 +417,101 @@ func seedRolePermissions(ctx context.Context, db *sql.DB, logger *slog.Logger, r
 // seedAdminUser creates exactly one development admin user, from
 // SEED_ADMIN_USERNAME/SEED_ADMIN_PASSWORD — never a hardcoded password.
 // Both variables are required; seeding is skipped (not defaulted) when
-// either is absent, and the password is never logged.
-func seedAdminUser(ctx context.Context, db *sql.DB, logger *slog.Logger, roleIDs map[string]int64) error {
+// either is absent, and the password is never logged. Returns the
+// admin's user id (whether just-created or pre-existing) so callers can
+// grant it a tenant membership (see seedDefaultTenantMembership); returns
+// 0, nil when seeding was skipped.
+func seedAdminUser(ctx context.Context, db *sql.DB, logger *slog.Logger, roleIDs map[string]int64) (int64, error) {
 	username := os.Getenv("SEED_ADMIN_USERNAME")
 	password := os.Getenv("SEED_ADMIN_PASSWORD")
 
 	if username == "" || password == "" {
 		logger.Warn("skipping admin user seed: SEED_ADMIN_USERNAME/SEED_ADMIN_PASSWORD not set")
-		return nil
+		return 0, nil
 	}
 
-	var existing int
-	err := db.QueryRowContext(ctx, "SELECT 1 FROM users WHERE username = @p1", username).Scan(&existing)
+	var existingID int64
+	err := db.QueryRowContext(ctx, "SELECT id FROM users WHERE username = @p1", username).Scan(&existingID)
 	if err == nil {
 		logger.Info("admin user already exists, skipping seed", slog.String("username", username))
-		return nil
+		return existingID, nil
 	}
 	if err != sql.ErrNoRows {
-		return err
+		return 0, err
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	adminRoleID, ok := roleIDs["ADMIN"]
 	if !ok {
-		return fmt.Errorf("ADMIN role not found — run role seeding first")
+		return 0, fmt.Errorf("ADMIN role not found — run role seeding first")
 	}
 
-	_, err = db.ExecContext(ctx,
+	var newID int64
+	err = db.QueryRowContext(ctx,
 		`INSERT INTO users (username, password_hash, full_name, email, role_id, status)
-		 VALUES (@p1, @p2, @p3, @p4, @p5, 'ACTIVE')`,
+		 OUTPUT INSERTED.id VALUES (@p1, @p2, @p3, @p4, @p5, 'ACTIVE')`,
 		username, string(hash), "Administrator", username+"@smartwms.local", adminRoleID,
-	)
+	).Scan(&newID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	logger.Info("admin user seeded", slog.String("username", username))
+	return newID, nil
+}
+
+// seedDefaultTenantMembership is Phase 29B's minimal bootstrap: it creates
+// exactly one tenant (slug "default") and grants adminUserID an ACTIVE
+// membership in it with adminRoleID, so RequireTenantContext's fail-closed
+// check and auth.Service.Login's DefaultMembership resolution have
+// something to succeed against in a fresh dev/CI environment.
+//
+// This is deliberately NOT the Phase 29 production backfill: migrating
+// every pre-existing user onto a tenant_id is a database-schema-change
+// concern tracked separately (docs/proposals/wms-saas/migration-plan.md
+// §2, migrations 0043+) and out of this auth-focused phase's scope — only
+// the one admin user this same seed command already creates is granted
+// a membership here, nothing else in the users table is touched.
+func seedDefaultTenantMembership(ctx context.Context, db *sql.DB, logger *slog.Logger, adminUserID, adminRoleID int64) error {
+	const slug = "default"
+
+	var tenantID int64
+	err := db.QueryRowContext(ctx, "SELECT id FROM tenants WHERE slug = @p1", slug).Scan(&tenantID)
+	switch {
+	case err == sql.ErrNoRows:
+		err = db.QueryRowContext(ctx,
+			`INSERT INTO tenants (slug, name, status) OUTPUT INSERTED.id VALUES (@p1, @p2, 'ACTIVE')`,
+			slug, "Default Tenant",
+		).Scan(&tenantID)
+		if err != nil {
+			return err
+		}
+		logger.Info("default tenant seeded", slog.String("slug", slug))
+	case err != nil:
+		return err
+	}
+
+	var exists int
+	err = db.QueryRowContext(ctx,
+		"SELECT 1 FROM tenant_users WHERE tenant_id = @p1 AND user_id = @p2", tenantID, adminUserID,
+	).Scan(&exists)
+	switch {
+	case err == sql.ErrNoRows:
+		if _, err := db.ExecContext(ctx,
+			`INSERT INTO tenant_users (tenant_id, user_id, role_id, status, joined_at)
+			 VALUES (@p1, @p2, @p3, 'ACTIVE', SYSUTCDATETIME())`,
+			tenantID, adminUserID, adminRoleID,
+		); err != nil {
+			return err
+		}
+		logger.Info("default tenant membership seeded", slog.Int64("user_id", adminUserID), slog.Int64("tenant_id", tenantID))
+	case err != nil:
+		return err
+	}
+
 	return nil
 }

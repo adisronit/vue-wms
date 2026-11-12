@@ -42,8 +42,14 @@
       <a href="api/index.html">Section Overview</a>
       <a href="api/request-pipeline.html">Request Pipeline</a>
       <a href="api/endpoints.html">Endpoint Reference</a>
+      <div class="nav-section-title">Phase 29 — SaaS (Proposed)</div>
+      <a href="saas/index.html">Section Overview</a>
+      <a href="saas/erd-tenant-proposed.html">Multi-Tenant ERD</a>
+      <a href="saas/sequence-tenant-authentication.html">Tenant Auth Sequence</a>
+      <a href="saas/architecture-tenant-isolation.html">Tenant Isolation</a>
+      <a href="saas/workflow-tenant-migration-design.html">Migration Design</a>
     </nav>
-    <div class="meta">Commit <code>acd089c</code> · branch <code>main</code><br>Generated from source inspection<br>2026-11-12</div>
+    <div class="meta">Commit <code>235b429</code> · branch <code>docs/wms-29-architecture</code><br>Generated from source inspection<br>2026-11-12</div>
   </aside>
   <main class="content">
     <div class="topbar">
@@ -117,7 +123,7 @@
     </section>
 
     <section class="block">
-      <h2>5 · Known Gaps &amp; Deviations</h2>
+      <h2 id="known-gaps">5 · Known Gaps &amp; Deviations</h2>
       <p class="page-desc" style="margin-bottom:14px;">Surfaced explicitly rather than glossed over — found while tracing the actual code, not assumed from the spec.</p>
       <ul class="note-list">
         <li><span class="status-badge status-gap">Gap</span> No purchase-order entity — Receiving's <code>expected_qty</code> is user-entered at creation, never validated against an external PO/ASN record.</li>
@@ -127,6 +133,17 @@
         <li><span class="status-badge status-gap">Dead code</span> <code>fontend/src/views/inventory/NewStockAdjustmentView.vue</code> exists on disk but is never imported or routed anywhere.</li>
         <li><span class="status-badge status-partial">Stale doc</span> <code>PROJECT_STATUS.md</code> claims QC/Putaway/Shipping roles have zero permissions — the current <code>internal/rbac/catalog.go</code> grants them real permission sets; the doc comment predates a later-phase fix.</li>
       </ul>
+    </section>
+
+    <section class="block">
+      <h2>6 · Phase 29 — Multi-Tenant SaaS (Proposed)</h2>
+      <p class="page-desc" style="margin-bottom:14px;">Phase 27 audited the single-tenant codebase and proposed a multi-tenant design (<code>docs/proposals/wms-saas/</code>). Phase 28 implemented the platform/tenant schema foundation only — 8 new tables, no application code. Everything below that isn't tagged "Implemented" is Phase 29+ design, not yet built. See <a href="../proposals/wms-saas/multi-tenant-architecture.md">the Phase 27 document map</a> for the full narrative.</p>
+      <div class="card-grid">
+        <a class="card" href="saas/erd-tenant-proposed.html"><h3>Multi-Tenant ERD<span class="status-badge status-proposed">Mixed</span></h3><p>8 Phase-28 tables (implemented) vs. tenant_id additions to roles/warehouses (proposed).</p></a>
+        <a class="card" href="saas/sequence-tenant-authentication.html"><h3>Tenant Authentication Sequence<span class="status-badge status-proposed">Proposed</span></h3><p>Today's login issues no tenant claim. active_tenant_id, RequireTenantContext, and tenant-switch are proposed.</p></a>
+        <a class="card" href="saas/architecture-tenant-isolation.html"><h3>Tenant Isolation Architecture<span class="status-badge status-proposed">Mixed</span></h3><p>Every node exists today; the tenant_id plumbing between them (repo params, worker context, file partitioning) is proposed.</p></a>
+        <a class="card" href="saas/workflow-tenant-migration-design.html"><h3>Migration Design<span class="status-badge status-proposed">Mixed</span></h3><p>0041/0042 implemented. Expand→Backfill→Verify→Contract (0043-0046) is the proposed, reviewed-draft sequence.</p></a>
+      </div>
     </section>
   </main>
 </div>

@@ -44,7 +44,10 @@ func (t TransactionType) IsValid() bool {
 // Inventory is the GORM model for the inventory table (migrations/0009)
 // — current balance for one (product, location, lot) tuple.
 type Inventory struct {
-	ID               int64      `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0043, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID         int64      `gorm:"column:tenant_id;not null;default:1"`
 	ProductID        int64      `gorm:"column:product_id"`
 	LocationID       int64      `gorm:"column:location_id"`
 	LotNo            string     `gorm:"column:lot_no"`
@@ -68,7 +71,10 @@ func (i Inventory) Available() float64 {
 // (migrations/0010) — append-only; nothing in this codebase updates or
 // deletes a row here.
 type Transaction struct {
-	ID              int64           `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0043, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID        int64           `gorm:"column:tenant_id;not null;default:1"`
 	TransactionType TransactionType `gorm:"column:transaction_type"`
 	ProductID       int64           `gorm:"column:product_id"`
 	LocationID      int64           `gorm:"column:location_id"`

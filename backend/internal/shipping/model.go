@@ -109,7 +109,10 @@ func (c Carrier) IsValid() bool {
 // CancelledAt/CancelledBy/CancelRemark (migrations/0032, Phase 18) are
 // nil until a successful Cancel — see Service.Cancel's own doc.
 type Shipment struct {
-	ID            int64      `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID      int64      `gorm:"column:tenant_id;not null;default:1"`
 	ShipmentNo    string     `gorm:"column:shipment_no"`
 	PickingTaskID int64      `gorm:"column:picking_task_id"`
 	Carrier       *string    `gorm:"column:carrier"`
@@ -153,7 +156,10 @@ func (s *Shipment) applyCancel(userID int64, remark *string, now time.Time) {
 // task's picked_qty at shipment-creation time and never edited
 // afterward (see package doc).
 type Item struct {
-	ID                int64     `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID          int64     `gorm:"column:tenant_id;not null;default:1"`
 	ShipmentID        int64     `gorm:"column:shipment_id"`
 	PickingTaskItemID int64     `gorm:"column:picking_task_item_id"`
 	ProductID         int64     `gorm:"column:product_id"`
@@ -170,9 +176,12 @@ func (Item) TableName() string { return "shipment_items" }
 // (migrations/0022) — the idempotency guard for Confirm, the same
 // pattern as receiving/putaway/picking's own Confirmation types.
 type Confirmation struct {
-	IdempotencyKey string    `gorm:"column:idempotency_key;primaryKey"`
-	ShipmentID     int64     `gorm:"column:shipment_id"`
-	CreatedAt      time.Time `gorm:"column:created_at"`
+	IdempotencyKey string `gorm:"column:idempotency_key;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID   int64     `gorm:"column:tenant_id;not null;default:1"`
+	ShipmentID int64     `gorm:"column:shipment_id"`
+	CreatedAt  time.Time `gorm:"column:created_at"`
 }
 
 func (Confirmation) TableName() string { return "shipment_confirmations" }

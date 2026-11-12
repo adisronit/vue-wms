@@ -132,7 +132,10 @@ func (s ItemStatus) IsValid() bool {
 
 // Count is the GORM model for the stock_counts table (migrations/0026).
 type Count struct {
-	ID          int64      `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0045, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID    int64      `gorm:"column:tenant_id;not null;default:1"`
 	CountNo     string     `gorm:"column:count_no"`
 	CountType   CountType  `gorm:"column:count_type"`
 	WarehouseID int64      `gorm:"column:warehouse_id"`
@@ -156,7 +159,10 @@ func (Count) TableName() string { return "stock_counts" }
 // left as a query-time derivation, since it is a historical fact about
 // one specific count event that must never silently change.
 type Item struct {
-	ID          int64      `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0045, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID    int64      `gorm:"column:tenant_id;not null;default:1"`
 	CountID     int64      `gorm:"column:stock_count_id"`
 	ProductID   int64      `gorm:"column:product_id"`
 	LocationID  int64      `gorm:"column:location_id"`
@@ -178,9 +184,12 @@ func (Item) TableName() string { return "stock_count_items" }
 // table (migrations/0028) — the idempotency guard for Confirm, the same
 // pattern as every prior phase's own Confirmation type.
 type Confirmation struct {
-	IdempotencyKey string    `gorm:"column:idempotency_key;primaryKey"`
-	CountID        int64     `gorm:"column:stock_count_id"`
-	CreatedAt      time.Time `gorm:"column:created_at"`
+	IdempotencyKey string `gorm:"column:idempotency_key;primaryKey"`
+	// TenantID (migrations/0045, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID  int64     `gorm:"column:tenant_id;not null;default:1"`
+	CountID   int64     `gorm:"column:stock_count_id"`
+	CreatedAt time.Time `gorm:"column:created_at"`
 }
 
 func (Confirmation) TableName() string { return "stock_count_confirmations" }

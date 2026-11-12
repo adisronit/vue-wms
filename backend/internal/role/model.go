@@ -8,8 +8,15 @@ package role
 import "time"
 
 // Role is the GORM model for the roles table (migrations/0001).
+// TenantID (migrations/0043, 0048, Phase 29A) defaults to 1 (the Phase
+// 29A bootstrap tenant) so existing code that builds a Role without
+// setting TenantID keeps working unchanged — GORM omits a zero-value
+// field with a configured `default` tag from the INSERT, letting the
+// database's own DEFAULT constraint supply it instead. See
+// docs/proposals/wms-saas/phase29a-implementation-notes.md.
 type Role struct {
 	ID          int64     `gorm:"column:id;primaryKey"`
+	TenantID    int64     `gorm:"column:tenant_id;not null;default:1"`
 	Code        string    `gorm:"column:code"`
 	Name        string    `gorm:"column:name"`
 	Description string    `gorm:"column:description"`
