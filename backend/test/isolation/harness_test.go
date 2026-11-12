@@ -42,6 +42,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
+	"wms-backend/internal/platform/testrouter"
 	"wms-backend/internal/platform/testsupport"
 )
 
@@ -56,7 +57,7 @@ const testJWTSecret = "isolation-suite-test-secret-not-for-production"
 type harness struct {
 	t      *testing.T
 	db     *gorm.DB
-	deps   testsupport.RouterDeps
+	deps   testrouter.RouterDeps
 	server *httptest.Server
 }
 
@@ -65,7 +66,7 @@ func newHarness(t *testing.T) *harness {
 
 	db := testsupport.ConnectDB(t)
 
-	deps := testsupport.BuildTestRouter(db, testJWTSecret)
+	deps := testrouter.BuildTestRouter(db, testJWTSecret)
 	srv := httptest.NewServer(deps.Engine)
 	t.Cleanup(srv.Close)
 
