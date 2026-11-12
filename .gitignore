@@ -29,3 +29,7 @@ wms.bak
 Thumbs.db
 .vscode/
 .idea/
+
+# Local tool state — not project source
+.archify/
+.claude/
