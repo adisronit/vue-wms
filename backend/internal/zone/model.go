@@ -49,7 +49,12 @@ func (t Type) IsValid() bool {
 
 // Zone is the GORM model for the zones table (migrations/0006).
 type Zone struct {
-	ID          int64     `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	// Denormalized directly onto zones rather than inherited only via
+	// WarehouseID, per tenant-er-design.md §3.
+	TenantID    int64     `gorm:"column:tenant_id;not null;default:1"`
 	WarehouseID int64     `gorm:"column:warehouse_id"`
 	Code        string    `gorm:"column:code"`
 	Name        string    `gorm:"column:name"`

@@ -78,6 +78,43 @@ func TestMigrationFiles_Phase28FilesPresentAndNamed(t *testing.T) {
 	}
 }
 
+// TestMigrationFiles_Phase29aFilesPresentAndNamed mirrors
+// TestMigrationFiles_Phase28FilesPresentAndNamed for the six Phase 29A
+// tenant-isolation migrations. 0047/0048 are intentionally NOT in
+// migration-plan.md's own numbering order (that draft put the unique-
+// constraint swap before the NOT NULL/FK step) — see 0047's own header
+// comment for why reality disagreed with the draft.
+func TestMigrationFiles_Phase29aFilesPresentAndNamed(t *testing.T) {
+	ups, err := loadMigrations(".up.sql")
+	if err != nil {
+		t.Fatalf("load up migrations: %v", err)
+	}
+
+	want := map[string]string{
+		"0043": "0043_add_tenant_id_nullable_master_inventory_rbac.up.sql",
+		"0044": "0044_add_tenant_id_nullable_inbound_outbound.up.sql",
+		"0045": "0045_add_tenant_id_nullable_operations.up.sql",
+		"0046": "0046_backfill_tenant_id.up.sql",
+		"0047": "0047_tenant_id_not_null_and_fk.up.sql",
+		"0048": "0048_tenant_scope_unique_constraints.up.sql",
+	}
+	found := map[string]string{}
+	for _, u := range ups {
+		found[u.version] = u.name
+	}
+
+	for version, name := range want {
+		got, ok := found[version]
+		if !ok {
+			t.Errorf("expected migration version %s to exist, found none", version)
+			continue
+		}
+		if got != name {
+			t.Errorf("version %s: expected file %s, got %s", version, name, got)
+		}
+	}
+}
+
 func TestMigrationFiles_SortedByVersionAscending(t *testing.T) {
 	ups, err := loadMigrations(".up.sql")
 	if err != nil {

@@ -26,7 +26,11 @@ func (s Status) IsValid() bool {
 
 // Location is the GORM model for the locations table (migrations/0007).
 type Location struct {
-	ID        int64     `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	// Denormalized directly onto locations, per tenant-er-design.md §3.
+	TenantID  int64     `gorm:"column:tenant_id;not null;default:1"`
 	ZoneID    int64     `gorm:"column:zone_id"`
 	Code      string    `gorm:"column:code"`
 	Aisle     string    `gorm:"column:aisle"`

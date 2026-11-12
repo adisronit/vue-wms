@@ -36,7 +36,10 @@ const (
 
 // ExportJob is the GORM model for the export_jobs table (migrations/0035).
 type ExportJob struct {
-	ID           int64      `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0045, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID     int64      `gorm:"column:tenant_id;not null;default:1"`
 	JobType      JobType    `gorm:"column:job_type"`
 	Status       Status     `gorm:"column:status"`
 	RequestedBy  int64      `gorm:"column:requested_by"`

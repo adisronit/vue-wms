@@ -64,7 +64,10 @@ func (s Status) CanReportIssue() bool {
 // Task is the GORM model for the replenishment_tasks table
 // (migrations/0036).
 type Task struct {
-	ID             int64      `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0045, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID       int64      `gorm:"column:tenant_id;not null;default:1"`
 	TaskNo         string     `gorm:"column:task_no"`
 	ProductID      int64      `gorm:"column:product_id"`
 	FromLocationID int64      `gorm:"column:from_location_id"`

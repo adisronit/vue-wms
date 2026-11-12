@@ -31,7 +31,10 @@ func (s Status) IsValid() bool {
 // column here, since that would require real inventory quantities,
 // which are out of scope this phase — utilization is not computable yet.
 type Warehouse struct {
-	ID            int64     `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0043, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID      int64     `gorm:"column:tenant_id;not null;default:1"`
 	Code          string    `gorm:"column:code"`
 	Name          string    `gorm:"column:name"`
 	Type          string    `gorm:"column:type"`

@@ -100,7 +100,10 @@ const (
 // CancelledAt/CancelledBy/CancelRemark (migrations/0032, Phase 18) are
 // nil until a successful Cancel — see Service.Cancel's own doc.
 type Task struct {
-	ID           int64      `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID     int64      `gorm:"column:tenant_id;not null;default:1"`
 	PickNo       string     `gorm:"column:pick_no"`
 	OrderNo      string     `gorm:"column:order_no"`
 	Customer     *string    `gorm:"column:customer"`
@@ -143,7 +146,10 @@ func (t *Task) applyCancel(userID int64, remark *string, now time.Time) {
 // written via an atomic guarded UPDATE from the start (see
 // repository.go's AdjustPickedQty) rather than a Go read-modify-write.
 type TaskItem struct {
-	ID            int64      `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID      int64      `gorm:"column:tenant_id;not null;default:1"`
 	PickingTaskID int64      `gorm:"column:picking_task_id"`
 	ProductID     int64      `gorm:"column:product_id"`
 	LotNo         string     `gorm:"column:lot_no"`
@@ -163,9 +169,12 @@ func (TaskItem) TableName() string { return "picking_task_items" }
 // (migrations/0019) — the idempotency guard for Confirm, the same
 // pattern as internal/receiving.Confirmation and internal/putaway.Confirmation.
 type Confirmation struct {
-	IdempotencyKey string    `gorm:"column:idempotency_key;primaryKey"`
-	PickingTaskID  int64     `gorm:"column:picking_task_id"`
-	CreatedAt      time.Time `gorm:"column:created_at"`
+	IdempotencyKey string `gorm:"column:idempotency_key;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID      int64     `gorm:"column:tenant_id;not null;default:1"`
+	PickingTaskID int64     `gorm:"column:picking_task_id"`
+	CreatedAt     time.Time `gorm:"column:created_at"`
 }
 
 func (Confirmation) TableName() string { return "picking_confirmations" }
