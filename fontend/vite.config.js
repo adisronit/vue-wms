@@ -22,7 +22,7 @@ export default defineConfig({
     // dance. Dev-server-only; unrelated to the production build.
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:9099',
         changeOrigin: true,
       },
     },
