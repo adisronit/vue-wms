@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Phase 29 — Multi-Tenant SaaS (Proposed) · WMS Architecture</title>
+<link rel="stylesheet" href="../assets/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS Architecture</div>
+    <nav>
+      <div class="nav-section-title">Overview</div>
+      <a href="../index.html">Portal Home</a>
+      <div class="nav-section-title">System Architecture</div>
+      <a href="../system/index.html">Section Overview</a>
+      <a href="../system/overall-system-architecture.html">Overall System</a>
+      <a href="../system/frontend-component-architecture.html">Frontend Components</a>
+      <a href="../system/backend-layered-architecture.html">Backend Layers</a>
+      <a href="../system/deployment-architecture.html">Deployment</a>
+      <div class="nav-section-title">Database / ER</div>
+      <a href="../database/index.html">Section Overview</a>
+      <a href="../database/erd-overview.html">Overview ERD</a>
+      <a href="../database/erd-identity-warehouse.html">Identity &amp; Warehouse</a>
+      <a href="../database/erd-inventory-core.html">Inventory Core</a>
+      <a href="../database/erd-inbound.html">Inbound</a>
+      <a href="../database/erd-outbound.html">Outbound</a>
+      <a href="../database/erd-stock-control-supporting.html">Stock Control &amp; Supporting</a>
+      <div class="nav-section-title">Program Workflows</div>
+      <a href="../workflows/index.html">Section Overview</a>
+      <a href="../workflows/authentication.html">Authentication</a>
+      <a href="../workflows/receiving.html">Receiving</a>
+      <a href="../workflows/putaway.html">Putaway</a>
+      <a href="../workflows/inventory-management.html">Inventory Management</a>
+      <a href="../workflows/picking.html">Picking</a>
+      <a href="../workflows/shipping.html">Shipping</a>
+      <a href="../workflows/stock-adjustment.html">Stock Adjustment</a>
+      <a href="../workflows/stock-count.html">Stock Count</a>
+      <a href="../workflows/reservation-cancellation.html">Reservation &amp; Cancellation</a>
+      <div class="nav-section-title">API Architecture</div>
+      <a href="../api/index.html">Section Overview</a>
+      <a href="../api/request-pipeline.html">Request Pipeline</a>
+      <a href="../api/endpoints.html">Endpoint Reference</a>
+      <div class="nav-section-title">Phase 29 — SaaS (Proposed)</div>
+      <a href="../saas/index.html" class="active">Section Overview</a>
+      <a href="../saas/erd-tenant-proposed.html">Multi-Tenant ERD</a>
+      <a href="../saas/sequence-tenant-authentication.html">Tenant Auth Sequence</a>
+      <a href="../saas/architecture-tenant-isolation.html">Tenant Isolation</a>
+      <a href="../saas/workflow-tenant-migration-design.html">Migration Design</a>
+    </nav>
+    <div class="meta">Commit <code>235b429</code> · branch <code>docs/wms-29-architecture</code><br>Diagrams built with Archify<br>2026-11-12</div>
+  </aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a href="../index.html">Architecture Home</a><span class="sep">/</span><span class="current">Phase 29 — Multi-Tenant SaaS</span>
+      </div>
+      <button class="theme-toggle" data-theme-toggle>Toggle theme</button>
+    </div>
+    <h1 class="page-title">Phase 29 — Multi-Tenant SaaS: Proposed Design</h1>
+    <p class="page-desc">
+      Phase 27 produced a six-document audit-and-design proposal for turning this single-tenant WMS into a multi-tenant
+      SaaS product (<code>docs/proposals/wms-saas/</code>). Phase 28 implemented the first slice of that proposal —
+      8 new platform/tenant tables, structure only, zero application code. These four diagrams were generated with
+      Archify directly from the Phase 27/28 proposal documents and the actual Phase 28 source, and they distinguish
+      <strong>implemented</strong> fact from <strong>proposed</strong> design throughout. Nothing on this page implies
+      that tenant isolation exists in the running application today — see the
+      <a href="../index.html#known-gaps">Known Gaps</a> section on the portal home and each diagram's own status legend.
+    </p>
+
+    <div class="pill-row">
+      <span class="pill">8 new tables shipped (Phase 28)</span>
+      <span class="pill">0 of ~30 business tables tenant-scoped</span>
+      <span class="pill">0 lines of tenant-enforcement code</span>
+      <span class="pill">6 migrations proposed (0043-0046)</span>
+    </div>
+
+    <section class="block">
+      <h2>Implemented vs Proposed — reading the diagrams</h2>
+      <ul class="note-list">
+        <li><span class="status-badge status-implemented">Implemented</span> Solid connections/nodes with a plain tag, traced to a real file:line in <code>backend/</code> or a real migration in <code>backend/migrations/0041-0042</code>.</li>
+        <li><span class="status-badge status-proposed">Proposed</span> Dashed connections/nodes tagged "PROPOSED", traced to <code>docs/proposals/wms-saas/*.md</code> — a reviewed draft, not yet built. No corresponding code or schema exists in the repository today.</li>
+        <li>Each diagram also carries its own in-page legend card (bottom of the diagram) restating this convention and the specific proposed/implemented boundary for that view.</li>
+      </ul>
+    </section>
+
+    <section class="block">
+      <h2>Diagrams</h2>
+      <div class="card-grid">
+        <a class="card" href="erd-tenant-proposed.html"><h3>Proposed Multi-Tenant ERD<span class="status-badge status-proposed">Mixed</span></h3><p>Phase 28's 8 implemented tables (tenants, tenant_users, tenant_settings, subscription_plans, tenant_subscriptions, tenant_features, tenant_audit_logs, platform_admins) plus the proposed tenant_id addition to roles/warehouses.</p></a>
+        <a class="card" href="sequence-tenant-authentication.html"><h3>Tenant Authentication Sequence<span class="status-badge status-proposed">Proposed</span></h3><p>Login today vs. the proposed active_tenant_id JWT claim, RequireTenantContext re-verification, and the tenant-switch endpoint.</p></a>
+        <a class="card" href="architecture-tenant-isolation.html"><h3>Tenant Isolation Architecture<span class="status-badge status-proposed">Mixed</span></h3><p>RequireJWT → RequirePermission, Handler/Service/Repository, RabbitMQ, and the worker exist today; every tenant_id check between them is proposed.</p></a>
+        <a class="card" href="workflow-tenant-migration-design.html"><h3>Migration Design<span class="status-badge status-proposed">Mixed</span></h3><p>Expand (0041/0042 implemented, 0043 proposed) → Backfill (0044) → Verify (orphan/quantity/backup gates) → Contract (0045/0046).</p></a>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2>Source documents</h2>
+      <ul class="note-list">
+        <li><a href="../../proposals/wms-saas/multi-tenant-architecture.md">multi-tenant-architecture.md</a> — Phase 27 executive summary and document map.</li>
+        <li><a href="../../proposals/wms-saas/phase27-audit-report.md">phase27-audit-report.md</a> — the 161-row, zero-tenant-isolation code audit these diagrams are grounded in.</li>
+        <li><a href="../../proposals/wms-saas/tenant-er-design.md">tenant-er-design.md</a> — the schema the ERD diagram renders.</li>
+        <li><a href="../../proposals/wms-saas/tenant-isolation-security.md">tenant-isolation-security.md</a> — the enforcement design the auth sequence and isolation architecture diagrams render.</li>
+        <li><a href="../../proposals/wms-saas/migration-plan.md">migration-plan.md</a> — the expand/backfill/verify/contract plan the migration-design workflow renders.</li>
+        <li><a href="../../proposals/wms-saas/saas-module-roadmap.md">saas-module-roadmap.md</a> — platform/tenant admin APIs, subscriptions, and the Phase 28-34 rollout sequence.</li>
+        <li><a href="../../proposals/wms-saas/phase28-implementation-notes.md">phase28-implementation-notes.md</a> — what Phase 28 actually built, and the 3 discrepancies found between the Phase 27 docs and the real codebase.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>
