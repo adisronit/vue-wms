@@ -207,6 +207,48 @@ func TestLoad_StockAdjustmentReminderIntervalMinutesOverride(t *testing.T) {
 	}
 }
 
+func TestLoad_TenantMembershipCacheTTLDefault(t *testing.T) {
+	clearEnv(t, allRequiredKeys)
+	setAllRequired(t)
+	// TENANT_MEMBERSHIP_CACHE_TTL left unset.
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if cfg.TenantMembershipCacheTTL != 60*time.Second {
+		t.Errorf("TenantMembershipCacheTTL default = %v, want 60s", cfg.TenantMembershipCacheTTL)
+	}
+}
+
+func TestLoad_TenantMembershipCacheTTLOverride(t *testing.T) {
+	clearEnv(t, allRequiredKeys)
+	setAllRequired(t)
+	t.Setenv("TENANT_MEMBERSHIP_CACHE_TTL", "30s")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if cfg.TenantMembershipCacheTTL != 30*time.Second {
+		t.Errorf("TenantMembershipCacheTTL = %v, want 30s", cfg.TenantMembershipCacheTTL)
+	}
+}
+
+func TestLoad_TenantMembershipCacheTTLInvalidFallsBack(t *testing.T) {
+	clearEnv(t, allRequiredKeys)
+	setAllRequired(t)
+	t.Setenv("TENANT_MEMBERSHIP_CACHE_TTL", "not-a-duration")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if cfg.TenantMembershipCacheTTL != 60*time.Second {
+		t.Errorf("TenantMembershipCacheTTL fallback = %v, want 60s", cfg.TenantMembershipCacheTTL)
+	}
+}
+
 func TestLoad_ExportDirDefault(t *testing.T) {
 	clearEnv(t, allRequiredKeys)
 	setAllRequired(t)

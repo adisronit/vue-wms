@@ -59,6 +59,15 @@ type Config struct {
 	// containers (see docker-compose.yml), so a file the worker writes
 	// is immediately readable by the server's download endpoint.
 	ExportDir string
+
+	// TenantMembershipCacheTTL bounds how long
+	// middleware.RequireTenantContext trusts a positive tenant-membership
+	// check before re-querying the database — the cache window
+	// docs/proposals/wms-saas/tenant-isolation-security.md §3 step 3
+	// leaves as an explicit, accepted latency/revocation-visibility
+	// tradeoff rather than a silent gap. Negative results are never
+	// cached regardless of this value (see that middleware's own doc).
+	TenantMembershipCacheTTL time.Duration
 }
 
 // DatabaseConfig holds SQL Server connection settings.
@@ -148,6 +157,8 @@ func Load() (*Config, error) {
 	if cfg.ExportDir == "" {
 		cfg.ExportDir = "/app/exports"
 	}
+
+	cfg.TenantMembershipCacheTTL = parseDuration(os.Getenv("TENANT_MEMBERSHIP_CACHE_TTL"), 60*time.Second)
 
 	return cfg, nil
 }
