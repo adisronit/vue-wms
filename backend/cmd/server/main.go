@@ -48,6 +48,7 @@ import (
 	"wms-backend/internal/shipping"
 	"wms-backend/internal/stockadjustment"
 	"wms-backend/internal/stockcount"
+	"wms-backend/internal/tenant"
 	"wms-backend/internal/user"
 	"wms-backend/internal/warehouse"
 	"wms-backend/internal/zone"
@@ -118,7 +119,16 @@ func main() {
 	userService := user.NewService(userRepo, roleRepo, warehouseRepo)
 	user.NewHandler(userService).Register(v1, cfg.JWTSecret)
 
-	authService := auth.NewService(userRepo, roleRepo, cfg.JWTSecret, cfg.JWTExpiresIn)
+	// tenantService resolves and re-verifies active tenant membership
+	// (Phase 29B) — used by auth for login/switch-tenant/me today, and
+	// available for RequireTenantContext (internal/platform/middleware)
+	// once a route owner wires that middleware in ahead of its own
+	// handlers, the same "built, tested, not yet mounted anywhere" shape
+	// RequireJWT itself started in during Phase 1.
+	tenantRepo := tenant.NewRepository(dbManager.DB())
+	tenantService := tenant.NewService(tenantRepo)
+
+	authService := auth.NewService(userRepo, roleRepo, tenantService, cfg.JWTSecret, cfg.JWTExpiresIn)
 	auth.NewHandler(authService).Register(v1, cfg.JWTSecret)
 
 	// Warehouse -> Zone -> Location: each service takes a narrow
