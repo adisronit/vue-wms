@@ -1,0 +1,5 @@
+DROP INDEX IX_stock_adjustments_source_stock_count_id ON stock_adjustments;
+
+ALTER TABLE stock_adjustments DROP CONSTRAINT FK_stock_adjustments_source_stock_count;
+
+ALTER TABLE stock_adjustments DROP COLUMN source_stock_count_id;

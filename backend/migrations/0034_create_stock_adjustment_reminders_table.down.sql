@@ -1,0 +1,1 @@
+DROP TABLE stock_adjustment_reminders;

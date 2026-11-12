@@ -1,0 +1,29 @@
+# Environment files — never commit real secrets
+.env
+.env.*
+!.env.example
+!backend/.env.example
+
+# Go
+backend/wms-server
+backend/wms-worker
+backend/*.exe
+backend/*.test
+backend/*.out
+
+# Swagger generated output stays reproducible via `swag init`, not committed
+backend/docs/docs.go
+backend/docs/swagger.json
+backend/docs/swagger.yaml
+
+# Frontend is its own independent git repository (separate GitHub remote) — do not absorb it here
+/fontend/
+
+# Database backup — large binary, must never be committed
+wms.bak
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

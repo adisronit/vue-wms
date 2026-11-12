@@ -1,0 +1,110 @@
+name: wms
+
+# UAT configuration note: SQL Server is NOT run as a container here — it
+# is already installed directly on the UAT Windows Server, and
+# backend/worker/migrate connect out to it via DB_HOST=host.docker.internal
+# (set in .env, see .env.uat.example). The extra_hosts entry on each of
+# those three services below is what makes host.docker.internal resolve
+# reliably regardless of the underlying Docker engine (Docker Desktop
+# provides it automatically; the explicit host-gateway mapping is the
+# documented, portable way to guarantee the same behavior on any Docker
+# Engine). Never point DB_HOST at "localhost" from inside a container —
+# see CLAUDE.md's own "localhost inside a container means that same
+# container" warning; host.docker.internal is the correct alias for the
+# Docker host machine itself.
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: wms-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
+    ports:
+      - "${RABBITMQ_AMQP_PORT:-5672}:5672"
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: migrate
+    container_name: wms-migrate
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["wms-migrate up && wms-migrate seed"]
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: server
+    container_name: wms-backend
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${BACKEND_PORT:-9099}:8080"
+    volumes:
+      - export_files:/app/exports
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: worker
+    container_name: wms-worker
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - export_files:/app/exports
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./fontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+    container_name: wms-frontend
+    ports:
+      - "${FRONTEND_PORT:-9098}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  rabbitmq_data:
+  # Phase 22 — shared server-side storage for generated export files
+  # (Report/Export's async pipeline). Mounted into both backend (serves
+  # the download endpoint) and worker (writes the generated CSV) at the
+  # same path so a file the worker produces is immediately readable by
+  # the server without any additional transfer step.
+  export_files:
