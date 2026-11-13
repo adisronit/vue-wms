@@ -20,6 +20,8 @@
   --status-partial-text: #8a5a00;
   --status-gap-bg: #fde8e8;
   --status-gap-text: #b3261e;
+  --status-proposed-bg: #ece7fd;
+  --status-proposed-text: #5b3fc4;
 }
 
 :root[data-theme="dark"] {
@@ -42,6 +44,8 @@
   --status-partial-text: #f0b955;
   --status-gap-bg: #3b1515;
   --status-gap-text: #ff8a80;
+  --status-proposed-bg: #2c2355;
+  --status-proposed-text: #c3b2ff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -65,6 +69,8 @@
     --status-partial-text: #f0b955;
     --status-gap-bg: #3b1515;
     --status-gap-text: #ff8a80;
+    --status-proposed-bg: #2c2355;
+    --status-proposed-text: #c3b2ff;
   }
 }
 
@@ -220,6 +226,7 @@ p.page-desc {
 .status-implemented { background: var(--status-done-bg); color: var(--status-done-text); }
 .status-partial { background: var(--status-partial-bg); color: var(--status-partial-text); }
 .status-gap { background: var(--status-gap-bg); color: var(--status-gap-text); }
+.status-proposed { background: var(--status-proposed-bg); color: var(--status-proposed-text); }
 
 .card-grid {
   display: grid;

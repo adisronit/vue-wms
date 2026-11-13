@@ -54,7 +54,10 @@ func (s Status) CanUpdate() bool {
 
 // Order is the GORM model for the orders table (migrations/0038).
 type Order struct {
-	ID                int64      `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID          int64      `gorm:"column:tenant_id;not null;default:1"`
 	OrderNo           string     `gorm:"column:order_no"`
 	Customer          *string    `gorm:"column:customer"`
 	ExternalReference *string    `gorm:"column:external_reference"`
@@ -76,7 +79,10 @@ func (Order) TableName() string { return "orders" }
 // no location/lot: an order is location-agnostic, exactly like a real
 // sales order. Location/lot are chosen at CreatePickingTask time.
 type Item struct {
-	ID         int64   `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID   int64   `gorm:"column:tenant_id;not null;default:1"`
 	OrderID    int64   `gorm:"column:order_id"`
 	ProductID  int64   `gorm:"column:product_id"`
 	OrderedQty float64 `gorm:"column:ordered_qty"`

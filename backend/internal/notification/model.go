@@ -27,7 +27,12 @@ const (
 // why uniqueness is scoped to (message_id, user_id), not message_id
 // alone.
 type Notification struct {
-	ID            int64      `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0045, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	// Defense-in-depth per tenant-er-design.md §3 — UserID remains the
+	// primary scoping control for this table.
+	TenantID      int64      `gorm:"column:tenant_id;not null;default:1"`
 	Type          Type       `gorm:"column:type"`
 	UserID        int64      `gorm:"column:user_id"`
 	ReferenceType *string    `gorm:"column:reference_type"`

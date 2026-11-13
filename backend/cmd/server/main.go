@@ -39,6 +39,7 @@ import (
 	apihttp "wms-backend/internal/platform/http"
 	"wms-backend/internal/platform/logging"
 	"wms-backend/internal/platform/middleware"
+	"wms-backend/internal/platformadmin"
 	"wms-backend/internal/product"
 	"wms-backend/internal/putaway"
 	"wms-backend/internal/receiving"
@@ -48,6 +49,7 @@ import (
 	"wms-backend/internal/shipping"
 	"wms-backend/internal/stockadjustment"
 	"wms-backend/internal/stockcount"
+	"wms-backend/internal/tenant"
 	"wms-backend/internal/user"
 	"wms-backend/internal/warehouse"
 	"wms-backend/internal/zone"
@@ -118,8 +120,31 @@ func main() {
 	userService := user.NewService(userRepo, roleRepo, warehouseRepo)
 	user.NewHandler(userService).Register(v1, cfg.JWTSecret)
 
-	authService := auth.NewService(userRepo, roleRepo, cfg.JWTSecret, cfg.JWTExpiresIn)
+	// tenantService resolves and re-verifies active tenant membership
+	// (Phase 29B) — used by auth for login/switch-tenant/me, and
+	// available for RequireTenantContext (internal/platform/middleware)
+	// once a route owner wires that middleware in ahead of its own
+	// handlers, the same "built, tested, not yet mounted anywhere" shape
+	// RequireJWT itself started in during Phase 1. tenantRepo is passed
+	// to NewService twice — once per capability interface
+	// (membershipRepository, managementRepository) — because WMS-29's
+	// Platform Admin tenant-management API (registered below) reuses
+	// the same repository rather than duplicating it.
+	tenantRepo := tenant.NewRepository(dbManager.DB())
+	tenantService := tenant.NewService(tenantRepo, tenantRepo)
+
+	authService := auth.NewService(userRepo, roleRepo, tenantService, cfg.JWTSecret, cfg.JWTExpiresIn)
 	auth.NewHandler(authService).Register(v1, cfg.JWTSecret)
+
+	// Platform Admin tenant-management API (WMS-29): deliberately
+	// authorized on platform_admins alone (middleware.RequirePlatformAdmin),
+	// never on tenant-level RBAC — see that middleware's own doc for why,
+	// and docs/proposals/wms-saas/tenant-isolation-security.md §2-3 for
+	// the design this follows ahead of a full separate
+	// PLATFORM_ADMIN session_type login flow (saas-module-roadmap.md's
+	// Phase 33, not yet built).
+	platformAdminRepo := platformadmin.NewRepository(dbManager.DB())
+	tenant.NewHandler(tenantService).Register(v1, cfg.JWTSecret, platformAdminRepo, logger)
 
 	// Warehouse -> Zone -> Location: each service takes a narrow
 	// interface satisfied by the next package's Repository, so the

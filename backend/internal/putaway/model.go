@@ -98,7 +98,10 @@ const (
 // CancelledAt/CancelledBy/CancelRemark (migrations/0032, Phase 18) are
 // nil until a successful Cancel — see Service.Cancel's own doc.
 type Task struct {
-	ID           int64      `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID     int64      `gorm:"column:tenant_id;not null;default:1"`
 	PutawayNo    string     `gorm:"column:putaway_no"`
 	ReceiptID    *int64     `gorm:"column:receipt_id"`
 	WarehouseID  int64      `gorm:"column:warehouse_id"`
@@ -138,7 +141,10 @@ func (t *Task) applyCancel(userID int64, remark *string, now time.Time) {
 // for this line, not one batch's delta — the same convention Phase 6's
 // ReceiptItem.ReceivedQty established.
 type TaskItem struct {
-	ID                    int64      `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID              int64      `gorm:"column:tenant_id;not null;default:1"`
 	PutawayTaskID         int64      `gorm:"column:putaway_task_id"`
 	ReceiptItemID         *int64     `gorm:"column:receipt_item_id"`
 	ProductID             int64      `gorm:"column:product_id"`
@@ -160,9 +166,12 @@ func (TaskItem) TableName() string { return "putaway_task_items" }
 // (migrations/0016) — the idempotency guard for Confirm, the same
 // pattern as internal/receiving.Confirmation.
 type Confirmation struct {
-	IdempotencyKey string    `gorm:"column:idempotency_key;primaryKey"`
-	PutawayTaskID  int64     `gorm:"column:putaway_task_id"`
-	CreatedAt      time.Time `gorm:"column:created_at"`
+	IdempotencyKey string `gorm:"column:idempotency_key;primaryKey"`
+	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID      int64     `gorm:"column:tenant_id;not null;default:1"`
+	PutawayTaskID int64     `gorm:"column:putaway_task_id"`
+	CreatedAt     time.Time `gorm:"column:created_at"`
 }
 
 func (Confirmation) TableName() string { return "putaway_confirmations" }

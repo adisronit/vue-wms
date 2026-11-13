@@ -101,7 +101,10 @@ func (r Reason) IsValid() bool {
 // joinable replacement for what used to be only a free-text remark
 // mentioning the count's number.
 type Adjustment struct {
-	ID                 int64      `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0045, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID           int64      `gorm:"column:tenant_id;not null;default:1"`
 	AdjustmentNo       string     `gorm:"column:adjustment_no"`
 	Status             Status     `gorm:"column:status"`
 	CreatedBy          *int64     `gorm:"column:created_by"`
@@ -122,7 +125,10 @@ func (Adjustment) TableName() string { return "stock_adjustments" }
 // the mutation); AfterQty is populated from AddStockTx/RemoveStockTx's
 // own returned balance at Approve time — see service.go.
 type Item struct {
-	ID           int64      `gorm:"column:id;primaryKey"`
+	ID int64 `gorm:"column:id;primaryKey"`
+	// TenantID (migrations/0045, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID     int64      `gorm:"column:tenant_id;not null;default:1"`
 	AdjustmentID int64      `gorm:"column:stock_adjustment_id"`
 	ProductID    int64      `gorm:"column:product_id"`
 	LocationID   int64      `gorm:"column:location_id"`
@@ -143,9 +149,12 @@ func (Item) TableName() string { return "stock_adjustment_items" }
 // table (migrations/0025) — the idempotency guard for Confirm, the same
 // pattern as every prior phase's own Confirmation type.
 type Confirmation struct {
-	IdempotencyKey string    `gorm:"column:idempotency_key;primaryKey"`
-	AdjustmentID   int64     `gorm:"column:stock_adjustment_id"`
-	CreatedAt      time.Time `gorm:"column:created_at"`
+	IdempotencyKey string `gorm:"column:idempotency_key;primaryKey"`
+	// TenantID (migrations/0045, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID     int64     `gorm:"column:tenant_id;not null;default:1"`
+	AdjustmentID int64     `gorm:"column:stock_adjustment_id"`
+	CreatedAt    time.Time `gorm:"column:created_at"`
 }
 
 func (Confirmation) TableName() string { return "stock_adjustment_confirmations" }

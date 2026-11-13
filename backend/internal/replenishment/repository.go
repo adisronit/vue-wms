@@ -17,8 +17,11 @@ var ErrDuplicateIdempotencyKey = errors.New("replenishment: idempotency key alre
 
 // Confirmation is the idempotency-guard row — migrations/0037.
 type Confirmation struct {
-	IdempotencyKey      string `gorm:"column:idempotency_key;primaryKey"`
-	ReplenishmentTaskID int64  `gorm:"column:replenishment_task_id"`
+	IdempotencyKey string `gorm:"column:idempotency_key;primaryKey"`
+	// TenantID (migrations/0045, 0048, Phase 29A) defaults to 1 — see
+	// internal/role.Role's own TenantID doc for the full rationale.
+	TenantID            int64 `gorm:"column:tenant_id;not null;default:1"`
+	ReplenishmentTaskID int64 `gorm:"column:replenishment_task_id"`
 }
 
 func (Confirmation) TableName() string { return "replenishment_confirmations" }
