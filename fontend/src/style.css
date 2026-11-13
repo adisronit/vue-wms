@@ -18,8 +18,7 @@
    * system-ui/sans-serif remain as the final fallback for any glyph
    * none of the three webfonts cover.
    */
-  --font-sans: 'IBM Plex Sans', 'IBM Plex Sans Thai', 'Noto Sans SC', ui-sans-serif, system-ui,
-    -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'IBM Plex Sans', 'IBM Plex Sans Thai', 'Noto Sans SC', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   /* Dense operational software reads calmer at 600, not 700 — this
    * single override is what takes every existing `font-bold` utility
@@ -28,15 +27,23 @@
    * 600 weight, with no per-component template edits required.
    */
   --font-weight-bold: 600;
-}
 
-:root {
   /* Semantic type-scale tokens — the Enterprise typography spec's
-   * recommended sizes, named for what they're *for* rather than their
+   * recommended sizes, named for what they are for rather than their
    * raw px value, so a future screen reaches for --fs-label instead of
-   * guessing 13px. Component <style scoped> blocks that used to hardcode
-   * these exact numbers (see internal/*/views/**.vue) now reference the
-   * variables below instead.
+   * guessing 13px. Component style-scoped blocks that used to hardcode
+   * these exact numbers (see the per-view Vue components under
+   * internal views) now reference the variables below instead.
+   *
+   * Declared here inside @theme rather than a separate :root block: a
+   * second, independent :root rule in the same file triggers a dev-server
+   * (vite:css to postcss) CSS-merge bug in this Tailwind v4 toolchain
+   * version that corrupts the generated output (a stray token gets
+   * spliced into the first declaration of the second :root block) —
+   * reproducible via the Vite dev server though not the production
+   * build. @theme is the documented, correct place for any custom CSS
+   * variable in Tailwind v4 regardless of whether it maps to a utility
+   * namespace, so this is not a workaround, just the right spot.
    */
   --fs-body: 0.875rem;       /* 14px */
   --fw-body: 400;
