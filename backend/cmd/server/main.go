@@ -146,6 +146,12 @@ func main() {
 	platformAdminRepo := platformadmin.NewRepository(dbManager.DB())
 	tenant.NewHandler(tenantService).Register(v1, cfg.JWTSecret, platformAdminRepo, logger)
 
+	// Phase 29D: the one capability check the frontend needs to decide
+	// whether to show Platform Administration navigation at all — see
+	// that handler's own doc for why it cannot just reuse the route
+	// group above.
+	platformadmin.NewHandler(platformAdminRepo).Register(v1, cfg.JWTSecret)
+
 	// Warehouse -> Zone -> Location: each service takes a narrow
 	// interface satisfied by the next package's Repository, so the
 	// dependency only ever points one way (warehouse <- zone <-

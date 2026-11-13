@@ -102,7 +102,9 @@
     "roles": "角色与权限",
     "warehouse": "仓库设置",
     "productMaster": "产品主数据",
-    "logout": "退出登录"
+    "logout": "退出登录",
+    "sectionPlatformAdmin": "平台管理",
+    "platformTenants": "租户"
   },
   "layout": {
     "headerTitle": "仓库管理系统",
@@ -1589,6 +1591,89 @@
       "loadRecommendationsFailed": "加载补货建议失败",
       "loadDetailFailed": "加载任务详情失败",
       "issueRemarkRequired": "请输入异常备注"
+    }
+  },
+  "platformAdmin": {
+    "tenants": {
+      "title": "租户管理",
+      "subtitle": "管理 SaaS 租户、入驻状态及生命周期。",
+      "addButton": "+ 新建租户",
+      "filters": {
+        "searchPlaceholder": "按名称或 slug 搜索...",
+        "allStatus": "全部状态"
+      },
+      "table": {
+        "name": "租户名称",
+        "slug": "Slug",
+        "status": "状态",
+        "createdAt": "创建时间",
+        "action": "操作",
+        "loading": "正在加载租户...",
+        "noData": "未找到租户",
+        "view": "查看",
+        "edit": "编辑",
+        "changeStatus": "状态"
+      },
+      "messages": {
+        "loadFailed": "加载租户列表失败"
+      }
+    },
+    "form": {
+      "newTitle": "新建租户",
+      "editTitle": "编辑租户",
+      "subtitle": "用于整个平台的租户身份信息。",
+      "fields": {
+        "name": "租户名称",
+        "namePlaceholder": "例如 Acme Logistics Co.",
+        "slug": "Slug",
+        "slugPlaceholder": "例如 acme-logistics",
+        "slugHint": "仅限小写字母、数字和单个连字符。",
+        "initialStatus": "初始状态"
+      },
+      "cancelButton": "取消",
+      "saveButton": "保存",
+      "saving": "保存中...",
+      "messages": {
+        "nameRequired": "租户名称为必填项",
+        "slugRequired": "Slug 为必填项",
+        "duplicateSlug": "该 Slug 已被其他租户使用",
+        "saveFailed": "保存租户失败"
+      }
+    },
+    "status": {
+      "trial": "试用",
+      "active": "已启用",
+      "suspended": "已暂停",
+      "cancelled": "已取消",
+      "changeTitle": "变更租户状态",
+      "currentStatus": "当前状态",
+      "newStatus": "新状态",
+      "reasonLabel": "原因（选填）",
+      "reasonPlaceholder": "为何要变更此状态？",
+      "cancelButton": "取消",
+      "updateButton": "更新状态",
+      "confirmButton": "确认",
+      "updating": "更新中...",
+      "confirmSuspendMessage": "暂停该租户将阻止其用户访问系统，直到重新启用。是否继续？",
+      "confirmCancelMessage": "取消该租户是一项重大的生命周期变更，可能难以恢复。是否继续？",
+      "messages": {
+        "updateFailed": "更新租户状态失败"
+      }
+    },
+    "detail": {
+      "backButton": "返回租户列表",
+      "editButton": "编辑",
+      "changeStatusButton": "变更状态",
+      "fields": {
+        "slug": "Slug",
+        "status": "状态",
+        "createdAt": "创建时间",
+        "updatedAt": "最近更新",
+        "suspendedAt": "暂停时间",
+        "cancelledAt": "取消时间"
+      },
+      "notFound": "未找到该租户",
+      "loadFailed": "加载租户信息失败"
     }
   }
 }

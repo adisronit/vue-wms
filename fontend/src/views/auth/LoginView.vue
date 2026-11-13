@@ -132,7 +132,7 @@
 </template>
 
 <script>
-import { login } from '../../services/auth'
+import { login, checkPlatformAdminStatus } from '../../services/auth'
 import LanguageSwitcher from '../../components/LanguageSwitcher.vue'
 
 export default {
@@ -169,6 +169,10 @@ export default {
       this.loading = true
       try {
         await login(this.form.username, this.form.password)
+        // Resolved once here so MainLayout's Platform Administration nav
+        // item is correct on the very first render after redirect,
+        // rather than flashing hidden-then-shown a tick later.
+        await checkPlatformAdminStatus()
         this.$router.push('/dashboard')
       } catch (err) {
         // err.message comes from the Go backend's own error envelope
