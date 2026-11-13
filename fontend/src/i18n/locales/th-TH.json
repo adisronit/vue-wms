@@ -69,7 +69,8 @@
       "results": "รายการ",
       "noData": "ไม่พบข้อมูล",
       "previous": "ก่อนหน้า",
-      "next": "ถัดไป"
+      "next": "ถัดไป",
+      "rowsPerPage": "แถวต่อหน้า"
     },
     "messages": {
       "requiredField": "จำเป็นต้องกรอกข้อมูลนี้",

@@ -69,7 +69,8 @@
       "results": "results",
       "noData": "No data found",
       "previous": "Previous",
-      "next": "Next"
+      "next": "Next",
+      "rowsPerPage": "Rows per page"
     },
     "messages": {
       "requiredField": "This field is required",

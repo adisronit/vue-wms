@@ -54,11 +54,20 @@
     >
       <template #head>
         <tr>
-          <th class="table-th">{{ $t('productCategory.table.code') }}</th>
-          <th class="table-th">{{ $t('productCategory.table.name') }}</th>
+          <th class="table-th sortable" :aria-sort="ariaSort('code')" @click="toggleSort('code')">
+            {{ $t('productCategory.table.code') }}
+            <span class="sort-indicator" :class="{ 'sort-indicator--active': sortBy === 'code' }">{{ sortIcon('code') }}</span>
+          </th>
+          <th class="table-th sortable" :aria-sort="ariaSort('name')" @click="toggleSort('name')">
+            {{ $t('productCategory.table.name') }}
+            <span class="sort-indicator" :class="{ 'sort-indicator--active': sortBy === 'name' }">{{ sortIcon('name') }}</span>
+          </th>
           <th class="table-th">{{ $t('productCategory.table.parent') }}</th>
           <th class="table-th">{{ $t('productCategory.table.description') }}</th>
-          <th class="table-th">{{ $t('productCategory.table.status') }}</th>
+          <th class="table-th sortable" :aria-sort="ariaSort('status')" @click="toggleSort('status')">
+            {{ $t('productCategory.table.status') }}
+            <span class="sort-indicator" :class="{ 'sort-indicator--active': sortBy === 'status' }">{{ sortIcon('status') }}</span>
+          </th>
           <th class="table-th text-right">{{ $t('productCategory.table.action') }}</th>
         </tr>
       </template>
@@ -105,6 +114,42 @@
           </button>
         </td>
       </tr>
+
+      <template v-if="!loading && categories.length > 0" #footer>
+        <div class="flex flex-col md:flex-row items-center justify-between gap-3 px-5 py-4 text-sm text-slate-500">
+          <span>
+            {{ $t('common.pagination.showing') }} {{ rangeStart }} {{ $t('common.pagination.to') }} {{ rangeEnd }}
+            {{ $t('common.pagination.of') }} {{ total }} {{ $t('common.pagination.results') }}
+          </span>
+
+          <div class="flex items-center gap-4">
+            <label class="flex items-center gap-2">
+              {{ $t('common.pagination.rowsPerPage') }}
+              <select v-model.number="limit" class="rows-per-page">
+                <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }}</option>
+              </select>
+            </label>
+
+            <div class="flex items-center gap-3">
+              <button
+                @click="page > 1 && goToPage(page - 1)"
+                :disabled="page <= 1"
+                class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold disabled:opacity-50"
+              >
+                {{ $t('common.pagination.previous') }}
+              </button>
+              <span>{{ $t('common.pagination.page') }} {{ page }} {{ $t('common.pagination.of') }} {{ totalPages }}</span>
+              <button
+                @click="page < totalPages && goToPage(page + 1)"
+                :disabled="page >= totalPages"
+                class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold disabled:opacity-50"
+              >
+                {{ $t('common.pagination.next') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
     </DataTable>
 
     <div
@@ -222,6 +267,8 @@ import FormSection from '../../components/ui/FormSection.vue'
 import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
 
 let searchDebounce = null
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
+const DEFAULT_LIMIT = 25
 
 export default {
   name: 'ProductCategoryView',
@@ -249,7 +296,14 @@ export default {
         keyword: '',
         parentId: '',
         status: ''
-      }
+      },
+      pageSizeOptions: PAGE_SIZE_OPTIONS,
+      page: 1,
+      limit: DEFAULT_LIMIT,
+      total: 0,
+      totalPages: 1,
+      sortBy: 'code',
+      sortDir: 'asc'
     }
   },
 
@@ -263,19 +317,36 @@ export default {
       const blocked = this.descendantIds(this.selectedCategory.id)
       blocked.add(this.selectedCategory.id)
       return this.allCategories.filter((c) => !blocked.has(c.id))
+    },
+
+    rangeStart() {
+      return this.total === 0 ? 0 : (this.page - 1) * this.limit + 1
+    },
+
+    rangeEnd() {
+      return Math.min(this.page * this.limit, this.total)
     }
   },
 
   watch: {
     'filters.parentId'() {
+      this.page = 1
       this.fetchCategories()
     },
     'filters.status'() {
+      this.page = 1
       this.fetchCategories()
     },
     'filters.keyword'() {
       clearTimeout(searchDebounce)
-      searchDebounce = setTimeout(() => this.fetchCategories(), 300)
+      searchDebounce = setTimeout(() => {
+        this.page = 1
+        this.fetchCategories()
+      }, 300)
+    },
+    limit() {
+      this.page = 1
+      this.fetchCategories()
     }
   },
 
@@ -303,14 +374,50 @@ export default {
           search: this.filters.keyword,
           parentId: this.filters.parentId,
           status: this.filters.status,
-          limit: 100
+          page: this.page,
+          limit: this.limit,
+          sortBy: this.sortBy,
+          sortDir: this.sortDir
         })
         this.categories = res.data
+        this.total = res.meta.total
+        this.totalPages = res.meta.total_pages
       } catch (err) {
         this.listError = err.message || this.$t('productCategory.messages.loadFailed')
       } finally {
         this.loading = false
       }
+    },
+
+    goToPage(page) {
+      this.page = page
+      this.fetchCategories()
+    },
+
+    // Clicking the active sort column's header flips ASC<->DESC;
+    // clicking a different sortable column starts it at ASC. Either
+    // way the page resets to 1 — staying on, say, page 3 after the
+    // order underneath it just changed would show an arbitrary slice
+    // of the newly-sorted list, not what the user actually asked for.
+    toggleSort(column) {
+      if (this.sortBy === column) {
+        this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc'
+      } else {
+        this.sortBy = column
+        this.sortDir = 'asc'
+      }
+      this.page = 1
+      this.fetchCategories()
+    },
+
+    sortIcon(column) {
+      if (this.sortBy !== column) return '⇅'
+      return this.sortDir === 'asc' ? '▲' : '▼'
+    },
+
+    ariaSort(column) {
+      if (this.sortBy !== column) return 'none'
+      return this.sortDir === 'asc' ? 'ascending' : 'descending'
     },
 
     // Unfiltered fetch for parent-name resolution and dropdown options —
@@ -481,5 +588,39 @@ export default {
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
   color: #475569;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sortable:hover {
+  color: #ea580c;
+}
+
+.sort-indicator {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 0.7rem;
+  color: #cbd5e1;
+}
+
+.sort-indicator--active {
+  color: #ea580c;
+}
+
+.rows-per-page {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 6px 10px;
+  outline: none;
+  background: #fff;
+  color: #334155;
+}
+
+.rows-per-page:focus {
+  border-color: #ea580c;
+  box-shadow: 0 0 0 2px #fed7aa;
 }
 </style>
