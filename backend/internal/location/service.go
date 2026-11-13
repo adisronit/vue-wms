@@ -15,29 +15,55 @@ type ErrValidation struct {
 func (e ErrValidation) Error() string { return e.Message }
 
 // ErrZoneNotFound is returned when a request's zone_id doesn't match any
-// zone.
+// zone — including a zone that exists but belongs to a different
+// tenant, which must read identically to "doesn't exist at all"
+// (tenant-isolation-security.md §6: never 403, only 404, so a guessed
+// ID can't be distinguished from a nonexistent one).
 var ErrZoneNotFound = errors.New("location: zone not found")
 
+// ErrHasStock is returned when deleting a location that still carries
+// on-hand inventory (Location Master Management addition — this
+// package had no referential-safety check on Delete at all before this
+// phase, unlike internal/warehouse/internal/zone/internal/productcategory's
+// own child-count checks).
+var ErrHasStock = errors.New("location: cannot delete — stock still exists in this location")
+
 // zoneChecker is the narrow slice of *zone.Repository this package
-// needs: confirming zone_id exists before creating a location under it.
-// Importing package zone here is safe — the dependency chain is
-// warehouse <- zone <- location, one direction only.
+// needs: confirming zone_id exists (and, per Location Master
+// Management, belongs to the caller's own tenant) before creating a
+// location under it. Importing package zone here is safe — the
+// dependency chain is warehouse <- zone <- location, one direction
+// only.
 type zoneChecker interface {
 	FindByID(ctx context.Context, id int64) (*zone.Zone, error)
 }
 
-// Service holds Location Structure's business rules: validation and
-// zone-existence checks.
+// inventoryCounter is the narrow capability Service.Delete needs from
+// internal/inventory — satisfied by *inventory.Repository's
+// CountByLocation. Kept as a local interface, the same
+// depend-on-behavior-not-packages pattern internal/product's own
+// categoryChecker already uses, and nil-safe (Delete skips the check
+// when this Service was built without one) for the same reason: so
+// existing/future test code constructing a bare &Service{} doesn't
+// need to satisfy it.
+type inventoryCounter interface {
+	CountByLocation(ctx context.Context, tenantID, locationID int64) (int64, error)
+}
+
+// Service holds Location Structure's business rules: validation,
+// tenant-scoped zone-ownership checks, and (new) a referential-safety
+// check before delete. Handlers never call Repository directly.
 type Service struct {
-	repo  *Repository
-	zones zoneChecker
+	repo      *Repository
+	zones     zoneChecker
+	inventory inventoryCounter
 }
 
-func NewService(repo *Repository, zones zoneChecker) *Service {
-	return &Service{repo: repo, zones: zones}
+func NewService(repo *Repository, zones zoneChecker, inventory inventoryCounter) *Service {
+	return &Service{repo: repo, zones: zones, inventory: inventory}
 }
 
-func (s *Service) List(ctx context.Context, params ListParams) ([]Response, int64, error) {
+func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) ([]Response, int64, error) {
 	page, limit := params.Page, params.Limit
 	if page < 1 {
 		page = 1
@@ -46,8 +72,8 @@ func (s *Service) List(ctx context.Context, params ListParams) ([]Response, int6
 		limit = 500
 	}
 
-	locations, total, err := s.repo.List(ctx, ListFilter{
-		ZoneID: params.ZoneID, Status: params.Status, Page: page, Limit: limit,
+	locations, total, err := s.repo.List(ctx, tenantID, ListFilter{
+		ZoneID: params.ZoneID, Search: params.Search, Status: params.Status, Page: page, Limit: limit,
 	})
 	if err != nil {
 		return nil, 0, err
@@ -60,15 +86,15 @@ func (s *Service) List(ctx context.Context, params ListParams) ([]Response, int6
 	return responses, total, nil
 }
 
-func (s *Service) Get(ctx context.Context, id int64) (Response, error) {
-	l, err := s.repo.FindByID(ctx, id)
+func (s *Service) Get(ctx context.Context, tenantID, id int64) (Response, error) {
+	l, err := s.repo.FindByID(ctx, tenantID, id)
 	if err != nil {
 		return Response{}, err
 	}
 	return toResponse(*l), nil
 }
 
-func (s *Service) Create(ctx context.Context, req CreateRequest) (Response, error) {
+func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest) (Response, error) {
 	status := req.Status
 	if status == "" {
 		status = StatusActive
@@ -76,39 +102,90 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (Response, erro
 	if !status.IsValid() {
 		return Response{}, ErrValidation{Message: "status must be ACTIVE or INACTIVE"}
 	}
-
-	if _, err := s.zones.FindByID(ctx, req.ZoneID); err != nil {
-		return Response{}, ErrZoneNotFound
+	if !req.Type.IsValid() {
+		return Response{}, ErrValidation{Message: "type must be one of RECEIVING, STORAGE, PICKING, PACKING, SHIPPING, QC, HOLD"}
+	}
+	if req.Capacity != nil && *req.Capacity < 0 {
+		return Response{}, ErrValidation{Message: "capacity must not be negative"}
 	}
 
-	l := &Location{ZoneID: req.ZoneID, Code: req.Code, Aisle: req.Aisle, Rack: req.Rack, Bin: req.Bin, Status: status}
-	if err := s.repo.Create(ctx, l); err != nil {
+	if err := s.validateZoneOwnership(ctx, tenantID, req.ZoneID); err != nil {
 		return Response{}, err
 	}
 
-	return s.Get(ctx, l.ID)
+	l := &Location{
+		ZoneID: req.ZoneID, Code: req.Code, Name: req.Name, Aisle: req.Aisle, Rack: req.Rack, Bin: req.Bin,
+		Type: req.Type, Capacity: req.Capacity, Status: status,
+	}
+	if err := s.repo.Create(ctx, tenantID, l); err != nil {
+		return Response{}, err
+	}
+
+	return s.Get(ctx, tenantID, l.ID)
 }
 
-func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (Response, error) {
-	if _, err := s.repo.FindByID(ctx, id); err != nil {
+func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequest) (Response, error) {
+	if _, err := s.repo.FindByID(ctx, tenantID, id); err != nil {
 		return Response{}, err
 	}
 
 	if !req.Status.IsValid() {
 		return Response{}, ErrValidation{Message: "status must be ACTIVE or INACTIVE"}
 	}
+	if !req.Type.IsValid() {
+		return Response{}, ErrValidation{Message: "type must be one of RECEIVING, STORAGE, PICKING, PACKING, SHIPPING, QC, HOLD"}
+	}
+	if req.Capacity != nil && *req.Capacity < 0 {
+		return Response{}, ErrValidation{Message: "capacity must not be negative"}
+	}
 
-	l := &Location{ID: id, Code: req.Code, Aisle: req.Aisle, Rack: req.Rack, Bin: req.Bin, Status: req.Status}
-	if err := s.repo.Update(ctx, l); err != nil {
+	l := &Location{
+		ID: id, Code: req.Code, Name: req.Name, Aisle: req.Aisle, Rack: req.Rack, Bin: req.Bin,
+		Type: req.Type, Capacity: req.Capacity, Status: req.Status,
+	}
+	if err := s.repo.Update(ctx, tenantID, l); err != nil {
 		return Response{}, err
 	}
 
-	return s.Get(ctx, id)
+	return s.Get(ctx, tenantID, id)
 }
 
-func (s *Service) Delete(ctx context.Context, id int64) error {
-	if _, err := s.repo.FindByID(ctx, id); err != nil {
+// Delete blocks deletion while on-hand inventory still exists at this
+// location (Location Master Management's own addition — see
+// ErrHasStock's doc).
+func (s *Service) Delete(ctx context.Context, tenantID, id int64) error {
+	if _, err := s.repo.FindByID(ctx, tenantID, id); err != nil {
 		return err
 	}
-	return s.repo.Delete(ctx, id)
+
+	if s.inventory != nil {
+		stockCount, err := s.inventory.CountByLocation(ctx, tenantID, id)
+		if err != nil {
+			return err
+		}
+		if stockCount > 0 {
+			return ErrHasStock
+		}
+	}
+
+	return s.repo.Delete(ctx, tenantID, id)
+}
+
+// validateZoneOwnership confirms zoneID exists AND belongs to tenantID
+// — an ownership check, not a bare existence check (tenant-isolation-
+// security.md §6's "existence checker vs ownership checker"
+// distinction), so Tenant A can never create a location under Tenant
+// B's zone by guessing its ID. Returns the same ErrZoneNotFound either
+// way a bare existence check would for a truly nonexistent zone, so
+// the response never reveals that a given ID belongs to another
+// tenant.
+func (s *Service) validateZoneOwnership(ctx context.Context, tenantID, zoneID int64) error {
+	z, err := s.zones.FindByID(ctx, zoneID)
+	if err != nil {
+		return ErrZoneNotFound
+	}
+	if z.TenantID != tenantID {
+		return ErrZoneNotFound
+	}
+	return nil
 }

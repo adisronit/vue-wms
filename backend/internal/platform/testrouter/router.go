@@ -42,6 +42,7 @@ import (
 
 	"wms-backend/internal/auth"
 	"wms-backend/internal/customer"
+	"wms-backend/internal/inventory"
 	"wms-backend/internal/location"
 	apihttp "wms-backend/internal/platform/http"
 	"wms-backend/internal/platform/middleware"
@@ -72,6 +73,7 @@ type RouterDeps struct {
 	ProductCategoryRepo *productcategory.Repository
 	CustomerRepo        *customer.Repository
 	SupplierRepo        *supplier.Repository
+	InventoryRepo       *inventory.Repository
 }
 
 // membershipCacheTTL is the fixed TTL BuildTestRouter uses for every
@@ -108,6 +110,7 @@ func BuildTestRouter(db *gorm.DB, jwtSecret string) RouterDeps {
 
 	zoneRepo := zone.NewRepository(db)
 	locationRepo := location.NewRepository(db)
+	inventoryRepo := inventory.NewRepository(db)
 
 	warehouseService := warehouse.NewService(warehouseRepo, zoneRepo)
 	warehouse.NewHandler(warehouseService).Register(v1, jwtSecret)
@@ -115,8 +118,8 @@ func BuildTestRouter(db *gorm.DB, jwtSecret string) RouterDeps {
 	zoneService := zone.NewService(zoneRepo, warehouseRepo, locationRepo)
 	zone.NewHandler(zoneService).Register(v1, jwtSecret)
 
-	locationService := location.NewService(locationRepo, zoneRepo)
-	location.NewHandler(locationService).Register(v1, jwtSecret)
+	locationService := location.NewService(locationRepo, zoneRepo, inventoryRepo)
+	location.NewHandler(locationService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)
 
 	productCategoryRepo := productcategory.NewRepository(db)
 
@@ -148,5 +151,6 @@ func BuildTestRouter(db *gorm.DB, jwtSecret string) RouterDeps {
 		ProductCategoryRepo: productCategoryRepo,
 		CustomerRepo:        customerRepo,
 		SupplierRepo:        supplierRepo,
+		InventoryRepo:       inventoryRepo,
 	}
 }

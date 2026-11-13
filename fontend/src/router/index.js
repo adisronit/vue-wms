@@ -15,6 +15,7 @@ import ShippingView from '../views/outbound/ShippingView.vue'
 import UserManagementView from '../views/administration/UserManagementView.vue'
 import RolePermissionView from '../views/administration/RolePermissionView.vue'
 import WarehouseView from '../views/administration/WarehouseView.vue'
+import LocationView from '../views/administration/LocationView.vue'
 import NewReceivingView from '../views/inbound/NewReceivingView.vue'
 import NewQualityCheckView from '../views/inbound/NewQualityCheckView.vue'
 import NewPutawayView from '../views/inbound/NewPutawayView.vue'
@@ -99,6 +100,11 @@ const routes = [
         path: 'administration/warehouse',
         name: 'Warehouse',
         component: WarehouseView,
+      },
+      {
+        path: 'administration/locations',
+        name: 'Locations',
+        component: LocationView,
       },
       {
         path: 'inbound/receiving/new',

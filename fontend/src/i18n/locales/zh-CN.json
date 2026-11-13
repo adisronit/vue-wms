@@ -102,6 +102,7 @@
     "roles": "角色与权限",
     "sectionMasterData": "基础数据",
     "warehouse": "仓库设置",
+    "locations": "货位管理",
     "productMaster": "产品主数据",
     "productCategories": "产品类别",
     "customers": "客户",
@@ -1274,6 +1275,61 @@
       "loadFailed": "加载类别失败",
       "saveFailed": "保存类别失败",
       "deleteFailed": "删除类别失败"
+    }
+  },
+  "locationMaster": {
+    "title": "货位管理",
+    "subtitle": "管理仓库区域内的货位主数据",
+    "newButton": "+ 新建货位",
+    "selectors": {
+      "warehousePlaceholder": "选择仓库",
+      "zonePlaceholder": "选择区域",
+      "zoneDisabledPlaceholder": "请先选择仓库"
+    },
+    "prompts": {
+      "selectWarehouse": "请选择仓库以开始。",
+      "selectZone": "请选择区域以查看其货位。"
+    },
+    "filters": {
+      "searchPlaceholder": "搜索编码或名称...",
+      "allStatus": "全部状态"
+    },
+    "table": {
+      "code": "货位编码",
+      "name": "名称",
+      "position": "位置（通道 / 货架 / 格位）",
+      "type": "类型",
+      "capacity": "容量",
+      "status": "状态",
+      "action": "操作"
+    },
+    "loading": "正在加载货位...",
+    "empty": "未找到货位。",
+    "drawer": {
+      "detailTitle": "货位详情",
+      "newTitle": "新建货位",
+      "subtitle": "货位编码、位置、类型、容量与状态"
+    },
+    "fields": {
+      "zone": "区域",
+      "code": "编码",
+      "name": "名称",
+      "aisle": "通道",
+      "rack": "货架",
+      "bin": "格位",
+      "type": "类型",
+      "noTypeOption": "无类型",
+      "capacity": "容量",
+      "capacityPlaceholder": "留空表示不限制",
+      "status": "状态"
+    },
+    "deleteTitle": "删除货位",
+    "messages": {
+      "loadFailed": "加载货位失败",
+      "loadWarehousesFailed": "加载仓库失败",
+      "loadZonesFailed": "加载区域失败",
+      "saveFailed": "保存货位失败",
+      "deleteFailed": "删除货位失败"
     }
   },
   "customers": {

@@ -64,6 +64,22 @@ var exemptMethods = map[string]bool{
 	// tenant-scoped repository method (tenant.Repository's
 	// CreateMembershipWithExistingUser).
 	"user.FindByUsernameOrEmail": true,
+
+	// Location Master Management: these two are NOT Platform-Global
+	// data (locations are Tenant-Owned) — a different, narrower
+	// justification than every entry above. Both are deliberate
+	// backward-compatibility exceptions, not unaddressed gaps:
+	// location.FindByIDUnscoped exists only so internal/receiving/
+	// internal/stockadjustment/internal/stockcount's own narrow
+	// locationChecker interfaces (none of which have tenant context
+	// themselves — out of this phase's scope) keep compiling against
+	// *Repository unchanged (see its own doc comment); every other
+	// caller uses the real, tenant-scoped FindByID. location.CountByZone
+	// exists solely for internal/zone.Service's own (also
+	// tenant-oblivious today) child-count check before deleting a zone —
+	// see that method's own doc comment.
+	"location.FindByIDUnscoped": true,
+	"location.CountByZone":      true,
 }
 
 var tenantNamePattern = regexp.MustCompile(`(?i)tenant`)

@@ -57,6 +57,9 @@
         <router-link v-if="canViewWarehouses" to="/administration/warehouse" class="menu-item" active-class="menu-active">
           {{ $t('nav.warehouse') }}
         </router-link>
+        <router-link v-if="canViewWarehouses" to="/administration/locations" class="menu-item" active-class="menu-active">
+          {{ $t('nav.locations') }}
+        </router-link>
         <router-link v-if="canViewProducts" to="/administration/products" class="menu-item" active-class="menu-active">
           {{ $t('nav.productMaster') }}
         </router-link>
