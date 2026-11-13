@@ -2,9 +2,9 @@
   <div class="space-y-6">
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">Putaway</h1>
+        <h1 class="text-2xl font-bold text-slate-800">{{ $t('putaway.title') }}</h1>
         <p class="text-slate-500">
-          Move inspected goods from staging area to storage locations
+          {{ $t('putaway.subtitle') }}
         </p>
       </div>
 
@@ -14,7 +14,7 @@
           :disabled="exporting"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
         >
-          {{ exporting ? 'Exporting…' : '⬇ Export CSV' }}
+          {{ exporting ? $t('common.buttons.exporting') : '⬇ ' + $t('common.buttons.exportCsv') }}
         </button>
 
         <button
@@ -22,29 +22,29 @@
           @click="$router.push('/inbound/putaway/new')"
           class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
         >
-          + New Putaway Task
+          {{ $t('putaway.newButton') }}
         </button>
       </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
       <div class="summary-card">
-        <p class="summary-label">Pending Putaway</p>
+        <p class="summary-label">{{ $t('putaway.summary.pendingPutaway') }}</p>
         <h2 class="summary-value">{{ pendingCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">In Progress</p>
+        <p class="summary-label">{{ $t('common.status.inProgress') }}</p>
         <h2 class="summary-value">{{ inProgressCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Completed</p>
+        <p class="summary-label">{{ $t('common.status.completed') }}</p>
         <h2 class="summary-value">{{ completedCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Location Issues</p>
+        <p class="summary-label">{{ $t('putaway.summary.locationIssues') }}</p>
         <h2 class="summary-value text-red-600">{{ issueCount }}</h2>
       </div>
     </div>
@@ -58,20 +58,20 @@
         <input
           v-model="filters.keyword"
           type="text"
-          placeholder="Search Task, SKU, Location..."
+          :placeholder="$t('putaway.filters.searchPlaceholder')"
           class="input"
         />
 
         <select v-model="filters.status" class="input">
-          <option value="">All Status</option>
-          <option value="PENDING">Pending</option>
-          <option value="PARTIALLY_COMPLETED">In Progress</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="ISSUE">Issue</option>
+          <option value="">{{ $t('putaway.filters.allStatus') }}</option>
+          <option value="PENDING">{{ $t('common.status.pending') }}</option>
+          <option value="PARTIALLY_COMPLETED">{{ $t('common.status.inProgress') }}</option>
+          <option value="COMPLETED">{{ $t('common.status.completed') }}</option>
+          <option value="ISSUE">{{ $t('putaway.statusLabels.issue') }}</option>
         </select>
 
         <select v-model="filters.zoneId" class="input">
-          <option value="">All Zones</option>
+          <option value="">{{ $t('putaway.filters.allZones') }}</option>
           <option v-for="z in zones" :key="z.id" :value="z.id">{{ z.code }}</option>
         </select>
 
@@ -79,7 +79,7 @@
           @click="clearFilter"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
         >
-          Clear Filter
+          {{ $t('common.buttons.clearFilter') }}
         </button>
       </div>
     </div>
@@ -89,26 +89,26 @@
         <table class="min-w-[1150px] w-full text-sm">
           <thead class="bg-slate-50 text-slate-500">
             <tr>
-              <th class="table-th">Task No.</th>
-              <th class="table-th">Receiving No.</th>
-              <th class="table-th">SKU</th>
-              <th class="table-th">Product</th>
-              <th class="table-th">Qty</th>
-              <th class="table-th">From Location</th>
-              <th class="table-th">Suggested Bin</th>
-              <th class="table-th">Actual Bin</th>
-              <th class="table-th">Status</th>
-              <th class="table-th text-right">Action</th>
+              <th class="table-th">{{ $t('putaway.table.taskNo') }}</th>
+              <th class="table-th">{{ $t('putaway.table.receivingNo') }}</th>
+              <th class="table-th">{{ $t('putaway.table.sku') }}</th>
+              <th class="table-th">{{ $t('putaway.table.product') }}</th>
+              <th class="table-th">{{ $t('putaway.table.qty') }}</th>
+              <th class="table-th">{{ $t('putaway.table.fromLocation') }}</th>
+              <th class="table-th">{{ $t('putaway.table.suggestedBin') }}</th>
+              <th class="table-th">{{ $t('putaway.table.actualBin') }}</th>
+              <th class="table-th">{{ $t('common.labels.status') }}</th>
+              <th class="table-th text-right">{{ $t('putaway.table.action') }}</th>
             </tr>
           </thead>
 
           <tbody>
             <tr v-if="loading">
-              <td colspan="10" class="text-center py-10 text-slate-400">Loading putaway tasks…</td>
+              <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('putaway.loadingTasks') }}</td>
             </tr>
 
             <tr v-else-if="putawayList.length === 0">
-              <td colspan="10" class="text-center py-10 text-slate-400">No putaway tasks found</td>
+              <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('putaway.noTasks') }}</td>
             </tr>
 
             <template v-else>
@@ -129,7 +129,7 @@
               <td class="table-td">{{ item.actualBin || '-' }}</td>
               <td class="table-td">
                 <span :class="getStatusClass(item.status)">
-                  {{ item.statusText }}
+                  {{ statusText(item.status) }}
                 </span>
               </td>
               <td class="table-td text-right">
@@ -137,7 +137,7 @@
                   @click="openPutaway(item)"
                   class="text-orange-600 hover:text-orange-700 font-semibold"
                 >
-                  Putaway
+                  {{ $t('putaway.table.putawayAction') }}
                 </button>
               </td>
             </tr>
@@ -155,7 +155,7 @@
         <div class="flex items-center justify-between mb-6">
           <div>
             <h2 class="text-xl font-bold text-slate-800">
-              Putaway Task
+              {{ $t('putaway.drawer.title') }}
             </h2>
             <p class="text-slate-500">
               {{ selectedPutaway.taskNo }} / {{ selectedPutaway.sku }}
@@ -173,22 +173,22 @@
         <div class="bg-slate-50 rounded-2xl p-5 mb-6">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <p class="detail-label">Product</p>
+              <p class="detail-label">{{ $t('putaway.drawer.product') }}</p>
               <p class="detail-value">{{ selectedPutaway.productName }}</p>
             </div>
 
             <div>
-              <p class="detail-label">Quantity</p>
+              <p class="detail-label">{{ $t('putaway.drawer.quantity') }}</p>
               <p class="detail-value">{{ selectedPutaway.qty }}</p>
             </div>
 
             <div>
-              <p class="detail-label">From Location</p>
+              <p class="detail-label">{{ $t('putaway.table.fromLocation') }}</p>
               <p class="detail-value">{{ selectedPutaway.fromLocation }}</p>
             </div>
 
             <div>
-              <p class="detail-label">Suggested Bin</p>
+              <p class="detail-label">{{ $t('putaway.table.suggestedBin') }}</p>
               <p class="detail-value text-orange-600">
                 {{ selectedPutaway.suggestedBin }}
               </p>
@@ -202,15 +202,15 @@
         <div v-if="selectedPutaway.taskStatus === 'CANCELLED'" class="bg-red-50 border border-red-200 rounded-2xl p-5 mb-6">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <p class="detail-label">Cancelled At</p>
+              <p class="detail-label">{{ $t('putaway.drawer.cancelledAt') }}</p>
               <p class="detail-value">{{ formatDateTime(selectedPutaway.cancelledAt) }}</p>
             </div>
             <div>
-              <p class="detail-label">Cancelled By</p>
+              <p class="detail-label">{{ $t('putaway.drawer.cancelledBy') }}</p>
               <p class="detail-value">{{ selectedPutaway.cancelledByName || '—' }}</p>
             </div>
             <div class="col-span-2">
-              <p class="detail-label">Cancellation Remark</p>
+              <p class="detail-label">{{ $t('putaway.drawer.cancellationRemark') }}</p>
               <p class="detail-value">{{ selectedPutaway.cancelRemark || '—' }}</p>
             </div>
           </div>
@@ -221,7 +221,7 @@
         </div>
 
         <p v-if="isDrawerItemResolved" class="text-sm text-green-600 font-semibold mb-4">
-          This line has already been resolved ({{ selectedPutaway.statusText }}).
+          {{ $t('putaway.drawer.alreadyResolved', { status: statusText(selectedPutaway.status) }) }}
         </p>
 
         <p v-else-if="isTaskTerminal" class="text-sm text-slate-500 font-semibold mb-4">
@@ -231,42 +231,42 @@
         <template v-else-if="isTaskActionable">
           <div v-if="canConfirm" class="space-y-4">
             <div>
-              <label class="label">Scan SKU / Barcode</label>
+              <label class="label">{{ $t('putaway.drawer.scanSkuBarcode') }}</label>
               <input
                 v-model="putawayForm.barcode"
                 type="text"
                 class="input"
-                placeholder="Scan or enter barcode"
+                :placeholder="$t('putaway.drawer.scanSkuPlaceholder')"
               />
             </div>
 
             <div>
-              <label class="label">Actual Bin Location</label>
+              <label class="label">{{ $t('putaway.drawer.actualBinLocation') }}</label>
               <input
                 v-model="putawayForm.actualBin"
                 type="text"
                 class="input"
-                placeholder="Scan or enter bin location"
+                :placeholder="$t('putaway.drawer.actualBinPlaceholder')"
               />
             </div>
 
             <div>
-              <label class="label">Putaway Qty</label>
+              <label class="label">{{ $t('putaway.drawer.putawayQty') }}</label>
               <input
                 v-model="putawayForm.qty"
                 type="number"
                 class="input"
-                placeholder="Enter putaway quantity"
+                :placeholder="$t('putaway.drawer.putawayQtyPlaceholder')"
               />
             </div>
 
             <div>
-              <label class="label">Remark</label>
+              <label class="label">{{ $t('common.labels.remark') }}</label>
               <textarea
                 v-model="putawayForm.remark"
                 rows="4"
                 class="input"
-                placeholder="Enter remark"
+                :placeholder="$t('putaway.drawer.remarkPlaceholder')"
               ></textarea>
             </div>
 
@@ -276,7 +276,7 @@
                 :disabled="submitting"
                 class="bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
               >
-                {{ submitting ? 'Submitting…' : 'Confirm Putaway' }}
+                {{ submitting ? $t('common.buttons.submitting') : $t('putaway.drawer.confirmButton') }}
               </button>
 
               <button
@@ -284,12 +284,12 @@
                 :disabled="submitting"
                 class="bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
               >
-                Report Issue
+                {{ $t('putaway.drawer.reportIssue') }}
               </button>
             </div>
           </div>
           <p v-else class="text-sm text-slate-500">
-            Your role can view this task but not confirm putaway.
+            {{ $t('putaway.drawer.viewOnlyNote') }}
           </p>
 
           <div v-if="canCancelPutaway" class="mt-6 pt-6 border-t border-slate-200">
@@ -297,14 +297,14 @@
               v-model="cancelRemark"
               type="text"
               class="input mb-3"
-              placeholder="Cancellation remark (optional)"
+              :placeholder="$t('putaway.drawer.cancelRemarkPlaceholder')"
             />
             <button
               @click="cancelDrawerTask"
               :disabled="submitting"
               class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
             >
-              Cancel Putaway Task
+              {{ $t('putaway.drawer.cancelButton') }}
             </button>
           </div>
         </template>
@@ -317,15 +317,20 @@
 import { listPutaway, getPutawayTask, confirmPutawayTask, cancelPutawayTask, newIdempotencyKey, exportPutaway } from '../../services/putaway'
 import { listWarehouses, listZones, listLocations } from '../../services/warehouses'
 import { hasPermission } from '../../services/auth'
+import i18n from '../../i18n'
 
+const { t } = i18n.global
 let searchDebounce = null
 
+// Called from the template (methods.statusText below), not cached onto
+// a row at map time, so the displayed label stays reactive to the
+// active locale — switching language must not require re-fetching.
 function statusText(status) {
   switch (status) {
-    case 'PENDING': return 'Pending'
-    case 'PARTIALLY_COMPLETED': return 'In Progress'
-    case 'COMPLETED': return 'Completed'
-    case 'ISSUE': return 'Issue'
+    case 'PENDING': return t('common.status.pending')
+    case 'PARTIALLY_COMPLETED': return t('common.status.inProgress')
+    case 'COMPLETED': return t('common.status.completed')
+    case 'ISSUE': return t('putaway.statusLabels.issue')
     default: return status
   }
 }
@@ -347,8 +352,7 @@ function mapPutawayRow(r) {
     fromLocation: r.source_location_code,
     suggestedBin: '—',
     actualBin: r.destination_location_code,
-    status: r.status,
-    statusText: statusText(r.status)
+    status: r.status
   }
 }
 
@@ -434,9 +438,9 @@ export default {
     taskTerminalMessage() {
       const status = this.selectedPutaway && this.selectedPutaway.taskStatus
       if (status === 'CANCELLED') {
-        return 'This putaway task has been cancelled. No further action is possible.'
+        return this.$t('putaway.drawer.terminalCancelled')
       }
-      return `This putaway task is ${statusText(status)} and can no longer be actioned.`
+      return this.$t('putaway.drawer.terminalMessage', { status: statusText(status) })
     }
   },
 
@@ -460,6 +464,8 @@ export default {
   },
 
   methods: {
+    statusText,
+
     async fetchPutaway() {
       this.loading = true
       this.loadError = ''
@@ -566,21 +572,21 @@ export default {
 
     async confirmPutaway() {
       if (!this.putawayForm.barcode) {
-        this.drawerError = 'Barcode is required'
+        this.drawerError = this.$t('putaway.messages.barcodeRequired')
         return
       }
       if (!this.putawayForm.actualBin) {
-        this.drawerError = 'Actual Bin Location is required'
+        this.drawerError = this.$t('putaway.messages.actualBinRequired')
         return
       }
       if (!this.putawayForm.qty || this.putawayForm.qty <= 0) {
-        this.drawerError = 'Putaway Qty is required'
+        this.drawerError = this.$t('putaway.messages.putawayQtyRequired')
         return
       }
 
       const destination = this.drawerLocations.find((l) => l.code === this.putawayForm.actualBin.trim())
       if (!destination) {
-        this.drawerError = `No location found for bin code "${this.putawayForm.actualBin}"`
+        this.drawerError = this.$t('putaway.messages.noLocationFound', { value: this.putawayForm.actualBin })
         return
       }
 
@@ -595,7 +601,7 @@ export default {
 
     async markIssue() {
       if (!this.putawayForm.remark) {
-        this.drawerError = 'A remark is required to report an issue'
+        this.drawerError = this.$t('putaway.messages.remarkRequiredForIssue')
         return
       }
 
@@ -614,7 +620,7 @@ export default {
           idempotency_key: newIdempotencyKey(),
           items: [confirmItem]
         })
-        alert(confirmItem.action === 'ISSUE' ? 'Putaway issue has been reported' : 'Putaway confirmed successfully')
+        alert(confirmItem.action === 'ISSUE' ? this.$t('putaway.messages.issueReported') : this.$t('putaway.messages.putawayConfirmed'))
         this.selectedPutaway = null
         await this.fetchPutaway()
         await this.fetchSummary()
@@ -632,7 +638,7 @@ export default {
         await cancelPutawayTask(this.drawerTaskId, {
           remark: this.cancelRemark || undefined
         })
-        alert('Putaway task cancelled')
+        alert(this.$t('putaway.messages.taskCancelled'))
         this.selectedPutaway = null
         await this.fetchPutaway()
         await this.fetchSummary()
@@ -652,7 +658,7 @@ export default {
 
     formatDateTime(isoString) {
       if (!isoString) return '—'
-      return new Date(isoString).toLocaleString()
+      return this.$d(new Date(isoString), 'long')
     }
   }
 }

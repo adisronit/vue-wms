@@ -4,10 +4,10 @@
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold text-slate-800">
-          New Receiving
+          {{ $t('newReceiving.title') }}
         </h1>
         <p class="text-slate-500">
-          Create a new inbound receiving document
+          {{ $t('newReceiving.subtitle') }}
         </p>
       </div>
 
@@ -15,39 +15,39 @@
         @click="$router.push('/inbound/receiving')"
         class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold"
       >
-        Back to Receiving
+        {{ $t('newReceiving.backButton') }}
       </button>
     </div>
 
     <!-- Document Header -->
     <div class="bg-white rounded-2xl border border-slate-200 p-6">
       <h2 class="text-lg font-bold text-slate-800 mb-5">
-        Document Information
+        {{ $t('newReceiving.documentInfo') }}
       </h2>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label class="label">Receiving Type</label>
+          <label class="label">{{ $t('newReceiving.fields.receivingType') }}</label>
           <select v-model="form.receivingType" class="input">
-            <option value="PO">Purchase Order</option>
-            <option value="ASN">ASN</option>
-            <option value="RETURN">Customer Return</option>
-            <option value="TRANSFER">Warehouse Transfer</option>
+            <option value="PO">{{ $t('newReceiving.receivingTypeOptions.po') }}</option>
+            <option value="ASN">{{ $t('newReceiving.receivingTypeOptions.asn') }}</option>
+            <option value="RETURN">{{ $t('newReceiving.receivingTypeOptions.return') }}</option>
+            <option value="TRANSFER">{{ $t('newReceiving.receivingTypeOptions.transfer') }}</option>
           </select>
         </div>
 
         <div>
-          <label class="label">Reference No.</label>
+          <label class="label">{{ $t('newReceiving.fields.referenceNo') }}</label>
           <input
             v-model="form.referenceNo"
             type="text"
             class="input"
-            placeholder="PO / ASN / Transfer No."
+            :placeholder="$t('newReceiving.fields.referenceNoPlaceholder')"
           />
         </div>
 
         <div>
-          <label class="label">Receiving Date</label>
+          <label class="label">{{ $t('newReceiving.fields.receivingDate') }}</label>
           <input
             v-model="form.receivingDate"
             type="date"
@@ -56,9 +56,12 @@
         </div>
 
         <div>
-          <label class="label">Vendor</label>
+          <label class="label">{{ $t('newReceiving.fields.vendor') }}</label>
+          <!-- Vendor option values are mock/seed business data (vendor
+               names), not UI chrome — left untranslated per this
+               phase's "preserve original business values" instruction. -->
           <select v-model="form.vendor" class="input">
-            <option value="">Select vendor</option>
+            <option value="">{{ $t('newReceiving.fields.selectVendor') }}</option>
             <option value="ABC Supplier">ABC Supplier</option>
             <option value="Global Parts">Global Parts</option>
             <option value="Fast Supply">Fast Supply</option>
@@ -67,17 +70,17 @@
         </div>
 
         <div>
-          <label class="label">Warehouse</label>
+          <label class="label">{{ $t('newReceiving.fields.warehouse') }}</label>
           <select v-model="form.warehouseId" class="input">
-            <option value="">Select warehouse</option>
+            <option value="">{{ $t('newReceiving.fields.selectWarehouse') }}</option>
             <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
           </select>
         </div>
 
         <div>
-          <label class="label">Staging Location</label>
+          <label class="label">{{ $t('newReceiving.fields.stagingLocation') }}</label>
           <select v-model="form.stagingLocationId" class="input" :disabled="!form.warehouseId">
-            <option value="">Select staging location</option>
+            <option value="">{{ $t('newReceiving.fields.selectStagingLocation') }}</option>
             <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
           </select>
         </div>
@@ -88,12 +91,12 @@
       </div>
 
       <div class="mt-4">
-        <label class="label">Remark</label>
+        <label class="label">{{ $t('newReceiving.fields.remark') }}</label>
         <textarea
           v-model="form.remark"
           rows="3"
           class="input"
-          placeholder="Enter receiving remark"
+          :placeholder="$t('newReceiving.fields.remarkPlaceholder')"
         ></textarea>
       </div>
     </div>
@@ -103,10 +106,10 @@
       <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-5">
         <div>
           <h2 class="text-lg font-bold text-slate-800">
-            Receiving Items
+            {{ $t('newReceiving.itemsSection.title') }}
           </h2>
           <p class="text-slate-500 text-sm">
-            Add products manually or scan barcode
+            {{ $t('newReceiving.itemsSection.subtitle') }}
           </p>
         </div>
 
@@ -114,20 +117,20 @@
           @click="addItem"
           class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
         >
-          + Add Item
+          {{ $t('newReceiving.itemsSection.addItem') }}
         </button>
       </div>
 
       <!-- Barcode Scan -->
       <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5 mb-5">
-        <label class="label">Scan Barcode / SKU</label>
+        <label class="label">{{ $t('newReceiving.scan.label') }}</label>
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <input
             v-model="scanText"
             type="text"
             class="input bg-white"
-            placeholder="Scan barcode or enter SKU"
+            :placeholder="$t('newReceiving.scan.placeholder')"
             @keyup.enter="scanItem"
           />
 
@@ -135,11 +138,11 @@
             v-model.number="scanQty"
             type="number"
             class="input bg-white"
-            placeholder="Qty"
+            :placeholder="$t('newReceiving.scan.qtyPlaceholder')"
           />
 
           <select v-model="scanLocationId" class="input bg-white">
-            <option value="">Select location</option>
+            <option value="">{{ $t('newReceiving.scan.selectLocation') }}</option>
             <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
           </select>
 
@@ -148,7 +151,7 @@
             :disabled="scanning"
             class="bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold disabled:opacity-60"
           >
-            {{ scanning ? 'Looking up…' : 'Add Scan' }}
+            {{ scanning ? $t('newReceiving.scan.lookingUp') : $t('newReceiving.scan.addScan') }}
           </button>
         </div>
       </div>
@@ -159,16 +162,16 @@
           <table class="min-w-[1200px] w-full text-sm">
             <thead class="bg-slate-50 text-slate-500">
               <tr>
-                <th class="table-th">SKU</th>
-                <th class="table-th">Product Name</th>
-                <th class="table-th">Barcode</th>
-                <th class="table-th">Expected Qty</th>
-                <th class="table-th">Receive Qty</th>
-                <th class="table-th">UOM</th>
-                <th class="table-th">Lot No.</th>
-                <th class="table-th">Expiry Date</th>
-                <th class="table-th">Location</th>
-                <th class="table-th text-right">Action</th>
+                <th class="table-th">{{ $t('newReceiving.table.sku') }}</th>
+                <th class="table-th">{{ $t('newReceiving.table.productName') }}</th>
+                <th class="table-th">{{ $t('newReceiving.table.barcode') }}</th>
+                <th class="table-th">{{ $t('newReceiving.table.expectedQty') }}</th>
+                <th class="table-th">{{ $t('newReceiving.table.receiveQty') }}</th>
+                <th class="table-th">{{ $t('newReceiving.table.uom') }}</th>
+                <th class="table-th">{{ $t('newReceiving.table.lotNo') }}</th>
+                <th class="table-th">{{ $t('newReceiving.table.expiryDate') }}</th>
+                <th class="table-th">{{ $t('newReceiving.table.location') }}</th>
+                <th class="table-th text-right">{{ $t('newReceiving.table.action') }}</th>
               </tr>
             </thead>
 
@@ -183,7 +186,7 @@
                     v-model="item.sku"
                     class="table-input"
                     :class="{ 'border-red-400': item.sku && !item.productId }"
-                    placeholder="SKU or barcode"
+                    :placeholder="$t('newReceiving.table.skuPlaceholder')"
                     @blur="lookupItemProduct(item)"
                     @keyup.enter="lookupItemProduct(item)"
                   />
@@ -224,7 +227,7 @@
 
                 <td class="table-td">
                   <select v-model="item.locationId" class="table-input">
-                    <option value="">Select location</option>
+                    <option value="">{{ $t('newReceiving.scan.selectLocation') }}</option>
                     <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
                   </select>
                 </td>
@@ -234,14 +237,14 @@
                     @click="removeItem(index)"
                     class="text-red-600 hover:text-red-700 font-semibold"
                   >
-                    Remove
+                    {{ $t('newReceiving.table.remove') }}
                   </button>
                 </td>
               </tr>
 
               <tr v-if="items.length === 0">
                 <td colspan="10" class="text-center py-10 text-slate-400">
-                  No receiving items
+                  {{ $t('newReceiving.table.noItems') }}
                 </td>
               </tr>
             </tbody>
@@ -253,27 +256,27 @@
     <!-- Summary -->
     <div class="bg-white rounded-2xl border border-slate-200 p-6">
       <h2 class="text-lg font-bold text-slate-800 mb-5">
-        Receiving Summary
+        {{ $t('newReceiving.summary.title') }}
       </h2>
 
       <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
         <div class="summary-card">
-          <p class="summary-label">Total Lines</p>
+          <p class="summary-label">{{ $t('newReceiving.summary.totalLines') }}</p>
           <h2 class="summary-value">{{ items.length }}</h2>
         </div>
 
         <div class="summary-card">
-          <p class="summary-label">Expected Qty</p>
+          <p class="summary-label">{{ $t('newReceiving.summary.expectedQty') }}</p>
           <h2 class="summary-value">{{ totalExpectedQty }}</h2>
         </div>
 
         <div class="summary-card">
-          <p class="summary-label">Receive Qty</p>
+          <p class="summary-label">{{ $t('newReceiving.summary.receiveQty') }}</p>
           <h2 class="summary-value text-orange-600">{{ totalReceiveQty }}</h2>
         </div>
 
         <div class="summary-card">
-          <p class="summary-label">Variance</p>
+          <p class="summary-label">{{ $t('newReceiving.summary.variance') }}</p>
           <h2
             class="summary-value"
             :class="totalVariance < 0 ? 'text-red-600' : 'text-green-600'"
@@ -292,7 +295,7 @@
           :disabled="submitting"
           class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-6 py-3 rounded-xl font-semibold disabled:opacity-60"
         >
-          Save Draft
+          {{ $t('newReceiving.actions.saveDraft') }}
         </button>
 
         <button
@@ -301,10 +304,10 @@
           :disabled="submitting"
           class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold disabled:opacity-60"
         >
-          {{ submitting ? 'Submitting…' : 'Confirm Receiving' }}
+          {{ submitting ? $t('newReceiving.actions.submitting') : $t('newReceiving.actions.confirmReceiving') }}
         </button>
         <p v-else class="text-sm text-slate-500 self-center">
-          Your role can save drafts but not confirm receiving.
+          {{ $t('newReceiving.actions.viewOnlyNote') }}
         </p>
       </div>
     </div>
@@ -435,7 +438,7 @@ export default {
           item.productId = null
           item.productName = ''
           item.barcode = ''
-          this.formError = `No product found for SKU/barcode "${item.sku}"`
+          this.formError = this.$t('newReceiving.messages.noProductFound', { value: item.sku })
           return
         }
         item.productId = product.id
@@ -466,7 +469,7 @@ export default {
 
     async scanItem() {
       if (!this.scanText) {
-        this.formError = 'Barcode or SKU is required'
+        this.formError = this.$t('newReceiving.messages.barcodeRequired')
         return
       }
 
@@ -475,7 +478,7 @@ export default {
       try {
         const product = await this.findProduct(this.scanText)
         if (!product) {
-          this.formError = `No product found for SKU/barcode "${this.scanText}"`
+          this.formError = this.$t('newReceiving.messages.noProductFound', { value: this.scanText })
           return
         }
 
@@ -514,17 +517,17 @@ export default {
     // Shared by Save Draft and Confirm Receiving — Confirm additionally
     // requires at least one line to actually receive a quantity.
     validateForm({ requireReceiveQty }) {
-      if (!this.form.referenceNo) return 'Reference No. is required'
-      if (!this.form.vendor) return 'Vendor is required'
-      if (!this.form.warehouseId) return 'Warehouse is required'
-      if (!this.form.stagingLocationId) return 'Staging location is required'
-      if (this.items.length === 0) return 'At least one item is required'
+      if (!this.form.referenceNo) return this.$t('newReceiving.messages.referenceNoRequired')
+      if (!this.form.vendor) return this.$t('newReceiving.messages.vendorRequired')
+      if (!this.form.warehouseId) return this.$t('newReceiving.messages.warehouseRequired')
+      if (!this.form.stagingLocationId) return this.$t('newReceiving.messages.stagingLocationRequired')
+      if (this.items.length === 0) return this.$t('newReceiving.messages.atLeastOneItem')
       if (this.items.some((item) => !item.productId)) {
-        return 'Every item must resolve to a known product — check the SKU/barcode column'
+        return this.$t('newReceiving.messages.everyItemMustResolve')
       }
-      if (this.items.some((item) => !item.locationId)) return 'Every item must have a location'
+      if (this.items.some((item) => !item.locationId)) return this.$t('newReceiving.messages.everyItemMustHaveLocation')
       if (requireReceiveQty && this.totalReceiveQty <= 0) {
-        return 'Enter at least one receive quantity to confirm receiving'
+        return this.$t('newReceiving.messages.enterReceiveQty')
       }
       return ''
     },
@@ -561,7 +564,7 @@ export default {
       this.formError = ''
       try {
         await createReceipt(this.buildCreatePayload('DRAFT'))
-        alert('Receiving draft saved successfully')
+        alert(this.$t('newReceiving.messages.draftSaved'))
         this.$router.push('/inbound/receiving')
       } catch (err) {
         this.formError = err.message
@@ -601,7 +604,7 @@ export default {
           items: confirmItems
         })
 
-        alert('Receiving confirmed successfully')
+        alert(this.$t('newReceiving.messages.receivingConfirmed'))
         this.$router.push('/inbound/receiving')
       } catch (err) {
         this.formError = err.message

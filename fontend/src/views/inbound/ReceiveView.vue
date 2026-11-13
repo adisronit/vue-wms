@@ -4,10 +4,10 @@
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
       <div>
         <h1 class="text-2xl font-bold text-slate-800">
-          Goods Receiving
+          {{ $t('receiving.title') }}
         </h1>
         <p class="text-slate-500">
-          Manage inbound purchase orders and receiving tasks
+          {{ $t('receiving.subtitle') }}
         </p>
       </div>
 
@@ -17,7 +17,7 @@
           :disabled="exporting"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
         >
-          {{ exporting ? 'Exporting…' : '⬇ Export CSV' }}
+          {{ exporting ? $t('common.buttons.exporting') : '⬇ ' + $t('common.buttons.exportCsv') }}
         </button>
 
         <button
@@ -25,7 +25,7 @@
           @click="$router.push('/inbound/receiving/new')"
           class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
         >
-          + New Receiving
+          {{ $t('receiving.newButton') }}
         </button>
       </div>
     </div>
@@ -33,7 +33,7 @@
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-6">
       <div class="summary-card">
-        <p class="summary-label">Waiting Receive</p>
+        <p class="summary-label">{{ $t('receiving.summary.waitingReceive') }}</p>
         <h2 class="summary-value">{{ waitingCount }}</h2>
       </div>
 
@@ -41,17 +41,17 @@
            into one PARTIALLY_RECEIVED status (see PROJECT_STATUS.md),
            so both cards intentionally read the same real count. -->
       <div class="summary-card">
-        <p class="summary-label">Receiving</p>
+        <p class="summary-label">{{ $t('receiving.summary.receiving') }}</p>
         <h2 class="summary-value">{{ partiallyReceivedCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Partial Received</p>
+        <p class="summary-label">{{ $t('receiving.summary.partialReceived') }}</p>
         <h2 class="summary-value">{{ partiallyReceivedCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Completed</p>
+        <p class="summary-label">{{ $t('receiving.summary.completed') }}</p>
         <h2 class="summary-value">{{ completedCount }}</h2>
       </div>
     </div>
@@ -66,16 +66,16 @@
         <input
           v-model="filters.keyword"
           type="text"
-          placeholder="Search Document No, Reference No, Vendor..."
+          :placeholder="$t('receiving.filters.searchPlaceholder')"
           class="input"
         />
 
         <select v-model="filters.status" class="input">
-          <option value="">All Status</option>
-          <option value="WAITING">Waiting</option>
-          <option value="PARTIALLY_RECEIVED">Receiving</option>
-          <option value="PARTIALLY_RECEIVED">Partial Received</option>
-          <option value="COMPLETED">Completed</option>
+          <option value="">{{ $t('receiving.filters.allStatus') }}</option>
+          <option value="WAITING">{{ $t('receiving.filters.statusWaiting') }}</option>
+          <option value="PARTIALLY_RECEIVED">{{ $t('receiving.filters.statusReceiving') }}</option>
+          <option value="PARTIALLY_RECEIVED">{{ $t('receiving.filters.statusPartial') }}</option>
+          <option value="COMPLETED">{{ $t('receiving.filters.statusCompleted') }}</option>
         </select>
 
         <input
@@ -88,7 +88,7 @@
           @click="clearFilter"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
         >
-          Clear Filter
+          {{ $t('common.buttons.clearFilter') }}
         </button>
       </div>
     </div>
@@ -99,25 +99,25 @@
         <table class="min-w-[1100px] w-full text-sm">
           <thead class="bg-slate-50 text-slate-500">
             <tr>
-              <th class="table-th">Document No.</th>
-              <th class="table-th">ASN No.</th>
-              <th class="table-th">Vendor</th>
-              <th class="table-th">Warehouse</th>
-              <th class="table-th">Expected Date</th>
-              <th class="table-th">Items</th>
-              <th class="table-th">Progress</th>
-              <th class="table-th">Status</th>
-              <th class="table-th text-right">Action</th>
+              <th class="table-th">{{ $t('receiving.table.documentNo') }}</th>
+              <th class="table-th">{{ $t('receiving.table.asnNo') }}</th>
+              <th class="table-th">{{ $t('receiving.table.vendor') }}</th>
+              <th class="table-th">{{ $t('receiving.table.warehouse') }}</th>
+              <th class="table-th">{{ $t('receiving.table.expectedDate') }}</th>
+              <th class="table-th">{{ $t('receiving.table.items') }}</th>
+              <th class="table-th">{{ $t('receiving.table.progress') }}</th>
+              <th class="table-th">{{ $t('receiving.table.status') }}</th>
+              <th class="table-th text-right">{{ $t('receiving.table.action') }}</th>
             </tr>
           </thead>
 
           <tbody>
             <tr v-if="loading">
-              <td colspan="9" class="text-center py-10 text-slate-400">Loading receiving documents…</td>
+              <td colspan="9" class="text-center py-10 text-slate-400">{{ $t('receiving.loadingDocuments') }}</td>
             </tr>
 
             <tr v-else-if="receivingList.length === 0">
-              <td colspan="9" class="text-center py-10 text-slate-400">No receiving documents found</td>
+              <td colspan="9" class="text-center py-10 text-slate-400">{{ $t('receiving.noDocuments') }}</td>
             </tr>
 
             <template v-else>
@@ -166,7 +166,7 @@
 
               <td class="table-td">
                 <span :class="getStatusClass(item.status)">
-                  {{ item.statusText }}
+                  {{ statusText(item.status) }}
                 </span>
               </td>
 
@@ -175,7 +175,7 @@
                   @click="openReceiving(item)"
                   class="text-orange-600 hover:text-orange-700 font-semibold"
                 >
-                  Start Receive
+                  {{ $t('receiving.table.startReceive') }}
                 </button>
               </td>
             </tr>
@@ -194,7 +194,7 @@
         <div class="flex items-center justify-between mb-6">
           <div>
             <h2 class="text-xl font-bold text-slate-800">
-              Receiving Detail
+              {{ $t('receiving.detail.title') }}
             </h2>
             <p class="text-slate-500">
               {{ selectedReceiving.documentNo }}
@@ -211,38 +211,38 @@
 
         <div class="space-y-4">
           <div class="detail-row">
-            <span>Vendor</span>
+            <span>{{ $t('receiving.detail.vendor') }}</span>
             <strong>{{ selectedReceiving.vendor }}</strong>
           </div>
 
           <div class="detail-row">
-            <span>Warehouse</span>
+            <span>{{ $t('receiving.detail.warehouse') }}</span>
             <strong>{{ selectedReceiving.warehouse }}</strong>
           </div>
 
           <div class="detail-row">
-            <span>Expected Date</span>
+            <span>{{ $t('receiving.detail.expectedDate') }}</span>
             <strong>{{ selectedReceiving.expectedDate }}</strong>
           </div>
 
           <div class="detail-row">
-            <span>Status</span>
-            <span :class="getStatusClass(selectedReceiving.status)">{{ selectedReceiving.statusText }}</span>
+            <span>{{ $t('receiving.detail.status') }}</span>
+            <span :class="getStatusClass(selectedReceiving.status)">{{ statusText(selectedReceiving.status) }}</span>
           </div>
         </div>
 
         <!-- Cancellation details (Phase 18) -->
         <div v-if="selectedReceiving.status === 'CANCELLED'" class="mt-4 bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
           <div class="detail-row">
-            <span>Cancelled At</span>
+            <span>{{ $t('receiving.detail.cancelledAt') }}</span>
             <strong>{{ formatDateTime(selectedReceiving.cancelledAt) }}</strong>
           </div>
           <div class="detail-row">
-            <span>Cancelled By</span>
+            <span>{{ $t('receiving.detail.cancelledBy') }}</span>
             <strong>{{ selectedReceiving.cancelledByName || '—' }}</strong>
           </div>
           <div class="detail-row">
-            <span>Cancellation Remark</span>
+            <span>{{ $t('receiving.detail.cancellationRemark') }}</span>
             <strong>{{ selectedReceiving.cancelRemark || '—' }}</strong>
           </div>
         </div>
@@ -253,11 +253,11 @@
 
         <div class="mt-8">
           <h3 class="font-bold text-slate-800 mb-4">
-            Receiving Items
+            {{ $t('receiving.detail.itemsTitle') }}
           </h3>
 
-          <p v-if="detailLoading" class="text-slate-400 text-sm">Loading items…</p>
-          <p v-else-if="detailItems.length === 0" class="text-slate-400 text-sm">No lines on this receipt</p>
+          <p v-if="detailLoading" class="text-slate-400 text-sm">{{ $t('receiving.detail.loadingItems') }}</p>
+          <p v-else-if="detailItems.length === 0" class="text-slate-400 text-sm">{{ $t('receiving.detail.noLines') }}</p>
 
           <div
             v-for="line in detailItems"
@@ -273,12 +273,12 @@
                   {{ line.name }}
                 </p>
                 <p class="text-xs text-slate-400 mt-1">
-                  Received {{ line.receivedQty }} / {{ line.expectedQty || '—' }}
+                  {{ $t('receiving.detail.receivedOf', { received: line.receivedQty, expected: line.expectedQty || '—' }) }}
                 </p>
               </div>
 
               <div class="text-right">
-                <p class="text-sm text-slate-500">Expected Qty</p>
+                <p class="text-sm text-slate-500">{{ $t('receiving.detail.expectedQty') }}</p>
                 <p class="font-bold">{{ line.expectedQty }}</p>
               </div>
             </div>
@@ -287,16 +287,16 @@
               <input
                 v-model.number="line.receiveQty"
                 type="number"
-                placeholder="Receive Qty"
+                :placeholder="$t('receiving.detail.receiveQtyPlaceholder')"
                 class="input"
               />
 
               <select v-model="line.locationId" class="input">
-                <option value="">Select location</option>
+                <option value="">{{ $t('receiving.detail.selectLocation') }}</option>
                 <option v-for="l in detailLocations" :key="l.id" :value="l.id">{{ l.code }}</option>
               </select>
             </div>
-            <p v-else class="text-sm text-green-600 mt-3 font-semibold">Fully received</p>
+            <p v-else class="text-sm text-green-600 mt-3 font-semibold">{{ $t('receiving.detail.fullyReceived') }}</p>
           </div>
 
           <button
@@ -305,10 +305,10 @@
             :disabled="confirmSubmitting"
             class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-semibold mt-4 disabled:opacity-60"
           >
-            {{ confirmSubmitting ? 'Confirming…' : 'Confirm Receiving' }}
+            {{ confirmSubmitting ? $t('receiving.detail.confirming') : $t('receiving.detail.confirmButton') }}
           </button>
           <p v-else-if="!canConfirm" class="text-sm text-slate-500 mt-4">
-            Your role can view this receipt but not confirm receiving.
+            {{ $t('receiving.detail.viewOnlyNote') }}
           </p>
 
           <div v-if="canCancelReceiving && isReceivingCancellable" class="mt-6 pt-6 border-t border-slate-200">
@@ -316,14 +316,14 @@
               v-model="cancelRemark"
               type="text"
               class="input mb-3"
-              placeholder="Cancellation remark (optional)"
+              :placeholder="$t('receiving.detail.cancelRemarkPlaceholder')"
             />
             <button
               @click="cancelDetailReceiving"
               :disabled="confirmSubmitting"
               class="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
             >
-              Cancel Receipt
+              {{ $t('receiving.detail.cancelButton') }}
             </button>
           </div>
         </div>
@@ -336,16 +336,21 @@
 import { listReceipts, getReceipt, confirmReceipt, cancelReceipt, newIdempotencyKey, exportReceipts } from '../../services/receiving'
 import { listZones, listLocations } from '../../services/warehouses'
 import { hasPermission } from '../../services/auth'
+import i18n from '../../i18n'
 
 let searchDebounce = null
 
+// Called from the template (methods.statusText below), not cached onto
+// a row at map time, so the displayed label stays reactive to the
+// active locale — switching language must not require re-fetching.
 function statusText(status) {
+  const t = i18n.global.t
   switch (status) {
-    case 'DRAFT': return 'Draft'
-    case 'WAITING': return 'Waiting'
-    case 'PARTIALLY_RECEIVED': return 'Partially Received'
-    case 'COMPLETED': return 'Completed'
-    case 'CANCELLED': return 'Cancelled'
+    case 'DRAFT': return t('common.status.draft')
+    case 'WAITING': return t('receiving.filters.statusWaiting')
+    case 'PARTIALLY_RECEIVED': return t('receiving.filters.statusPartial')
+    case 'COMPLETED': return t('common.status.completed')
+    case 'CANCELLED': return t('common.status.cancelled')
     default: return status
   }
 }
@@ -363,8 +368,7 @@ function mapReceiptListFromApi(r) {
     expectedDate: r.receiving_date ? r.receiving_date.slice(0, 10) : '—',
     items: r.item_count,
     progress: Math.round(r.progress_pct),
-    status: r.status,
-    statusText: statusText(r.status)
+    status: r.status
   }
 }
 
@@ -466,6 +470,8 @@ export default {
   },
 
   methods: {
+    statusText,
+
     async fetchReceipts() {
       this.loading = true
       this.loadError = ''
@@ -562,11 +568,11 @@ export default {
         }))
 
       if (linesToConfirm.length === 0) {
-        this.detailError = 'Enter at least one receive quantity to confirm receiving'
+        this.detailError = this.$t('receiving.messages.enterReceiveQty')
         return
       }
       if (linesToConfirm.some((l) => !l.location_id)) {
-        this.detailError = 'Every confirmed line must have a location'
+        this.detailError = this.$t('receiving.messages.locationRequired')
         return
       }
 
@@ -577,7 +583,7 @@ export default {
           idempotency_key: newIdempotencyKey(),
           items: linesToConfirm
         })
-        alert('Receiving confirmed successfully')
+        alert(this.$t('receiving.messages.receivingConfirmed'))
         this.selectedReceiving = null
         await this.fetchReceipts()
         await this.fetchSummary()
@@ -595,7 +601,7 @@ export default {
         await cancelReceipt(this.selectedReceiving.id, {
           remark: this.cancelRemark || undefined
         })
-        alert('Receipt cancelled')
+        alert(this.$t('receiving.messages.receiptCancelled'))
         this.selectedReceiving = null
         await this.fetchReceipts()
         await this.fetchSummary()
@@ -614,7 +620,7 @@ export default {
 
     formatDateTime(isoString) {
       if (!isoString) return '—'
-      return new Date(isoString).toLocaleString()
+      return this.$d(new Date(isoString), 'long')
     }
   }
 }

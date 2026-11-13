@@ -1,0 +1,1594 @@
+{
+  "common": {
+    "appName": "Smart WMS",
+    "appTagline": "仓库系统",
+    "buttons": {
+      "save": "保存",
+      "saveDraft": "保存草稿",
+      "cancel": "取消",
+      "edit": "编辑",
+      "delete": "删除",
+      "remove": "移除",
+      "create": "创建",
+      "add": "添加",
+      "search": "搜索",
+      "filter": "筛选",
+      "clearFilter": "清除筛选",
+      "reset": "重置",
+      "export": "导出",
+      "exportCsv": "导出 CSV",
+      "exporting": "正在导出…",
+      "confirm": "确认",
+      "close": "关闭",
+      "back": "返回",
+      "submit": "提交",
+      "submitting": "正在提交…",
+      "view": "查看",
+      "approve": "批准",
+      "reject": "拒绝",
+      "print": "打印",
+      "refresh": "刷新",
+      "loading": "加载中…"
+    },
+    "labels": {
+      "actions": "操作",
+      "status": "状态",
+      "date": "日期",
+      "time": "时间",
+      "createdBy": "创建人",
+      "createdAt": "创建时间",
+      "updatedAt": "更新时间",
+      "remark": "备注",
+      "warehouse": "仓库",
+      "zone": "区域",
+      "location": "货位",
+      "product": "产品",
+      "quantity": "数量",
+      "total": "合计",
+      "yes": "是",
+      "no": "否",
+      "selectOption": "请选择",
+      "optional": "选填"
+    },
+    "status": {
+      "active": "启用",
+      "inactive": "停用",
+      "pending": "待处理",
+      "completed": "已完成",
+      "cancelled": "已取消",
+      "draft": "草稿",
+      "approved": "已批准",
+      "rejected": "已拒绝",
+      "inProgress": "进行中"
+    },
+    "pagination": {
+      "page": "第",
+      "of": "/",
+      "showing": "显示",
+      "to": "至",
+      "results": "条记录",
+      "noData": "暂无数据",
+      "previous": "上一页",
+      "next": "下一页"
+    },
+    "messages": {
+      "requiredField": "此字段为必填项",
+      "loadFailed": "加载数据失败",
+      "saveSuccess": "保存成功",
+      "saveFailed": "保存失败",
+      "deleteConfirm": "确定要删除此项吗？",
+      "deleteSuccess": "删除成功",
+      "deleteFailed": "删除失败",
+      "networkError": "发生网络错误，请重试。"
+    }
+  },
+  "nav": {
+    "dashboard": "仪表盘",
+    "sectionInbound": "入库",
+    "receiving": "收货",
+    "qualityCheck": "质量检查",
+    "putaway": "上架",
+    "sectionInventory": "库存",
+    "stockInquiry": "库存查询",
+    "stockAdjustment": "库存调整",
+    "checkStock": "盘点库存",
+    "replenishment": "补货",
+    "sectionOutbound": "出库",
+    "orders": "订单",
+    "picking": "拣货",
+    "shipping": "发货",
+    "sectionAdministration": "系统管理",
+    "userManagement": "用户管理",
+    "roles": "角色与权限",
+    "warehouse": "仓库设置",
+    "productMaster": "产品主数据",
+    "logout": "退出登录"
+  },
+  "layout": {
+    "headerTitle": "仓库管理系统",
+    "headerSubtitle": "高效管理仓库运营",
+    "userFallback": "用户",
+    "notifications": {
+      "title": "通知",
+      "unread": "未读",
+      "loading": "加载中…",
+      "empty": "暂无通知"
+    }
+  },
+  "auth": {
+    "login": {
+      "brandTitle": "Smart WMS",
+      "brandSubtitle": "仓库管理系统",
+      "brandDescription": "通过现代化的仓库平台管理入库收货、库存控制、拣货、包装和发货操作。",
+      "signInTitle": "登录",
+      "signInSubtitle": "登录 Smart WMS",
+      "username": "用户名",
+      "usernamePlaceholder": "请输入用户名",
+      "password": "密码",
+      "passwordPlaceholder": "请输入密码",
+      "rememberMe": "记住我",
+      "forgotPassword": "忘记密码？",
+      "signIn": "登录",
+      "signingIn": "正在登录...",
+      "usernameRequired": "请输入用户名",
+      "passwordRequired": "请输入密码",
+      "loginFailed": "登录失败",
+      "copyright": "© 2026 Smart WMS",
+      "language": "语言"
+    }
+  },
+  "dashboard": {
+    "title": "仪表盘",
+    "subtitle": "仓库运营概览",
+    "cards": {
+      "pendingReceiving": "待收货",
+      "pendingReceivingNote": "入库订单",
+      "availableStock": "可用库存",
+      "availableStockNote": "仓库内商品",
+      "pendingPicking": "待拣货",
+      "pendingPickingNote": "出库任务",
+      "lowStock": "库存不足",
+      "lowStockNote": "需要关注"
+    },
+    "recentInbound": "最近入库活动",
+    "table": {
+      "documentNo": "单据编号",
+      "vendor": "供应商",
+      "status": "状态",
+      "date": "日期"
+    },
+    "noRecentInbound": "暂无最近入库活动",
+    "quickActions": "快捷操作",
+    "quickAction": {
+      "startReceiving": "开始收货",
+      "stockInquiry": "库存查询",
+      "createPickingTask": "创建拣货任务",
+      "stockAdjustment": "库存调整"
+    },
+    "loadFailed": "加载仪表盘数据失败",
+    "status": {
+      "draft": "草稿",
+      "waiting": "等待中",
+      "partiallyReceived": "收货中",
+      "completed": "已完成",
+      "cancelled": "已取消"
+    }
+  },
+  "receiving": {
+    "title": "收货管理",
+    "subtitle": "管理入库采购订单和收货任务",
+    "newButton": "+ 新建收货",
+    "summary": {
+      "waitingReceive": "待收货",
+      "receiving": "收货中",
+      "partialReceived": "部分收货",
+      "completed": "已完成"
+    },
+    "filters": {
+      "searchPlaceholder": "搜索单据编号、参考编号、供应商...",
+      "allStatus": "全部状态",
+      "statusWaiting": "等待中",
+      "statusReceiving": "收货中",
+      "statusPartial": "部分收货",
+      "statusCompleted": "已完成"
+    },
+    "table": {
+      "documentNo": "单据编号",
+      "asnNo": "ASN 编号",
+      "vendor": "供应商",
+      "warehouse": "仓库",
+      "expectedDate": "预计到货日期",
+      "items": "项目数",
+      "progress": "进度",
+      "status": "状态",
+      "action": "操作",
+      "startReceive": "开始收货"
+    },
+    "loadingDocuments": "正在加载收货单据…",
+    "noDocuments": "未找到收货单据",
+    "detail": {
+      "title": "收货详情",
+      "vendor": "供应商",
+      "warehouse": "仓库",
+      "expectedDate": "预计到货日期",
+      "status": "状态",
+      "cancelledAt": "取消时间",
+      "cancelledBy": "取消人",
+      "cancellationRemark": "取消备注",
+      "itemsTitle": "收货明细",
+      "loadingItems": "正在加载明细…",
+      "noLines": "此收货单没有明细行",
+      "receivedOf": "已收 {received} / {expected}",
+      "expectedQty": "预计数量",
+      "receiveQtyPlaceholder": "收货数量",
+      "selectLocation": "选择货位",
+      "fullyReceived": "已全部收货",
+      "confirmButton": "确认收货",
+      "confirming": "正在确认…",
+      "viewOnlyNote": "您的角色可以查看此收货单，但无法确认收货。",
+      "cancelRemarkPlaceholder": "取消备注（选填）",
+      "cancelButton": "取消收货单"
+    },
+    "messages": {
+      "enterReceiveQty": "请至少输入一项收货数量以确认收货",
+      "locationRequired": "每条已确认的明细行都必须有货位",
+      "receivingConfirmed": "收货确认成功",
+      "receiptCancelled": "收货单已取消"
+    }
+  },
+  "newReceiving": {
+    "title": "新建收货",
+    "subtitle": "创建新的入库收货单据",
+    "backButton": "返回收货列表",
+    "documentInfo": "单据信息",
+    "fields": {
+      "receivingType": "收货类型",
+      "referenceNo": "参考编号",
+      "referenceNoPlaceholder": "PO / ASN / 调拨单号",
+      "receivingDate": "收货日期",
+      "vendor": "供应商",
+      "selectVendor": "选择供应商",
+      "warehouse": "仓库",
+      "selectWarehouse": "选择仓库",
+      "stagingLocation": "暂存货位",
+      "selectStagingLocation": "选择暂存货位",
+      "remark": "备注",
+      "remarkPlaceholder": "输入收货备注"
+    },
+    "receivingTypeOptions": {
+      "po": "采购订单",
+      "asn": "ASN",
+      "return": "客户退货",
+      "transfer": "仓库调拨"
+    },
+    "itemsSection": {
+      "title": "收货明细",
+      "subtitle": "手动添加产品或扫描条码",
+      "addItem": "+ 添加项目"
+    },
+    "scan": {
+      "label": "扫描条码 / SKU",
+      "placeholder": "扫描条码或输入 SKU",
+      "qtyPlaceholder": "数量",
+      "selectLocation": "选择货位",
+      "addScan": "添加扫描项",
+      "lookingUp": "正在查找…"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "产品名称",
+      "barcode": "条码",
+      "expectedQty": "预计数量",
+      "receiveQty": "收货数量",
+      "uom": "单位",
+      "lotNo": "批号",
+      "expiryDate": "有效期",
+      "location": "货位",
+      "action": "操作",
+      "remove": "移除",
+      "noItems": "暂无收货项目",
+      "skuPlaceholder": "SKU 或条码"
+    },
+    "summary": {
+      "title": "收货汇总",
+      "totalLines": "总行数",
+      "expectedQty": "预计数量",
+      "receiveQty": "收货数量",
+      "variance": "差异"
+    },
+    "actions": {
+      "saveDraft": "保存草稿",
+      "confirmReceiving": "确认收货",
+      "submitting": "正在提交…",
+      "viewOnlyNote": "您的角色可以保存草稿，但无法确认收货。"
+    },
+    "messages": {
+      "referenceNoRequired": "请输入参考编号",
+      "vendorRequired": "请选择供应商",
+      "warehouseRequired": "请选择仓库",
+      "stagingLocationRequired": "请选择暂存货位",
+      "atLeastOneItem": "至少需要一个项目",
+      "everyItemMustResolve": "每个项目必须匹配到已知产品 — 请检查 SKU/条码列",
+      "everyItemMustHaveLocation": "每个项目都必须有货位",
+      "enterReceiveQty": "请至少输入一项收货数量以确认收货",
+      "noProductFound": "未找到 SKU/条码为“{value}”的产品",
+      "barcodeRequired": "条码或 SKU 为必填项",
+      "draftSaved": "收货草稿保存成功",
+      "receivingConfirmed": "收货确认成功"
+    }
+  },
+  "picking": {
+    "title": "拣货",
+    "subtitle": "管理出库拣货任务并确认已拣货项目",
+    "newTaskButton": "+ 新建拣货任务",
+    "summary": {
+      "pendingPick": "待拣货",
+      "inProgress": "进行中",
+      "completed": "已完成",
+      "shortPick": "缺货"
+    },
+    "filters": {
+      "searchPlaceholder": "搜索拣货单号、订单号、SKU...",
+      "allStatus": "全部状态",
+      "statusShortPick": "缺货",
+      "allPriority": "全部优先级"
+    },
+    "priority": {
+      "high": "高",
+      "normal": "中",
+      "low": "低"
+    },
+    "table": {
+      "pickNo": "拣货单号",
+      "orderNo": "订单号",
+      "customer": "客户",
+      "warehouse": "仓库",
+      "priority": "优先级",
+      "items": "项目数",
+      "progress": "进度",
+      "dueDate": "截止日期",
+      "status": "状态",
+      "action": "操作",
+      "startPick": "开始拣货"
+    },
+    "loadingTasks": "正在加载拣货任务…",
+    "noTasks": "未找到拣货任务",
+    "drawer": {
+      "newTaskTitle": "新建拣货任务",
+      "taskTitle": "拣货任务",
+      "orderNo": "订单号",
+      "orderNoPlaceholder": "SO-20260608-005",
+      "customer": "客户",
+      "customerPlaceholder": "客户名称",
+      "warehouse": "仓库",
+      "selectWarehouse": "选择仓库",
+      "priority": "优先级",
+      "dueDate": "截止日期",
+      "cancelledAt": "取消时间",
+      "cancelledBy": "取消人",
+      "cancellationRemark": "取消备注",
+      "addItemTitle": "添加项目",
+      "skuBarcodePlaceholder": "SKU / 条码",
+      "locationOption": "货位",
+      "lotNoOptionalPlaceholder": "批号（选填）",
+      "orderQtyPlaceholder": "订单数量",
+      "addItem": "+ 添加项目",
+      "itemsTitle": "拣货明细",
+      "noItemsYet": "尚未添加任何项目。",
+      "locationPrefix": "货位：{location}",
+      "order": "订单数量",
+      "picked": "已拣数量",
+      "remain": "剩余数量",
+      "remove": "移除",
+      "lineResolved": "此明细行已处理（{status}）。",
+      "pickQtyPlaceholder": "拣货数量",
+      "confirmPick": "确认拣货",
+      "shortPick": "缺货",
+      "remarkPlaceholder": "备注（缺货时必填）",
+      "viewOnlyNote": "您的角色可以查看此任务，但无法确认拣货。",
+      "cancelledNote": "此任务已被取消。",
+      "saveTask": "保存拣货任务",
+      "saving": "正在保存…",
+      "cancelRemarkPlaceholder": "取消备注（选填）",
+      "cancelTask": "取消任务",
+      "close": "关闭"
+    },
+    "itemStatus": {
+      "pending": "待处理",
+      "partiallyPicked": "部分拣货",
+      "completed": "已完成",
+      "short": "缺货"
+    },
+    "messages": {
+      "skuBarcodeRequired": "SKU / 条码为必填项",
+      "locationRequired": "货位为必填项",
+      "orderQtyPositive": "订单数量必须大于零",
+      "noProductFound": "未找到 SKU/条码为“{value}”的产品",
+      "orderNoRequired": "请输入订单号",
+      "warehouseRequired": "请选择仓库",
+      "atLeastOneItem": "至少需要一个项目",
+      "taskCreated": "拣货任务创建成功",
+      "pickQtyPositive": "拣货数量必须大于零",
+      "pickQtyExceedsRemaining": "拣货数量不能超过剩余数量",
+      "remarkRequiredForShortPick": "报告缺货时必须填写备注"
+    }
+  },
+  "shipping": {
+    "title": "发货",
+    "subtitle": "管理已打包订单、发货确认和配送调度",
+    "newShipmentButton": "+ 新建发货单",
+    "summary": {
+      "readyToShip": "待发货",
+      "inTransit": "运输中",
+      "delivered": "已送达",
+      "deliveryIssues": "配送异常"
+    },
+    "filters": {
+      "searchPlaceholder": "搜索发货单号、订单号、客户...",
+      "allStatus": "全部状态",
+      "statusReady": "待发货",
+      "statusDispatched": "已发出",
+      "statusInTransit": "运输中",
+      "statusDelivered": "已送达",
+      "statusIssue": "异常",
+      "allCarriers": "全部承运商"
+    },
+    "table": {
+      "shipmentNo": "发货单号",
+      "orderNo": "订单号",
+      "customer": "客户",
+      "carrier": "承运商",
+      "trackingNo": "运单号",
+      "packages": "包裹数",
+      "weight": "重量",
+      "shipDate": "发货日期",
+      "status": "状态",
+      "action": "操作",
+      "manage": "管理"
+    },
+    "loadingShipments": "正在加载发货单…",
+    "noShipments": "未找到发货单",
+    "drawer": {
+      "newShipmentTitle": "新建发货单",
+      "detailTitle": "发货详情",
+      "sourcePickingTask": "来源拣货任务",
+      "selectSourceTask": "选择已完成的拣货任务",
+      "itemCountSuffix": "（{count} 项）",
+      "noSourceTasks": "没有待发货的已完成拣货任务。",
+      "customer": "客户",
+      "carrierLabel": "承运商",
+      "packages": "包裹数",
+      "totalWeight": "总重量",
+      "cancelledAt": "取消时间",
+      "cancelledBy": "取消人",
+      "cancellationRemark": "取消备注",
+      "selectCarrier": "选择承运商",
+      "trackingNo": "运单号",
+      "trackingNoPlaceholder": "输入运单号",
+      "packageCount": "包裹数量",
+      "packagesPlaceholder": "包裹数",
+      "totalWeightField": "总重量",
+      "weightPlaceholder": "重量",
+      "shipDate": "发货日期",
+      "deliveryAddress": "收货地址",
+      "addressPlaceholder": "输入收货地址",
+      "remark": "备注",
+      "remarkPlaceholder": "输入备注",
+      "saveShipment": "保存发货单",
+      "saveChanges": "保存更改",
+      "saving": "正在保存…",
+      "packageItemsTitle": "包裹明细",
+      "noItemsOnShipment": "此发货单没有项目。",
+      "qty": "数量",
+      "confirmDispatch": "确认发货",
+      "markDelivered": "标记为已送达",
+      "reportIssue": "报告异常",
+      "viewOnlyNote": "您的角色可以查看此发货单，但无法确认发货、送达或异常。",
+      "cancelRemarkPlaceholder": "取消备注（选填）",
+      "cancelShipment": "取消发货单"
+    },
+    "statusLabels": {
+      "readyToShip": "待发货",
+      "inTransit": "运输中",
+      "delivered": "已送达",
+      "issue": "异常"
+    },
+    "messages": {
+      "selectSourceRequired": "请选择来源拣货任务",
+      "shipmentCreated": "发货单创建成功",
+      "remarkRequiredForIssue": "报告异常时必须填写备注",
+      "dispatchedSuccess": "发货成功",
+      "deliveredSuccess": "已标记为送达",
+      "issueReported": "已报告发货异常",
+      "shipmentCancelled": "发货单已取消"
+    }
+  },
+  "qualityCheck": {
+    "title": "质量检查",
+    "subtitle": "在上架前检查已收货的商品",
+    "newButton": "+ 新建质检任务",
+    "summary": {
+      "pendingQc": "待质检",
+      "passed": "已通过",
+      "rejected": "已拒收"
+    },
+    "filters": {
+      "searchPlaceholder": "搜索质检单号、采购单号、SKU...",
+      "allStatus": "全部状态",
+      "allResult": "全部结果"
+    },
+    "table": {
+      "qcNo": "质检单号",
+      "poNo": "采购单号",
+      "sku": "SKU",
+      "productName": "产品名称",
+      "receivedQty": "收货数量",
+      "sampleQty": "抽样数量",
+      "defectQty": "不良数量",
+      "result": "结果",
+      "action": "操作",
+      "inspect": "检查"
+    },
+    "drawer": {
+      "title": "质量检查",
+      "product": "产品",
+      "lotNo": "批号",
+      "sampleQtyPlaceholder": "输入抽样数量",
+      "defectQtyPlaceholder": "输入不良数量",
+      "inspectionResult": "检查结果",
+      "selectResult": "选择结果",
+      "defectReason": "不良原因",
+      "remarkPlaceholder": "输入检查备注",
+      "pass": "通过",
+      "hold": "暂缓",
+      "reject": "拒收"
+    },
+    "defectReasons": {
+      "none": "无",
+      "damaged": "损坏",
+      "wrongItem": "错误商品",
+      "expired": "已过期",
+      "shortage": "数量短缺",
+      "packagingIssue": "包装问题"
+    },
+    "results": {
+      "pass": "通过",
+      "fail": "不通过",
+      "hold": "暂缓",
+      "waiting": "待检查"
+    },
+    "statusLabels": {
+      "pending": "待处理",
+      "inProgress": "进行中",
+      "passed": "已通过",
+      "rejected": "已拒收"
+    },
+    "messages": {
+      "sampleQtyRequired": "请输入抽样数量",
+      "defectReasonRequired": "请选择不良原因",
+      "qcSaved": "质检结果「{result}」保存成功"
+    }
+  },
+  "putaway": {
+    "title": "上架",
+    "subtitle": "将已检查的货物从暂存区移动到存储货位",
+    "newButton": "+ 新建上架任务",
+    "summary": {
+      "pendingPutaway": "待上架",
+      "locationIssues": "货位问题"
+    },
+    "filters": {
+      "searchPlaceholder": "搜索任务、SKU、货位...",
+      "allStatus": "全部状态",
+      "allZones": "全部区域"
+    },
+    "table": {
+      "taskNo": "任务编号",
+      "receivingNo": "收货单号",
+      "sku": "SKU",
+      "product": "产品",
+      "qty": "数量",
+      "fromLocation": "源货位",
+      "suggestedBin": "建议货位",
+      "actualBin": "实际货位",
+      "action": "操作",
+      "putawayAction": "上架"
+    },
+    "loadingTasks": "正在加载上架任务…",
+    "noTasks": "未找到上架任务",
+    "statusLabels": {
+      "issue": "异常"
+    },
+    "drawer": {
+      "title": "上架任务",
+      "product": "产品",
+      "quantity": "数量",
+      "cancelledAt": "取消时间",
+      "cancelledBy": "取消人",
+      "cancellationRemark": "取消备注",
+      "alreadyResolved": "此行已处理完成（{status}）。",
+      "terminalMessage": "此上架任务状态为{status}，无法再执行操作。",
+      "terminalCancelled": "此上架任务已取消，无法再执行任何操作。",
+      "scanSkuBarcode": "扫描 SKU / 条码",
+      "scanSkuPlaceholder": "扫描或输入条码",
+      "actualBinLocation": "实际货位",
+      "actualBinPlaceholder": "扫描或输入货位",
+      "putawayQty": "上架数量",
+      "putawayQtyPlaceholder": "输入上架数量",
+      "remarkPlaceholder": "输入备注",
+      "confirmButton": "确认上架",
+      "reportIssue": "报告异常",
+      "viewOnlyNote": "您的角色可以查看此任务，但无法确认上架。",
+      "cancelRemarkPlaceholder": "取消备注（选填）",
+      "cancelButton": "取消上架任务"
+    },
+    "messages": {
+      "barcodeRequired": "条码为必填项",
+      "actualBinRequired": "实际货位为必填项",
+      "putawayQtyRequired": "上架数量为必填项",
+      "noLocationFound": "未找到货位代码为“{value}”的货位",
+      "remarkRequiredForIssue": "报告异常需要填写备注",
+      "issueReported": "上架异常已报告",
+      "putawayConfirmed": "上架确认成功",
+      "taskCancelled": "上架任务已取消"
+    }
+  },
+  "newQualityCheck": {
+    "title": "新建质量检查",
+    "subtitle": "为上架前的已收货商品创建检查记录",
+    "backButton": "返回质检列表",
+    "documentInfo": "质检单据信息",
+    "fields": {
+      "receivingNo": "收货单号",
+      "selectReceivingDoc": "选择收货单据",
+      "qcDate": "质检日期",
+      "inspector": "检查员",
+      "inspectorPlaceholder": "检查员姓名",
+      "warehouse": "仓库",
+      "selectWarehouse": "选择仓库",
+      "qcType": "质检类型",
+      "overallResult": "总体结果",
+      "remarkPlaceholder": "输入质检备注"
+    },
+    "qcTypeOptions": {
+      "normal": "常规检查",
+      "full": "全检",
+      "random": "随机抽样",
+      "damage": "破损检查"
+    },
+    "resultOptions": {
+      "pass": "通过",
+      "hold": "暂缓",
+      "fail": "不通过"
+    },
+    "scan": {
+      "label": "扫描 SKU / 条码",
+      "placeholder": "扫描条码或 SKU",
+      "sampleQtyPlaceholder": "抽样数量",
+      "defectQtyPlaceholder": "不良数量",
+      "addQc": "添加质检项"
+    },
+    "itemsSection": {
+      "title": "质检项目",
+      "subtitle": "按 SKU、批号和抽样数量检查已收货商品",
+      "addItem": "+ 添加项目"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "产品名称",
+      "lotNo": "批号",
+      "receivedQty": "收货数量",
+      "sampleQty": "抽样数量",
+      "defectQty": "不良数量",
+      "defectReason": "不良原因",
+      "result": "结果",
+      "action": "操作",
+      "noItems": "暂无质检项目"
+    },
+    "defectReasonOptions": {
+      "none": "无",
+      "damaged": "损坏",
+      "wrongItem": "错误商品",
+      "expired": "已过期",
+      "shortage": "数量短缺",
+      "packagingIssue": "包装问题"
+    },
+    "summary": {
+      "title": "质检汇总",
+      "totalLines": "总行数",
+      "sampleQty": "抽样数量",
+      "defectQty": "不良数量",
+      "passRate": "通过率"
+    },
+    "actions": {
+      "confirmQc": "确认质检"
+    },
+    "messages": {
+      "barcodeRequired": "条码或 SKU 为必填项",
+      "draftSaved": "质检草稿保存成功",
+      "receivingNoRequired": "请选择收货单号",
+      "warehouseRequired": "请选择仓库",
+      "atLeastOneItem": "至少需要一个质检项目",
+      "defectReasonRequiredForFail": "不通过的项目必须填写不良原因",
+      "qcConfirmed": "质检确认成功"
+    }
+  },
+  "newPutaway": {
+    "title": "新建上架任务",
+    "subtitle": "将已通过质检的货物从暂存区移动到存储货位",
+    "backButton": "返回上架列表",
+    "taskInfo": "任务信息",
+    "fields": {
+      "sourceDocument": "源单据",
+      "selectSourceDoc": "选择源单据",
+      "putawayDate": "上架日期",
+      "assignedTo": "指派给",
+      "assignedToPlaceholder": "仓库员工",
+      "warehouse": "仓库",
+      "selectWarehouse": "选择仓库",
+      "fromLocation": "源货位",
+      "selectStagingLocation": "选择暂存货位",
+      "priority": "优先级",
+      "remarkPlaceholder": "输入任务备注"
+    },
+    "priorityOptions": {
+      "normal": "正常",
+      "high": "高",
+      "low": "低"
+    },
+    "scan": {
+      "title": "扫描上架",
+      "subtitle": "扫描 SKU 和实际货位以确认移动",
+      "scannerReady": "扫描仪就绪",
+      "lookingUp": "正在查找…",
+      "skuPlaceholder": "扫描 SKU / 条码",
+      "actualBinPlaceholder": "扫描实际货位（货位代码）",
+      "qtyPlaceholder": "数量",
+      "confirmScan": "确认扫描",
+      "reportedByScanRemark": "由扫描报告"
+    },
+    "scanStatusOptions": {
+      "confirmed": "已确认",
+      "issue": "异常"
+    },
+    "itemsSection": {
+      "title": "上架项目",
+      "subtitle": "确认前请核实源货位、建议货位和实际货位",
+      "addItem": "+ 添加项目"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "产品名称",
+      "lotNo": "批号",
+      "fromLocation": "源货位",
+      "suggestedBin": "建议货位",
+      "actualBin": "实际货位",
+      "qty": "数量",
+      "uom": "单位",
+      "action": "操作",
+      "noItems": "暂无上架项目",
+      "skuPlaceholder": "SKU 或条码",
+      "selectLocation": "选择货位",
+      "selectBin": "选择货位",
+      "remarkPlaceholder": "备注"
+    },
+    "itemStatusOptions": {
+      "pending": "待处理",
+      "confirmed": "已确认",
+      "issue": "异常"
+    },
+    "summary": {
+      "title": "上架汇总",
+      "totalLines": "总行数",
+      "totalQty": "总数量",
+      "confirmedLines": "已确认行数",
+      "issueLines": "异常行数"
+    },
+    "actions": {
+      "confirmPutaway": "确认上架",
+      "viewOnlyNote": "您的角色可以保存草稿，但无法确认上架。"
+    },
+    "messages": {
+      "noProductFound": "未找到 SKU/条码为“{value}”的产品",
+      "skuRequired": "SKU 或条码为必填项",
+      "actualBinRequiredScan": "实际货位为必填项",
+      "noLocationFound": "未找到货位代码为“{value}”的货位",
+      "warehouseRequired": "请选择仓库",
+      "atLeastOneItem": "至少需要一个上架项目",
+      "everyItemMustResolve": "每个项目必须匹配到已知产品 — 请检查 SKU/条码列",
+      "everyItemMustHaveFromLocation": "每个项目都必须有源货位",
+      "everyItemNeedsActualBin": "每个项目都需要实际货位",
+      "fromAndActualMustDiffer": "源货位和实际货位不能相同",
+      "everyItemNeedsQtyGreaterThanZero": "每个项目的数量必须大于零",
+      "everyIssueNeedsRemark": "每个异常项目都需要填写备注",
+      "setAtLeastOneItemAction": "确认上架前请将至少一个项目设置为已确认或异常",
+      "draftSaved": "上架草稿保存成功",
+      "putawayConfirmed": "上架确认成功"
+    }
+  },
+  "orders": {
+    "title": "订单",
+    "subtitle": "订单接收 — 分配货位/批号后可创建拣货任务",
+    "newButton": "+ 新建订单",
+    "filters": {
+      "searchPlaceholder": "搜索订单号、外部参考号、客户...",
+      "allStatus": "全部状态",
+      "allWarehouses": "全部仓库"
+    },
+    "table": {
+      "orderNo": "订单号",
+      "externalRef": "外部参考号",
+      "customer": "客户",
+      "items": "项目数",
+      "fulfillment": "履约状态",
+      "createdAt": "创建时间",
+      "action": "操作"
+    },
+    "loadingOrders": "正在加载订单…",
+    "noOrders": "未找到订单",
+    "form": {
+      "editTitle": "编辑订单",
+      "newTitle": "新建订单",
+      "selectWarehouse": "选择仓库",
+      "customerPlaceholder": "客户（选填）",
+      "externalReferencePlaceholder": "外部参考号（选填）",
+      "remarkPlaceholder": "备注（选填）",
+      "itemsTitle": "商品项目",
+      "skuPlaceholder": "产品 SKU",
+      "qtyPlaceholder": "数量",
+      "addItem": "添加项目",
+      "tableSku": "SKU",
+      "tableProduct": "产品",
+      "tableQty": "数量",
+      "noItemsYet": "尚未添加任何项目",
+      "saveChanges": "保存更改",
+      "createOrder": "创建订单",
+      "saving": "正在保存…"
+    },
+    "detail": {
+      "statusLabel": "状态",
+      "fulfillmentLabel": "履约状态",
+      "customerLabel": "客户",
+      "externalRefLabel": "外部参考号",
+      "warehouseLabel": "仓库",
+      "pickingTaskLabel": "拣货任务",
+      "remarkLabel": "备注",
+      "cancelRemarkLabel": "取消备注",
+      "createdByLabel": "创建人",
+      "itemsTitle": "商品项目",
+      "tableSku": "SKU",
+      "tableProduct": "产品",
+      "tableQty": "数量",
+      "tableUom": "单位",
+      "createPickingTask": "创建拣货任务",
+      "cancelRemarkPlaceholder": "取消备注（选填）",
+      "cancelOrder": "取消订单",
+      "pickingTaskNote": "此订单已创建拣货任务 — 如需取消请直接在拣货页面操作。"
+    },
+    "release": {
+      "title": "创建拣货任务 — {orderNo}",
+      "priorityNormal": "优先级：正常",
+      "priorityLow": "优先级：低",
+      "priorityHigh": "优先级：高",
+      "assignLocationTitle": "为每一行分配货位/批号",
+      "selectLocation": "选择货位",
+      "lotNoPlaceholder": "批号（选填）",
+      "creating": "正在创建…"
+    },
+    "messages": {
+      "loadWarehousesFailed": "加载仓库失败",
+      "loadOrdersFailed": "加载订单失败",
+      "skuQtyRequired": "添加项目需要填写 SKU 和数量",
+      "noProductFound": "未找到 SKU/条码为“{value}”的产品",
+      "warehouseRequired": "请选择仓库",
+      "atLeastOneItem": "至少需要一个项目",
+      "saveOrderFailed": "保存订单失败",
+      "loadOrderDetailFailed": "加载订单详情失败",
+      "loadLocationsFailed": "加载货位失败",
+      "lineNeedsLocation": "每一行都需要分配货位",
+      "createPickingTaskFailed": "创建拣货任务失败",
+      "lookupProductFailed": "查找产品失败"
+    },
+    "statusLabels": {
+      "pending": "待处理",
+      "picking": "拣货中",
+      "pickingCancelled": "拣货已取消",
+      "picked": "已拣货",
+      "shipping": "发货中",
+      "shipIssue": "异常",
+      "delivered": "已送达",
+      "cancelled": "已取消"
+    }
+  },
+  "userManagement": {
+    "title": "用户管理",
+    "subtitle": "管理系统用户、角色和仓库权限",
+    "newUserButton": "+ 新建用户",
+    "filters": {
+      "searchPlaceholder": "搜索用户、邮箱、角色...",
+      "allRoles": "全部角色",
+      "allStatus": "全部状态"
+    },
+    "status": {
+      "locked": "已锁定"
+    },
+    "table": {
+      "user": "用户",
+      "email": "邮箱",
+      "role": "角色",
+      "warehouse": "仓库",
+      "lastLogin": "最后登录",
+      "status": "状态",
+      "action": "操作"
+    },
+    "loadingUsers": "正在加载用户...",
+    "noUsers": "未找到用户。",
+    "drawer": {
+      "editTitle": "编辑用户",
+      "newTitle": "新建用户",
+      "subtitle": "用户资料与权限管理"
+    },
+    "fields": {
+      "fullName": "姓名",
+      "fullNamePlaceholder": "请输入姓名",
+      "email": "邮箱",
+      "emailPlaceholder": "请输入邮箱",
+      "username": "用户名",
+      "usernamePlaceholder": "请输入用户名",
+      "password": "密码",
+      "passwordPlaceholder": "设置初始密码（至少 8 位）",
+      "role": "角色",
+      "selectRole": "选择角色",
+      "warehouse": "仓库",
+      "unassigned": "未分配 (-)",
+      "status": "状态"
+    },
+    "saveButton": "保存用户",
+    "saving": "正在保存...",
+    "messages": {
+      "loadRolesFailed": "加载角色失败",
+      "loadWarehousesFailed": "加载仓库失败",
+      "loadUsersFailed": "加载用户失败",
+      "saveFailed": "保存用户失败",
+      "neverLoggedIn": "从未登录"
+    }
+  },
+  "rolePermission": {
+    "title": "角色与权限",
+    "subtitle": "管理仓库运营的基于角色的访问控制",
+    "newRoleButton": "+ 新建角色",
+    "searchPlaceholder": "搜索角色...",
+    "savePermissionsButton": "保存权限",
+    "saving": "正在保存...",
+    "fields": {
+      "roleName": "角色名称",
+      "roleCode": "角色编码",
+      "status": "状态",
+      "description": "描述"
+    },
+    "newRoleDefaults": {
+      "name": "新角色"
+    },
+    "warehouseAccess": {
+      "title": "仓库权限",
+      "loading": "正在加载仓库...",
+      "noWarehouses": "未找到已启用的仓库。"
+    },
+    "permissionMatrix": {
+      "title": "权限矩阵",
+      "checkAll": "全选",
+      "uncheckAll": "取消全选",
+      "moduleColumn": "模块"
+    },
+    "actions": {
+      "view": "查看",
+      "create": "创建",
+      "edit": "编辑",
+      "delete": "删除",
+      "approve": "批准",
+      "export": "导出"
+    },
+    "modules": {
+      "dashboard": "仪表盘",
+      "receiving": "收货",
+      "qualityCheck": "质量检查",
+      "putaway": "上架",
+      "stockInquiry": "库存查询",
+      "stockAdjustment": "库存调整",
+      "order": "订单管理",
+      "picking": "拣货",
+      "shipping": "发货",
+      "users": "用户管理",
+      "roles": "角色与权限",
+      "warehouse": "仓库设置",
+      "product": "产品主数据"
+    },
+    "selectRolePrompt": "选择一个角色以配置权限",
+    "permissionConfigLabel": "{code} 权限配置",
+    "messages": {
+      "loadFailed": "加载角色与权限失败",
+      "loadWarehousesFailed": "加载仓库失败",
+      "loadPermissionsFailed": "加载角色权限失败",
+      "loadAccessFailed": "加载角色仓库权限失败",
+      "saveFailed": "保存权限失败",
+      "saveSuccess": "权限保存成功",
+      "createNotSupported": "暂不支持创建新角色。"
+    }
+  },
+  "warehouseSetup": {
+    "title": "仓库设置",
+    "subtitle": "管理仓库主数据、区域和存储货位",
+    "newWarehouseButton": "+ 新建仓库",
+    "summary": {
+      "totalWarehouses": "仓库总数",
+      "totalZones": "区域总数",
+      "totalLocations": "货位总数",
+      "avgUtilization": "平均利用率"
+    },
+    "filters": {
+      "searchPlaceholder": "搜索仓库...",
+      "allTypes": "全部类型",
+      "allStatus": "全部状态"
+    },
+    "warehouseTypes": {
+      "distributionCenter": "配送中心",
+      "factoryWarehouse": "工厂仓库",
+      "transitWarehouse": "中转仓库"
+    },
+    "table": {
+      "code": "仓库编码",
+      "name": "仓库名称",
+      "type": "类型",
+      "address": "地址",
+      "zones": "区域",
+      "locations": "货位",
+      "utilization": "利用率",
+      "status": "状态",
+      "action": "操作"
+    },
+    "loadingWarehouses": "正在加载仓库...",
+    "noWarehouses": "未找到仓库。",
+    "manageButton": "管理",
+    "drawer": {
+      "detailTitle": "仓库详情",
+      "newTitle": "新建仓库",
+      "subtitle": "仓库主数据与货位结构"
+    },
+    "tabs": {
+      "info": "仓库信息",
+      "zone": "区域设置",
+      "location": "货位结构",
+      "capacity": "容量看板"
+    },
+    "infoTab": {
+      "code": "仓库编码",
+      "name": "仓库名称",
+      "type": "仓库类型",
+      "status": "状态",
+      "contactPerson": "联系人",
+      "phone": "电话",
+      "capacity": "容量",
+      "capacityPlaceholder": "总货位/单位容量",
+      "address": "地址"
+    },
+    "saveWarehouseButton": "保存仓库",
+    "zoneTab": {
+      "saveFirst": "请先保存仓库后再添加区域。",
+      "title": "区域设置",
+      "addZoneButton": "+ 添加区域",
+      "codePlaceholder": "区域编码",
+      "namePlaceholder": "区域名称",
+      "saveZonesButton": "保存区域"
+    },
+    "zoneTypes": {
+      "receiving": "收货区",
+      "storage": "存储区",
+      "picking": "拣货区",
+      "packing": "包装区",
+      "shipping": "发货区",
+      "qc": "质检区",
+      "hold": "暂扣区"
+    },
+    "locationTab": {
+      "title": "货位结构",
+      "aislePrefix": "通道",
+      "rackPrefix": "货架",
+      "generateButton": "生成货位"
+    },
+    "capacityTab": {
+      "utilizationTitle": "仓库利用率",
+      "totalCapacity": "总容量",
+      "occupied": "已占用",
+      "available": "可用"
+    },
+    "messages": {
+      "loadFailed": "加载仓库失败",
+      "saveFailed": "保存仓库失败",
+      "loadZonesFailed": "加载区域失败",
+      "saveZonesFailed": "保存区域失败",
+      "binsGenerated": "货位生成成功"
+    },
+    "saving": "保存中..."
+  },
+  "productMaster": {
+    "title": "产品主数据",
+    "subtitle": "管理产品信息、条码映射、单位和存储规则",
+    "newProductButton": "+ 新建产品",
+    "summary": {
+      "totalProducts": "产品总数",
+      "activeProducts": "启用产品",
+      "lotRequired": "需批次管理",
+      "inactive": "已停用"
+    },
+    "filters": {
+      "searchPlaceholder": "搜索 SKU、产品、条码...",
+      "allCategories": "全部类别",
+      "allStatus": "全部状态",
+      "lotRule": "批次规则",
+      "lotRequiredOption": "需批次管理",
+      "noLotOption": "无需批次"
+    },
+    "categories": {
+      "packaging": "包装材料",
+      "label": "标签",
+      "rfid": "RFID",
+      "rawMaterial": "原材料"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "产品名称",
+      "category": "类别",
+      "baseUom": "基本单位",
+      "packSize": "包装规格",
+      "lot": "批次",
+      "serial": "序列号",
+      "expiry": "有效期",
+      "defaultZone": "默认区域",
+      "status": "状态",
+      "action": "操作"
+    },
+    "loadingProducts": "正在加载产品...",
+    "noProducts": "未找到产品。",
+    "manageButton": "管理",
+    "drawer": {
+      "detailTitle": "产品详情",
+      "newTitle": "新建产品",
+      "subtitle": "产品主数据、条码映射与库存规则"
+    },
+    "tabs": {
+      "info": "产品信息",
+      "barcode": "条码映射",
+      "rules": "库存规则",
+      "uom": "单位换算"
+    },
+    "infoTab": {
+      "sku": "SKU",
+      "productName": "产品名称",
+      "category": "类别",
+      "baseUom": "基本单位",
+      "status": "状态",
+      "barcode": "条码",
+      "barcodePlaceholder": "主条码（选填）",
+      "description": "描述"
+    },
+    "barcodeTab": {
+      "title": "条码映射",
+      "addButton": "+ 添加条码",
+      "table": {
+        "value": "条码值",
+        "type": "条码类型",
+        "uom": "单位",
+        "qtyPerBarcode": "每条码数量",
+        "primary": "主条码",
+        "status": "状态",
+        "action": "操作"
+      },
+      "noMapping": "暂无条码映射",
+      "removeButton": "移除"
+    },
+    "barcodeTypes": {
+      "supplier": "供应商条码",
+      "internal": "内部条码",
+      "box": "箱码",
+      "qr": "二维码"
+    },
+    "rulesTab": {
+      "lotRequiredTitle": "需批次管理",
+      "lotRequiredDesc": "收货和库存操作要求填写批次号",
+      "serialRequiredTitle": "需序列号管理",
+      "serialRequiredDesc": "要求每个单品填写序列号",
+      "expiryRequiredTitle": "需有效期管理",
+      "expiryRequiredDesc": "要求控制有效期",
+      "defaultZone": "默认上架区域",
+      "minStock": "最低库存",
+      "maxStock": "最高库存"
+    },
+    "uomTab": {
+      "title": "单位换算",
+      "addButton": "+ 添加单位换算",
+      "qtyPlaceholder": "数量",
+      "removeButton": "移除"
+    },
+    "cancelButton": "取消",
+    "saveProductButton": "保存产品",
+    "saving": "正在保存...",
+    "messages": {
+      "skuRequired": "请输入 SKU",
+      "nameRequired": "请输入产品名称",
+      "saveFailed": "保存产品失败",
+      "loadFailed": "加载产品失败"
+    }
+  },
+  "stockInquiry": {
+    "title": "库存查询",
+    "subtitle": "按 SKU、批号、区域和货位搜索并监控仓库库存",
+    "exportStock": "导出库存",
+    "exportTransactionHistory": "⬇ 导出交易历史",
+    "generatingExport": "正在生成交易导出…",
+    "exportReady": "交易导出已完成 — 正在下载…",
+    "exportFailed": "交易导出失败：{error}",
+    "summary": {
+      "totalSkus": "SKU 总数",
+      "availableQty": "可用数量",
+      "reservedQty": "预留数量",
+      "lowStock": "库存不足"
+    },
+    "filters": {
+      "searchPlaceholder": "搜索 SKU、产品、条码...",
+      "allWarehouses": "全部仓库",
+      "allZones": "全部区域",
+      "zonePrefix": "区域",
+      "allStockStatus": "全部库存状态",
+      "statusAvailable": "可用",
+      "statusReserved": "已预留",
+      "statusHold": "暂停",
+      "statusLowStock": "库存不足"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "产品名称",
+      "barcode": "条码",
+      "warehouse": "仓库",
+      "location": "货位",
+      "lotNo": "批号",
+      "available": "可用",
+      "reserved": "已预留",
+      "onHand": "现有",
+      "uom": "单位",
+      "status": "状态",
+      "action": "操作",
+      "viewDetail": "查看详情",
+      "loading": "正在加载库存...",
+      "noData": "未找到库存"
+    },
+    "detail": {
+      "title": "库存详情",
+      "productName": "产品名称",
+      "barcode": "条码",
+      "warehouse": "仓库",
+      "location": "货位",
+      "lotNo": "批号",
+      "expiryDate": "有效期",
+      "available": "可用",
+      "reserved": "已预留",
+      "onHand": "现有",
+      "recentMovement": "最近库存变动",
+      "noMovement": "暂无库存变动记录",
+      "createAdjustment": "创建调整"
+    },
+    "messages": {
+      "loadWarehousesFailed": "加载仓库失败",
+      "loadZonesFailed": "加载区域失败",
+      "loadSummaryFailed": "加载库存汇总失败",
+      "loadInventoryFailed": "加载库存失败",
+      "loadMovementFailed": "加载库存变动记录失败"
+    }
+  },
+  "stockAdjustment": {
+    "title": "库存调整",
+    "subtitle": "创建和审核库存调整单据",
+    "newButton": "+ 新建调整",
+    "summary": {
+      "pendingApproval": "待审批",
+      "approvedToday": "今日已批准",
+      "rejected": "已拒绝",
+      "totalVariance": "总差异"
+    },
+    "filters": {
+      "searchPlaceholder": "搜索调整单号、SKU、原因...",
+      "allTypes": "全部类型",
+      "increase": "增加",
+      "decrease": "减少",
+      "allStatus": "全部状态",
+      "overduePending": "逾期（待审批）"
+    },
+    "table": {
+      "adjustmentNo": "调整单号",
+      "date": "日期",
+      "sku": "SKU",
+      "product": "产品",
+      "location": "货位",
+      "currentQty": "当前数量",
+      "adjustQty": "调整数量",
+      "newQty": "新数量",
+      "reason": "原因",
+      "pendingAge": "待处理时长",
+      "status": "状态",
+      "action": "操作",
+      "overdue": "逾期",
+      "viewDetail": "查看详情",
+      "loading": "正在加载调整记录…",
+      "noData": "未找到库存调整记录"
+    },
+    "drawer": {
+      "newTitle": "新建库存调整",
+      "detailTitle": "调整详情",
+      "subtitle": "通过审批流程调整库存数量",
+      "skuBarcode": "SKU / 条码",
+      "skuPlaceholder": "扫描或输入 SKU",
+      "warehouse": "仓库",
+      "selectWarehouse": "选择仓库",
+      "location": "货位",
+      "selectLocation": "选择货位",
+      "lotNoOptional": "批号（选填）",
+      "lotNoPlaceholder": "非批号追踪库存请留空",
+      "createdBy": "创建人",
+      "createdAt": "创建时间",
+      "pendingFor": "已等待 {age}",
+      "overdueThreshold": "— 已逾期（阈值：{hours} 小时）",
+      "currentQty": "当前数量",
+      "adjustmentType": "调整类型",
+      "increase": "增加",
+      "decrease": "减少",
+      "adjustQty": "调整数量",
+      "qtyPlaceholder": "数量",
+      "resultingQuantity": "最终数量",
+      "newQuantityEstimated": "新数量（预估）",
+      "reason": "原因",
+      "selectReason": "选择原因",
+      "remark": "备注",
+      "remarkPlaceholder": "输入备注",
+      "submitForApproval": "提交审批",
+      "saveDraft": "保存草稿",
+      "approve": "批准",
+      "reject": "拒绝",
+      "viewOnlyNote": "您的角色可以查看此调整，但无法批准或拒绝。"
+    },
+    "status": {
+      "draft": "草稿",
+      "pending": "待审批",
+      "approved": "已批准",
+      "rejected": "已拒绝"
+    },
+    "messages": {
+      "skuRequired": "请输入 SKU",
+      "noProductFound": "未找到 SKU/条码为“{value}”的产品",
+      "locationRequired": "请选择货位",
+      "adjustQtyPositive": "调整数量必须大于零",
+      "reasonRequired": "请选择原因",
+      "remarkRequiredToReject": "拒绝调整时必须填写备注",
+      "submittedForApproval": "库存调整已提交审批",
+      "draftSaved": "草稿保存成功",
+      "approved": "库存调整已批准",
+      "rejectedMsg": "库存调整已拒绝"
+    }
+  },
+  "checkStock": {
+    "title": "盘点库存",
+    "subtitle": "执行实物盘点并与系统数量进行比对",
+    "newCountTask": "+ 新建盘点任务",
+    "startDifferentCount": "+ 开始其他盘点",
+    "history": {
+      "title": "盘点历史",
+      "subtitle": "过去及进行中的盘点任务 — 选择一项以查看或继续",
+      "searchPlaceholder": "搜索盘点单号...",
+      "allStatus": "全部状态",
+      "allWarehouses": "全部仓库",
+      "table": {
+        "countNo": "盘点单号",
+        "type": "类型",
+        "warehouse": "仓库",
+        "zone": "区域",
+        "createdDate": "创建日期",
+        "createdBy": "创建人",
+        "items": "项目数",
+        "varianceLines": "差异行数",
+        "status": "状态",
+        "action": "操作",
+        "view": "查看",
+        "loading": "正在加载盘点历史…",
+        "noData": "未找到盘点记录"
+      }
+    },
+    "countInfo": {
+      "title": "盘点信息",
+      "countType": "盘点类型",
+      "cycleCount": "循环盘点",
+      "fullCount": "全面盘点",
+      "locationCount": "货位盘点",
+      "skuCount": "SKU 盘点",
+      "warehouse": "仓库",
+      "selectWarehouse": "选择仓库",
+      "zone": "区域",
+      "allZone": "全部区域",
+      "countDate": "盘点日期"
+    },
+    "scan": {
+      "title": "扫描库存",
+      "subtitle": "扫描 SKU、条码或货位以更新实际盘点数量",
+      "scannerReady": "扫描就绪",
+      "skuPlaceholder": "扫描 SKU / 条码",
+      "locationPlaceholder": "扫描货位",
+      "countQtyPlaceholder": "盘点数量",
+      "good": "良好",
+      "damaged": "损坏",
+      "hold": "暂停",
+      "confirmCount": "确认盘点"
+    },
+    "items": {
+      "title": "盘点明细",
+      "subtitle": "查看系统数量、盘点数量及差异",
+      "skuPlaceholder": "SKU / 条码",
+      "locationPlaceholder": "货位",
+      "lotNoPlaceholder": "批号（选填）",
+      "addItem": "+ 添加项目",
+      "table": {
+        "sku": "SKU",
+        "productName": "产品名称",
+        "location": "货位",
+        "lotNo": "批号",
+        "systemQty": "系统数量",
+        "countQty": "盘点数量",
+        "variance": "差异",
+        "uom": "单位",
+        "condition": "状况",
+        "status": "状态",
+        "remark": "备注",
+        "remarkPlaceholder": "备注",
+        "action": "操作",
+        "save": "保存",
+        "noData": "暂无盘点项目"
+      }
+    },
+    "summary": {
+      "title": "盘点汇总",
+      "totalLines": "总行数",
+      "matchedLines": "匹配行数",
+      "varianceLines": "差异行数",
+      "netVariance": "净差异"
+    },
+    "generatedAdjustments": {
+      "title": "已生成的调整单",
+      "subtitle": "通过“创建调整”由本次盘点差异生成的库存调整单据",
+      "viewLink": "在库存调整中查看 →",
+      "table": {
+        "adjustmentNo": "调整单号",
+        "reason": "原因",
+        "status": "状态",
+        "created": "创建时间"
+      }
+    },
+    "actions": {
+      "chooseOneNote": "请选择一种方式：“确认盘点”会立即将此差异应用到库存，或“创建调整”会将其通过单独的审批流程处理。每次盘点只能选择一种方式 — 先点击的操作将锁定另一个。",
+      "saveDraft": "保存草稿",
+      "createAdjustment": "创建调整",
+      "confirmCount": "确认盘点",
+      "creating": "正在创建…"
+    },
+    "status": {
+      "draft": "草稿",
+      "confirmed": "已确认",
+      "adjustmentCreated": "已生成调整"
+    },
+    "itemStatus": {
+      "pending": "PENDING",
+      "counted": "COUNTED",
+      "recount": "RECOUNT"
+    },
+    "messages": {
+      "warehouseRequired": "请选择仓库",
+      "skuBarcodeRequired": "请输入 SKU / 条码",
+      "locationRequired": "请选择货位",
+      "noProductFound": "未找到 SKU/条码为“{value}”的产品",
+      "skuOrBarcodeRequired": "请输入 SKU 或条码",
+      "itemNotFound": "未找到此库存项目",
+      "draftSaved": "盘点草稿保存成功",
+      "noVarianceFound": "未发现差异",
+      "someItemsPending": "仍有部分项目待盘点",
+      "countConfirmed": "盘点确认成功"
+    }
+  },
+  "replenishment": {
+    "title": "补货",
+    "subtitle": "将库存从大宗/备用货位移动到拣货货位",
+    "recommendations": "🎯 补货建议",
+    "newTask": "+ 新建任务",
+    "filters": {
+      "searchPlaceholder": "搜索任务编号、SKU、产品...",
+      "allStatus": "全部状态",
+      "allWarehouses": "全部仓库"
+    },
+    "status": {
+      "pending": "待处理",
+      "inProgress": "进行中",
+      "completed": "已完成",
+      "cancelled": "已取消",
+      "issue": "异常"
+    },
+    "table": {
+      "taskNo": "任务编号",
+      "sku": "SKU",
+      "product": "产品",
+      "from": "来源",
+      "to": "目的地",
+      "qty": "数量",
+      "warehouse": "仓库",
+      "status": "状态",
+      "action": "操作",
+      "view": "查看",
+      "loading": "正在加载补货任务…",
+      "noData": "未找到补货任务"
+    },
+    "newTaskForm": {
+      "title": "新建补货任务",
+      "selectWarehouse": "选择仓库",
+      "skuPlaceholder": "产品 SKU",
+      "lotNoPlaceholder": "批号（选填）",
+      "fromLocation": "来源货位",
+      "toLocation": "目的货位",
+      "quantityPlaceholder": "数量",
+      "remarkPlaceholder": "备注（选填）",
+      "cancel": "取消",
+      "createTask": "创建任务",
+      "creating": "正在创建…"
+    },
+    "recommendationsPanel": {
+      "title": "补货建议",
+      "selectWarehouse": "选择仓库",
+      "load": "加载",
+      "loading": "加载中…",
+      "table": {
+        "sku": "SKU",
+        "product": "产品",
+        "from": "来源",
+        "to": "目的地",
+        "suggestedQty": "建议数量",
+        "action": "操作",
+        "use": "使用",
+        "noData": "尚未加载建议"
+      }
+    },
+    "detail": {
+      "status": "状态：",
+      "product": "产品：",
+      "lot": "批号：",
+      "from": "来源：",
+      "to": "目的地：",
+      "quantity": "数量：",
+      "warehouse": "仓库：",
+      "remark": "备注：",
+      "issue": "异常：",
+      "cancelRemark": "取消备注：",
+      "createdBy": "创建人：",
+      "start": "开始",
+      "confirmMove": "确认移动",
+      "confirming": "正在确认…",
+      "cancelRemarkPlaceholder": "取消备注（选填）",
+      "cancelTask": "取消任务",
+      "issueRemarkPlaceholder": "异常备注（必填）",
+      "reportIssue": "报告异常"
+    },
+    "messages": {
+      "loadWarehousesFailed": "加载仓库失败",
+      "loadTasksFailed": "加载补货任务失败",
+      "loadLocationsFailed": "加载货位失败",
+      "requiredFields": "仓库、来源/目的货位和数量为必填项",
+      "skuRequired": "请输入产品 SKU",
+      "noProductFound": "未找到 SKU/条码为“{value}”的产品",
+      "createTaskFailed": "创建补货任务失败",
+      "loadRecommendationsFailed": "加载补货建议失败",
+      "loadDetailFailed": "加载任务详情失败",
+      "issueRemarkRequired": "请输入异常备注"
+    }
+  }
+}

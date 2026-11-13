@@ -3,9 +3,9 @@
     <!-- Page Header -->
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">Warehouse Setup</h1>
+        <h1 class="text-2xl font-bold text-slate-800">{{ $t('warehouseSetup.title') }}</h1>
         <p class="text-slate-500">
-          Manage warehouse master data, zones and storage locations
+          {{ $t('warehouseSetup.subtitle') }}
         </p>
       </div>
 
@@ -13,29 +13,29 @@
         @click="openWarehouse(null)"
         class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
       >
-        + New Warehouse
+        {{ $t('warehouseSetup.newWarehouseButton') }}
       </button>
     </div>
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
       <div class="summary-card">
-        <p class="summary-label">Total Warehouses</p>
+        <p class="summary-label">{{ $t('warehouseSetup.summary.totalWarehouses') }}</p>
         <h2 class="summary-value">{{ warehouses.length }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Total Zones</p>
+        <p class="summary-label">{{ $t('warehouseSetup.summary.totalZones') }}</p>
         <h2 class="summary-value">{{ totalZones }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Total Locations</p>
+        <p class="summary-label">{{ $t('warehouseSetup.summary.totalLocations') }}</p>
         <h2 class="summary-value">{{ totalLocations }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Avg Utilization</p>
+        <p class="summary-label">{{ $t('warehouseSetup.summary.avgUtilization') }}</p>
         <h2 class="summary-value text-orange-600">—</h2>
       </div>
     </div>
@@ -46,28 +46,28 @@
         <input
           v-model="filters.keyword"
           type="text"
-          placeholder="Search warehouse..."
+          :placeholder="$t('warehouseSetup.filters.searchPlaceholder')"
           class="input"
         />
 
         <select v-model="filters.type" class="input">
-          <option value="">All Types</option>
-          <option value="Distribution Center">Distribution Center</option>
-          <option value="Factory Warehouse">Factory Warehouse</option>
-          <option value="Transit Warehouse">Transit Warehouse</option>
+          <option value="">{{ $t('warehouseSetup.filters.allTypes') }}</option>
+          <option value="Distribution Center">{{ $t('warehouseSetup.warehouseTypes.distributionCenter') }}</option>
+          <option value="Factory Warehouse">{{ $t('warehouseSetup.warehouseTypes.factoryWarehouse') }}</option>
+          <option value="Transit Warehouse">{{ $t('warehouseSetup.warehouseTypes.transitWarehouse') }}</option>
         </select>
 
         <select v-model="filters.status" class="input">
-          <option value="">All Status</option>
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
+          <option value="">{{ $t('warehouseSetup.filters.allStatus') }}</option>
+          <option value="ACTIVE">{{ $t('common.status.active') }}</option>
+          <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
         </select>
 
         <button
           @click="clearFilter"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
         >
-          Clear Filter
+          {{ $t('common.buttons.clearFilter') }}
         </button>
       </div>
     </div>
@@ -82,24 +82,24 @@
         <table class="min-w-[1150px] w-full text-sm">
           <thead class="bg-slate-50 text-slate-500">
             <tr>
-              <th class="table-th">Warehouse Code</th>
-              <th class="table-th">Warehouse Name</th>
-              <th class="table-th">Type</th>
-              <th class="table-th">Address</th>
-              <th class="table-th">Zones</th>
-              <th class="table-th">Locations</th>
-              <th class="table-th">Utilization</th>
-              <th class="table-th">Status</th>
-              <th class="table-th text-right">Action</th>
+              <th class="table-th">{{ $t('warehouseSetup.table.code') }}</th>
+              <th class="table-th">{{ $t('warehouseSetup.table.name') }}</th>
+              <th class="table-th">{{ $t('warehouseSetup.table.type') }}</th>
+              <th class="table-th">{{ $t('warehouseSetup.table.address') }}</th>
+              <th class="table-th">{{ $t('warehouseSetup.table.zones') }}</th>
+              <th class="table-th">{{ $t('warehouseSetup.table.locations') }}</th>
+              <th class="table-th">{{ $t('warehouseSetup.table.utilization') }}</th>
+              <th class="table-th">{{ $t('warehouseSetup.table.status') }}</th>
+              <th class="table-th text-right">{{ $t('warehouseSetup.table.action') }}</th>
             </tr>
           </thead>
 
           <tbody>
             <tr v-if="loading">
-              <td class="table-td" colspan="9">Loading warehouses...</td>
+              <td class="table-td" colspan="9">{{ $t('warehouseSetup.loadingWarehouses') }}</td>
             </tr>
             <tr v-else-if="warehouses.length === 0">
-              <td class="table-td" colspan="9">No warehouses found.</td>
+              <td class="table-td" colspan="9">{{ $t('warehouseSetup.noWarehouses') }}</td>
             </tr>
             <tr
               v-for="warehouse in warehouses"
@@ -146,7 +146,7 @@
 
               <td class="table-td">
                 <span :class="getStatusClass(warehouse.status)">
-                  {{ warehouse.status }}
+                  {{ statusLabel(warehouse.status) }}
                 </span>
               </td>
 
@@ -155,7 +155,7 @@
                   @click="openWarehouse(warehouse)"
                   class="text-orange-600 hover:text-orange-700 font-semibold"
                 >
-                  Manage
+                  {{ $t('warehouseSetup.manageButton') }}
                 </button>
               </td>
             </tr>
@@ -173,10 +173,10 @@
         <div class="flex items-center justify-between mb-6">
           <div>
             <h2 class="text-xl font-bold text-slate-800">
-              {{ selectedWarehouse.id ? 'Warehouse Detail' : 'New Warehouse' }}
+              {{ selectedWarehouse.id ? $t('warehouseSetup.drawer.detailTitle') : $t('warehouseSetup.drawer.newTitle') }}
             </h2>
             <p class="text-slate-500">
-              Warehouse master data and location structure
+              {{ $t('warehouseSetup.drawer.subtitle') }}
             </p>
           </div>
 
@@ -197,7 +197,7 @@
             class="tab-button"
             :class="activeTab === tab.key ? 'tab-active' : ''"
           >
-            {{ tab.label }}
+            {{ $t(tab.labelKey) }}
           </button>
         </div>
 
@@ -205,45 +205,45 @@
         <div v-if="activeTab === 'INFO'" class="space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="label">Warehouse Code</label>
+              <label class="label">{{ $t('warehouseSetup.infoTab.code') }}</label>
               <input v-model="warehouseForm.code" type="text" class="input" />
             </div>
 
             <div>
-              <label class="label">Warehouse Name</label>
+              <label class="label">{{ $t('warehouseSetup.infoTab.name') }}</label>
               <input v-model="warehouseForm.name" type="text" class="input" />
             </div>
 
             <div>
-              <label class="label">Warehouse Type</label>
+              <label class="label">{{ $t('warehouseSetup.infoTab.type') }}</label>
               <select v-model="warehouseForm.type" class="input">
-                <option value="Distribution Center">Distribution Center</option>
-                <option value="Factory Warehouse">Factory Warehouse</option>
-                <option value="Transit Warehouse">Transit Warehouse</option>
+                <option value="Distribution Center">{{ $t('warehouseSetup.warehouseTypes.distributionCenter') }}</option>
+                <option value="Factory Warehouse">{{ $t('warehouseSetup.warehouseTypes.factoryWarehouse') }}</option>
+                <option value="Transit Warehouse">{{ $t('warehouseSetup.warehouseTypes.transitWarehouse') }}</option>
               </select>
             </div>
 
             <div>
-              <label class="label">Status</label>
+              <label class="label">{{ $t('warehouseSetup.infoTab.status') }}</label>
               <select v-model="warehouseForm.status" class="input">
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
+                <option value="ACTIVE">{{ $t('common.status.active') }}</option>
+                <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
               </select>
             </div>
 
             <div>
-              <label class="label">Contact Person</label>
+              <label class="label">{{ $t('warehouseSetup.infoTab.contactPerson') }}</label>
               <input v-model="warehouseForm.contactPerson" type="text" class="input" />
             </div>
 
             <div>
-              <label class="label">Phone</label>
+              <label class="label">{{ $t('warehouseSetup.infoTab.phone') }}</label>
               <input v-model="warehouseForm.phone" type="text" class="input" />
             </div>
 
             <div>
-              <label class="label">Capacity</label>
-              <input v-model.number="warehouseForm.capacity" type="number" min="0" class="input" placeholder="Total bin/unit capacity" />
+              <label class="label">{{ $t('warehouseSetup.infoTab.capacity') }}</label>
+              <input v-model.number="warehouseForm.capacity" type="number" min="0" class="input" :placeholder="$t('warehouseSetup.infoTab.capacityPlaceholder')" />
             </div>
           </div>
 
@@ -252,7 +252,7 @@
           </div>
 
           <div>
-            <label class="label">Address</label>
+            <label class="label">{{ $t('warehouseSetup.infoTab.address') }}</label>
             <textarea v-model="warehouseForm.address" rows="4" class="input"></textarea>
           </div>
 
@@ -261,25 +261,25 @@
             :disabled="saving"
             class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
           >
-            {{ saving ? 'Saving...' : 'Save Warehouse' }}
+            {{ saving ? $t('warehouseSetup.saving') : $t('warehouseSetup.saveWarehouseButton') }}
           </button>
         </div>
 
         <!-- Zone Setup -->
         <div v-if="activeTab === 'ZONE'" class="space-y-4">
           <div v-if="!selectedWarehouse.id" class="text-slate-500">
-            Save the warehouse first before adding zones.
+            {{ $t('warehouseSetup.zoneTab.saveFirst') }}
           </div>
 
           <template v-else>
             <div class="flex justify-between items-center">
-              <h3 class="font-bold text-slate-800">Zone Setup</h3>
+              <h3 class="font-bold text-slate-800">{{ $t('warehouseSetup.zoneTab.title') }}</h3>
 
               <button
                 @click="addZone"
                 class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold"
               >
-                + Add Zone
+                {{ $t('warehouseSetup.zoneTab.addZoneButton') }}
               </button>
             </div>
 
@@ -289,22 +289,22 @@
               class="border border-slate-200 rounded-2xl p-4"
             >
               <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <input v-model="zone.code" class="input" placeholder="Zone Code" />
-                <input v-model="zone.name" class="input" placeholder="Zone Name" />
+                <input v-model="zone.code" class="input" :placeholder="$t('warehouseSetup.zoneTab.codePlaceholder')" />
+                <input v-model="zone.name" class="input" :placeholder="$t('warehouseSetup.zoneTab.namePlaceholder')" />
 
                 <select v-model="zone.type" class="input">
-                  <option value="RECEIVING">Receiving</option>
-                  <option value="STORAGE">Storage</option>
-                  <option value="PICKING">Picking</option>
-                  <option value="PACKING">Packing</option>
-                  <option value="SHIPPING">Shipping</option>
-                  <option value="QC">QC</option>
-                  <option value="HOLD">Hold</option>
+                  <option value="RECEIVING">{{ $t('warehouseSetup.zoneTypes.receiving') }}</option>
+                  <option value="STORAGE">{{ $t('warehouseSetup.zoneTypes.storage') }}</option>
+                  <option value="PICKING">{{ $t('warehouseSetup.zoneTypes.picking') }}</option>
+                  <option value="PACKING">{{ $t('warehouseSetup.zoneTypes.packing') }}</option>
+                  <option value="SHIPPING">{{ $t('warehouseSetup.zoneTypes.shipping') }}</option>
+                  <option value="QC">{{ $t('warehouseSetup.zoneTypes.qc') }}</option>
+                  <option value="HOLD">{{ $t('warehouseSetup.zoneTypes.hold') }}</option>
                 </select>
 
                 <select v-model="zone.status" class="input">
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
+                  <option value="ACTIVE">{{ $t('common.status.active') }}</option>
+                  <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
                 </select>
               </div>
             </div>
@@ -318,7 +318,7 @@
               :disabled="savingZones"
               class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
             >
-              {{ savingZones ? 'Saving...' : 'Save Zones' }}
+              {{ savingZones ? $t('warehouseSetup.saving') : $t('warehouseSetup.zoneTab.saveZonesButton') }}
             </button>
           </template>
         </div>
@@ -326,7 +326,7 @@
         <!-- Location Structure -->
         <div v-if="activeTab === 'LOCATION'" class="space-y-4">
           <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5">
-            <h3 class="font-bold text-slate-800 mb-4">Location Structure</h3>
+            <h3 class="font-bold text-slate-800 mb-4">{{ $t('warehouseSetup.locationTab.title') }}</h3>
 
             <div class="space-y-3">
               <div
@@ -344,7 +344,7 @@
                   class="ml-5 mt-3"
                 >
                   <p class="font-semibold text-slate-700">
-                    └─ Aisle {{ aisle.aisleCode }}
+                    └─ {{ $t('warehouseSetup.locationTab.aislePrefix') }} {{ aisle.aisleCode }}
                   </p>
 
                   <div
@@ -353,7 +353,7 @@
                     class="ml-5 mt-2"
                   >
                     <p class="text-slate-600">
-                      └─ Rack {{ rack.rackCode }}
+                      └─ {{ $t('warehouseSetup.locationTab.rackPrefix') }} {{ rack.rackCode }}
                     </p>
 
                     <div class="ml-5 mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -375,14 +375,14 @@
             @click="generateLocations"
             class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
           >
-            Generate Bin Locations
+            {{ $t('warehouseSetup.locationTab.generateButton') }}
           </button>
         </div>
 
         <!-- Capacity Dashboard -->
         <div v-if="activeTab === 'CAPACITY'" class="space-y-5">
           <div class="bg-orange-50 border border-orange-200 rounded-2xl p-6">
-            <p class="text-slate-500">Warehouse Utilization</p>
+            <p class="text-slate-500">{{ $t('warehouseSetup.capacityTab.utilizationTitle') }}</p>
             <h2 class="text-4xl font-bold text-orange-600 mt-2">
               {{ warehouseForm.utilization ?? 0 }}%
             </h2>
@@ -401,17 +401,17 @@
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="summary-card">
-              <p class="summary-label">Total Capacity</p>
+              <p class="summary-label">{{ $t('warehouseSetup.capacityTab.totalCapacity') }}</p>
               <h2 class="summary-value">{{ warehouseForm.capacity ?? '—' }}</h2>
             </div>
 
             <div class="summary-card">
-              <p class="summary-label">Occupied</p>
+              <p class="summary-label">{{ $t('warehouseSetup.capacityTab.occupied') }}</p>
               <h2 class="summary-value">—</h2>
             </div>
 
             <div class="summary-card">
-              <p class="summary-label">Available</p>
+              <p class="summary-label">{{ $t('warehouseSetup.capacityTab.available') }}</p>
               <h2 class="summary-value">—</h2>
             </div>
           </div>
@@ -427,6 +427,7 @@ import {
   listZones, createZone, updateZone,
   listLocations
 } from '../../services/warehouses'
+import i18n from '../../i18n'
 
 let searchDebounce = null
 let zoneTempCounter = 0
@@ -452,10 +453,10 @@ export default {
       },
 
       tabs: [
-        { key: 'INFO', label: 'Warehouse Info' },
-        { key: 'ZONE', label: 'Zone Setup' },
-        { key: 'LOCATION', label: 'Location Structure' },
-        { key: 'CAPACITY', label: 'Capacity Dashboard' }
+        { key: 'INFO', labelKey: 'warehouseSetup.tabs.info' },
+        { key: 'ZONE', labelKey: 'warehouseSetup.tabs.zone' },
+        { key: 'LOCATION', labelKey: 'warehouseSetup.tabs.location' },
+        { key: 'CAPACITY', labelKey: 'warehouseSetup.tabs.capacity' }
       ],
 
       warehouseForm: {
@@ -520,7 +521,7 @@ export default {
         })
         this.warehouses = res.data
       } catch (err) {
-        this.listError = err.message || 'Failed to load warehouses'
+        this.listError = err.message || this.$t('warehouseSetup.messages.loadFailed')
       } finally {
         this.loading = false
       }
@@ -590,7 +591,7 @@ export default {
         this.selectedWarehouse = null
         await this.fetchWarehouses()
       } catch (err) {
-        this.formError = err.message || 'Failed to save warehouse'
+        this.formError = err.message || this.$t('warehouseSetup.messages.saveFailed')
       } finally {
         this.saving = false
       }
@@ -602,7 +603,7 @@ export default {
         const res = await listZones(this.selectedWarehouse.id)
         this.zones = res.data
       } catch (err) {
-        this.zoneError = err.message || 'Failed to load zones'
+        this.zoneError = err.message || this.$t('warehouseSetup.messages.loadZonesFailed')
       }
     },
 
@@ -639,7 +640,7 @@ export default {
         }
         await this.fetchWarehouses()
       } catch (err) {
-        this.zoneError = err.message || 'Failed to save zones'
+        this.zoneError = err.message || this.$t('warehouseSetup.messages.saveZonesFailed')
       } finally {
         this.savingZones = false
       }
@@ -682,13 +683,19 @@ export default {
     },
 
     generateLocations() {
-      alert('Bin locations generated successfully')
+      alert(this.$t('warehouseSetup.messages.binsGenerated'))
     },
 
     getStatusClass(status) {
       if (status === 'ACTIVE') return 'badge-green'
       if (status === 'INACTIVE') return 'badge-gray'
       return 'badge-gray'
+    },
+
+    statusLabel(status) {
+      if (status === 'ACTIVE') return this.$t('common.status.active')
+      if (status === 'INACTIVE') return this.$t('common.status.inactive')
+      return status
     }
   }
 }

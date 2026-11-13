@@ -2,9 +2,9 @@
   <div class="space-y-6">
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">Shipping</h1>
+        <h1 class="text-2xl font-bold text-slate-800">{{ $t('shipping.title') }}</h1>
         <p class="text-slate-500">
-          Manage packed orders, shipment confirmation and delivery dispatch
+          {{ $t('shipping.subtitle') }}
         </p>
       </div>
 
@@ -14,7 +14,7 @@
           :disabled="exporting"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
         >
-          {{ exporting ? 'Exporting…' : '⬇ Export CSV' }}
+          {{ exporting ? $t('common.buttons.exporting') : '⬇ ' + $t('common.buttons.exportCsv') }}
         </button>
 
         <button
@@ -22,29 +22,29 @@
           @click="openShipping(null)"
           class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
         >
-          + New Shipment
+          {{ $t('shipping.newShipmentButton') }}
         </button>
       </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
       <div class="summary-card">
-        <p class="summary-label">Ready to Ship</p>
+        <p class="summary-label">{{ $t('shipping.summary.readyToShip') }}</p>
         <h2 class="summary-value">{{ readyCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">In Transit</p>
+        <p class="summary-label">{{ $t('shipping.summary.inTransit') }}</p>
         <h2 class="summary-value">{{ inTransitCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Delivered</p>
+        <p class="summary-label">{{ $t('shipping.summary.delivered') }}</p>
         <h2 class="summary-value">{{ deliveredCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Delivery Issues</p>
+        <p class="summary-label">{{ $t('shipping.summary.deliveryIssues') }}</p>
         <h2 class="summary-value text-red-600">{{ issueCount }}</h2>
       </div>
     </div>
@@ -58,22 +58,25 @@
         <input
           v-model="filters.keyword"
           type="text"
-          placeholder="Search Shipment No, Order No, Customer..."
+          :placeholder="$t('shipping.filters.searchPlaceholder')"
           class="input"
         />
 
         <select v-model="filters.status" class="input">
-          <option value="">All Status</option>
-          <option value="READY">Ready to Ship</option>
-          <option value="DISPATCHED">Dispatched</option>
-          <option value="IN_TRANSIT">In Transit</option>
-          <option value="DELIVERED">Delivered</option>
-          <option value="ISSUE">Issue</option>
-          <option value="CANCELLED">Cancelled</option>
+          <option value="">{{ $t('shipping.filters.allStatus') }}</option>
+          <option value="READY">{{ $t('shipping.filters.statusReady') }}</option>
+          <option value="DISPATCHED">{{ $t('shipping.filters.statusDispatched') }}</option>
+          <option value="IN_TRANSIT">{{ $t('shipping.filters.statusInTransit') }}</option>
+          <option value="DELIVERED">{{ $t('shipping.filters.statusDelivered') }}</option>
+          <option value="ISSUE">{{ $t('shipping.filters.statusIssue') }}</option>
+          <option value="CANCELLED">{{ $t('common.status.cancelled') }}</option>
         </select>
 
+        <!-- Carrier option labels (DHL, Kerry Express, Flash Express) are
+             real-world carrier brand names / business data, left
+             untranslated per "preserve original business values". -->
         <select v-model="filters.carrier" class="input">
-          <option value="">All Carriers</option>
+          <option value="">{{ $t('shipping.filters.allCarriers') }}</option>
           <option value="DHL">DHL</option>
           <option value="KERRY">Kerry Express</option>
           <option value="FLASH">Flash Express</option>
@@ -90,7 +93,7 @@
           @click="clearFilter"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
         >
-          Clear Filter
+          {{ $t('common.buttons.clearFilter') }}
         </button>
       </div>
     </div>
@@ -100,26 +103,26 @@
         <table class="min-w-[1250px] w-full text-sm">
           <thead class="bg-slate-50 text-slate-500">
             <tr>
-              <th class="table-th">Shipment No.</th>
-              <th class="table-th">Order No.</th>
-              <th class="table-th">Customer</th>
-              <th class="table-th">Carrier</th>
-              <th class="table-th">Tracking No.</th>
-              <th class="table-th">Packages</th>
-              <th class="table-th">Weight</th>
-              <th class="table-th">Ship Date</th>
-              <th class="table-th">Status</th>
-              <th class="table-th text-right">Action</th>
+              <th class="table-th">{{ $t('shipping.table.shipmentNo') }}</th>
+              <th class="table-th">{{ $t('shipping.table.orderNo') }}</th>
+              <th class="table-th">{{ $t('shipping.table.customer') }}</th>
+              <th class="table-th">{{ $t('shipping.table.carrier') }}</th>
+              <th class="table-th">{{ $t('shipping.table.trackingNo') }}</th>
+              <th class="table-th">{{ $t('shipping.table.packages') }}</th>
+              <th class="table-th">{{ $t('shipping.table.weight') }}</th>
+              <th class="table-th">{{ $t('shipping.table.shipDate') }}</th>
+              <th class="table-th">{{ $t('shipping.table.status') }}</th>
+              <th class="table-th text-right">{{ $t('shipping.table.action') }}</th>
             </tr>
           </thead>
 
           <tbody>
             <tr v-if="loading">
-              <td colspan="10" class="text-center py-10 text-slate-400">Loading shipments…</td>
+              <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('shipping.loadingShipments') }}</td>
             </tr>
 
             <tr v-else-if="shippingList.length === 0">
-              <td colspan="10" class="text-center py-10 text-slate-400">No shipments found</td>
+              <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('shipping.noShipments') }}</td>
             </tr>
 
             <template v-else>
@@ -142,7 +145,7 @@
 
               <td class="table-td">
                 <span :class="getStatusClass(item.status)">
-                  {{ item.statusText }}
+                  {{ statusText(item.status) }}
                 </span>
               </td>
 
@@ -151,7 +154,7 @@
                   @click="openShipping(item)"
                   class="text-orange-600 hover:text-orange-700 font-semibold"
                 >
-                  Manage
+                  {{ $t('shipping.table.manage') }}
                 </button>
               </td>
             </tr>
@@ -169,7 +172,7 @@
         <div class="flex items-center justify-between mb-6">
           <div>
             <h2 class="text-xl font-bold text-slate-800">
-              {{ isNewShipment ? 'New Shipment' : 'Shipping Detail' }}
+              {{ isNewShipment ? $t('shipping.drawer.newShipmentTitle') : $t('shipping.drawer.detailTitle') }}
             </h2>
             <p v-if="!isNewShipment" class="text-slate-500">
               {{ selectedShipping.shipmentNo }} / {{ selectedShipping.orderNo }}
@@ -190,15 +193,15 @@
 
         <!-- New shipment: source picking task selector -->
         <div v-if="isNewShipment" class="bg-slate-50 rounded-2xl p-5 mb-6">
-          <label class="label">Source Picking Task</label>
+          <label class="label">{{ $t('shipping.drawer.sourcePickingTask') }}</label>
           <select v-model="form.pickingTaskId" class="input">
-            <option value="">Select a completed picking task</option>
+            <option value="">{{ $t('shipping.drawer.selectSourceTask') }}</option>
             <option v-for="src in sources" :key="src.picking_task_id" :value="src.picking_task_id">
-              {{ src.pick_no }} / {{ src.order_no }} ({{ src.item_count }} item{{ src.item_count === 1 ? '' : 's' }})
+              {{ src.pick_no }} / {{ src.order_no }} {{ $t('shipping.drawer.itemCountSuffix', { count: src.item_count, plural: src.item_count === 1 ? '' : 's' }) }}
             </option>
           </select>
           <p v-if="sources.length === 0" class="text-xs text-slate-400 mt-2">
-            No completed picking tasks are awaiting shipment.
+            {{ $t('shipping.drawer.noSourceTasks') }}
           </p>
         </div>
 
@@ -206,22 +209,22 @@
         <div v-else class="bg-slate-50 rounded-2xl p-5 mb-6">
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <p class="detail-label">Customer</p>
+              <p class="detail-label">{{ $t('shipping.drawer.customer') }}</p>
               <p class="detail-value">{{ selectedShipping.customer }}</p>
             </div>
 
             <div>
-              <p class="detail-label">Carrier</p>
+              <p class="detail-label">{{ $t('shipping.drawer.carrierLabel') }}</p>
               <p class="detail-value text-orange-600">{{ selectedShipping.carrier || '—' }}</p>
             </div>
 
             <div>
-              <p class="detail-label">Packages</p>
+              <p class="detail-label">{{ $t('shipping.drawer.packages') }}</p>
               <p class="detail-value">{{ selectedShipping.packages }}</p>
             </div>
 
             <div>
-              <p class="detail-label">Total Weight</p>
+              <p class="detail-label">{{ $t('shipping.drawer.totalWeight') }}</p>
               <p class="detail-value">{{ selectedShipping.weight != null ? selectedShipping.weight + ' kg' : '—' }}</p>
             </div>
           </div>
@@ -231,15 +234,15 @@
         <div v-if="!isNewShipment && selectedShipping.status === 'CANCELLED'" class="bg-red-50 border border-red-200 rounded-2xl p-5 mb-6">
           <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div>
-              <p class="detail-label">Cancelled At</p>
+              <p class="detail-label">{{ $t('shipping.drawer.cancelledAt') }}</p>
               <p class="detail-value">{{ formatDateTime(selectedShipping.cancelled_at) }}</p>
             </div>
             <div>
-              <p class="detail-label">Cancelled By</p>
+              <p class="detail-label">{{ $t('shipping.drawer.cancelledBy') }}</p>
               <p class="detail-value">{{ selectedShipping.cancelled_by_name || '—' }}</p>
             </div>
             <div>
-              <p class="detail-label">Cancellation Remark</p>
+              <p class="detail-label">{{ $t('shipping.drawer.cancellationRemark') }}</p>
               <p class="detail-value">{{ selectedShipping.cancel_remark || '—' }}</p>
             </div>
           </div>
@@ -248,9 +251,11 @@
         <div v-if="isNewShipment || canEditHeader && selectedShipping.status === 'READY'" class="space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="label">Carrier</label>
+              <label class="label">{{ $t('shipping.drawer.carrierLabel') }}</label>
+              <!-- Carrier option labels are real-world carrier brand
+                   names / business data, left untranslated. -->
               <select v-model="form.carrier" class="input">
-                <option value="">Select carrier</option>
+                <option value="">{{ $t('shipping.drawer.selectCarrier') }}</option>
                 <option value="DHL">DHL</option>
                 <option value="KERRY">Kerry Express</option>
                 <option value="FLASH">Flash Express</option>
@@ -259,39 +264,39 @@
             </div>
 
             <div>
-              <label class="label">Tracking No.</label>
+              <label class="label">{{ $t('shipping.drawer.trackingNo') }}</label>
               <input
                 v-model="form.trackingNo"
                 type="text"
                 class="input"
-                placeholder="Enter tracking number"
+                :placeholder="$t('shipping.drawer.trackingNoPlaceholder')"
               />
             </div>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label class="label">Package Count</label>
+              <label class="label">{{ $t('shipping.drawer.packageCount') }}</label>
               <input
                 v-model.number="form.packages"
                 type="number"
                 class="input"
-                placeholder="Packages"
+                :placeholder="$t('shipping.drawer.packagesPlaceholder')"
               />
             </div>
 
             <div>
-              <label class="label">Total Weight</label>
+              <label class="label">{{ $t('shipping.drawer.totalWeightField') }}</label>
               <input
                 v-model.number="form.weight"
                 type="number"
                 class="input"
-                placeholder="Weight"
+                :placeholder="$t('shipping.drawer.weightPlaceholder')"
               />
             </div>
 
             <div>
-              <label class="label">Ship Date</label>
+              <label class="label">{{ $t('shipping.drawer.shipDate') }}</label>
               <input
                 v-model="form.shipDate"
                 type="date"
@@ -301,22 +306,22 @@
           </div>
 
           <div>
-            <label class="label">Delivery Address</label>
+            <label class="label">{{ $t('shipping.drawer.deliveryAddress') }}</label>
             <textarea
               v-model="form.address"
               rows="4"
               class="input"
-              placeholder="Enter delivery address"
+              :placeholder="$t('shipping.drawer.addressPlaceholder')"
             ></textarea>
           </div>
 
           <div>
-            <label class="label">Remark</label>
+            <label class="label">{{ $t('shipping.drawer.remark') }}</label>
             <textarea
               v-model="form.remark"
               rows="3"
               class="input"
-              placeholder="Enter remark"
+              :placeholder="$t('shipping.drawer.remarkPlaceholder')"
             ></textarea>
           </div>
 
@@ -326,7 +331,7 @@
             :disabled="submitting"
             class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
           >
-            {{ submitting ? 'Saving…' : 'Save Shipment' }}
+            {{ submitting ? $t('shipping.drawer.saving') : $t('shipping.drawer.saveShipment') }}
           </button>
           <button
             v-else
@@ -334,17 +339,17 @@
             :disabled="submitting"
             class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
           >
-            {{ submitting ? 'Saving…' : 'Save Changes' }}
+            {{ submitting ? $t('shipping.drawer.saving') : $t('shipping.drawer.saveChanges') }}
           </button>
         </div>
 
         <div v-if="!isNewShipment" class="mt-6">
           <h3 class="font-bold text-slate-800 mb-4">
-            Package Items
+            {{ $t('shipping.drawer.packageItemsTitle') }}
           </h3>
 
           <p v-if="(selectedShipping.items || []).length === 0" class="text-sm text-slate-400">
-            No items on this shipment.
+            {{ $t('shipping.drawer.noItemsOnShipment') }}
           </p>
 
           <div
@@ -359,7 +364,7 @@
               </div>
 
               <div class="text-right">
-                <p class="detail-label">Qty</p>
+                <p class="detail-label">{{ $t('shipping.drawer.qty') }}</p>
                 <p class="detail-value">{{ product.qty }}</p>
               </div>
             </div>
@@ -373,7 +378,7 @@
             :disabled="submitting"
             class="bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
           >
-            Confirm Dispatch
+            {{ $t('shipping.drawer.confirmDispatch') }}
           </button>
 
           <button
@@ -382,7 +387,7 @@
             :disabled="submitting"
             class="bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
           >
-            Mark Delivered
+            {{ $t('shipping.drawer.markDelivered') }}
           </button>
 
           <button
@@ -391,11 +396,11 @@
             :disabled="submitting"
             class="bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
           >
-            Report Issue
+            {{ $t('shipping.drawer.reportIssue') }}
           </button>
         </div>
         <p v-else-if="!isNewShipment" class="text-sm text-slate-500 mt-6">
-          Your role can view this shipment but not confirm dispatch, delivery, or issues.
+          {{ $t('shipping.drawer.viewOnlyNote') }}
         </p>
 
         <div v-if="!isNewShipment && canEditHeader && selectedShipping.status === 'READY'" class="mt-6 pt-6 border-t border-slate-200">
@@ -403,14 +408,14 @@
             v-model="cancelRemark"
             type="text"
             class="input mb-3"
-            placeholder="Cancellation remark (optional)"
+            :placeholder="$t('shipping.drawer.cancelRemarkPlaceholder')"
           />
           <button
             @click="cancelSelectedShipment"
             :disabled="submitting"
             class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
           >
-            Cancel Shipment
+            {{ $t('shipping.drawer.cancelShipment') }}
           </button>
         </div>
       </div>
@@ -421,6 +426,7 @@
 <script>
 import { listShipments, getShipment, listShippableSources, createShipment, updateShipment, confirmShipment, cancelShipment, newIdempotencyKey, exportShipments } from '../../services/shipping'
 import { hasPermission } from '../../services/auth'
+import i18n from '../../i18n'
 
 let searchDebounce = null
 
@@ -434,14 +440,18 @@ function toApiDate(dateStr) {
 // consolidation precedent Putaway's own "In Progress"/PARTIALLY_COMPLETED
 // mapping already established. IN_TRANSIT itself is modeled in the
 // schema but unreachable this phase (see internal/shipping's doc).
+// Called from the template (methods.statusText below), not cached onto
+// a row at map time, so the displayed label stays reactive to the
+// active locale — switching language must not require re-fetching.
 function statusText(status) {
+  const t = i18n.global.t
   switch (status) {
-    case 'READY': return 'Ready to Ship'
-    case 'DISPATCHED': return 'In Transit'
-    case 'IN_TRANSIT': return 'In Transit'
-    case 'DELIVERED': return 'Delivered'
-    case 'ISSUE': return 'Issue'
-    case 'CANCELLED': return 'Cancelled'
+    case 'READY': return t('shipping.statusLabels.readyToShip')
+    case 'DISPATCHED': return t('shipping.statusLabels.inTransit')
+    case 'IN_TRANSIT': return t('shipping.statusLabels.inTransit')
+    case 'DELIVERED': return t('shipping.statusLabels.delivered')
+    case 'ISSUE': return t('shipping.statusLabels.issue')
+    case 'CANCELLED': return t('common.status.cancelled')
     default: return status
   }
 }
@@ -457,8 +467,7 @@ function mapShipmentRow(r) {
     packages: r.packages,
     weight: r.weight,
     shipDate: r.ship_date ? r.ship_date.slice(0, 10) : '',
-    status: r.status,
-    statusText: statusText(r.status)
+    status: r.status
   }
 }
 
@@ -553,6 +562,8 @@ export default {
   },
 
   methods: {
+    statusText,
+
     async fetchShipments() {
       this.loading = true
       this.loadError = ''
@@ -655,7 +666,7 @@ export default {
     async saveNewShipment() {
       this.drawerError = ''
       if (!this.form.pickingTaskId) {
-        this.drawerError = 'Please select a source picking task'
+        this.drawerError = this.$t('shipping.messages.selectSourceRequired')
         return
       }
 
@@ -671,7 +682,7 @@ export default {
           address: this.form.address || null,
           remark: this.form.remark || null
         })
-        alert('Shipment created successfully')
+        alert(this.$t('shipping.messages.shipmentCreated'))
         this.closeDrawer()
         await this.fetchShipments()
         await this.fetchSummary()
@@ -714,7 +725,7 @@ export default {
 
     async reportIssue() {
       if (!this.form.remark) {
-        this.drawerError = 'A remark is required to report an issue'
+        this.drawerError = this.$t('shipping.messages.remarkRequiredForIssue')
         return
       }
       await this.submitConfirm('ISSUE', this.form.remark)
@@ -729,9 +740,9 @@ export default {
 
         await confirmShipment(this.selectedShipping.id, payload)
         alert(
-          action === 'DISPATCH' ? 'Shipment dispatched successfully' :
-          action === 'DELIVER' ? 'Shipment marked as delivered' :
-          'Shipping issue has been reported'
+          action === 'DISPATCH' ? this.$t('shipping.messages.dispatchedSuccess') :
+          action === 'DELIVER' ? this.$t('shipping.messages.deliveredSuccess') :
+          this.$t('shipping.messages.issueReported')
         )
         await this.openShipping({ id: this.selectedShipping.id })
         await this.fetchShipments()
@@ -750,7 +761,7 @@ export default {
         await cancelShipment(this.selectedShipping.id, {
           remark: this.cancelRemark || undefined
         })
-        alert('Shipment cancelled')
+        alert(this.$t('shipping.messages.shipmentCancelled'))
         this.closeDrawer()
         await this.fetchShipments()
         await this.fetchSummary()
@@ -763,7 +774,7 @@ export default {
 
     formatDateTime(isoString) {
       if (!isoString) return '—'
-      return new Date(isoString).toLocaleString()
+      return this.$d(new Date(isoString), 'long')
     },
 
     getStatusClass(status) {

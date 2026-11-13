@@ -2,9 +2,9 @@
   <div class="space-y-6">
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">Picking</h1>
+        <h1 class="text-2xl font-bold text-slate-800">{{ $t('picking.title') }}</h1>
         <p class="text-slate-500">
-          Manage outbound picking tasks and confirm picked items
+          {{ $t('picking.subtitle') }}
         </p>
       </div>
 
@@ -14,7 +14,7 @@
           :disabled="exporting"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
         >
-          {{ exporting ? 'Exporting…' : '⬇ Export CSV' }}
+          {{ exporting ? $t('common.buttons.exporting') : '⬇ ' + $t('common.buttons.exportCsv') }}
         </button>
 
         <button
@@ -22,29 +22,29 @@
           @click="openPicking(null)"
           class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
         >
-          + New Picking Task
+          {{ $t('picking.newTaskButton') }}
         </button>
       </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
       <div class="summary-card">
-        <p class="summary-label">Pending Pick</p>
+        <p class="summary-label">{{ $t('picking.summary.pendingPick') }}</p>
         <h2 class="summary-value">{{ pendingCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">In Progress</p>
+        <p class="summary-label">{{ $t('picking.summary.inProgress') }}</p>
         <h2 class="summary-value">{{ inProgressCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Completed</p>
+        <p class="summary-label">{{ $t('picking.summary.completed') }}</p>
         <h2 class="summary-value">{{ completedCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Short Pick</p>
+        <p class="summary-label">{{ $t('picking.summary.shortPick') }}</p>
         <h2 class="summary-value text-red-600">{{ shortPickCount }}</h2>
       </div>
     </div>
@@ -58,24 +58,24 @@
         <input
           v-model="filters.keyword"
           type="text"
-          placeholder="Search Pick No, Order No, SKU..."
+          :placeholder="$t('picking.filters.searchPlaceholder')"
           class="input"
         />
 
         <select v-model="filters.status" class="input">
-          <option value="">All Status</option>
-          <option value="PENDING">Pending</option>
-          <option value="IN_PROGRESS">In Progress</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="SHORT_PICK">Short Pick</option>
-          <option value="CANCELLED">Cancelled</option>
+          <option value="">{{ $t('picking.filters.allStatus') }}</option>
+          <option value="PENDING">{{ $t('common.status.pending') }}</option>
+          <option value="IN_PROGRESS">{{ $t('common.status.inProgress') }}</option>
+          <option value="COMPLETED">{{ $t('common.status.completed') }}</option>
+          <option value="SHORT_PICK">{{ $t('picking.filters.statusShortPick') }}</option>
+          <option value="CANCELLED">{{ $t('common.status.cancelled') }}</option>
         </select>
 
         <select v-model="filters.priority" class="input">
-          <option value="">All Priority</option>
-          <option value="HIGH">High</option>
-          <option value="NORMAL">Normal</option>
-          <option value="LOW">Low</option>
+          <option value="">{{ $t('picking.filters.allPriority') }}</option>
+          <option value="HIGH">{{ $t('picking.priority.high') }}</option>
+          <option value="NORMAL">{{ $t('picking.priority.normal') }}</option>
+          <option value="LOW">{{ $t('picking.priority.low') }}</option>
         </select>
 
         <input
@@ -88,7 +88,7 @@
           @click="clearFilter"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
         >
-          Clear Filter
+          {{ $t('common.buttons.clearFilter') }}
         </button>
       </div>
     </div>
@@ -98,26 +98,26 @@
         <table class="min-w-[1200px] w-full text-sm">
           <thead class="bg-slate-50 text-slate-500">
             <tr>
-              <th class="table-th">Pick No.</th>
-              <th class="table-th">Order No.</th>
-              <th class="table-th">Customer</th>
-              <th class="table-th">Warehouse</th>
-              <th class="table-th">Priority</th>
-              <th class="table-th">Items</th>
-              <th class="table-th">Progress</th>
-              <th class="table-th">Due Date</th>
-              <th class="table-th">Status</th>
-              <th class="table-th text-right">Action</th>
+              <th class="table-th">{{ $t('picking.table.pickNo') }}</th>
+              <th class="table-th">{{ $t('picking.table.orderNo') }}</th>
+              <th class="table-th">{{ $t('picking.table.customer') }}</th>
+              <th class="table-th">{{ $t('picking.table.warehouse') }}</th>
+              <th class="table-th">{{ $t('picking.table.priority') }}</th>
+              <th class="table-th">{{ $t('picking.table.items') }}</th>
+              <th class="table-th">{{ $t('picking.table.progress') }}</th>
+              <th class="table-th">{{ $t('picking.table.dueDate') }}</th>
+              <th class="table-th">{{ $t('picking.table.status') }}</th>
+              <th class="table-th text-right">{{ $t('picking.table.action') }}</th>
             </tr>
           </thead>
 
           <tbody>
             <tr v-if="loading">
-              <td colspan="10" class="text-center py-10 text-slate-400">Loading picking tasks…</td>
+              <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('picking.loadingTasks') }}</td>
             </tr>
 
             <tr v-else-if="pickingList.length === 0">
-              <td colspan="10" class="text-center py-10 text-slate-400">No picking tasks found</td>
+              <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('picking.noTasks') }}</td>
             </tr>
 
             <template v-else>
@@ -135,7 +135,7 @@
 
               <td class="table-td">
                 <span :class="getPriorityClass(item.priority)">
-                  {{ item.priority }}
+                  {{ priorityLabel(item.priority) }}
                 </span>
               </td>
 
@@ -159,7 +159,7 @@
 
               <td class="table-td">
                 <span :class="getStatusClass(item.status)">
-                  {{ item.statusText }}
+                  {{ statusText(item.status) }}
                 </span>
               </td>
 
@@ -168,7 +168,7 @@
                   @click="openPicking(item)"
                   class="text-orange-600 hover:text-orange-700 font-semibold"
                 >
-                  Start Pick
+                  {{ $t('picking.table.startPick') }}
                 </button>
               </td>
             </tr>
@@ -186,7 +186,7 @@
         <div class="flex items-center justify-between mb-6">
           <div>
             <h2 class="text-xl font-bold text-slate-800">
-              {{ isNewTask ? 'New Picking Task' : 'Picking Task' }}
+              {{ isNewTask ? $t('picking.drawer.newTaskTitle') : $t('picking.drawer.taskTitle') }}
             </h2>
             <p v-if="!isNewTask" class="text-slate-500">
               {{ selectedPicking.pickNo }} / {{ selectedPicking.orderNo }}
@@ -209,30 +209,30 @@
         <div v-if="isNewTask" class="bg-slate-50 rounded-2xl p-5 mb-6 space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="label">Order No.</label>
-              <input v-model="newTaskForm.orderNo" type="text" class="input" placeholder="SO-20260608-005" />
+              <label class="label">{{ $t('picking.drawer.orderNo') }}</label>
+              <input v-model="newTaskForm.orderNo" type="text" class="input" :placeholder="$t('picking.drawer.orderNoPlaceholder')" />
             </div>
             <div>
-              <label class="label">Customer</label>
-              <input v-model="newTaskForm.customer" type="text" class="input" placeholder="Customer name" />
+              <label class="label">{{ $t('picking.drawer.customer') }}</label>
+              <input v-model="newTaskForm.customer" type="text" class="input" :placeholder="$t('picking.drawer.customerPlaceholder')" />
             </div>
             <div>
-              <label class="label">Warehouse</label>
+              <label class="label">{{ $t('picking.drawer.warehouse') }}</label>
               <select v-model="newTaskForm.warehouseId" class="input" @change="onWarehouseChange">
-                <option value="">Select warehouse</option>
+                <option value="">{{ $t('picking.drawer.selectWarehouse') }}</option>
                 <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
               </select>
             </div>
             <div>
-              <label class="label">Priority</label>
+              <label class="label">{{ $t('picking.drawer.priority') }}</label>
               <select v-model="newTaskForm.priority" class="input">
-                <option value="LOW">Low</option>
-                <option value="NORMAL">Normal</option>
-                <option value="HIGH">High</option>
+                <option value="LOW">{{ $t('picking.priority.low') }}</option>
+                <option value="NORMAL">{{ $t('picking.priority.normal') }}</option>
+                <option value="HIGH">{{ $t('picking.priority.high') }}</option>
               </select>
             </div>
             <div>
-              <label class="label">Due Date</label>
+              <label class="label">{{ $t('picking.drawer.dueDate') }}</label>
               <input v-model="newTaskForm.dueDate" type="date" class="input" />
             </div>
           </div>
@@ -242,24 +242,24 @@
         <div v-else class="bg-slate-50 rounded-2xl p-5 mb-6">
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <p class="detail-label">Customer</p>
+              <p class="detail-label">{{ $t('picking.drawer.customer') }}</p>
               <p class="detail-value">{{ selectedPicking.customer }}</p>
             </div>
 
             <div>
-              <p class="detail-label">Warehouse</p>
+              <p class="detail-label">{{ $t('picking.drawer.warehouse') }}</p>
               <p class="detail-value">{{ selectedPicking.warehouse }}</p>
             </div>
 
             <div>
-              <p class="detail-label">Priority</p>
+              <p class="detail-label">{{ $t('picking.drawer.priority') }}</p>
               <p class="detail-value text-orange-600">
-                {{ selectedPicking.priority }}
+                {{ priorityLabel(selectedPicking.priority) }}
               </p>
             </div>
 
             <div>
-              <p class="detail-label">Due Date</p>
+              <p class="detail-label">{{ $t('picking.drawer.dueDate') }}</p>
               <p class="detail-value">{{ selectedPicking.dueDate || '—' }}</p>
             </div>
           </div>
@@ -269,15 +269,15 @@
         <div v-if="!isNewTask && selectedPicking.status === 'CANCELLED'" class="bg-red-50 border border-red-200 rounded-2xl p-5 mb-6">
           <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div>
-              <p class="detail-label">Cancelled At</p>
+              <p class="detail-label">{{ $t('picking.drawer.cancelledAt') }}</p>
               <p class="detail-value">{{ formatDateTime(selectedPicking.cancelled_at) }}</p>
             </div>
             <div>
-              <p class="detail-label">Cancelled By</p>
+              <p class="detail-label">{{ $t('picking.drawer.cancelledBy') }}</p>
               <p class="detail-value">{{ selectedPicking.cancelled_by_name || '—' }}</p>
             </div>
             <div>
-              <p class="detail-label">Cancellation Remark</p>
+              <p class="detail-label">{{ $t('picking.drawer.cancellationRemark') }}</p>
               <p class="detail-value">{{ selectedPicking.cancel_remark || '—' }}</p>
             </div>
           </div>
@@ -285,31 +285,31 @@
 
         <!-- Add item form (new task only) -->
         <div v-if="isNewTask" class="bg-white border border-slate-200 rounded-2xl p-4 mb-6 space-y-3">
-          <h3 class="font-bold text-slate-800 text-sm">Add Item</h3>
+          <h3 class="font-bold text-slate-800 text-sm">{{ $t('picking.drawer.addItemTitle') }}</h3>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <input v-model="addItemForm.sku" type="text" class="input" placeholder="SKU / Barcode" />
+            <input v-model="addItemForm.sku" type="text" class="input" :placeholder="$t('picking.drawer.skuBarcodePlaceholder')" />
             <select v-model="addItemForm.locationId" class="input" :disabled="!newTaskForm.warehouseId">
-              <option value="">Location</option>
+              <option value="">{{ $t('picking.drawer.locationOption') }}</option>
               <option v-for="l in drawerLocations" :key="l.id" :value="l.id">{{ l.code }}</option>
             </select>
-            <input v-model="addItemForm.lotNo" type="text" class="input" placeholder="Lot No. (optional)" />
-            <input v-model.number="addItemForm.orderedQty" type="number" class="input" placeholder="Order Qty" />
+            <input v-model="addItemForm.lotNo" type="text" class="input" :placeholder="$t('picking.drawer.lotNoOptionalPlaceholder')" />
+            <input v-model.number="addItemForm.orderedQty" type="number" class="input" :placeholder="$t('picking.drawer.orderQtyPlaceholder')" />
           </div>
           <button
             @click="addItem"
             class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl font-semibold text-sm"
           >
-            + Add Item
+            {{ $t('picking.drawer.addItem') }}
           </button>
         </div>
 
         <div class="space-y-4">
           <h3 class="font-bold text-slate-800">
-            Picking Items
+            {{ $t('picking.drawer.itemsTitle') }}
           </h3>
 
           <p v-if="displayItems.length === 0" class="text-sm text-slate-400">
-            No items added yet.
+            {{ $t('picking.drawer.noItemsYet') }}
           </p>
 
           <div
@@ -326,7 +326,7 @@
                   {{ product.productName }}
                 </p>
                 <p class="text-sm text-orange-600 font-semibold mt-2">
-                  Location: {{ product.location }}
+                  {{ $t('picking.drawer.locationPrefix', { location: product.location }) }}
                 </p>
                 <p v-if="!isNewTask" class="text-xs mt-1">
                   <span :class="getItemStatusClass(product.status)">{{ product.statusText }}</span>
@@ -335,19 +335,19 @@
 
               <div class="grid grid-cols-3 gap-3 min-w-[280px]">
                 <div>
-                  <p class="detail-label">Order</p>
+                  <p class="detail-label">{{ $t('picking.drawer.order') }}</p>
                   <p class="detail-value">{{ product.orderQty }}</p>
                 </div>
 
                 <div>
-                  <p class="detail-label">Picked</p>
+                  <p class="detail-label">{{ $t('picking.drawer.picked') }}</p>
                   <p class="detail-value text-green-600">
                     {{ product.pickedQty }}
                   </p>
                 </div>
 
                 <div>
-                  <p class="detail-label">Remain</p>
+                  <p class="detail-label">{{ $t('picking.drawer.remain') }}</p>
                   <p class="detail-value text-red-600">
                     {{ product.orderQty - product.pickedQty }}
                   </p>
@@ -358,13 +358,13 @@
             <!-- New task: just a remove control -->
             <div v-if="isNewTask" class="mt-3 text-right">
               <button @click="removeNewItem(product.key)" class="text-red-600 hover:text-red-700 text-sm font-semibold">
-                Remove
+                {{ $t('picking.drawer.remove') }}
               </button>
             </div>
 
             <!-- Existing task, resolved line -->
             <p v-else-if="product.status === 'COMPLETED' || product.status === 'SHORT'" class="text-sm text-green-600 font-semibold mt-3">
-              This line has already been resolved ({{ product.statusText }}).
+              {{ $t('picking.drawer.lineResolved', { status: product.statusText }) }}
             </p>
 
             <!-- Existing task, workable line -->
@@ -374,7 +374,7 @@
                   v-model.number="product.inputQty"
                   type="number"
                   class="input"
-                  placeholder="Pick Qty"
+                  :placeholder="$t('picking.drawer.pickQtyPlaceholder')"
                 />
 
                 <button
@@ -382,7 +382,7 @@
                   :disabled="submitting"
                   class="bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold disabled:opacity-60"
                 >
-                  Confirm Pick
+                  {{ $t('picking.drawer.confirmPick') }}
                 </button>
 
                 <button
@@ -390,7 +390,7 @@
                   :disabled="submitting"
                   class="bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold disabled:opacity-60"
                 >
-                  Short Pick
+                  {{ $t('picking.drawer.shortPick') }}
                 </button>
               </div>
               <div v-if="canConfirm && isTaskWorkable" class="mt-3">
@@ -398,14 +398,14 @@
                   v-model="product.remark"
                   type="text"
                   class="input"
-                  placeholder="Remark (required for Short Pick)"
+                  :placeholder="$t('picking.drawer.remarkPlaceholder')"
                 />
               </div>
               <p v-else-if="!canConfirm" class="text-sm text-slate-500 mt-3">
-                Your role can view this task but not confirm picking.
+                {{ $t('picking.drawer.viewOnlyNote') }}
               </p>
               <p v-else-if="selectedPicking.status === 'CANCELLED'" class="text-sm text-red-600 font-semibold mt-3">
-                This task has been cancelled.
+                {{ $t('picking.drawer.cancelledNote') }}
               </p>
             </template>
           </div>
@@ -417,7 +417,7 @@
           :disabled="submitting"
           class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-semibold mt-6 disabled:opacity-60"
         >
-          {{ submitting ? 'Saving…' : 'Save Picking Task' }}
+          {{ submitting ? $t('picking.drawer.saving') : $t('picking.drawer.saveTask') }}
         </button>
         <div v-else>
           <div v-if="canCancel && isTaskWorkable" class="mt-6">
@@ -425,7 +425,7 @@
               v-model="cancelRemark"
               type="text"
               class="input"
-              placeholder="Cancellation remark (optional)"
+              :placeholder="$t('picking.drawer.cancelRemarkPlaceholder')"
             />
           </div>
           <div class="flex gap-3 mt-3">
@@ -435,13 +435,13 @@
               :disabled="submitting"
               class="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
             >
-              Cancel Task
+              {{ $t('picking.drawer.cancelTask') }}
             </button>
             <button
               @click="closeDrawer"
               class="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold"
             >
-              Close
+              {{ $t('picking.drawer.close') }}
             </button>
           </div>
         </div>
@@ -455,6 +455,7 @@ import { listPicking, getPickingTask, createPickingTask, confirmPickingTask, can
 import { listWarehouses, listZones, listLocations } from '../../services/warehouses'
 import { listProducts } from '../../services/products'
 import { hasPermission } from '../../services/auth'
+import i18n from '../../i18n'
 
 let searchDebounce = null
 
@@ -462,23 +463,28 @@ function toApiDate(dateStr) {
   return dateStr ? `${dateStr}T00:00:00Z` : null
 }
 
+// Called from the template (methods.statusText below), not cached onto
+// a row at map time, so the displayed label stays reactive to the
+// active locale — switching language must not require re-fetching.
 function statusText(status) {
+  const t = i18n.global.t
   switch (status) {
-    case 'PENDING': return 'Pending'
-    case 'IN_PROGRESS': return 'In Progress'
-    case 'COMPLETED': return 'Completed'
-    case 'SHORT_PICK': return 'Short Pick'
-    case 'CANCELLED': return 'Cancelled'
+    case 'PENDING': return t('common.status.pending')
+    case 'IN_PROGRESS': return t('common.status.inProgress')
+    case 'COMPLETED': return t('common.status.completed')
+    case 'SHORT_PICK': return t('picking.filters.statusShortPick')
+    case 'CANCELLED': return t('common.status.cancelled')
     default: return status
   }
 }
 
 function itemStatusText(status) {
+  const t = i18n.global.t
   switch (status) {
-    case 'PENDING': return 'Pending'
-    case 'PARTIALLY_PICKED': return 'Partially Picked'
-    case 'COMPLETED': return 'Completed'
-    case 'SHORT': return 'Short'
+    case 'PENDING': return t('picking.itemStatus.pending')
+    case 'PARTIALLY_PICKED': return t('picking.itemStatus.partiallyPicked')
+    case 'COMPLETED': return t('picking.itemStatus.completed')
+    case 'SHORT': return t('picking.itemStatus.short')
     default: return status
   }
 }
@@ -496,8 +502,7 @@ function mapPickingRow(r) {
     items: r.item_count,
     progress: Math.round(r.progress_pct),
     dueDate: r.due_date ? r.due_date.slice(0, 10) : '',
-    status: r.status,
-    statusText: statusText(r.status)
+    status: r.status
   }
 }
 
@@ -634,6 +639,8 @@ export default {
   },
 
   methods: {
+    statusText,
+
     async fetchPicking() {
       this.loading = true
       this.loadError = ''
@@ -759,21 +766,21 @@ export default {
     async addItem() {
       this.drawerError = ''
       if (!this.addItemForm.sku) {
-        this.drawerError = 'SKU / Barcode is required'
+        this.drawerError = this.$t('picking.messages.skuBarcodeRequired')
         return
       }
       if (!this.addItemForm.locationId) {
-        this.drawerError = 'Location is required'
+        this.drawerError = this.$t('picking.messages.locationRequired')
         return
       }
       if (!this.addItemForm.orderedQty || this.addItemForm.orderedQty <= 0) {
-        this.drawerError = 'Order Qty must be greater than zero'
+        this.drawerError = this.$t('picking.messages.orderQtyPositive')
         return
       }
 
       const product = await this.findProduct(this.addItemForm.sku)
       if (!product) {
-        this.drawerError = `No product found for SKU/barcode "${this.addItemForm.sku}"`
+        this.drawerError = this.$t('picking.messages.noProductFound', { value: this.addItemForm.sku })
         return
       }
 
@@ -804,15 +811,15 @@ export default {
     async saveTask() {
       this.drawerError = ''
       if (!this.newTaskForm.orderNo) {
-        this.drawerError = 'Order No. is required'
+        this.drawerError = this.$t('picking.messages.orderNoRequired')
         return
       }
       if (!this.newTaskForm.warehouseId) {
-        this.drawerError = 'Warehouse is required'
+        this.drawerError = this.$t('picking.messages.warehouseRequired')
         return
       }
       if (this.newItems.length === 0) {
-        this.drawerError = 'At least one item is required'
+        this.drawerError = this.$t('picking.messages.atLeastOneItem')
         return
       }
 
@@ -832,7 +839,7 @@ export default {
             uom: it.uom
           }))
         })
-        alert('Picking task created successfully')
+        alert(this.$t('picking.messages.taskCreated'))
         this.closeDrawer()
         await this.fetchPicking()
         await this.fetchSummary()
@@ -846,12 +853,12 @@ export default {
     async confirmPick(product) {
       this.drawerError = ''
       if (!product.inputQty || product.inputQty <= 0) {
-        this.drawerError = 'Pick Qty must be greater than zero'
+        this.drawerError = this.$t('picking.messages.pickQtyPositive')
         return
       }
       const remainQty = product.orderQty - product.pickedQty
       if (product.inputQty > remainQty) {
-        this.drawerError = 'Pick Qty cannot exceed remaining quantity'
+        this.drawerError = this.$t('picking.messages.pickQtyExceedsRemaining')
         return
       }
 
@@ -865,7 +872,7 @@ export default {
     async shortPick(product) {
       this.drawerError = ''
       if (!product.remark) {
-        this.drawerError = 'A remark is required to report a short pick'
+        this.drawerError = this.$t('picking.messages.remarkRequiredForShortPick')
         return
       }
 
@@ -920,7 +927,14 @@ export default {
 
     formatDateTime(isoString) {
       if (!isoString) return '—'
-      return new Date(isoString).toLocaleString()
+      return this.$d(new Date(isoString), 'long')
+    },
+
+    priorityLabel(priority) {
+      if (priority === 'HIGH') return this.$t('picking.priority.high')
+      if (priority === 'NORMAL') return this.$t('picking.priority.normal')
+      if (priority === 'LOW') return this.$t('picking.priority.low')
+      return priority
     },
 
     getStatusClass(status) {

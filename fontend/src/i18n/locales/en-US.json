@@ -1,0 +1,1594 @@
+{
+  "common": {
+    "appName": "Smart WMS",
+    "appTagline": "Warehouse System",
+    "buttons": {
+      "save": "Save",
+      "saveDraft": "Save Draft",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "remove": "Remove",
+      "create": "Create",
+      "add": "Add",
+      "search": "Search",
+      "filter": "Filter",
+      "clearFilter": "Clear Filter",
+      "reset": "Reset",
+      "export": "Export",
+      "exportCsv": "Export CSV",
+      "exporting": "Exporting…",
+      "confirm": "Confirm",
+      "close": "Close",
+      "back": "Back",
+      "submit": "Submit",
+      "submitting": "Submitting…",
+      "view": "View",
+      "approve": "Approve",
+      "reject": "Reject",
+      "print": "Print",
+      "refresh": "Refresh",
+      "loading": "Loading…"
+    },
+    "labels": {
+      "actions": "Action",
+      "status": "Status",
+      "date": "Date",
+      "time": "Time",
+      "createdBy": "Created By",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At",
+      "remark": "Remark",
+      "warehouse": "Warehouse",
+      "zone": "Zone",
+      "location": "Location",
+      "product": "Product",
+      "quantity": "Quantity",
+      "total": "Total",
+      "yes": "Yes",
+      "no": "No",
+      "selectOption": "Select an option",
+      "optional": "optional"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "pending": "Pending",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "draft": "Draft",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "inProgress": "In Progress"
+    },
+    "pagination": {
+      "page": "Page",
+      "of": "of",
+      "showing": "Showing",
+      "to": "to",
+      "results": "results",
+      "noData": "No data found",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "messages": {
+      "requiredField": "This field is required",
+      "loadFailed": "Failed to load data",
+      "saveSuccess": "Saved successfully",
+      "saveFailed": "Failed to save",
+      "deleteConfirm": "Are you sure you want to delete this item?",
+      "deleteSuccess": "Deleted successfully",
+      "deleteFailed": "Failed to delete",
+      "networkError": "A network error occurred. Please try again."
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "sectionInbound": "Inbound",
+    "receiving": "Receiving",
+    "qualityCheck": "Quality Check",
+    "putaway": "Putaway",
+    "sectionInventory": "Inventory",
+    "stockInquiry": "Stock Inquiry",
+    "stockAdjustment": "Stock Adjustment",
+    "checkStock": "Check Stock",
+    "replenishment": "Replenishment",
+    "sectionOutbound": "Outbound",
+    "orders": "Orders",
+    "picking": "Picking",
+    "shipping": "Shipping",
+    "sectionAdministration": "Administration",
+    "userManagement": "User Management",
+    "roles": "Roles & Permissions",
+    "warehouse": "Warehouse Setup",
+    "productMaster": "Product Master",
+    "logout": "Logout"
+  },
+  "layout": {
+    "headerTitle": "Warehouse Management System",
+    "headerSubtitle": "Manage warehouse operations efficiently",
+    "userFallback": "User",
+    "notifications": {
+      "title": "Notifications",
+      "unread": "unread",
+      "loading": "Loading…",
+      "empty": "No notifications"
+    }
+  },
+  "auth": {
+    "login": {
+      "brandTitle": "Smart WMS",
+      "brandSubtitle": "Warehouse Management System",
+      "brandDescription": "Manage inbound receiving, inventory control, picking, packing and shipping operations through a modern warehouse platform.",
+      "signInTitle": "Sign In",
+      "signInSubtitle": "Login to Smart WMS",
+      "username": "Username",
+      "usernamePlaceholder": "Enter username",
+      "password": "Password",
+      "passwordPlaceholder": "Enter password",
+      "rememberMe": "Remember Me",
+      "forgotPassword": "Forgot Password?",
+      "signIn": "Sign In",
+      "signingIn": "Signing in...",
+      "usernameRequired": "Username is required",
+      "passwordRequired": "Password is required",
+      "loginFailed": "Login failed",
+      "copyright": "© 2026 Smart WMS",
+      "language": "Language"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Overview of warehouse operations",
+    "cards": {
+      "pendingReceiving": "Pending Receiving",
+      "pendingReceivingNote": "Inbound orders",
+      "availableStock": "Available Stock",
+      "availableStockNote": "Items in warehouse",
+      "pendingPicking": "Pending Picking",
+      "pendingPickingNote": "Outbound tasks",
+      "lowStock": "Low Stock",
+      "lowStockNote": "Need attention"
+    },
+    "recentInbound": "Recent Inbound Activity",
+    "table": {
+      "documentNo": "Document No.",
+      "vendor": "Vendor",
+      "status": "Status",
+      "date": "Date"
+    },
+    "noRecentInbound": "No recent inbound activity",
+    "quickActions": "Quick Actions",
+    "quickAction": {
+      "startReceiving": "Start Receiving",
+      "stockInquiry": "Stock Inquiry",
+      "createPickingTask": "Create Picking Task",
+      "stockAdjustment": "Stock Adjustment"
+    },
+    "loadFailed": "Failed to load dashboard summary",
+    "status": {
+      "draft": "Draft",
+      "waiting": "Waiting",
+      "partiallyReceived": "Receiving",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "receiving": {
+    "title": "Goods Receiving",
+    "subtitle": "Manage inbound purchase orders and receiving tasks",
+    "newButton": "+ New Receiving",
+    "summary": {
+      "waitingReceive": "Waiting Receive",
+      "receiving": "Receiving",
+      "partialReceived": "Partial Received",
+      "completed": "Completed"
+    },
+    "filters": {
+      "searchPlaceholder": "Search Document No, Reference No, Vendor...",
+      "allStatus": "All Status",
+      "statusWaiting": "Waiting",
+      "statusReceiving": "Receiving",
+      "statusPartial": "Partial Received",
+      "statusCompleted": "Completed"
+    },
+    "table": {
+      "documentNo": "Document No.",
+      "asnNo": "ASN No.",
+      "vendor": "Vendor",
+      "warehouse": "Warehouse",
+      "expectedDate": "Expected Date",
+      "items": "Items",
+      "progress": "Progress",
+      "status": "Status",
+      "action": "Action",
+      "startReceive": "Start Receive"
+    },
+    "loadingDocuments": "Loading receiving documents…",
+    "noDocuments": "No receiving documents found",
+    "detail": {
+      "title": "Receiving Detail",
+      "vendor": "Vendor",
+      "warehouse": "Warehouse",
+      "expectedDate": "Expected Date",
+      "status": "Status",
+      "cancelledAt": "Cancelled At",
+      "cancelledBy": "Cancelled By",
+      "cancellationRemark": "Cancellation Remark",
+      "itemsTitle": "Receiving Items",
+      "loadingItems": "Loading items…",
+      "noLines": "No lines on this receipt",
+      "receivedOf": "Received {received} / {expected}",
+      "expectedQty": "Expected Qty",
+      "receiveQtyPlaceholder": "Receive Qty",
+      "selectLocation": "Select location",
+      "fullyReceived": "Fully received",
+      "confirmButton": "Confirm Receiving",
+      "confirming": "Confirming…",
+      "viewOnlyNote": "Your role can view this receipt but not confirm receiving.",
+      "cancelRemarkPlaceholder": "Cancellation remark (optional)",
+      "cancelButton": "Cancel Receipt"
+    },
+    "messages": {
+      "enterReceiveQty": "Enter at least one receive quantity to confirm receiving",
+      "locationRequired": "Every confirmed line must have a location",
+      "receivingConfirmed": "Receiving confirmed successfully",
+      "receiptCancelled": "Receipt cancelled"
+    }
+  },
+  "newReceiving": {
+    "title": "New Receiving",
+    "subtitle": "Create a new inbound receiving document",
+    "backButton": "Back to Receiving",
+    "documentInfo": "Document Information",
+    "fields": {
+      "receivingType": "Receiving Type",
+      "referenceNo": "Reference No.",
+      "referenceNoPlaceholder": "PO / ASN / Transfer No.",
+      "receivingDate": "Receiving Date",
+      "vendor": "Vendor",
+      "selectVendor": "Select vendor",
+      "warehouse": "Warehouse",
+      "selectWarehouse": "Select warehouse",
+      "stagingLocation": "Staging Location",
+      "selectStagingLocation": "Select staging location",
+      "remark": "Remark",
+      "remarkPlaceholder": "Enter receiving remark"
+    },
+    "receivingTypeOptions": {
+      "po": "Purchase Order",
+      "asn": "ASN",
+      "return": "Customer Return",
+      "transfer": "Warehouse Transfer"
+    },
+    "itemsSection": {
+      "title": "Receiving Items",
+      "subtitle": "Add products manually or scan barcode",
+      "addItem": "+ Add Item"
+    },
+    "scan": {
+      "label": "Scan Barcode / SKU",
+      "placeholder": "Scan barcode or enter SKU",
+      "qtyPlaceholder": "Qty",
+      "selectLocation": "Select location",
+      "addScan": "Add Scan",
+      "lookingUp": "Looking up…"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "Product Name",
+      "barcode": "Barcode",
+      "expectedQty": "Expected Qty",
+      "receiveQty": "Receive Qty",
+      "uom": "UOM",
+      "lotNo": "Lot No.",
+      "expiryDate": "Expiry Date",
+      "location": "Location",
+      "action": "Action",
+      "remove": "Remove",
+      "noItems": "No receiving items",
+      "skuPlaceholder": "SKU or barcode"
+    },
+    "summary": {
+      "title": "Receiving Summary",
+      "totalLines": "Total Lines",
+      "expectedQty": "Expected Qty",
+      "receiveQty": "Receive Qty",
+      "variance": "Variance"
+    },
+    "actions": {
+      "saveDraft": "Save Draft",
+      "confirmReceiving": "Confirm Receiving",
+      "submitting": "Submitting…",
+      "viewOnlyNote": "Your role can save drafts but not confirm receiving."
+    },
+    "messages": {
+      "referenceNoRequired": "Reference No. is required",
+      "vendorRequired": "Vendor is required",
+      "warehouseRequired": "Warehouse is required",
+      "stagingLocationRequired": "Staging location is required",
+      "atLeastOneItem": "At least one item is required",
+      "everyItemMustResolve": "Every item must resolve to a known product — check the SKU/barcode column",
+      "everyItemMustHaveLocation": "Every item must have a location",
+      "enterReceiveQty": "Enter at least one receive quantity to confirm receiving",
+      "noProductFound": "No product found for SKU/barcode \"{value}\"",
+      "barcodeRequired": "Barcode or SKU is required",
+      "draftSaved": "Receiving draft saved successfully",
+      "receivingConfirmed": "Receiving confirmed successfully"
+    }
+  },
+  "picking": {
+    "title": "Picking",
+    "subtitle": "Manage outbound picking tasks and confirm picked items",
+    "newTaskButton": "+ New Picking Task",
+    "summary": {
+      "pendingPick": "Pending Pick",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "shortPick": "Short Pick"
+    },
+    "filters": {
+      "searchPlaceholder": "Search Pick No, Order No, SKU...",
+      "allStatus": "All Status",
+      "statusShortPick": "Short Pick",
+      "allPriority": "All Priority"
+    },
+    "priority": {
+      "high": "High",
+      "normal": "Normal",
+      "low": "Low"
+    },
+    "table": {
+      "pickNo": "Pick No.",
+      "orderNo": "Order No.",
+      "customer": "Customer",
+      "warehouse": "Warehouse",
+      "priority": "Priority",
+      "items": "Items",
+      "progress": "Progress",
+      "dueDate": "Due Date",
+      "status": "Status",
+      "action": "Action",
+      "startPick": "Start Pick"
+    },
+    "loadingTasks": "Loading picking tasks…",
+    "noTasks": "No picking tasks found",
+    "drawer": {
+      "newTaskTitle": "New Picking Task",
+      "taskTitle": "Picking Task",
+      "orderNo": "Order No.",
+      "orderNoPlaceholder": "SO-20260608-005",
+      "customer": "Customer",
+      "customerPlaceholder": "Customer name",
+      "warehouse": "Warehouse",
+      "selectWarehouse": "Select warehouse",
+      "priority": "Priority",
+      "dueDate": "Due Date",
+      "cancelledAt": "Cancelled At",
+      "cancelledBy": "Cancelled By",
+      "cancellationRemark": "Cancellation Remark",
+      "addItemTitle": "Add Item",
+      "skuBarcodePlaceholder": "SKU / Barcode",
+      "locationOption": "Location",
+      "lotNoOptionalPlaceholder": "Lot No. (optional)",
+      "orderQtyPlaceholder": "Order Qty",
+      "addItem": "+ Add Item",
+      "itemsTitle": "Picking Items",
+      "noItemsYet": "No items added yet.",
+      "locationPrefix": "Location: {location}",
+      "order": "Order",
+      "picked": "Picked",
+      "remain": "Remain",
+      "remove": "Remove",
+      "lineResolved": "This line has already been resolved ({status}).",
+      "pickQtyPlaceholder": "Pick Qty",
+      "confirmPick": "Confirm Pick",
+      "shortPick": "Short Pick",
+      "remarkPlaceholder": "Remark (required for Short Pick)",
+      "viewOnlyNote": "Your role can view this task but not confirm picking.",
+      "cancelledNote": "This task has been cancelled.",
+      "saveTask": "Save Picking Task",
+      "saving": "Saving…",
+      "cancelRemarkPlaceholder": "Cancellation remark (optional)",
+      "cancelTask": "Cancel Task",
+      "close": "Close"
+    },
+    "itemStatus": {
+      "pending": "Pending",
+      "partiallyPicked": "Partially Picked",
+      "completed": "Completed",
+      "short": "Short"
+    },
+    "messages": {
+      "skuBarcodeRequired": "SKU / Barcode is required",
+      "locationRequired": "Location is required",
+      "orderQtyPositive": "Order Qty must be greater than zero",
+      "noProductFound": "No product found for SKU/barcode \"{value}\"",
+      "orderNoRequired": "Order No. is required",
+      "warehouseRequired": "Warehouse is required",
+      "atLeastOneItem": "At least one item is required",
+      "taskCreated": "Picking task created successfully",
+      "pickQtyPositive": "Pick Qty must be greater than zero",
+      "pickQtyExceedsRemaining": "Pick Qty cannot exceed remaining quantity",
+      "remarkRequiredForShortPick": "A remark is required to report a short pick"
+    }
+  },
+  "shipping": {
+    "title": "Shipping",
+    "subtitle": "Manage packed orders, shipment confirmation and delivery dispatch",
+    "newShipmentButton": "+ New Shipment",
+    "summary": {
+      "readyToShip": "Ready to Ship",
+      "inTransit": "In Transit",
+      "delivered": "Delivered",
+      "deliveryIssues": "Delivery Issues"
+    },
+    "filters": {
+      "searchPlaceholder": "Search Shipment No, Order No, Customer...",
+      "allStatus": "All Status",
+      "statusReady": "Ready to Ship",
+      "statusDispatched": "Dispatched",
+      "statusInTransit": "In Transit",
+      "statusDelivered": "Delivered",
+      "statusIssue": "Issue",
+      "allCarriers": "All Carriers"
+    },
+    "table": {
+      "shipmentNo": "Shipment No.",
+      "orderNo": "Order No.",
+      "customer": "Customer",
+      "carrier": "Carrier",
+      "trackingNo": "Tracking No.",
+      "packages": "Packages",
+      "weight": "Weight",
+      "shipDate": "Ship Date",
+      "status": "Status",
+      "action": "Action",
+      "manage": "Manage"
+    },
+    "loadingShipments": "Loading shipments…",
+    "noShipments": "No shipments found",
+    "drawer": {
+      "newShipmentTitle": "New Shipment",
+      "detailTitle": "Shipping Detail",
+      "sourcePickingTask": "Source Picking Task",
+      "selectSourceTask": "Select a completed picking task",
+      "itemCountSuffix": "({count} item{plural})",
+      "noSourceTasks": "No completed picking tasks are awaiting shipment.",
+      "customer": "Customer",
+      "carrierLabel": "Carrier",
+      "packages": "Packages",
+      "totalWeight": "Total Weight",
+      "cancelledAt": "Cancelled At",
+      "cancelledBy": "Cancelled By",
+      "cancellationRemark": "Cancellation Remark",
+      "selectCarrier": "Select carrier",
+      "trackingNo": "Tracking No.",
+      "trackingNoPlaceholder": "Enter tracking number",
+      "packageCount": "Package Count",
+      "packagesPlaceholder": "Packages",
+      "totalWeightField": "Total Weight",
+      "weightPlaceholder": "Weight",
+      "shipDate": "Ship Date",
+      "deliveryAddress": "Delivery Address",
+      "addressPlaceholder": "Enter delivery address",
+      "remark": "Remark",
+      "remarkPlaceholder": "Enter remark",
+      "saveShipment": "Save Shipment",
+      "saveChanges": "Save Changes",
+      "saving": "Saving…",
+      "packageItemsTitle": "Package Items",
+      "noItemsOnShipment": "No items on this shipment.",
+      "qty": "Qty",
+      "confirmDispatch": "Confirm Dispatch",
+      "markDelivered": "Mark Delivered",
+      "reportIssue": "Report Issue",
+      "viewOnlyNote": "Your role can view this shipment but not confirm dispatch, delivery, or issues.",
+      "cancelRemarkPlaceholder": "Cancellation remark (optional)",
+      "cancelShipment": "Cancel Shipment"
+    },
+    "statusLabels": {
+      "readyToShip": "Ready to Ship",
+      "inTransit": "In Transit",
+      "delivered": "Delivered",
+      "issue": "Issue"
+    },
+    "messages": {
+      "selectSourceRequired": "Please select a source picking task",
+      "shipmentCreated": "Shipment created successfully",
+      "remarkRequiredForIssue": "A remark is required to report an issue",
+      "dispatchedSuccess": "Shipment dispatched successfully",
+      "deliveredSuccess": "Shipment marked as delivered",
+      "issueReported": "Shipping issue has been reported",
+      "shipmentCancelled": "Shipment cancelled"
+    }
+  },
+  "qualityCheck": {
+    "title": "Quality Check",
+    "subtitle": "Inspect received items before putaway process",
+    "newButton": "+ New QC Task",
+    "summary": {
+      "pendingQc": "Pending QC",
+      "passed": "Passed",
+      "rejected": "Rejected"
+    },
+    "filters": {
+      "searchPlaceholder": "Search QC No, PO, SKU...",
+      "allStatus": "All Status",
+      "allResult": "All Result"
+    },
+    "table": {
+      "qcNo": "QC No.",
+      "poNo": "PO No.",
+      "sku": "SKU",
+      "productName": "Product Name",
+      "receivedQty": "Received Qty",
+      "sampleQty": "Sample Qty",
+      "defectQty": "Defect Qty",
+      "result": "Result",
+      "action": "Action",
+      "inspect": "Inspect"
+    },
+    "drawer": {
+      "title": "QC Inspection",
+      "product": "Product",
+      "lotNo": "Lot No.",
+      "sampleQtyPlaceholder": "Enter sample quantity",
+      "defectQtyPlaceholder": "Enter defect quantity",
+      "inspectionResult": "Inspection Result",
+      "selectResult": "Select result",
+      "defectReason": "Defect Reason",
+      "remarkPlaceholder": "Enter inspection remark",
+      "pass": "Pass",
+      "hold": "Hold",
+      "reject": "Reject"
+    },
+    "defectReasons": {
+      "none": "None",
+      "damaged": "Damaged",
+      "wrongItem": "Wrong Item",
+      "expired": "Expired",
+      "shortage": "Shortage",
+      "packagingIssue": "Packaging Issue"
+    },
+    "results": {
+      "pass": "Pass",
+      "fail": "Fail",
+      "hold": "Hold",
+      "waiting": "Waiting"
+    },
+    "statusLabels": {
+      "pending": "Pending",
+      "inProgress": "In Progress",
+      "passed": "Passed",
+      "rejected": "Rejected"
+    },
+    "messages": {
+      "sampleQtyRequired": "Sample Qty is required",
+      "defectReasonRequired": "Defect Reason is required",
+      "qcSaved": "QC {result} saved successfully"
+    }
+  },
+  "putaway": {
+    "title": "Putaway",
+    "subtitle": "Move inspected goods from staging area to storage locations",
+    "newButton": "+ New Putaway Task",
+    "summary": {
+      "pendingPutaway": "Pending Putaway",
+      "locationIssues": "Location Issues"
+    },
+    "filters": {
+      "searchPlaceholder": "Search Task, SKU, Location...",
+      "allStatus": "All Status",
+      "allZones": "All Zones"
+    },
+    "table": {
+      "taskNo": "Task No.",
+      "receivingNo": "Receiving No.",
+      "sku": "SKU",
+      "product": "Product",
+      "qty": "Qty",
+      "fromLocation": "From Location",
+      "suggestedBin": "Suggested Bin",
+      "actualBin": "Actual Bin",
+      "action": "Action",
+      "putawayAction": "Putaway"
+    },
+    "loadingTasks": "Loading putaway tasks…",
+    "noTasks": "No putaway tasks found",
+    "statusLabels": {
+      "issue": "Issue"
+    },
+    "drawer": {
+      "title": "Putaway Task",
+      "product": "Product",
+      "quantity": "Quantity",
+      "cancelledAt": "Cancelled At",
+      "cancelledBy": "Cancelled By",
+      "cancellationRemark": "Cancellation Remark",
+      "alreadyResolved": "This line has already been resolved ({status}).",
+      "terminalMessage": "This putaway task is {status} and can no longer be actioned.",
+      "terminalCancelled": "This putaway task has been cancelled. No further action is possible.",
+      "scanSkuBarcode": "Scan SKU / Barcode",
+      "scanSkuPlaceholder": "Scan or enter barcode",
+      "actualBinLocation": "Actual Bin Location",
+      "actualBinPlaceholder": "Scan or enter bin location",
+      "putawayQty": "Putaway Qty",
+      "putawayQtyPlaceholder": "Enter putaway quantity",
+      "remarkPlaceholder": "Enter remark",
+      "confirmButton": "Confirm Putaway",
+      "reportIssue": "Report Issue",
+      "viewOnlyNote": "Your role can view this task but not confirm putaway.",
+      "cancelRemarkPlaceholder": "Cancellation remark (optional)",
+      "cancelButton": "Cancel Putaway Task"
+    },
+    "messages": {
+      "barcodeRequired": "Barcode is required",
+      "actualBinRequired": "Actual Bin Location is required",
+      "putawayQtyRequired": "Putaway Qty is required",
+      "noLocationFound": "No location found for bin code \"{value}\"",
+      "remarkRequiredForIssue": "A remark is required to report an issue",
+      "issueReported": "Putaway issue has been reported",
+      "putawayConfirmed": "Putaway confirmed successfully",
+      "taskCancelled": "Putaway task cancelled"
+    }
+  },
+  "newQualityCheck": {
+    "title": "New Quality Check",
+    "subtitle": "Create inspection record for received items before putaway",
+    "backButton": "Back to QC List",
+    "documentInfo": "QC Document Information",
+    "fields": {
+      "receivingNo": "Receiving No.",
+      "selectReceivingDoc": "Select receiving document",
+      "qcDate": "QC Date",
+      "inspector": "Inspector",
+      "inspectorPlaceholder": "Inspector name",
+      "warehouse": "Warehouse",
+      "selectWarehouse": "Select warehouse",
+      "qcType": "QC Type",
+      "overallResult": "Overall Result",
+      "remarkPlaceholder": "Enter QC remark"
+    },
+    "qcTypeOptions": {
+      "normal": "Normal Inspection",
+      "full": "Full Inspection",
+      "random": "Random Sampling",
+      "damage": "Damage Inspection"
+    },
+    "resultOptions": {
+      "pass": "Pass",
+      "hold": "Hold",
+      "fail": "Fail"
+    },
+    "scan": {
+      "label": "Scan SKU / Barcode",
+      "placeholder": "Scan barcode or SKU",
+      "sampleQtyPlaceholder": "Sample Qty",
+      "defectQtyPlaceholder": "Defect Qty",
+      "addQc": "Add QC"
+    },
+    "itemsSection": {
+      "title": "QC Items",
+      "subtitle": "Inspect received items by SKU, lot and sample quantity",
+      "addItem": "+ Add Item"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "Product Name",
+      "lotNo": "Lot No.",
+      "receivedQty": "Received Qty",
+      "sampleQty": "Sample Qty",
+      "defectQty": "Defect Qty",
+      "defectReason": "Defect Reason",
+      "result": "Result",
+      "action": "Action",
+      "noItems": "No QC items"
+    },
+    "defectReasonOptions": {
+      "none": "None",
+      "damaged": "Damaged",
+      "wrongItem": "Wrong Item",
+      "expired": "Expired",
+      "shortage": "Shortage",
+      "packagingIssue": "Packaging Issue"
+    },
+    "summary": {
+      "title": "QC Summary",
+      "totalLines": "Total Lines",
+      "sampleQty": "Sample Qty",
+      "defectQty": "Defect Qty",
+      "passRate": "Pass Rate"
+    },
+    "actions": {
+      "confirmQc": "Confirm QC"
+    },
+    "messages": {
+      "barcodeRequired": "Barcode or SKU is required",
+      "draftSaved": "QC draft saved successfully",
+      "receivingNoRequired": "Receiving No. is required",
+      "warehouseRequired": "Warehouse is required",
+      "atLeastOneItem": "At least one QC item is required",
+      "defectReasonRequiredForFail": "Defect Reason is required for failed item",
+      "qcConfirmed": "QC confirmed successfully"
+    }
+  },
+  "newPutaway": {
+    "title": "New Putaway Task",
+    "subtitle": "Move QC passed goods from staging area to storage bin locations",
+    "backButton": "Back to Putaway",
+    "taskInfo": "Task Information",
+    "fields": {
+      "sourceDocument": "Source Document",
+      "selectSourceDoc": "Select source document",
+      "putawayDate": "Putaway Date",
+      "assignedTo": "Assigned To",
+      "assignedToPlaceholder": "Warehouse staff",
+      "warehouse": "Warehouse",
+      "selectWarehouse": "Select warehouse",
+      "fromLocation": "From Location",
+      "selectStagingLocation": "Select staging location",
+      "priority": "Priority",
+      "remarkPlaceholder": "Enter task remark"
+    },
+    "priorityOptions": {
+      "normal": "Normal",
+      "high": "High",
+      "low": "Low"
+    },
+    "scan": {
+      "title": "Scan Putaway",
+      "subtitle": "Scan SKU and actual bin location to confirm movement",
+      "scannerReady": "Scanner Ready",
+      "lookingUp": "Looking up…",
+      "skuPlaceholder": "Scan SKU / Barcode",
+      "actualBinPlaceholder": "Scan Actual Bin (location code)",
+      "qtyPlaceholder": "Qty",
+      "confirmScan": "Confirm Scan",
+      "reportedByScanRemark": "Reported by scan"
+    },
+    "scanStatusOptions": {
+      "confirmed": "Confirmed",
+      "issue": "Issue"
+    },
+    "itemsSection": {
+      "title": "Putaway Items",
+      "subtitle": "Validate source location, suggested bin and actual bin before confirmation",
+      "addItem": "+ Add Item"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "Product Name",
+      "lotNo": "Lot No.",
+      "fromLocation": "From Location",
+      "suggestedBin": "Suggested Bin",
+      "actualBin": "Actual Bin",
+      "qty": "Qty",
+      "uom": "UOM",
+      "action": "Action",
+      "noItems": "No putaway items",
+      "skuPlaceholder": "SKU or barcode",
+      "selectLocation": "Select location",
+      "selectBin": "Select bin",
+      "remarkPlaceholder": "Remark"
+    },
+    "itemStatusOptions": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "issue": "Issue"
+    },
+    "summary": {
+      "title": "Putaway Summary",
+      "totalLines": "Total Lines",
+      "totalQty": "Total Qty",
+      "confirmedLines": "Confirmed Lines",
+      "issueLines": "Issue Lines"
+    },
+    "actions": {
+      "confirmPutaway": "Confirm Putaway",
+      "viewOnlyNote": "Your role can save drafts but not confirm putaway."
+    },
+    "messages": {
+      "noProductFound": "No product found for SKU/barcode \"{value}\"",
+      "skuRequired": "SKU or Barcode is required",
+      "actualBinRequiredScan": "Actual Bin is required",
+      "noLocationFound": "No location found for bin code \"{value}\"",
+      "warehouseRequired": "Warehouse is required",
+      "atLeastOneItem": "At least one putaway item is required",
+      "everyItemMustResolve": "Every item must resolve to a known product — check the SKU/barcode column",
+      "everyItemMustHaveFromLocation": "Every item must have a from location",
+      "everyItemNeedsActualBin": "Every item needs an Actual Bin",
+      "fromAndActualMustDiffer": "From Location and Actual Bin must differ",
+      "everyItemNeedsQtyGreaterThanZero": "Every item needs a quantity greater than zero",
+      "everyIssueNeedsRemark": "Every issue item needs a remark",
+      "setAtLeastOneItemAction": "Set at least one item to Confirmed or Issue before confirming putaway",
+      "draftSaved": "Putaway draft saved successfully",
+      "putawayConfirmed": "Putaway confirmed successfully"
+    }
+  },
+  "orders": {
+    "title": "Orders",
+    "subtitle": "Order intake — orchestrates Picking once locations/lots are assigned",
+    "newButton": "+ New Order",
+    "filters": {
+      "searchPlaceholder": "Search Order No, External Ref, Customer...",
+      "allStatus": "All Status",
+      "allWarehouses": "All Warehouses"
+    },
+    "table": {
+      "orderNo": "Order No.",
+      "externalRef": "External Ref.",
+      "customer": "Customer",
+      "items": "Items",
+      "fulfillment": "Fulfillment",
+      "createdAt": "Created At",
+      "action": "Action"
+    },
+    "loadingOrders": "Loading orders…",
+    "noOrders": "No orders found",
+    "form": {
+      "editTitle": "Edit Order",
+      "newTitle": "New Order",
+      "selectWarehouse": "Select Warehouse",
+      "customerPlaceholder": "Customer (optional)",
+      "externalReferencePlaceholder": "External Reference (optional)",
+      "remarkPlaceholder": "Remark (optional)",
+      "itemsTitle": "Items",
+      "skuPlaceholder": "Product SKU",
+      "qtyPlaceholder": "Qty",
+      "addItem": "Add Item",
+      "tableSku": "SKU",
+      "tableProduct": "Product",
+      "tableQty": "Qty",
+      "noItemsYet": "No items added yet",
+      "saveChanges": "Save Changes",
+      "createOrder": "Create Order",
+      "saving": "Saving…"
+    },
+    "detail": {
+      "statusLabel": "Status",
+      "fulfillmentLabel": "Fulfillment",
+      "customerLabel": "Customer",
+      "externalRefLabel": "External Ref",
+      "warehouseLabel": "Warehouse",
+      "pickingTaskLabel": "Picking Task",
+      "remarkLabel": "Remark",
+      "cancelRemarkLabel": "Cancel Remark",
+      "createdByLabel": "Created By",
+      "itemsTitle": "Items",
+      "tableSku": "SKU",
+      "tableProduct": "Product",
+      "tableQty": "Qty",
+      "tableUom": "UOM",
+      "createPickingTask": "Create Picking Task",
+      "cancelRemarkPlaceholder": "Cancel remark (optional)",
+      "cancelOrder": "Cancel Order",
+      "pickingTaskNote": "A picking task has already been created for this order — cancel it directly from Picking if needed."
+    },
+    "release": {
+      "title": "Create Picking Task — {orderNo}",
+      "priorityNormal": "Priority: Normal",
+      "priorityLow": "Priority: Low",
+      "priorityHigh": "Priority: High",
+      "assignLocationTitle": "Assign a location/lot to each line",
+      "selectLocation": "Select Location",
+      "lotNoPlaceholder": "Lot No (optional)",
+      "creating": "Creating…"
+    },
+    "messages": {
+      "loadWarehousesFailed": "Failed to load warehouses",
+      "loadOrdersFailed": "Failed to load orders",
+      "skuQtyRequired": "SKU and quantity are required to add an item",
+      "noProductFound": "No product found for SKU/barcode \"{value}\"",
+      "warehouseRequired": "Warehouse is required",
+      "atLeastOneItem": "At least one item is required",
+      "saveOrderFailed": "Failed to save order",
+      "loadOrderDetailFailed": "Failed to load order detail",
+      "loadLocationsFailed": "Failed to load locations",
+      "lineNeedsLocation": "Every line needs a location assigned",
+      "createPickingTaskFailed": "Failed to create picking task",
+      "lookupProductFailed": "Failed to look up product"
+    },
+    "statusLabels": {
+      "pending": "Pending",
+      "picking": "Picking",
+      "pickingCancelled": "Picking Cancelled",
+      "picked": "Picked",
+      "shipping": "Shipping",
+      "shipIssue": "Issue",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
+    }
+  },
+  "userManagement": {
+    "title": "User Management",
+    "subtitle": "Manage system users, roles and warehouse access",
+    "newUserButton": "+ New User",
+    "filters": {
+      "searchPlaceholder": "Search user, email, role...",
+      "allRoles": "All Roles",
+      "allStatus": "All Status"
+    },
+    "status": {
+      "locked": "Locked"
+    },
+    "table": {
+      "user": "User",
+      "email": "Email",
+      "role": "Role",
+      "warehouse": "Warehouse",
+      "lastLogin": "Last Login",
+      "status": "Status",
+      "action": "Action"
+    },
+    "loadingUsers": "Loading users...",
+    "noUsers": "No users found.",
+    "drawer": {
+      "editTitle": "Edit User",
+      "newTitle": "New User",
+      "subtitle": "User profile and access control"
+    },
+    "fields": {
+      "fullName": "Full Name",
+      "fullNamePlaceholder": "Enter full name",
+      "email": "Email",
+      "emailPlaceholder": "Enter email",
+      "username": "Username",
+      "usernamePlaceholder": "Enter username",
+      "password": "Password",
+      "passwordPlaceholder": "Set initial password (min 8 characters)",
+      "role": "Role",
+      "selectRole": "Select role",
+      "warehouse": "Warehouse",
+      "unassigned": "Unassigned (-)",
+      "status": "Status"
+    },
+    "saveButton": "Save User",
+    "saving": "Saving...",
+    "messages": {
+      "loadRolesFailed": "Failed to load roles",
+      "loadWarehousesFailed": "Failed to load warehouses",
+      "loadUsersFailed": "Failed to load users",
+      "saveFailed": "Failed to save user",
+      "neverLoggedIn": "Never logged in"
+    }
+  },
+  "rolePermission": {
+    "title": "Roles & Permissions",
+    "subtitle": "Manage role-based access control for warehouse operations",
+    "newRoleButton": "+ New Role",
+    "searchPlaceholder": "Search role...",
+    "savePermissionsButton": "Save Permissions",
+    "saving": "Saving...",
+    "fields": {
+      "roleName": "Role Name",
+      "roleCode": "Role Code",
+      "status": "Status",
+      "description": "Description"
+    },
+    "newRoleDefaults": {
+      "name": "New Role"
+    },
+    "warehouseAccess": {
+      "title": "Warehouse Access",
+      "loading": "Loading warehouses...",
+      "noWarehouses": "No active warehouses found."
+    },
+    "permissionMatrix": {
+      "title": "Permission Matrix",
+      "checkAll": "Check All",
+      "uncheckAll": "Uncheck All",
+      "moduleColumn": "Module"
+    },
+    "actions": {
+      "view": "View",
+      "create": "Create",
+      "edit": "Edit",
+      "delete": "Delete",
+      "approve": "Approve",
+      "export": "Export"
+    },
+    "modules": {
+      "dashboard": "Dashboard",
+      "receiving": "Receiving",
+      "qualityCheck": "Quality Check",
+      "putaway": "Putaway",
+      "stockInquiry": "Stock Inquiry",
+      "stockAdjustment": "Stock Adjustment",
+      "order": "Order Management",
+      "picking": "Picking",
+      "shipping": "Shipping",
+      "users": "User Management",
+      "roles": "Roles & Permissions",
+      "warehouse": "Warehouse Setup",
+      "product": "Product Master"
+    },
+    "selectRolePrompt": "Select a role to configure permissions",
+    "permissionConfigLabel": "{code} permission configuration",
+    "messages": {
+      "loadFailed": "Failed to load roles and permissions",
+      "loadWarehousesFailed": "Failed to load warehouses",
+      "loadPermissionsFailed": "Failed to load role permissions",
+      "loadAccessFailed": "Failed to load role warehouse access",
+      "saveFailed": "Failed to save permissions",
+      "saveSuccess": "Permissions saved successfully",
+      "createNotSupported": "Creating new roles is not supported yet."
+    }
+  },
+  "warehouseSetup": {
+    "title": "Warehouse Setup",
+    "subtitle": "Manage warehouse master data, zones and storage locations",
+    "newWarehouseButton": "+ New Warehouse",
+    "summary": {
+      "totalWarehouses": "Total Warehouses",
+      "totalZones": "Total Zones",
+      "totalLocations": "Total Locations",
+      "avgUtilization": "Avg Utilization"
+    },
+    "filters": {
+      "searchPlaceholder": "Search warehouse...",
+      "allTypes": "All Types",
+      "allStatus": "All Status"
+    },
+    "warehouseTypes": {
+      "distributionCenter": "Distribution Center",
+      "factoryWarehouse": "Factory Warehouse",
+      "transitWarehouse": "Transit Warehouse"
+    },
+    "table": {
+      "code": "Warehouse Code",
+      "name": "Warehouse Name",
+      "type": "Type",
+      "address": "Address",
+      "zones": "Zones",
+      "locations": "Locations",
+      "utilization": "Utilization",
+      "status": "Status",
+      "action": "Action"
+    },
+    "loadingWarehouses": "Loading warehouses...",
+    "noWarehouses": "No warehouses found.",
+    "manageButton": "Manage",
+    "drawer": {
+      "detailTitle": "Warehouse Detail",
+      "newTitle": "New Warehouse",
+      "subtitle": "Warehouse master data and location structure"
+    },
+    "tabs": {
+      "info": "Warehouse Info",
+      "zone": "Zone Setup",
+      "location": "Location Structure",
+      "capacity": "Capacity Dashboard"
+    },
+    "infoTab": {
+      "code": "Warehouse Code",
+      "name": "Warehouse Name",
+      "type": "Warehouse Type",
+      "status": "Status",
+      "contactPerson": "Contact Person",
+      "phone": "Phone",
+      "capacity": "Capacity",
+      "capacityPlaceholder": "Total bin/unit capacity",
+      "address": "Address"
+    },
+    "saveWarehouseButton": "Save Warehouse",
+    "saving": "Saving...",
+    "zoneTab": {
+      "saveFirst": "Save the warehouse first before adding zones.",
+      "title": "Zone Setup",
+      "addZoneButton": "+ Add Zone",
+      "codePlaceholder": "Zone Code",
+      "namePlaceholder": "Zone Name",
+      "saveZonesButton": "Save Zones"
+    },
+    "zoneTypes": {
+      "receiving": "Receiving",
+      "storage": "Storage",
+      "picking": "Picking",
+      "packing": "Packing",
+      "shipping": "Shipping",
+      "qc": "QC",
+      "hold": "Hold"
+    },
+    "locationTab": {
+      "title": "Location Structure",
+      "aislePrefix": "Aisle",
+      "rackPrefix": "Rack",
+      "generateButton": "Generate Bin Locations"
+    },
+    "capacityTab": {
+      "utilizationTitle": "Warehouse Utilization",
+      "totalCapacity": "Total Capacity",
+      "occupied": "Occupied",
+      "available": "Available"
+    },
+    "messages": {
+      "loadFailed": "Failed to load warehouses",
+      "saveFailed": "Failed to save warehouse",
+      "loadZonesFailed": "Failed to load zones",
+      "saveZonesFailed": "Failed to save zones",
+      "binsGenerated": "Bin locations generated successfully"
+    }
+  },
+  "productMaster": {
+    "title": "Product Master",
+    "subtitle": "Manage product information, barcode mapping, UOM and storage rules",
+    "newProductButton": "+ New Product",
+    "summary": {
+      "totalProducts": "Total Products",
+      "activeProducts": "Active Products",
+      "lotRequired": "Lot Required",
+      "inactive": "Inactive"
+    },
+    "filters": {
+      "searchPlaceholder": "Search SKU, product, barcode...",
+      "allCategories": "All Categories",
+      "allStatus": "All Status",
+      "lotRule": "Lot Rule",
+      "lotRequiredOption": "Lot Required",
+      "noLotOption": "No Lot"
+    },
+    "categories": {
+      "packaging": "Packaging",
+      "label": "Label",
+      "rfid": "RFID",
+      "rawMaterial": "Raw Material"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "Product Name",
+      "category": "Category",
+      "baseUom": "Base UOM",
+      "packSize": "Pack Size",
+      "lot": "Lot",
+      "serial": "Serial",
+      "expiry": "Expiry",
+      "defaultZone": "Default Zone",
+      "status": "Status",
+      "action": "Action"
+    },
+    "loadingProducts": "Loading products...",
+    "noProducts": "No products found.",
+    "manageButton": "Manage",
+    "drawer": {
+      "detailTitle": "Product Detail",
+      "newTitle": "New Product",
+      "subtitle": "Product master, barcode mapping and inventory rules"
+    },
+    "tabs": {
+      "info": "Product Info",
+      "barcode": "Barcode Mapping",
+      "rules": "Inventory Rules",
+      "uom": "UOM Conversion"
+    },
+    "infoTab": {
+      "sku": "SKU",
+      "productName": "Product Name",
+      "category": "Category",
+      "baseUom": "Base UOM",
+      "status": "Status",
+      "barcode": "Barcode",
+      "barcodePlaceholder": "Primary barcode (optional)",
+      "description": "Description"
+    },
+    "barcodeTab": {
+      "title": "Barcode Mapping",
+      "addButton": "+ Add Barcode",
+      "table": {
+        "value": "Barcode Value",
+        "type": "Barcode Type",
+        "uom": "UOM",
+        "qtyPerBarcode": "Qty Per Barcode",
+        "primary": "Primary",
+        "status": "Status",
+        "action": "Action"
+      },
+      "noMapping": "No barcode mapping",
+      "removeButton": "Remove"
+    },
+    "barcodeTypes": {
+      "supplier": "Supplier Barcode",
+      "internal": "Internal Barcode",
+      "box": "Box Code",
+      "qr": "QR Code"
+    },
+    "rulesTab": {
+      "lotRequiredTitle": "Lot Required",
+      "lotRequiredDesc": "Require lot number for receiving and stock",
+      "serialRequiredTitle": "Serial Required",
+      "serialRequiredDesc": "Require serial number per item",
+      "expiryRequiredTitle": "Expiry Required",
+      "expiryRequiredDesc": "Require expiry date control",
+      "defaultZone": "Default Putaway Zone",
+      "minStock": "Min Stock",
+      "maxStock": "Max Stock"
+    },
+    "uomTab": {
+      "title": "UOM Conversion",
+      "addButton": "+ Add UOM",
+      "qtyPlaceholder": "Qty",
+      "removeButton": "Remove"
+    },
+    "cancelButton": "Cancel",
+    "saveProductButton": "Save Product",
+    "saving": "Saving...",
+    "messages": {
+      "skuRequired": "SKU is required",
+      "nameRequired": "Product Name is required",
+      "saveFailed": "Failed to save product",
+      "loadFailed": "Failed to load products"
+    }
+  },
+  "stockInquiry": {
+    "title": "Stock Inquiry",
+    "subtitle": "Search and monitor warehouse inventory by SKU, lot, zone and location",
+    "exportStock": "Export Stock",
+    "exportTransactionHistory": "⬇ Export Transaction History",
+    "generatingExport": "Generating transaction export…",
+    "exportReady": "Transaction export ready — downloading…",
+    "exportFailed": "Transaction export failed: {error}",
+    "summary": {
+      "totalSkus": "Total SKUs",
+      "availableQty": "Available Qty",
+      "reservedQty": "Reserved Qty",
+      "lowStock": "Low Stock"
+    },
+    "filters": {
+      "searchPlaceholder": "Search SKU, Product, Barcode...",
+      "allWarehouses": "All Warehouses",
+      "allZones": "All Zones",
+      "zonePrefix": "Zone",
+      "allStockStatus": "All Stock Status",
+      "statusAvailable": "Available",
+      "statusReserved": "Reserved",
+      "statusHold": "Hold",
+      "statusLowStock": "Low Stock"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "Product Name",
+      "barcode": "Barcode",
+      "warehouse": "Warehouse",
+      "location": "Location",
+      "lotNo": "Lot No.",
+      "available": "Available",
+      "reserved": "Reserved",
+      "onHand": "On Hand",
+      "uom": "UOM",
+      "status": "Status",
+      "action": "Action",
+      "viewDetail": "View Detail",
+      "loading": "Loading inventory...",
+      "noData": "No inventory found."
+    },
+    "detail": {
+      "title": "Stock Detail",
+      "productName": "Product Name",
+      "barcode": "Barcode",
+      "warehouse": "Warehouse",
+      "location": "Location",
+      "lotNo": "Lot No.",
+      "expiryDate": "Expiry Date",
+      "available": "Available",
+      "reserved": "Reserved",
+      "onHand": "On Hand",
+      "recentMovement": "Recent Movement",
+      "noMovement": "No movement recorded yet.",
+      "createAdjustment": "Create Adjustment"
+    },
+    "messages": {
+      "loadWarehousesFailed": "Failed to load warehouses",
+      "loadZonesFailed": "Failed to load zones",
+      "loadSummaryFailed": "Failed to load inventory summary",
+      "loadInventoryFailed": "Failed to load inventory",
+      "loadMovementFailed": "Failed to load movement history"
+    }
+  },
+  "stockAdjustment": {
+    "title": "Stock Adjustment",
+    "subtitle": "Create and review inventory adjustment transactions",
+    "newButton": "+ New Adjustment",
+    "summary": {
+      "pendingApproval": "Pending Approval",
+      "approvedToday": "Approved Today",
+      "rejected": "Rejected",
+      "totalVariance": "Total Variance"
+    },
+    "filters": {
+      "searchPlaceholder": "Search Adj No, SKU, Reason...",
+      "allTypes": "All Types",
+      "increase": "Increase",
+      "decrease": "Decrease",
+      "allStatus": "All Status",
+      "overduePending": "Overdue (Pending)"
+    },
+    "table": {
+      "adjustmentNo": "Adjustment No.",
+      "date": "Date",
+      "sku": "SKU",
+      "product": "Product",
+      "location": "Location",
+      "currentQty": "Current Qty",
+      "adjustQty": "Adjust Qty",
+      "newQty": "New Qty",
+      "reason": "Reason",
+      "pendingAge": "Pending Age",
+      "status": "Status",
+      "action": "Action",
+      "overdue": "Overdue",
+      "viewDetail": "View Detail",
+      "loading": "Loading adjustments…",
+      "noData": "No stock adjustments found"
+    },
+    "drawer": {
+      "newTitle": "New Stock Adjustment",
+      "detailTitle": "Adjustment Detail",
+      "subtitle": "Adjust inventory quantity with approval workflow",
+      "skuBarcode": "SKU / Barcode",
+      "skuPlaceholder": "Scan or enter SKU",
+      "warehouse": "Warehouse",
+      "selectWarehouse": "Select warehouse",
+      "location": "Location",
+      "selectLocation": "Select location",
+      "lotNoOptional": "Lot No. (optional)",
+      "lotNoPlaceholder": "Leave blank for non-lot-tracked stock",
+      "createdBy": "Created By",
+      "createdAt": "Created At",
+      "pendingFor": "Pending for {age}",
+      "overdueThreshold": "— overdue (threshold: {hours}h)",
+      "currentQty": "Current Qty",
+      "adjustmentType": "Adjustment Type",
+      "increase": "Increase",
+      "decrease": "Decrease",
+      "adjustQty": "Adjust Qty",
+      "qtyPlaceholder": "Qty",
+      "resultingQuantity": "Resulting Quantity",
+      "newQuantityEstimated": "New Quantity (estimated)",
+      "reason": "Reason",
+      "selectReason": "Select reason",
+      "remark": "Remark",
+      "remarkPlaceholder": "Enter remark",
+      "submitForApproval": "Submit for Approval",
+      "saveDraft": "Save Draft",
+      "approve": "Approve",
+      "reject": "Reject",
+      "viewOnlyNote": "Your role can view this adjustment but not approve or reject it."
+    },
+    "status": {
+      "draft": "Draft",
+      "pending": "Pending Approval",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "messages": {
+      "skuRequired": "SKU is required",
+      "noProductFound": "No product found for SKU/barcode \"{value}\"",
+      "locationRequired": "Location is required",
+      "adjustQtyPositive": "Adjust Qty must be greater than zero",
+      "reasonRequired": "Reason is required",
+      "remarkRequiredToReject": "A remark is required to reject an adjustment",
+      "submittedForApproval": "Stock adjustment submitted for approval",
+      "draftSaved": "Draft saved successfully",
+      "approved": "Stock adjustment approved",
+      "rejectedMsg": "Stock adjustment rejected"
+    }
+  },
+  "checkStock": {
+    "title": "Check Stock",
+    "subtitle": "Perform physical stock count and compare with system quantity",
+    "newCountTask": "+ New Count Task",
+    "startDifferentCount": "+ Start a Different Count",
+    "history": {
+      "title": "Stock Count History",
+      "subtitle": "Past and in-progress count tasks — select one to view or continue it",
+      "searchPlaceholder": "Search Count No...",
+      "allStatus": "All Status",
+      "allWarehouses": "All Warehouses",
+      "table": {
+        "countNo": "Count No.",
+        "type": "Type",
+        "warehouse": "Warehouse",
+        "zone": "Zone",
+        "createdDate": "Created Date",
+        "createdBy": "Created By",
+        "items": "Items",
+        "varianceLines": "Variance Lines",
+        "status": "Status",
+        "action": "Action",
+        "view": "View",
+        "loading": "Loading stock count history…",
+        "noData": "No stock counts found"
+      }
+    },
+    "countInfo": {
+      "title": "Count Information",
+      "countType": "Count Type",
+      "cycleCount": "Cycle Count",
+      "fullCount": "Full Count",
+      "locationCount": "Location Count",
+      "skuCount": "SKU Count",
+      "warehouse": "Warehouse",
+      "selectWarehouse": "Select warehouse",
+      "zone": "Zone",
+      "allZone": "All Zone",
+      "countDate": "Count Date"
+    },
+    "scan": {
+      "title": "Scan Stock",
+      "subtitle": "Scan SKU, barcode or bin location to update physical count",
+      "scannerReady": "Scanner Ready",
+      "skuPlaceholder": "Scan SKU / Barcode",
+      "locationPlaceholder": "Scan Location",
+      "countQtyPlaceholder": "Count Qty",
+      "good": "Good",
+      "damaged": "Damaged",
+      "hold": "Hold",
+      "confirmCount": "Confirm Count"
+    },
+    "items": {
+      "title": "Stock Count Items",
+      "subtitle": "Review system quantity, counted quantity and variance",
+      "skuPlaceholder": "SKU / Barcode",
+      "locationPlaceholder": "Location",
+      "lotNoPlaceholder": "Lot No. (optional)",
+      "addItem": "+ Add Item",
+      "table": {
+        "sku": "SKU",
+        "productName": "Product Name",
+        "location": "Location",
+        "lotNo": "Lot No.",
+        "systemQty": "System Qty",
+        "countQty": "Count Qty",
+        "variance": "Variance",
+        "uom": "UOM",
+        "condition": "Condition",
+        "status": "Status",
+        "remark": "Remark",
+        "remarkPlaceholder": "Remark",
+        "action": "Action",
+        "save": "Save",
+        "noData": "No stock count items"
+      }
+    },
+    "summary": {
+      "title": "Count Summary",
+      "totalLines": "Total Lines",
+      "matchedLines": "Matched Lines",
+      "varianceLines": "Variance Lines",
+      "netVariance": "Net Variance"
+    },
+    "generatedAdjustments": {
+      "title": "Generated Adjustments",
+      "subtitle": "Stock Adjustment document(s) created from this count's variance via \"Create Adjustment\"",
+      "viewLink": "View in Stock Adjustments →",
+      "table": {
+        "adjustmentNo": "Adjustment No.",
+        "reason": "Reason",
+        "status": "Status",
+        "created": "Created"
+      }
+    },
+    "actions": {
+      "chooseOneNote": "Choose one: \"Confirm Count\" applies this variance to inventory immediately, or \"Create Adjustment\" routes it through a separate approval instead. Only one can be used per count — whichever you click first locks out the other.",
+      "saveDraft": "Save Draft",
+      "createAdjustment": "Create Adjustment",
+      "confirmCount": "Confirm Count",
+      "creating": "Creating…"
+    },
+    "status": {
+      "draft": "Draft",
+      "confirmed": "Confirmed",
+      "adjustmentCreated": "Adjustment Created"
+    },
+    "itemStatus": {
+      "pending": "PENDING",
+      "counted": "COUNTED",
+      "recount": "RECOUNT"
+    },
+    "messages": {
+      "warehouseRequired": "Warehouse is required",
+      "skuBarcodeRequired": "SKU / Barcode is required",
+      "locationRequired": "Location is required",
+      "noProductFound": "No product found for SKU/barcode \"{value}\"",
+      "skuOrBarcodeRequired": "SKU or Barcode is required",
+      "itemNotFound": "Stock item not found",
+      "draftSaved": "Stock count draft saved successfully",
+      "noVarianceFound": "No variance found",
+      "someItemsPending": "Some items are still pending count",
+      "countConfirmed": "Stock count confirmed successfully"
+    }
+  },
+  "replenishment": {
+    "title": "Replenishment",
+    "subtitle": "Move stock from bulk/reserve locations to pick-face locations",
+    "recommendations": "🎯 Recommendations",
+    "newTask": "+ New Task",
+    "filters": {
+      "searchPlaceholder": "Search Task No, SKU, Product...",
+      "allStatus": "All Status",
+      "allWarehouses": "All Warehouses"
+    },
+    "status": {
+      "pending": "Pending",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "issue": "Issue"
+    },
+    "table": {
+      "taskNo": "Task No.",
+      "sku": "SKU",
+      "product": "Product",
+      "from": "From",
+      "to": "To",
+      "qty": "Qty",
+      "warehouse": "Warehouse",
+      "status": "Status",
+      "action": "Action",
+      "view": "View",
+      "loading": "Loading replenishment tasks…",
+      "noData": "No replenishment tasks found"
+    },
+    "newTaskForm": {
+      "title": "New Replenishment Task",
+      "selectWarehouse": "Select Warehouse",
+      "skuPlaceholder": "Product SKU",
+      "lotNoPlaceholder": "Lot No (optional)",
+      "fromLocation": "From Location",
+      "toLocation": "To Location",
+      "quantityPlaceholder": "Quantity",
+      "remarkPlaceholder": "Remark (optional)",
+      "cancel": "Cancel",
+      "createTask": "Create Task",
+      "creating": "Creating…"
+    },
+    "recommendationsPanel": {
+      "title": "Replenishment Recommendations",
+      "selectWarehouse": "Select Warehouse",
+      "load": "Load",
+      "loading": "Loading…",
+      "table": {
+        "sku": "SKU",
+        "product": "Product",
+        "from": "From",
+        "to": "To",
+        "suggestedQty": "Suggested Qty",
+        "action": "Action",
+        "use": "Use",
+        "noData": "No recommendations loaded"
+      }
+    },
+    "detail": {
+      "status": "Status:",
+      "product": "Product:",
+      "lot": "Lot:",
+      "from": "From:",
+      "to": "To:",
+      "quantity": "Quantity:",
+      "warehouse": "Warehouse:",
+      "remark": "Remark:",
+      "issue": "Issue:",
+      "cancelRemark": "Cancel Remark:",
+      "createdBy": "Created By:",
+      "start": "Start",
+      "confirmMove": "Confirm Move",
+      "confirming": "Confirming…",
+      "cancelRemarkPlaceholder": "Cancel remark (optional)",
+      "cancelTask": "Cancel Task",
+      "issueRemarkPlaceholder": "Issue remark (required)",
+      "reportIssue": "Report Issue"
+    },
+    "messages": {
+      "loadWarehousesFailed": "Failed to load warehouses",
+      "loadTasksFailed": "Failed to load replenishment tasks",
+      "loadLocationsFailed": "Failed to load locations",
+      "requiredFields": "Warehouse, from/to location, and quantity are required",
+      "skuRequired": "Product SKU is required",
+      "noProductFound": "No product found for SKU/barcode \"{value}\"",
+      "createTaskFailed": "Failed to create replenishment task",
+      "loadRecommendationsFailed": "Failed to load recommendations",
+      "loadDetailFailed": "Failed to load task detail",
+      "issueRemarkRequired": "Issue remark is required"
+    }
+  }
+}

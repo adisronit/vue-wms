@@ -2,9 +2,9 @@
   <div class="space-y-6">
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">Product Master</h1>
+        <h1 class="text-2xl font-bold text-slate-800">{{ $t('productMaster.title') }}</h1>
         <p class="text-slate-500">
-          Manage product information, barcode mapping, UOM and storage rules
+          {{ $t('productMaster.subtitle') }}
         </p>
       </div>
 
@@ -12,28 +12,28 @@
         @click="openProduct(null)"
         class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
       >
-        + New Product
+        {{ $t('productMaster.newProductButton') }}
       </button>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
       <div class="summary-card">
-        <p class="summary-label">Total Products</p>
+        <p class="summary-label">{{ $t('productMaster.summary.totalProducts') }}</p>
         <h2 class="summary-value text-number">{{ products.length }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Active Products</p>
+        <p class="summary-label">{{ $t('productMaster.summary.activeProducts') }}</p>
         <h2 class="summary-value text-green-600 text-number">{{ activeProductCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Lot Required</p>
+        <p class="summary-label">{{ $t('productMaster.summary.lotRequired') }}</p>
         <h2 class="summary-value text-orange-600 text-number">{{ lotRequiredCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Inactive</p>
+        <p class="summary-label">{{ $t('productMaster.summary.inactive') }}</p>
         <h2 class="summary-value text-red-600 text-number">{{ inactiveProductCount }}</h2>
       </div>
     </div>
@@ -44,34 +44,34 @@
           v-model="filters.keyword"
           type="text"
           class="input"
-          placeholder="Search SKU, product, barcode..."
+          :placeholder="$t('productMaster.filters.searchPlaceholder')"
         />
 
         <select v-model="filters.category" class="input">
-          <option value="">All Categories</option>
-          <option value="PACKAGING">Packaging</option>
-          <option value="LABEL">Label</option>
-          <option value="RFID">RFID</option>
-          <option value="RAW_MATERIAL">Raw Material</option>
+          <option value="">{{ $t('productMaster.filters.allCategories') }}</option>
+          <option value="PACKAGING">{{ $t('productMaster.categories.packaging') }}</option>
+          <option value="LABEL">{{ $t('productMaster.categories.label') }}</option>
+          <option value="RFID">{{ $t('productMaster.categories.rfid') }}</option>
+          <option value="RAW_MATERIAL">{{ $t('productMaster.categories.rawMaterial') }}</option>
         </select>
 
         <select v-model="filters.status" class="input">
-          <option value="">All Status</option>
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
+          <option value="">{{ $t('productMaster.filters.allStatus') }}</option>
+          <option value="ACTIVE">{{ $t('common.status.active') }}</option>
+          <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
         </select>
 
         <select v-model="filters.lotRequired" class="input">
-          <option value="">Lot Rule</option>
-          <option value="YES">Lot Required</option>
-          <option value="NO">No Lot</option>
+          <option value="">{{ $t('productMaster.filters.lotRule') }}</option>
+          <option value="YES">{{ $t('productMaster.filters.lotRequiredOption') }}</option>
+          <option value="NO">{{ $t('productMaster.filters.noLotOption') }}</option>
         </select>
 
         <button
           @click="clearFilter"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
         >
-          Clear Filter
+          {{ $t('common.buttons.clearFilter') }}
         </button>
       </div>
     </div>
@@ -85,26 +85,26 @@
         <table class="min-w-[1250px] w-full text-sm">
           <thead class="bg-slate-50 text-slate-500">
             <tr>
-              <th class="table-th">SKU</th>
-              <th class="table-th">Product Name</th>
-              <th class="table-th">Category</th>
-              <th class="table-th">Base UOM</th>
-              <th class="table-th text-right">Pack Size</th>
-              <th class="table-th">Lot</th>
-              <th class="table-th">Serial</th>
-              <th class="table-th">Expiry</th>
-              <th class="table-th">Default Zone</th>
-              <th class="table-th">Status</th>
-              <th class="table-th text-right">Action</th>
+              <th class="table-th">{{ $t('productMaster.table.sku') }}</th>
+              <th class="table-th">{{ $t('productMaster.table.productName') }}</th>
+              <th class="table-th">{{ $t('productMaster.table.category') }}</th>
+              <th class="table-th">{{ $t('productMaster.table.baseUom') }}</th>
+              <th class="table-th text-right">{{ $t('productMaster.table.packSize') }}</th>
+              <th class="table-th">{{ $t('productMaster.table.lot') }}</th>
+              <th class="table-th">{{ $t('productMaster.table.serial') }}</th>
+              <th class="table-th">{{ $t('productMaster.table.expiry') }}</th>
+              <th class="table-th">{{ $t('productMaster.table.defaultZone') }}</th>
+              <th class="table-th">{{ $t('productMaster.table.status') }}</th>
+              <th class="table-th text-right">{{ $t('productMaster.table.action') }}</th>
             </tr>
           </thead>
 
           <tbody>
             <tr v-if="loading">
-              <td class="table-td" colspan="11">Loading products...</td>
+              <td class="table-td" colspan="11">{{ $t('productMaster.loadingProducts') }}</td>
             </tr>
             <tr v-else-if="products.length === 0">
-              <td class="table-td" colspan="11">No products found.</td>
+              <td class="table-td" colspan="11">{{ $t('productMaster.noProducts') }}</td>
             </tr>
             <tr
               v-for="product in products"
@@ -133,19 +133,19 @@
 
               <td class="table-td">
                 <span :class="product.lotRequired ? 'badge-orange' : 'badge-gray'">
-                  {{ product.lotRequired ? 'Yes' : 'No' }}
+                  {{ product.lotRequired ? $t('common.labels.yes') : $t('common.labels.no') }}
                 </span>
               </td>
 
               <td class="table-td">
                 <span :class="product.serialRequired ? 'badge-orange' : 'badge-gray'">
-                  {{ product.serialRequired ? 'Yes' : 'No' }}
+                  {{ product.serialRequired ? $t('common.labels.yes') : $t('common.labels.no') }}
                 </span>
               </td>
 
               <td class="table-td">
                 <span :class="product.expiryRequired ? 'badge-orange' : 'badge-gray'">
-                  {{ product.expiryRequired ? 'Yes' : 'No' }}
+                  {{ product.expiryRequired ? $t('common.labels.yes') : $t('common.labels.no') }}
                 </span>
               </td>
 
@@ -155,7 +155,7 @@
 
               <td class="table-td">
                 <span :class="getStatusClass(product.status)">
-                  {{ product.status }}
+                  {{ statusLabel(product.status) }}
                 </span>
               </td>
 
@@ -164,7 +164,7 @@
                   @click="openProduct(product)"
                   class="text-orange-600 hover:text-orange-700 font-semibold"
                 >
-                  Manage
+                  {{ $t('productMaster.manageButton') }}
                 </button>
               </td>
             </tr>
@@ -181,10 +181,10 @@
         <div class="flex items-center justify-between mb-6">
           <div>
             <h2 class="text-xl font-bold text-slate-800">
-              {{ selectedProduct.id ? 'Product Detail' : 'New Product' }}
+              {{ selectedProduct.id ? $t('productMaster.drawer.detailTitle') : $t('productMaster.drawer.newTitle') }}
             </h2>
             <p class="text-slate-500">
-              Product master, barcode mapping and inventory rules
+              {{ $t('productMaster.drawer.subtitle') }}
             </p>
           </div>
 
@@ -204,34 +204,34 @@
             class="tab-button"
             :class="activeTab === tab.key ? 'tab-active' : ''"
           >
-            {{ tab.label }}
+            {{ $t(tab.labelKey) }}
           </button>
         </div>
 
         <div v-if="activeTab === 'INFO'" class="space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label class="label">SKU</label>
+              <label class="label">{{ $t('productMaster.infoTab.sku') }}</label>
               <input v-model="productForm.sku" class="input" />
             </div>
 
             <div class="md:col-span-2">
-              <label class="label">Product Name</label>
+              <label class="label">{{ $t('productMaster.infoTab.productName') }}</label>
               <input v-model="productForm.productName" class="input" />
             </div>
 
             <div>
-              <label class="label">Category</label>
+              <label class="label">{{ $t('productMaster.infoTab.category') }}</label>
               <select v-model="productForm.category" class="input">
-                <option value="PACKAGING">Packaging</option>
-                <option value="LABEL">Label</option>
-                <option value="RFID">RFID</option>
-                <option value="RAW_MATERIAL">Raw Material</option>
+                <option value="PACKAGING">{{ $t('productMaster.categories.packaging') }}</option>
+                <option value="LABEL">{{ $t('productMaster.categories.label') }}</option>
+                <option value="RFID">{{ $t('productMaster.categories.rfid') }}</option>
+                <option value="RAW_MATERIAL">{{ $t('productMaster.categories.rawMaterial') }}</option>
               </select>
             </div>
 
             <div>
-              <label class="label">Base UOM</label>
+              <label class="label">{{ $t('productMaster.infoTab.baseUom') }}</label>
               <select v-model="productForm.baseUom" class="input">
                 <option value="PCS">PCS</option>
                 <option value="BOX">BOX</option>
@@ -241,34 +241,34 @@
             </div>
 
             <div>
-              <label class="label">Status</label>
+              <label class="label">{{ $t('productMaster.infoTab.status') }}</label>
               <select v-model="productForm.status" class="input">
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
+                <option value="ACTIVE">{{ $t('common.status.active') }}</option>
+                <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
               </select>
             </div>
 
             <div>
-              <label class="label">Barcode</label>
-              <input v-model="productForm.barcode" class="input" placeholder="Primary barcode (optional)" />
+              <label class="label">{{ $t('productMaster.infoTab.barcode') }}</label>
+              <input v-model="productForm.barcode" class="input" :placeholder="$t('productMaster.infoTab.barcodePlaceholder')" />
             </div>
           </div>
 
           <div>
-            <label class="label">Description</label>
+            <label class="label">{{ $t('productMaster.infoTab.description') }}</label>
             <textarea v-model="productForm.description" rows="3" class="input"></textarea>
           </div>
         </div>
 
         <div v-if="activeTab === 'BARCODE'" class="space-y-4">
           <div class="flex justify-between items-center">
-            <h3 class="font-bold text-slate-800">Barcode Mapping</h3>
+            <h3 class="font-bold text-slate-800">{{ $t('productMaster.barcodeTab.title') }}</h3>
 
             <button
               @click="addBarcode"
               class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold"
             >
-              + Add Barcode
+              {{ $t('productMaster.barcodeTab.addButton') }}
             </button>
           </div>
 
@@ -277,13 +277,13 @@
               <table class="min-w-[900px] w-full text-sm">
                 <thead class="bg-slate-50 text-slate-500">
                   <tr>
-                    <th class="table-th">Barcode Value</th>
-                    <th class="table-th">Barcode Type</th>
-                    <th class="table-th">UOM</th>
-                    <th class="table-th text-right">Qty Per Barcode</th>
-                    <th class="table-th">Primary</th>
-                    <th class="table-th">Status</th>
-                    <th class="table-th text-right">Action</th>
+                    <th class="table-th">{{ $t('productMaster.barcodeTab.table.value') }}</th>
+                    <th class="table-th">{{ $t('productMaster.barcodeTab.table.type') }}</th>
+                    <th class="table-th">{{ $t('productMaster.barcodeTab.table.uom') }}</th>
+                    <th class="table-th text-right">{{ $t('productMaster.barcodeTab.table.qtyPerBarcode') }}</th>
+                    <th class="table-th">{{ $t('productMaster.barcodeTab.table.primary') }}</th>
+                    <th class="table-th">{{ $t('productMaster.barcodeTab.table.status') }}</th>
+                    <th class="table-th text-right">{{ $t('productMaster.barcodeTab.table.action') }}</th>
                   </tr>
                 </thead>
 
@@ -299,10 +299,10 @@
 
                     <td class="table-td">
                       <select v-model="barcode.barcodeType" class="table-input min-w-[180px]">
-                        <option value="SUPPLIER_BARCODE">Supplier Barcode</option>
-                        <option value="INTERNAL_BARCODE">Internal Barcode</option>
-                        <option value="BOX_CODE">Box Code</option>
-                        <option value="QR_CODE">QR Code</option>
+                        <option value="SUPPLIER_BARCODE">{{ $t('productMaster.barcodeTypes.supplier') }}</option>
+                        <option value="INTERNAL_BARCODE">{{ $t('productMaster.barcodeTypes.internal') }}</option>
+                        <option value="BOX_CODE">{{ $t('productMaster.barcodeTypes.box') }}</option>
+                        <option value="QR_CODE">{{ $t('productMaster.barcodeTypes.qr') }}</option>
                       </select>
                     </td>
 
@@ -333,8 +333,8 @@
 
                     <td class="table-td">
                       <select v-model="barcode.status" class="table-input">
-                        <option value="ACTIVE">Active</option>
-                        <option value="INACTIVE">Inactive</option>
+                        <option value="ACTIVE">{{ $t('common.status.active') }}</option>
+                        <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
                       </select>
                     </td>
 
@@ -343,14 +343,14 @@
                         @click="removeBarcode(index)"
                         class="text-red-600 hover:text-red-700 font-semibold"
                       >
-                        Remove
+                        {{ $t('productMaster.barcodeTab.removeButton') }}
                       </button>
                     </td>
                   </tr>
 
                   <tr v-if="productForm.barcodes.length === 0">
                     <td colspan="7" class="text-center py-10 text-slate-400">
-                      No barcode mapping
+                      {{ $t('productMaster.barcodeTab.noMapping') }}
                     </td>
                   </tr>
                 </tbody>
@@ -364,31 +364,31 @@
             <label class="checkbox-card">
               <input type="checkbox" v-model="productForm.lotRequired" />
               <div>
-                <p class="font-semibold text-slate-800">Lot Required</p>
-                <p class="text-sm text-slate-500">Require lot number for receiving and stock</p>
+                <p class="font-semibold text-slate-800">{{ $t('productMaster.rulesTab.lotRequiredTitle') }}</p>
+                <p class="text-sm text-slate-500">{{ $t('productMaster.rulesTab.lotRequiredDesc') }}</p>
               </div>
             </label>
 
             <label class="checkbox-card">
               <input type="checkbox" v-model="productForm.serialRequired" />
               <div>
-                <p class="font-semibold text-slate-800">Serial Required</p>
-                <p class="text-sm text-slate-500">Require serial number per item</p>
+                <p class="font-semibold text-slate-800">{{ $t('productMaster.rulesTab.serialRequiredTitle') }}</p>
+                <p class="text-sm text-slate-500">{{ $t('productMaster.rulesTab.serialRequiredDesc') }}</p>
               </div>
             </label>
 
             <label class="checkbox-card">
               <input type="checkbox" v-model="productForm.expiryRequired" />
               <div>
-                <p class="font-semibold text-slate-800">Expiry Required</p>
-                <p class="text-sm text-slate-500">Require expiry date control</p>
+                <p class="font-semibold text-slate-800">{{ $t('productMaster.rulesTab.expiryRequiredTitle') }}</p>
+                <p class="text-sm text-slate-500">{{ $t('productMaster.rulesTab.expiryRequiredDesc') }}</p>
               </div>
             </label>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label class="label">Default Putaway Zone</label>
+              <label class="label">{{ $t('productMaster.rulesTab.defaultZone') }}</label>
               <select v-model="productForm.defaultZone" class="input">
                 <option value="A">Zone A</option>
                 <option value="B">Zone B</option>
@@ -397,12 +397,12 @@
             </div>
 
             <div>
-              <label class="label">Min Stock</label>
+              <label class="label">{{ $t('productMaster.rulesTab.minStock') }}</label>
               <input v-model.number="productForm.minStock" type="number" class="input input-number" />
             </div>
 
             <div>
-              <label class="label">Max Stock</label>
+              <label class="label">{{ $t('productMaster.rulesTab.maxStock') }}</label>
               <input v-model.number="productForm.maxStock" type="number" class="input input-number" />
             </div>
           </div>
@@ -410,13 +410,13 @@
 
         <div v-if="activeTab === 'UOM'" class="space-y-4">
           <div class="flex justify-between items-center">
-            <h3 class="font-bold text-slate-800">UOM Conversion</h3>
+            <h3 class="font-bold text-slate-800">{{ $t('productMaster.uomTab.title') }}</h3>
 
             <button
               @click="addUom"
               class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-xl font-semibold"
             >
-              + Add UOM
+              {{ $t('productMaster.uomTab.addButton') }}
             </button>
           </div>
 
@@ -436,7 +436,7 @@
               v-model.number="uom.qty"
               type="number"
               class="input input-number"
-              placeholder="Qty"
+              :placeholder="$t('productMaster.uomTab.qtyPlaceholder')"
             />
 
             <select v-model="uom.toUom" class="input">
@@ -449,7 +449,7 @@
               @click="removeUom(index)"
               class="bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-semibold"
             >
-              Remove
+              {{ $t('productMaster.uomTab.removeButton') }}
             </button>
           </div>
         </div>
@@ -464,7 +464,7 @@
               @click="selectedProduct = null"
               class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-6 py-3 rounded-xl font-semibold"
             >
-              Cancel
+              {{ $t('productMaster.cancelButton') }}
             </button>
 
             <button
@@ -472,7 +472,7 @@
               :disabled="saving"
               class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold disabled:opacity-60"
             >
-              {{ saving ? 'Saving...' : 'Save Product' }}
+              {{ saving ? $t('productMaster.saving') : $t('productMaster.saveProductButton') }}
             </button>
           </div>
         </div>
@@ -548,10 +548,10 @@ export default {
         lotRequired: ''
       },
       tabs: [
-        { key: 'INFO', label: 'Product Info' },
-        { key: 'BARCODE', label: 'Barcode Mapping' },
-        { key: 'RULES', label: 'Inventory Rules' },
-        { key: 'UOM', label: 'UOM Conversion' }
+        { key: 'INFO', labelKey: 'productMaster.tabs.info' },
+        { key: 'BARCODE', labelKey: 'productMaster.tabs.barcode' },
+        { key: 'RULES', labelKey: 'productMaster.tabs.rules' },
+        { key: 'UOM', labelKey: 'productMaster.tabs.uom' }
       ],
       products: [],
       productForm: this.createEmptyProduct()
@@ -604,7 +604,7 @@ export default {
         })
         this.products = res.data.map(mapProductFromApi)
       } catch (err) {
-        this.listError = err.message || 'Failed to load products'
+        this.listError = err.message || this.$t('productMaster.messages.loadFailed')
       } finally {
         this.loading = false
       }
@@ -708,12 +708,12 @@ export default {
       this.formError = ''
 
       if (!this.productForm.sku) {
-        this.formError = 'SKU is required'
+        this.formError = this.$t('productMaster.messages.skuRequired')
         return
       }
 
       if (!this.productForm.productName) {
-        this.formError = 'Product Name is required'
+        this.formError = this.$t('productMaster.messages.nameRequired')
         return
       }
 
@@ -730,7 +730,7 @@ export default {
         this.selectedProduct = null
         await this.fetchProducts()
       } catch (err) {
-        this.formError = err.message || 'Failed to save product'
+        this.formError = err.message || this.$t('productMaster.messages.saveFailed')
       } finally {
         this.saving = false
       }
