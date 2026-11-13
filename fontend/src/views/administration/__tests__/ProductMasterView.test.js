@@ -232,6 +232,7 @@ describe('ProductMasterView', () => {
     wrapper.vm.productForm.sku = 'SKU-DUP'
     wrapper.vm.productForm.name = 'Dup'
     wrapper.vm.productForm.categoryId = '10'
+    wrapper.vm.productForm.baseUom = 'PCS'
 
     await wrapper.vm.saveProduct()
     await flushPromises()

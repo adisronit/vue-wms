@@ -1,5 +1,5 @@
 <template>
-  <div class="image-upload">
+  <div class="image-upload" :class="{ 'image-upload--lg': size === 'lg' }">
     <div class="preview" :class="{ 'preview--empty': !previewUrl }">
       <img v-if="previewUrl" :src="previewUrl" :alt="altText" />
       <span v-else class="placeholder">{{ $t('productMaster.image.placeholder') }}</span>
@@ -60,7 +60,12 @@ export default {
     productId: { type: [String, Number], default: null },
     hasImage: { type: Boolean, default: false },
     altText: { type: String, default: '' },
-    disabled: { type: Boolean, default: false }
+    disabled: { type: Boolean, default: false },
+    // 'lg' renders a large, centered, vertically-stacked layout suited
+    // to being the sole focus of its own card (e.g. the Product Master
+    // drawer's dedicated "Product Image" column) — 'md' (default)
+    // keeps the original compact side-by-side layout for denser forms.
+    size: { type: String, default: 'md' }
   },
 
   emits: ['uploaded', 'removed', 'error'],
@@ -223,6 +228,22 @@ export default {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.image-upload--lg {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.image-upload--lg .preview {
+  width: 220px;
+  height: 220px;
+  border-radius: 18px;
+}
+
+.image-upload--lg .controls {
+  justify-content: center;
 }
 
 .preview img {

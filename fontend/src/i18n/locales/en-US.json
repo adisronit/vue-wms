@@ -1153,8 +1153,8 @@
       "productName": "Product Name",
       "brand": "Brand",
       "category": "Category",
-      "baseUom": "Base UOM",
-      "packSize": "Pack Size",
+      "baseUom": "Stock UOM",
+      "packSize": "Net Content",
       "rules": "Rules",
       "status": "Status",
       "action": "Action"
@@ -1168,7 +1168,8 @@
       "subtitle": "Basic information, warehouse settings, and additional details"
     },
     "sections": {
-      "basic": "Basic Information",
+      "basic": "Product Identity",
+      "image": "Product Image",
       "warehouse": "Warehouse Settings",
       "advanced": "Additional Details",
       "advancedHint": "Optional — description, additional barcodes, weight & dimensions, manufacturer, variant",
@@ -1187,9 +1188,13 @@
       "noBrandOption": "No brand",
       "barcode": "Primary Barcode",
       "barcodePlaceholder": "Primary barcode (optional)",
-      "packSize": "Pack Size",
+      "packSize": "Net Content",
+      "packSizePlaceholder": "e.g. 150",
       "packSizeUnit": "Unit",
-      "baseUom": "Base UOM",
+      "netContentHelp": "Quantity and unit inside one sellable unit, e.g. 150 g or 500 ml.",
+      "baseUom": "Stock UOM",
+      "baseUomPlaceholder": "Select unit",
+      "baseUomHelp": "Unit used for stock counting and putaway — required.",
       "status": "Active Status"
     },
     "warehouse": {
