@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { isAuthenticated, checkPlatformAdminStatus } from '../services/auth'
 import { setUnauthorizedHandler } from '../services/api'
-import LgoinView from '../views/auth/LoginView.vue'
+import LoginView from '../views/auth/LoginView.vue'
 import MainLayout from '../layouts/MainLayout.vue'
 import DashboardView from '../views/dashboard/DashboardView.vue'
 import ReceiveView from '../views/inbound/ReceiveView.vue'
@@ -32,7 +32,7 @@ const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: LgoinView,
+    component: LoginView,
   },{
     path: '/',
     component: MainLayout,

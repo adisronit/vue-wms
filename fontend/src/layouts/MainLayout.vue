@@ -1,199 +1,24 @@
 <template>
   <div class="h-screen flex bg-slate-100 overflow-hidden">
-    <!-- Sidebar -->
-    <aside class="w-72 shrink-0 bg-slate-900 text-white hidden lg:flex flex-col">
-      <div class="h-20 flex items-center px-6 border-b border-slate-700 shrink-0">
-        <div class="w-11 h-11 shrink-0 bg-orange-600 rounded-xl flex items-center justify-center text-xl">
-          📦
-        </div>
-
-        <div class="ml-3 min-w-0">
-          <h1 class="text-lg font-bold truncate">{{ $t('common.appName') }}</h1>
-          <p class="text-xs text-slate-400 truncate">{{ $t('common.appTagline') }}</p>
-        </div>
-      </div>
-
-      <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto sidebar-scroll">
-        <router-link
-          to="/dashboard"
-          class="menu-item"
-          active-class="menu-active"
-        >
-          <span class="menu-icon">🏠</span>
-          <span class="menu-text">{{ $t('nav.dashboard') }}</span>
-        </router-link>
-
-        <div class="menu-title">{{ $t('nav.sectionInbound') }}</div>
-
-        <router-link
-          to="/inbound/receiving"
-          class="menu-item"
-          active-class="menu-active"
-        >
-          <span class="menu-icon">📥</span>
-          <span class="menu-text">{{ $t('nav.receiving') }}</span>
-        </router-link>
-
-        <router-link
-          to="/inbound/quality-check"
-          class="menu-item"
-          active-class="menu-active"
-        >
-          <span class="menu-icon">✅</span>
-          <span class="menu-text">{{ $t('nav.qualityCheck') }}</span>
-        </router-link>
-
-        <router-link
-          to="/inbound/put-away"
-          class="menu-item"
-          active-class="menu-active"
-        >
-          <span class="menu-icon">📍</span>
-          <span class="menu-text">{{ $t('nav.putaway') }}</span>
-        </router-link>
-
-        <div class="menu-title">{{ $t('nav.sectionInventory') }}</div>
-
-        <router-link
-          to="/inventory/stock-inquiry"
-          class="menu-item"
-          active-class="menu-active"
-        >
-          <span class="menu-icon">📦</span>
-          <span class="menu-text">{{ $t('nav.stockInquiry') }}</span>
-        </router-link>
-
-        <router-link
-          to="/inventory/stock-adjustment"
-          class="menu-item"
-          active-class="menu-active"
-        >
-          <span class="menu-icon">🔄</span>
-          <span class="menu-text">{{ $t('nav.stockAdjustment') }}</span>
-        </router-link>
-
-        <router-link
-          to="/inventory/check-stock"
-          class="menu-item"
-          active-class="menu-active"
-        >
-          <span class="menu-icon">🧾</span>
-          <span class="menu-text">{{ $t('nav.checkStock') }}</span>
-        </router-link>
-
-        <router-link
-          v-if="canViewReplenishment"
-          to="/inventory/replenishment"
-          class="menu-item"
-          active-class="menu-active"
-        >
-          <span class="menu-icon">🚛</span>
-          <span class="menu-text">{{ $t('nav.replenishment') }}</span>
-        </router-link>
-
-        <div class="menu-title">{{ $t('nav.sectionOutbound') }}</div>
-
-        <router-link
-          to="/outbound/orders"
-          class="menu-item"
-          active-class="menu-active"
-        >
-          <span class="menu-icon">🧾</span>
-          <span class="menu-text">{{ $t('nav.orders') }}</span>
-        </router-link>
-
-        <router-link
-          to="/outbound/picking"
-          class="menu-item"
-          active-class="menu-active"
-        >
-          <span class="menu-icon">📤</span>
-          <span class="menu-text">{{ $t('nav.picking') }}</span>
-        </router-link>
-
-        <router-link
-          to="/outbound/shipping"
-          class="menu-item"
-          active-class="menu-active"
-        >
-          <span class="menu-icon">🚚</span>
-          <span class="menu-text">{{ $t('nav.shipping') }}</span>
-        </router-link>
-
-        <div class="menu-title">{{ $t('nav.sectionAdministration') }}</div>
-
-          <router-link
-            v-if="canViewUsers"
-            to="/administration/user-management"
-            class="menu-item"
-            active-class="menu-active"
-          >
-            <span class="menu-icon">👤</span>
-            <span class="menu-text">{{ $t('nav.userManagement') }}</span>
-          </router-link>
-
-          <router-link
-            v-if="canViewRoles"
-            to="/administration/roles"
-            class="menu-item"
-            active-class="menu-active"
-          >
-            <span class="menu-icon">🔐</span>
-            <span class="menu-text">{{ $t('nav.roles') }}</span>
-          </router-link>
-
-          <router-link
-            v-if="canViewWarehouses"
-            to="/administration/warehouse"
-            class="menu-item"
-            active-class="menu-active"
-          >
-            <span class="menu-icon">🏭</span>
-            <span class="menu-text">{{ $t('nav.warehouse') }}</span>
-          </router-link>
-
-          <router-link
-            v-if="canViewProducts"
-            to="/administration/products"
-            class="menu-item"
-            active-class="menu-active"
-          >
-            <span class="menu-icon">📦</span>
-            <span class="menu-text">{{ $t('nav.productMaster') }}</span>
-          </router-link>
-
-          <template v-if="canViewPlatformAdmin">
-            <div class="menu-title">{{ $t('nav.sectionPlatformAdmin') }}</div>
-
-            <router-link
-              to="/platform/tenants"
-              class="menu-item"
-              active-class="menu-active"
-            >
-              <span class="menu-icon">🏢</span>
-              <span class="menu-text">{{ $t('nav.platformTenants') }}</span>
-            </router-link>
-          </template>
-      </nav>
-
-      <div class="p-4 border-t border-slate-700">
-        <button @click="logout"
-          class="w-full bg-slate-800 hover:bg-red-600 text-white py-3 rounded-xl transition"
-        >
-          {{ $t('nav.logout') }}
-        </button>
-      </div>
-    </aside>
+    <Sidebar
+      :can-view-users="canViewUsers"
+      :can-view-roles="canViewRoles"
+      :can-view-warehouses="canViewWarehouses"
+      :can-view-products="canViewProducts"
+      :can-view-replenishment="canViewReplenishment"
+      :can-view-platform-admin="canViewPlatformAdmin"
+      @logout="logout"
+    />
 
     <!-- Main Area -->
     <div class="flex-1 min-w-0 flex flex-col">
       <!-- Topbar -->
-      <header class="h-20 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-6">
+      <header class="h-16 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-6">
         <div class="min-w-0">
-          <h2 class="text-xl font-bold text-slate-800 truncate">
+          <h2 class="text-lg font-bold text-slate-800 truncate">
             {{ $t('layout.headerTitle') }}
           </h2>
-          <p class="text-sm text-slate-500 truncate">
+          <p class="text-xs text-slate-500 truncate">
             {{ $t('layout.headerSubtitle') }}
           </p>
         </div>
@@ -260,6 +85,8 @@
         <router-view />
       </main>
     </div>
+
+    <ToastHost />
   </div>
 </template>
 
@@ -267,11 +94,13 @@
 import { currentUser, hasPermission, logout as clearSession, checkPlatformAdminStatus, isPlatformAdmin } from '../services/auth'
 import { listNotifications, markNotificationRead } from '../services/notifications'
 import LanguageSwitcher from '../components/LanguageSwitcher.vue'
+import Sidebar from '../components/layout/Sidebar.vue'
+import ToastHost from '../components/ui/ToastHost.vue'
 
 let notificationPoll = null
 
 export default {
-  components: { LanguageSwitcher },
+  components: { LanguageSwitcher, Sidebar, ToastHost },
   data() {
     return {
       user: currentUser(),
@@ -381,69 +210,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  padding: 12px 14px;
-
-  border-radius: 12px;
-
-  color: #cbd5e1;
-
-  font-size: 14px;
-  font-weight: 500;
-
-  transition: all .2s;
-
-  text-decoration: none;
-}
-
-.menu-item:hover {
-  background: #1e293b;
-}
-
-.menu-active {
-  background: #ea580c;
-  color: white;
-}
-
-.menu-title {
-  margin-top: 20px;
-  margin-bottom: 8px;
-
-  color: #64748b;
-
-  font-size: 11px;
-
-  text-transform: uppercase;
-
-  letter-spacing: 0.5px;
-
-  font-weight: 600;
-}
-
-/* Custom Scrollbar */
-
-.sidebar-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.sidebar-scroll::-webkit-scrollbar-thumb {
-  background: #475569;
-  border-radius: 10px;
-}
-
-.sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
-}
-
-</style>

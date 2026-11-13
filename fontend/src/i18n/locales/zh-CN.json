@@ -100,6 +100,7 @@
     "sectionAdministration": "系统管理",
     "userManagement": "用户管理",
     "roles": "角色与权限",
+    "sectionMasterData": "基础数据",
     "warehouse": "仓库设置",
     "productMaster": "产品主数据",
     "logout": "退出登录",
