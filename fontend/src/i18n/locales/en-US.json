@@ -236,7 +236,8 @@
       "enterReceiveQty": "Enter at least one receive quantity to confirm receiving",
       "locationRequired": "Every confirmed line must have a location",
       "receivingConfirmed": "Receiving confirmed successfully",
-      "receiptCancelled": "Receipt cancelled"
+      "receiptCancelled": "Receipt cancelled",
+      "confirmCancelReceipt": "This receipt will be cancelled and cannot be resumed. Continue?"
     }
   },
   "newReceiving": {

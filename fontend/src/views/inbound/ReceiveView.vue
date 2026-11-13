@@ -1,17 +1,7 @@
 <template>
   <div>
-    <!-- Page Header -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">
-          {{ $t('receiving.title') }}
-        </h1>
-        <p class="text-slate-500">
-          {{ $t('receiving.subtitle') }}
-        </p>
-      </div>
-
-      <div class="flex gap-3">
+    <PageHeader :title="$t('receiving.title')" :subtitle="$t('receiving.subtitle')">
+      <template #actions>
         <button
           @click="exportCsv"
           :disabled="exporting"
@@ -27,22 +17,18 @@
         >
           {{ $t('receiving.newButton') }}
         </button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
-    <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-6">
+    <!-- Summary Cards: one card per real, distinct status — the previous
+         version showed "Receiving" and "Partial Received" as two
+         separate cards that both read the backend's single
+         PARTIALLY_RECEIVED count, which looked like two different
+         numbers when they were always identical. -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
       <div class="summary-card">
         <p class="summary-label">{{ $t('receiving.summary.waitingReceive') }}</p>
         <h2 class="summary-value">{{ waitingCount }}</h2>
-      </div>
-
-      <!-- The backend consolidates "Receiving" and "Partial Received"
-           into one PARTIALLY_RECEIVED status (see PROJECT_STATUS.md),
-           so both cards intentionally read the same real count. -->
-      <div class="summary-card">
-        <p class="summary-label">{{ $t('receiving.summary.receiving') }}</p>
-        <h2 class="summary-value">{{ partiallyReceivedCount }}</h2>
       </div>
 
       <div class="summary-card">
@@ -60,153 +46,96 @@
       {{ loadError }}
     </div>
 
-    <!-- Filter -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-6">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <input
-          v-model="filters.keyword"
-          type="text"
-          :placeholder="$t('receiving.filters.searchPlaceholder')"
-          class="input"
-        />
+    <FilterBar>
+      <input
+        v-model="filters.keyword"
+        type="text"
+        :placeholder="$t('receiving.filters.searchPlaceholder')"
+        class="input"
+      />
 
-        <select v-model="filters.status" class="input">
-          <option value="">{{ $t('receiving.filters.allStatus') }}</option>
-          <option value="WAITING">{{ $t('receiving.filters.statusWaiting') }}</option>
-          <option value="PARTIALLY_RECEIVED">{{ $t('receiving.filters.statusReceiving') }}</option>
-          <option value="PARTIALLY_RECEIVED">{{ $t('receiving.filters.statusPartial') }}</option>
-          <option value="COMPLETED">{{ $t('receiving.filters.statusCompleted') }}</option>
-        </select>
+      <select v-model="filters.status" class="input">
+        <option value="">{{ $t('receiving.filters.allStatus') }}</option>
+        <option value="WAITING">{{ $t('receiving.filters.statusWaiting') }}</option>
+        <option value="PARTIALLY_RECEIVED">{{ $t('receiving.filters.statusPartial') }}</option>
+        <option value="COMPLETED">{{ $t('receiving.filters.statusCompleted') }}</option>
+      </select>
 
-        <input
-          v-model="filters.date"
-          type="date"
-          class="input"
-        />
+      <input v-model="filters.date" type="date" class="input" />
 
-        <button
-          @click="clearFilter"
-          class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
-        >
-          {{ $t('common.buttons.clearFilter') }}
-        </button>
-      </div>
-    </div>
+      <button
+        @click="clearFilter"
+        class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
+      >
+        {{ $t('common.buttons.clearFilter') }}
+      </button>
+    </FilterBar>
 
-    <!-- Receiving Table -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="w-full overflow-x-auto">
-        <table class="min-w-[1100px] w-full text-sm">
-          <thead class="bg-slate-50 text-slate-500">
-            <tr>
-              <th class="table-th">{{ $t('receiving.table.documentNo') }}</th>
-              <th class="table-th">{{ $t('receiving.table.asnNo') }}</th>
-              <th class="table-th">{{ $t('receiving.table.vendor') }}</th>
-              <th class="table-th">{{ $t('receiving.table.warehouse') }}</th>
-              <th class="table-th">{{ $t('receiving.table.expectedDate') }}</th>
-              <th class="table-th">{{ $t('receiving.table.items') }}</th>
-              <th class="table-th">{{ $t('receiving.table.progress') }}</th>
-              <th class="table-th">{{ $t('receiving.table.status') }}</th>
-              <th class="table-th text-right">{{ $t('receiving.table.action') }}</th>
-            </tr>
-          </thead>
+    <DataTable
+      :loading="loading"
+      :is-empty="receivingList.length === 0"
+      :loading-text="$t('receiving.loadingDocuments')"
+      :empty-text="$t('receiving.noDocuments')"
+      :colspan="9"
+      min-width="1100px"
+    >
+      <template #head>
+        <tr>
+          <th class="table-th">{{ $t('receiving.table.documentNo') }}</th>
+          <th class="table-th">{{ $t('receiving.table.asnNo') }}</th>
+          <th class="table-th">{{ $t('receiving.table.vendor') }}</th>
+          <th class="table-th">{{ $t('receiving.table.warehouse') }}</th>
+          <th class="table-th">{{ $t('receiving.table.expectedDate') }}</th>
+          <th class="table-th">{{ $t('receiving.table.items') }}</th>
+          <th class="table-th">{{ $t('receiving.table.progress') }}</th>
+          <th class="table-th">{{ $t('receiving.table.status') }}</th>
+          <th class="table-th text-right">{{ $t('receiving.table.action') }}</th>
+        </tr>
+      </template>
 
-          <tbody>
-            <tr v-if="loading">
-              <td colspan="9" class="text-center py-10 text-slate-400">{{ $t('receiving.loadingDocuments') }}</td>
-            </tr>
+      <tr
+        v-for="item in receivingList"
+        :key="item.id"
+        class="border-t hover:bg-orange-50"
+      >
+        <td class="table-td font-semibold text-slate-800">{{ item.documentNo }}</td>
+        <td class="table-td">{{ item.asnNo }}</td>
+        <td class="table-td">{{ item.vendor }}</td>
+        <td class="table-td">{{ item.warehouse }}</td>
+        <td class="table-td">{{ item.expectedDate }}</td>
+        <td class="table-td text-right">{{ item.items }}</td>
 
-            <tr v-else-if="receivingList.length === 0">
-              <td colspan="9" class="text-center py-10 text-slate-400">{{ $t('receiving.noDocuments') }}</td>
-            </tr>
+        <td class="table-td">
+          <div class="w-32">
+            <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div class="h-2 bg-orange-600 rounded-full" :style="{ width: item.progress + '%' }"></div>
+            </div>
+            <p class="text-xs text-slate-500 mt-1 tabular-nums">{{ item.progress }}%</p>
+          </div>
+        </td>
 
-            <template v-else>
-            <tr
-              v-for="item in receivingList"
-              :key="item.id"
-              class="border-t hover:bg-orange-50"
-            >
-              <td class="table-td font-semibold text-slate-800">
-                {{ item.documentNo }}
-              </td>
+        <td class="table-td">
+          <StatusBadge :tone="statusTone(item.status)">{{ statusText(item.status) }}</StatusBadge>
+        </td>
 
-              <td class="table-td">
-                {{ item.asnNo }}
-              </td>
-
-              <td class="table-td">
-                {{ item.vendor }}
-              </td>
-
-              <td class="table-td">
-                {{ item.warehouse }}
-              </td>
-
-              <td class="table-td">
-                {{ item.expectedDate }}
-              </td>
-
-              <td class="table-td">
-                {{ item.items }}
-              </td>
-
-              <td class="table-td">
-                <div class="w-32">
-                  <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-2 bg-orange-600 rounded-full"
-                      :style="{ width: item.progress + '%' }"
-                    ></div>
-                  </div>
-                  <p class="text-xs text-slate-500 mt-1">
-                    {{ item.progress }}%
-                  </p>
-                </div>
-              </td>
-
-              <td class="table-td">
-                <span :class="getStatusClass(item.status)">
-                  {{ statusText(item.status) }}
-                </span>
-              </td>
-
-              <td class="table-td text-right">
-                <button
-                  @click="openReceiving(item)"
-                  class="text-orange-600 hover:text-orange-700 font-semibold"
-                >
-                  {{ $t('receiving.table.startReceive') }}
-                </button>
-              </td>
-            </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
-    </div>
+        <td class="table-td text-right">
+          <button @click="openReceiving(item)" class="text-orange-600 hover:text-orange-700 font-semibold">
+            {{ $t('receiving.table.startReceive') }}
+          </button>
+        </td>
+      </tr>
+    </DataTable>
 
     <!-- Receiving Detail Panel -->
-    <div
-      v-if="selectedReceiving"
-      class="fixed inset-0 bg-black/40 flex justify-end z-50"
-    >
+    <div v-if="selectedReceiving" class="fixed inset-0 bg-black/40 flex justify-end z-50">
       <div class="w-full max-w-xl bg-white h-full p-6 overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
           <div>
-            <h2 class="text-xl font-bold text-slate-800">
-              {{ $t('receiving.detail.title') }}
-            </h2>
-            <p class="text-slate-500">
-              {{ selectedReceiving.documentNo }}
-            </p>
+            <h2 class="text-xl font-bold text-slate-800">{{ $t('receiving.detail.title') }}</h2>
+            <p class="text-slate-500">{{ selectedReceiving.documentNo }}</p>
           </div>
 
-          <button
-            @click="selectedReceiving = null"
-            class="text-slate-500 hover:text-red-600"
-          >
-            ✕
-          </button>
+          <button @click="selectedReceiving = null" class="text-slate-500 hover:text-red-600">✕</button>
         </div>
 
         <div class="space-y-4">
@@ -227,7 +156,7 @@
 
           <div class="detail-row">
             <span>{{ $t('receiving.detail.status') }}</span>
-            <span :class="getStatusClass(selectedReceiving.status)">{{ statusText(selectedReceiving.status) }}</span>
+            <StatusBadge :tone="statusTone(selectedReceiving.status)">{{ statusText(selectedReceiving.status) }}</StatusBadge>
           </div>
         </div>
 
@@ -252,26 +181,16 @@
         </div>
 
         <div class="mt-8">
-          <h3 class="font-bold text-slate-800 mb-4">
-            {{ $t('receiving.detail.itemsTitle') }}
-          </h3>
+          <h3 class="font-bold text-slate-800 mb-4">{{ $t('receiving.detail.itemsTitle') }}</h3>
 
           <p v-if="detailLoading" class="text-slate-400 text-sm">{{ $t('receiving.detail.loadingItems') }}</p>
           <p v-else-if="detailItems.length === 0" class="text-slate-400 text-sm">{{ $t('receiving.detail.noLines') }}</p>
 
-          <div
-            v-for="line in detailItems"
-            :key="line.itemId"
-            class="border border-slate-200 rounded-xl p-4 mb-3"
-          >
+          <div v-for="line in detailItems" :key="line.itemId" class="border border-slate-200 rounded-xl p-4 mb-3">
             <div class="flex justify-between">
               <div>
-                <p class="font-semibold text-slate-800">
-                  {{ line.sku }}
-                </p>
-                <p class="text-sm text-slate-500">
-                  {{ line.name }}
-                </p>
+                <p class="font-semibold text-slate-800">{{ line.sku }}</p>
+                <p class="text-sm text-slate-500">{{ line.name }}</p>
                 <p class="text-xs text-slate-400 mt-1">
                   {{ $t('receiving.detail.receivedOf', { received: line.receivedQty, expected: line.expectedQty || '—' }) }}
                 </p>
@@ -279,17 +198,12 @@
 
               <div class="text-right">
                 <p class="text-sm text-slate-500">{{ $t('receiving.detail.expectedQty') }}</p>
-                <p class="font-bold">{{ line.expectedQty }}</p>
+                <p class="font-bold tabular-nums">{{ line.expectedQty }}</p>
               </div>
             </div>
 
             <div v-if="line.status !== 'COMPLETED'" class="grid grid-cols-2 gap-3 mt-4">
-              <input
-                v-model.number="line.receiveQty"
-                type="number"
-                :placeholder="$t('receiving.detail.receiveQtyPlaceholder')"
-                class="input"
-              />
+              <input v-model.number="line.receiveQty" type="number" :placeholder="$t('receiving.detail.receiveQtyPlaceholder')" class="input" />
 
               <select v-model="line.locationId" class="input">
                 <option value="">{{ $t('receiving.detail.selectLocation') }}</option>
@@ -312,14 +226,9 @@
           </p>
 
           <div v-if="canCancelReceiving && isReceivingCancellable" class="mt-6 pt-6 border-t border-slate-200">
-            <input
-              v-model="cancelRemark"
-              type="text"
-              class="input mb-3"
-              :placeholder="$t('receiving.detail.cancelRemarkPlaceholder')"
-            />
+            <input v-model="cancelRemark" type="text" class="input mb-3" :placeholder="$t('receiving.detail.cancelRemarkPlaceholder')" />
             <button
-              @click="cancelDetailReceiving"
+              @click="showCancelConfirm = true"
               :disabled="confirmSubmitting"
               class="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
             >
@@ -329,6 +238,19 @@
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      :open="showCancelConfirm"
+      :title="$t('receiving.detail.cancelButton')"
+      :message="$t('receiving.messages.confirmCancelReceipt')"
+      :confirm-label="$t('receiving.detail.cancelButton')"
+      :cancel-label="$t('common.buttons.cancel')"
+      :loading-label="$t('receiving.detail.confirming')"
+      danger
+      :loading="confirmSubmitting"
+      @cancel="showCancelConfirm = false"
+      @confirm="cancelDetailReceiving"
+    />
   </div>
 </template>
 
@@ -336,6 +258,12 @@
 import { listReceipts, getReceipt, confirmReceipt, cancelReceipt, newIdempotencyKey, exportReceipts } from '../../services/receiving'
 import { listZones, listLocations } from '../../services/warehouses'
 import { hasPermission } from '../../services/auth'
+import { showToast } from '../../services/toast'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FilterBar from '../../components/ui/FilterBar.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
+import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
 import i18n from '../../i18n'
 
 let searchDebounce = null
@@ -353,6 +281,13 @@ function statusText(status) {
     case 'CANCELLED': return t('common.status.cancelled')
     default: return status
   }
+}
+
+function statusTone(status) {
+  if (status === 'PARTIALLY_RECEIVED') return 'orange'
+  if (status === 'COMPLETED') return 'green'
+  if (status === 'CANCELLED') return 'red'
+  return 'gray'
 }
 
 // The real backend's field names (receipt_no, reference_no, ...) are
@@ -392,6 +327,8 @@ function mapDetailItem(item) {
 export default {
   name: 'ReceivingPage',
 
+  components: { PageHeader, FilterBar, DataTable, StatusBadge, ConfirmDialog },
+
   data() {
     return {
       loading: false,
@@ -407,6 +344,7 @@ export default {
       detailError: '',
       confirmSubmitting: false,
       cancelRemark: '',
+      showCancelConfirm: false,
 
       filters: {
         keyword: '',
@@ -471,6 +409,7 @@ export default {
 
   methods: {
     statusText,
+    statusTone,
 
     async fetchReceipts() {
       this.loading = true
@@ -583,7 +522,7 @@ export default {
           idempotency_key: newIdempotencyKey(),
           items: linesToConfirm
         })
-        alert(this.$t('receiving.messages.receivingConfirmed'))
+        showToast(this.$t('receiving.messages.receivingConfirmed'), 'success')
         this.selectedReceiving = null
         await this.fetchReceipts()
         await this.fetchSummary()
@@ -601,21 +540,17 @@ export default {
         await cancelReceipt(this.selectedReceiving.id, {
           remark: this.cancelRemark || undefined
         })
-        alert(this.$t('receiving.messages.receiptCancelled'))
+        this.showCancelConfirm = false
+        showToast(this.$t('receiving.messages.receiptCancelled'), 'success')
         this.selectedReceiving = null
         await this.fetchReceipts()
         await this.fetchSummary()
       } catch (err) {
         this.detailError = err.message
+        this.showCancelConfirm = false
       } finally {
         this.confirmSubmitting = false
       }
-    },
-
-    getStatusClass(status) {
-      if (status === 'PARTIALLY_RECEIVED') return 'badge-orange'
-      if (status === 'COMPLETED') return 'badge-green'
-      return 'badge-gray'
     },
 
     formatDateTime(isoString) {
@@ -671,42 +606,6 @@ export default {
   padding: 14px 16px;
   color: #475569;
   white-space: nowrap;
-}
-
-.badge-gray {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-orange {
-  background: #ffedd5;
-  color: #ea580c;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-blue {
-  background: #dbeafe;
-  color: #2563eb;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-green {
-  background: #dcfce7;
-  color: #16a34a;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
 }
 
 .detail-row {

@@ -236,7 +236,8 @@
       "enterReceiveQty": "请至少输入一项收货数量以确认收货",
       "locationRequired": "每条已确认的明细行都必须有货位",
       "receivingConfirmed": "收货确认成功",
-      "receiptCancelled": "收货单已取消"
+      "receiptCancelled": "收货单已取消",
+      "confirmCancelReceipt": "此收货单将被取消且无法恢复，是否继续？"
     }
   },
   "newReceiving": {
