@@ -4,10 +4,10 @@
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold text-slate-800">
-          Stock Inquiry
+          {{ $t('stockInquiry.title') }}
         </h1>
         <p class="text-slate-500">
-          Search and monitor warehouse inventory by SKU, lot, zone and location
+          {{ $t('stockInquiry.subtitle') }}
         </p>
       </div>
 
@@ -18,7 +18,7 @@
             :disabled="exporting"
             class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
           >
-            {{ exporting ? 'Exporting…' : 'Export Stock' }}
+            {{ exporting ? $t('common.buttons.exporting') : $t('stockInquiry.exportStock') }}
           </button>
 
           <button
@@ -27,7 +27,7 @@
             :disabled="transactionJobStatus === 'PENDING' || transactionJobStatus === 'PROCESSING'"
             class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
           >
-            ⬇ Export Transaction History
+            {{ $t('stockInquiry.exportTransactionHistory') }}
           </button>
         </div>
 
@@ -35,13 +35,13 @@
              until COMPLETED/FAILED rather than blocking the request. -->
         <p v-if="transactionJobStatus" class="text-sm" :class="transactionJobStatus === 'FAILED' ? 'text-red-600' : 'text-slate-500'">
           <span v-if="transactionJobStatus === 'PENDING' || transactionJobStatus === 'PROCESSING'">
-            Generating transaction export…
+            {{ $t('stockInquiry.generatingExport') }}
           </span>
           <span v-else-if="transactionJobStatus === 'COMPLETED'">
-            Transaction export ready — downloading…
+            {{ $t('stockInquiry.exportReady') }}
           </span>
           <span v-else-if="transactionJobStatus === 'FAILED'">
-            Transaction export failed: {{ transactionJobError }}
+            {{ $t('stockInquiry.exportFailed', { error: transactionJobError }) }}
           </span>
         </p>
       </div>
@@ -50,22 +50,22 @@
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
       <div class="summary-card">
-        <p class="summary-label">Total SKUs</p>
+        <p class="summary-label">{{ $t('stockInquiry.summary.totalSkus') }}</p>
         <h2 class="summary-value">{{ summary.total_skus ?? 0 }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Available Qty</p>
+        <p class="summary-label">{{ $t('stockInquiry.summary.availableQty') }}</p>
         <h2 class="summary-value">{{ summary.available_qty ?? 0 }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Reserved Qty</p>
+        <p class="summary-label">{{ $t('stockInquiry.summary.reservedQty') }}</p>
         <h2 class="summary-value">{{ summary.reserved_qty ?? 0 }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Low Stock</p>
+        <p class="summary-label">{{ $t('stockInquiry.summary.lowStock') }}</p>
         <h2 class="summary-value text-red-600">{{ summary.low_stock_count ?? 0 }}</h2>
       </div>
     </div>
@@ -80,33 +80,33 @@
         <input
           v-model="filters.keyword"
           type="text"
-          placeholder="Search SKU, Product, Barcode..."
+          :placeholder="$t('stockInquiry.filters.searchPlaceholder')"
           class="input"
         />
 
         <select v-model="filters.warehouseId" class="input">
-          <option value="">All Warehouses</option>
+          <option value="">{{ $t('stockInquiry.filters.allWarehouses') }}</option>
           <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
         </select>
 
         <select v-model="filters.zoneId" class="input" :disabled="!filters.warehouseId">
-          <option value="">All Zones</option>
-          <option v-for="z in zones" :key="z.id" :value="z.id">Zone {{ z.code }}</option>
+          <option value="">{{ $t('stockInquiry.filters.allZones') }}</option>
+          <option v-for="z in zones" :key="z.id" :value="z.id">{{ $t('stockInquiry.filters.zonePrefix') }} {{ z.code }}</option>
         </select>
 
         <select v-model="filters.stockStatus" class="input">
-          <option value="">All Stock Status</option>
-          <option value="AVAILABLE">Available</option>
-          <option value="RESERVED">Reserved</option>
-          <option value="HOLD">Hold</option>
-          <option value="LOW_STOCK">Low Stock</option>
+          <option value="">{{ $t('stockInquiry.filters.allStockStatus') }}</option>
+          <option value="AVAILABLE">{{ $t('stockInquiry.filters.statusAvailable') }}</option>
+          <option value="RESERVED">{{ $t('stockInquiry.filters.statusReserved') }}</option>
+          <option value="HOLD">{{ $t('stockInquiry.filters.statusHold') }}</option>
+          <option value="LOW_STOCK">{{ $t('stockInquiry.filters.statusLowStock') }}</option>
         </select>
 
         <button
           @click="clearFilter"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
         >
-          Clear Filter
+          {{ $t('common.buttons.clearFilter') }}
         </button>
       </div>
     </div>
@@ -117,27 +117,27 @@
         <table class="min-w-[1250px] w-full text-sm">
           <thead class="bg-slate-50 text-slate-500">
             <tr>
-              <th class="table-th">SKU</th>
-              <th class="table-th">Product Name</th>
-              <th class="table-th">Barcode</th>
-              <th class="table-th">Warehouse</th>
-              <th class="table-th">Location</th>
-              <th class="table-th">Lot No.</th>
-              <th class="table-th">Available</th>
-              <th class="table-th">Reserved</th>
-              <th class="table-th">On Hand</th>
-              <th class="table-th">UOM</th>
-              <th class="table-th">Status</th>
-              <th class="table-th text-right">Action</th>
+              <th class="table-th">{{ $t('stockInquiry.table.sku') }}</th>
+              <th class="table-th">{{ $t('stockInquiry.table.productName') }}</th>
+              <th class="table-th">{{ $t('stockInquiry.table.barcode') }}</th>
+              <th class="table-th">{{ $t('stockInquiry.table.warehouse') }}</th>
+              <th class="table-th">{{ $t('stockInquiry.table.location') }}</th>
+              <th class="table-th">{{ $t('stockInquiry.table.lotNo') }}</th>
+              <th class="table-th">{{ $t('stockInquiry.table.available') }}</th>
+              <th class="table-th">{{ $t('stockInquiry.table.reserved') }}</th>
+              <th class="table-th">{{ $t('stockInquiry.table.onHand') }}</th>
+              <th class="table-th">{{ $t('stockInquiry.table.uom') }}</th>
+              <th class="table-th">{{ $t('stockInquiry.table.status') }}</th>
+              <th class="table-th text-right">{{ $t('stockInquiry.table.action') }}</th>
             </tr>
           </thead>
 
           <tbody>
             <tr v-if="loading">
-              <td class="table-td" colspan="12">Loading inventory...</td>
+              <td class="table-td" colspan="12">{{ $t('stockInquiry.table.loading') }}</td>
             </tr>
             <tr v-else-if="stockList.length === 0">
-              <td class="table-td" colspan="12">No inventory found.</td>
+              <td class="table-td" colspan="12">{{ $t('stockInquiry.table.noData') }}</td>
             </tr>
             <tr
               v-for="item in stockList"
@@ -186,7 +186,7 @@
 
               <td class="table-td">
                 <span :class="getStatusClass(item.stockStatus)">
-                  {{ item.stockStatusText }}
+                  {{ statusLabel(item.stockStatus) }}
                 </span>
               </td>
 
@@ -195,7 +195,7 @@
                   @click="openStockDetail(item)"
                   class="text-orange-600 hover:text-orange-700 font-semibold"
                 >
-                  View Detail
+                  {{ $t('stockInquiry.table.viewDetail') }}
                 </button>
               </td>
             </tr>
@@ -213,7 +213,7 @@
         <div class="flex items-center justify-between mb-6">
           <div>
             <h2 class="text-xl font-bold text-slate-800">
-              Stock Detail
+              {{ $t('stockInquiry.detail.title') }}
             </h2>
             <p class="text-slate-500">
               {{ selectedStock.sku }} / {{ selectedStock.location }}
@@ -232,34 +232,34 @@
         <div class="bg-slate-50 rounded-2xl p-5 mb-6">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <p class="detail-label">Product Name</p>
+              <p class="detail-label">{{ $t('stockInquiry.detail.productName') }}</p>
               <p class="detail-value">{{ selectedStock.productName }}</p>
             </div>
 
             <div>
-              <p class="detail-label">Barcode</p>
+              <p class="detail-label">{{ $t('stockInquiry.detail.barcode') }}</p>
               <p class="detail-value">{{ selectedStock.barcode }}</p>
             </div>
 
             <div>
-              <p class="detail-label">Warehouse</p>
+              <p class="detail-label">{{ $t('stockInquiry.detail.warehouse') }}</p>
               <p class="detail-value">{{ selectedStock.warehouse }}</p>
             </div>
 
             <div>
-              <p class="detail-label">Location</p>
+              <p class="detail-label">{{ $t('stockInquiry.detail.location') }}</p>
               <p class="detail-value text-orange-600">
                 {{ selectedStock.location }}
               </p>
             </div>
 
             <div>
-              <p class="detail-label">Lot No.</p>
+              <p class="detail-label">{{ $t('stockInquiry.detail.lotNo') }}</p>
               <p class="detail-value">{{ selectedStock.lotNo }}</p>
             </div>
 
             <div>
-              <p class="detail-label">Expiry Date</p>
+              <p class="detail-label">{{ $t('stockInquiry.detail.expiryDate') }}</p>
               <p class="detail-value">{{ selectedStock.expiryDate }}</p>
             </div>
           </div>
@@ -268,21 +268,21 @@
         <!-- Quantity Summary -->
         <div class="grid grid-cols-3 gap-4 mb-6">
           <div class="qty-card">
-            <p class="summary-label">Available</p>
+            <p class="summary-label">{{ $t('stockInquiry.detail.available') }}</p>
             <h3 class="qty-value text-green-600">
               {{ selectedStock.availableQty }}
             </h3>
           </div>
 
           <div class="qty-card">
-            <p class="summary-label">Reserved</p>
+            <p class="summary-label">{{ $t('stockInquiry.detail.reserved') }}</p>
             <h3 class="qty-value text-blue-600">
               {{ selectedStock.reservedQty }}
             </h3>
           </div>
 
           <div class="qty-card">
-            <p class="summary-label">On Hand</p>
+            <p class="summary-label">{{ $t('stockInquiry.detail.onHand') }}</p>
             <h3 class="qty-value">
               {{ selectedStock.onHandQty }}
             </h3>
@@ -292,11 +292,11 @@
         <!-- Recent Movement -->
         <div>
           <h3 class="font-bold text-slate-800 mb-4">
-            Recent Movement
+            {{ $t('stockInquiry.detail.recentMovement') }}
           </h3>
 
           <div v-if="movementHistory.length === 0" class="text-slate-400 text-sm">
-            No movement recorded yet.
+            {{ $t('stockInquiry.detail.noMovement') }}
           </div>
 
           <div v-else class="space-y-3">
@@ -334,7 +334,7 @@
         <button
           class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-semibold mt-6"
         >
-          Create Adjustment
+          {{ $t('stockInquiry.detail.createAdjustment') }}
         </button>
       </div>
     </div>
@@ -348,6 +348,7 @@ import {
 } from '../../services/inventory'
 import { listWarehouses, listZones } from '../../services/warehouses'
 import { hasPermission } from '../../services/auth'
+import i18n from '../../i18n'
 
 let searchDebounce = null
 
@@ -371,16 +372,19 @@ function mapItemFromApi(item) {
     reservedQty: item.reserved_qty,
     onHandQty: item.on_hand_qty,
     uom: item.uom,
-    stockStatus: item.status,
-    stockStatusText: statusLabel(item.status)
+    stockStatus: item.status
   }
 }
 
+// Called from the template (methods.statusLabel below), not cached
+// onto a row at map time, so the displayed label stays reactive to the
+// active locale — switching language must not require re-fetching.
 function statusLabel(status) {
-  if (status === 'AVAILABLE') return 'Available'
-  if (status === 'RESERVED') return 'Reserved'
-  if (status === 'HOLD') return 'Hold'
-  if (status === 'LOW_STOCK') return 'Low Stock'
+  const t = i18n.global.t
+  if (status === 'AVAILABLE') return t('stockInquiry.filters.statusAvailable')
+  if (status === 'RESERVED') return t('stockInquiry.filters.statusReserved')
+  if (status === 'HOLD') return t('stockInquiry.filters.statusHold')
+  if (status === 'LOW_STOCK') return t('stockInquiry.filters.statusLowStock')
   return status
 }
 
@@ -447,6 +451,8 @@ export default {
   },
 
   methods: {
+    statusLabel,
+
     async exportCsv() {
       this.exporting = true
       try {
@@ -505,7 +511,7 @@ export default {
         const res = await listWarehouses({ limit: 100 })
         this.warehouses = res.data
       } catch (err) {
-        this.listError = err.message || 'Failed to load warehouses'
+        this.listError = err.message || this.$t('stockInquiry.messages.loadWarehousesFailed')
       }
     },
 
@@ -516,7 +522,7 @@ export default {
         const res = await listZones(this.filters.warehouseId)
         this.zones = res.data
       } catch (err) {
-        this.listError = err.message || 'Failed to load zones'
+        this.listError = err.message || this.$t('stockInquiry.messages.loadZonesFailed')
       }
     },
 
@@ -525,7 +531,7 @@ export default {
         const res = await getInventorySummary()
         this.summary = res.data
       } catch (err) {
-        this.listError = err.message || 'Failed to load inventory summary'
+        this.listError = err.message || this.$t('stockInquiry.messages.loadSummaryFailed')
       }
     },
 
@@ -542,7 +548,7 @@ export default {
         })
         this.stockList = res.data.map(mapItemFromApi)
       } catch (err) {
-        this.listError = err.message || 'Failed to load inventory'
+        this.listError = err.message || this.$t('stockInquiry.messages.loadInventoryFailed')
       } finally {
         this.loading = false
       }
@@ -555,7 +561,7 @@ export default {
         const res = await getInventoryTransactions(item.id)
         this.movementHistory = res.data
       } catch (err) {
-        this.listError = err.message || 'Failed to load movement history'
+        this.listError = err.message || this.$t('stockInquiry.messages.loadMovementFailed')
       }
     },
 

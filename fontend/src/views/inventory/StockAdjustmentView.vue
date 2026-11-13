@@ -2,9 +2,9 @@
   <div class="space-y-6">
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">Stock Adjustment</h1>
+        <h1 class="text-2xl font-bold text-slate-800">{{ $t('stockAdjustment.title') }}</h1>
         <p class="text-slate-500">
-          Create and review inventory adjustment transactions
+          {{ $t('stockAdjustment.subtitle') }}
         </p>
       </div>
 
@@ -14,7 +14,7 @@
           :disabled="exporting"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
         >
-          {{ exporting ? 'Exporting…' : '⬇ Export CSV' }}
+          {{ exporting ? $t('common.buttons.exporting') : '⬇ ' + $t('common.buttons.exportCsv') }}
         </button>
 
         <button
@@ -22,29 +22,29 @@
           @click="openNewAdjustment"
           class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
         >
-          + New Adjustment
+          {{ $t('stockAdjustment.newButton') }}
         </button>
       </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
       <div class="summary-card">
-        <p class="summary-label">Pending Approval</p>
+        <p class="summary-label">{{ $t('stockAdjustment.summary.pendingApproval') }}</p>
         <h2 class="summary-value">{{ pendingCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Approved Today</p>
+        <p class="summary-label">{{ $t('stockAdjustment.summary.approvedToday') }}</p>
         <h2 class="summary-value">{{ approvedTodayCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Rejected</p>
+        <p class="summary-label">{{ $t('stockAdjustment.summary.rejected') }}</p>
         <h2 class="summary-value text-red-600">{{ rejectedCount }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Total Variance</p>
+        <p class="summary-label">{{ $t('stockAdjustment.summary.totalVariance') }}</p>
         <h2 class="summary-value text-orange-600">{{ totalVariance > 0 ? '+' : '' }}{{ totalVariance }}</h2>
       </div>
     </div>
@@ -58,23 +58,23 @@
         <input
           v-model="filters.keyword"
           type="text"
-          placeholder="Search Adj No, SKU, Reason..."
+          :placeholder="$t('stockAdjustment.filters.searchPlaceholder')"
           class="input"
         />
 
         <select v-model="filters.type" class="input">
-          <option value="">All Types</option>
-          <option value="INCREASE">Increase</option>
-          <option value="DECREASE">Decrease</option>
+          <option value="">{{ $t('stockAdjustment.filters.allTypes') }}</option>
+          <option value="INCREASE">{{ $t('stockAdjustment.filters.increase') }}</option>
+          <option value="DECREASE">{{ $t('stockAdjustment.filters.decrease') }}</option>
         </select>
 
         <select v-model="filters.status" class="input">
-          <option value="">All Status</option>
-          <option value="DRAFT">Draft</option>
-          <option value="PENDING">Pending Approval</option>
-          <option value="APPROVED">Approved</option>
-          <option value="REJECTED">Rejected</option>
-          <option value="OVERDUE">Overdue (Pending)</option>
+          <option value="">{{ $t('stockAdjustment.filters.allStatus') }}</option>
+          <option value="DRAFT">{{ $t('stockAdjustment.status.draft') }}</option>
+          <option value="PENDING">{{ $t('stockAdjustment.status.pending') }}</option>
+          <option value="APPROVED">{{ $t('stockAdjustment.status.approved') }}</option>
+          <option value="REJECTED">{{ $t('stockAdjustment.status.rejected') }}</option>
+          <option value="OVERDUE">{{ $t('stockAdjustment.filters.overduePending') }}</option>
         </select>
 
         <input
@@ -87,7 +87,7 @@
           @click="clearFilter"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
         >
-          Clear Filter
+          {{ $t('common.buttons.clearFilter') }}
         </button>
       </div>
     </div>
@@ -97,28 +97,28 @@
         <table class="min-w-[1200px] w-full text-sm">
           <thead class="bg-slate-50 text-slate-500">
             <tr>
-              <th class="table-th">Adjustment No.</th>
-              <th class="table-th">Date</th>
-              <th class="table-th">SKU</th>
-              <th class="table-th">Product</th>
-              <th class="table-th">Location</th>
-              <th class="table-th">Current Qty</th>
-              <th class="table-th">Adjust Qty</th>
-              <th class="table-th">New Qty</th>
-              <th class="table-th">Reason</th>
-              <th class="table-th">Pending Age</th>
-              <th class="table-th">Status</th>
-              <th class="table-th text-right">Action</th>
+              <th class="table-th">{{ $t('stockAdjustment.table.adjustmentNo') }}</th>
+              <th class="table-th">{{ $t('stockAdjustment.table.date') }}</th>
+              <th class="table-th">{{ $t('stockAdjustment.table.sku') }}</th>
+              <th class="table-th">{{ $t('stockAdjustment.table.product') }}</th>
+              <th class="table-th">{{ $t('stockAdjustment.table.location') }}</th>
+              <th class="table-th">{{ $t('stockAdjustment.table.currentQty') }}</th>
+              <th class="table-th">{{ $t('stockAdjustment.table.adjustQty') }}</th>
+              <th class="table-th">{{ $t('stockAdjustment.table.newQty') }}</th>
+              <th class="table-th">{{ $t('stockAdjustment.table.reason') }}</th>
+              <th class="table-th">{{ $t('stockAdjustment.table.pendingAge') }}</th>
+              <th class="table-th">{{ $t('stockAdjustment.table.status') }}</th>
+              <th class="table-th text-right">{{ $t('stockAdjustment.table.action') }}</th>
             </tr>
           </thead>
 
           <tbody>
             <tr v-if="loading">
-              <td colspan="12" class="text-center py-10 text-slate-400">Loading adjustments…</td>
+              <td colspan="12" class="text-center py-10 text-slate-400">{{ $t('stockAdjustment.table.loading') }}</td>
             </tr>
 
             <tr v-else-if="adjustmentList.length === 0">
-              <td colspan="12" class="text-center py-10 text-slate-400">No stock adjustments found</td>
+              <td colspan="12" class="text-center py-10 text-slate-400">{{ $t('stockAdjustment.table.noData') }}</td>
             </tr>
 
             <template v-else>
@@ -149,14 +149,14 @@
               <td class="table-td">
                 <span v-if="item.ageHours != null">
                   {{ formatAge(item.ageHours) }}
-                  <span v-if="item.isOverdue" class="badge-red ml-1">Overdue</span>
+                  <span v-if="item.isOverdue" class="badge-red ml-1">{{ $t('stockAdjustment.table.overdue') }}</span>
                 </span>
                 <span v-else>—</span>
               </td>
 
               <td class="table-td">
                 <span :class="getStatusClass(item.status)">
-                  {{ item.statusText }}
+                  {{ statusText(item.status) }}
                 </span>
               </td>
 
@@ -165,7 +165,7 @@
                   @click="openDetail(item)"
                   class="text-orange-600 hover:text-orange-700 font-semibold"
                 >
-                  View Detail
+                  {{ $t('stockAdjustment.table.viewDetail') }}
                 </button>
               </td>
             </tr>
@@ -183,10 +183,10 @@
         <div class="flex items-center justify-between mb-6">
           <div>
             <h2 class="text-xl font-bold text-slate-800">
-              {{ isNew ? 'New Stock Adjustment' : 'Adjustment Detail' }}
+              {{ isNew ? $t('stockAdjustment.drawer.newTitle') : $t('stockAdjustment.drawer.detailTitle') }}
             </h2>
             <p class="text-slate-500">
-              Adjust inventory quantity with approval workflow
+              {{ $t('stockAdjustment.drawer.subtitle') }}
             </p>
           </div>
 
@@ -205,12 +205,12 @@
         <div class="space-y-4">
           <template v-if="isNew">
             <div>
-              <label class="label">SKU / Barcode</label>
+              <label class="label">{{ $t('stockAdjustment.drawer.skuBarcode') }}</label>
               <input
                 v-model="form.sku"
                 type="text"
                 class="input"
-                placeholder="Scan or enter SKU"
+                :placeholder="$t('stockAdjustment.drawer.skuPlaceholder')"
                 @blur="resolveProductAndQty"
                 @keyup.enter="resolveProductAndQty"
               />
@@ -218,29 +218,29 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="label">Warehouse</label>
+                <label class="label">{{ $t('stockAdjustment.drawer.warehouse') }}</label>
                 <select v-model="form.warehouseId" class="input" @change="onWarehouseChange">
-                  <option value="">Select warehouse</option>
+                  <option value="">{{ $t('stockAdjustment.drawer.selectWarehouse') }}</option>
                   <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
                 </select>
               </div>
 
               <div>
-                <label class="label">Location</label>
+                <label class="label">{{ $t('stockAdjustment.drawer.location') }}</label>
                 <select v-model="form.locationId" class="input" :disabled="!form.warehouseId" @change="onLotNoChange">
-                  <option value="">Select location</option>
+                  <option value="">{{ $t('stockAdjustment.drawer.selectLocation') }}</option>
                   <option v-for="l in drawerLocations" :key="l.id" :value="l.id">{{ l.code }}</option>
                 </select>
               </div>
             </div>
 
             <div>
-              <label class="label">Lot No. (optional)</label>
+              <label class="label">{{ $t('stockAdjustment.drawer.lotNoOptional') }}</label>
               <input
                 v-model="form.lotNo"
                 type="text"
                 class="input"
-                placeholder="Leave blank for non-lot-tracked stock"
+                :placeholder="$t('stockAdjustment.drawer.lotNoPlaceholder')"
                 @change="onLotNoChange"
               />
             </div>
@@ -248,12 +248,12 @@
 
           <template v-else>
             <div>
-              <label class="label">SKU</label>
+              <label class="label">{{ $t('stockAdjustment.table.sku') }}</label>
               <input :value="form.sku + ' — ' + form.productName" type="text" class="input bg-slate-50" readonly />
             </div>
 
             <div>
-              <label class="label">Location</label>
+              <label class="label">{{ $t('stockAdjustment.drawer.location') }}</label>
               <input :value="form.locationCode" type="text" class="input bg-slate-50" readonly />
             </div>
           </template>
@@ -261,11 +261,11 @@
           <!-- Created by/at + pending-age follow-up (Phase 20) -->
           <div v-if="!isNew" class="bg-slate-50 rounded-2xl p-4 grid grid-cols-2 gap-4">
             <div>
-              <p class="detail-label">Created By</p>
+              <p class="detail-label">{{ $t('stockAdjustment.drawer.createdBy') }}</p>
               <p class="detail-value">{{ form.createdByName || '—' }}</p>
             </div>
             <div>
-              <p class="detail-label">Created At</p>
+              <p class="detail-label">{{ $t('stockAdjustment.drawer.createdAt') }}</p>
               <p class="detail-value">{{ formatDateTime(form.createdAt) }}</p>
             </div>
           </div>
@@ -275,14 +275,14 @@
                :class="form.isOverdue ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'"
           >
             <p class="text-sm font-semibold" :class="form.isOverdue ? 'text-red-600' : 'text-orange-600'">
-              Pending for {{ formatAge(form.ageHours) }}
-              <span v-if="form.isOverdue">— overdue (threshold: {{ form.pendingWarningHours }}h)</span>
+              {{ $t('stockAdjustment.drawer.pendingFor', { age: formatAge(form.ageHours) }) }}
+              <span v-if="form.isOverdue">{{ $t('stockAdjustment.drawer.overdueThreshold', { hours: form.pendingWarningHours }) }}</span>
             </p>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label class="label">Current Qty</label>
+              <label class="label">{{ $t('stockAdjustment.drawer.currentQty') }}</label>
               <input
                 :value="form.currentQty != null ? form.currentQty : '—'"
                 type="text"
@@ -292,36 +292,42 @@
             </div>
 
             <div>
-              <label class="label">Adjustment Type</label>
+              <label class="label">{{ $t('stockAdjustment.drawer.adjustmentType') }}</label>
               <select v-model="form.type" class="input" :disabled="!canEditFields">
-                <option value="INCREASE">Increase</option>
-                <option value="DECREASE">Decrease</option>
+                <option value="INCREASE">{{ $t('stockAdjustment.drawer.increase') }}</option>
+                <option value="DECREASE">{{ $t('stockAdjustment.drawer.decrease') }}</option>
               </select>
             </div>
 
             <div>
-              <label class="label">Adjust Qty</label>
+              <label class="label">{{ $t('stockAdjustment.drawer.adjustQty') }}</label>
               <input
                 v-model.number="form.adjustQty"
                 type="number"
                 class="input"
-                placeholder="Qty"
+                :placeholder="$t('stockAdjustment.drawer.qtyPlaceholder')"
                 :readonly="!canEditFields"
               />
             </div>
           </div>
 
           <div class="bg-orange-50 border border-orange-200 rounded-2xl p-4">
-            <p class="text-sm text-slate-500">{{ isTerminal ? 'Resulting Quantity' : 'New Quantity (estimated)' }}</p>
+            <p class="text-sm text-slate-500">{{ isTerminal ? $t('stockAdjustment.drawer.resultingQuantity') : $t('stockAdjustment.drawer.newQuantityEstimated') }}</p>
             <h3 class="text-3xl font-bold text-orange-600">
               {{ isTerminal ? (form.afterQty != null ? form.afterQty : '—') : calculatedNewQty }}
             </h3>
           </div>
 
           <div>
-            <label class="label">Reason</label>
+            <label class="label">{{ $t('stockAdjustment.drawer.reason') }}</label>
+            <!-- Reason option values are backend reason codes (also
+                 used as display text, see CLAUDE.md "do not invent
+                 codes if the frontend already defines them") — left
+                 untranslated since translating them would desync the
+                 displayed label from the value actually submitted to
+                 the API. -->
             <select v-model="form.reason" class="input" :disabled="!canEditFields">
-              <option value="">Select reason</option>
+              <option value="">{{ $t('stockAdjustment.drawer.selectReason') }}</option>
               <option value="Cycle Count Variance">Cycle Count Variance</option>
               <option value="Damaged Goods">Damaged Goods</option>
               <option value="Lost Goods">Lost Goods</option>
@@ -331,12 +337,12 @@
           </div>
 
           <div>
-            <label class="label">Remark</label>
+            <label class="label">{{ $t('stockAdjustment.drawer.remark') }}</label>
             <textarea
               v-model="form.remark"
               rows="4"
               class="input"
-              placeholder="Enter remark"
+              :placeholder="$t('stockAdjustment.drawer.remarkPlaceholder')"
               :readonly="!canEditFields && !isPendingForApprover"
             ></textarea>
           </div>
@@ -347,7 +353,7 @@
               :disabled="submitting"
               class="bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
             >
-              Submit for Approval
+              {{ $t('stockAdjustment.drawer.submitForApproval') }}
             </button>
 
             <button
@@ -355,7 +361,7 @@
               :disabled="submitting"
               class="bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-semibold disabled:opacity-60"
             >
-              Save Draft
+              {{ $t('stockAdjustment.drawer.saveDraft') }}
             </button>
           </div>
 
@@ -365,7 +371,7 @@
               :disabled="submitting"
               class="bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
             >
-              Approve
+              {{ $t('stockAdjustment.drawer.approve') }}
             </button>
 
             <button
@@ -373,12 +379,12 @@
               :disabled="submitting"
               class="bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
             >
-              Reject
+              {{ $t('stockAdjustment.drawer.reject') }}
             </button>
           </div>
 
           <p v-else-if="!isNew && form.status === 'PENDING'" class="text-sm text-slate-500 pt-2">
-            Your role can view this adjustment but not approve or reject it.
+            {{ $t('stockAdjustment.drawer.viewOnlyNote') }}
           </p>
         </div>
       </div>
@@ -395,16 +401,6 @@ import { hasPermission } from '../../services/auth'
 
 let searchDebounce = null
 
-function statusText(status) {
-  switch (status) {
-    case 'DRAFT': return 'Draft'
-    case 'PENDING': return 'Pending Approval'
-    case 'APPROVED': return 'Approved'
-    case 'REJECTED': return 'Rejected'
-    default: return status
-  }
-}
-
 function mapAdjustmentRow(r) {
   return {
     id: r.id,
@@ -418,13 +414,13 @@ function mapAdjustmentRow(r) {
     newQty: r.after_qty,
     reason: r.reason,
     status: r.status,
-    statusText: statusText(r.status),
     // Phase 20 — server-computed (never derived from raw timestamps in
     // the browser); null for anything that isn't currently PENDING.
     ageHours: r.age_hours,
     isOverdue: r.is_overdue
   }
 }
+
 
 function emptyForm() {
   return {
@@ -641,13 +637,13 @@ export default {
     async resolveProductAndQty() {
       const trimmed = (this.form.sku || '').trim()
       if (!trimmed) {
-        this.drawerError = 'SKU is required'
+        this.drawerError = this.$t('stockAdjustment.messages.skuRequired')
         return null
       }
       const res = await listProducts({ search: trimmed, limit: 20 })
       const p = res.data.find((x) => x.sku === trimmed || x.barcode === trimmed)
       if (!p) {
-        this.drawerError = `No product found for SKU/barcode "${trimmed}"`
+        this.drawerError = this.$t('stockAdjustment.messages.noProductFound', { value: trimmed })
         return null
       }
       this.form.productId = p.id
@@ -694,16 +690,16 @@ export default {
         const productId = await this.resolveProductAndQty()
         if (!productId) return
         if (!this.form.locationId) {
-          this.drawerError = 'Location is required'
+          this.drawerError = this.$t('stockAdjustment.messages.locationRequired')
           return
         }
       }
       if (!this.form.adjustQty || this.form.adjustQty <= 0) {
-        this.drawerError = 'Adjust Qty must be greater than zero'
+        this.drawerError = this.$t('stockAdjustment.messages.adjustQtyPositive')
         return
       }
       if (!this.form.reason) {
-        this.drawerError = 'Reason is required'
+        this.drawerError = this.$t('stockAdjustment.messages.reasonRequired')
         return
       }
 
@@ -715,13 +711,13 @@ export default {
             adjust_type: this.form.type, adjust_qty: this.form.adjustQty, reason: this.form.reason,
             remark: this.form.remark || null, status
           })
-          alert(status === 'PENDING' ? 'Stock adjustment submitted for approval' : 'Draft saved successfully')
+          alert(status === 'PENDING' ? this.$t('stockAdjustment.messages.submittedForApproval') : this.$t('stockAdjustment.messages.draftSaved'))
         } else {
           await updateStockAdjustment(this.selectedId, {
             lot_no: this.form.lotNo || '', adjust_type: this.form.type, adjust_qty: this.form.adjustQty,
             reason: this.form.reason, remark: this.form.remark || null, status
           })
-          alert(status === 'PENDING' ? 'Stock adjustment submitted for approval' : 'Draft saved successfully')
+          alert(status === 'PENDING' ? this.$t('stockAdjustment.messages.submittedForApproval') : this.$t('stockAdjustment.messages.draftSaved'))
         }
         this.closeDrawer()
         await this.fetchAdjustments()
@@ -739,7 +735,7 @@ export default {
 
     async rejectAdjustment() {
       if (!this.form.remark) {
-        this.drawerError = 'A remark is required to reject an adjustment'
+        this.drawerError = this.$t('stockAdjustment.messages.remarkRequiredToReject')
         return
       }
       await this.confirm('REJECT')
@@ -752,7 +748,7 @@ export default {
         await confirmStockAdjustment(this.selectedId, {
           idempotency_key: newIdempotencyKey(), action, remark: this.form.remark || ''
         })
-        alert(action === 'APPROVE' ? 'Stock adjustment approved' : 'Stock adjustment rejected')
+        alert(action === 'APPROVE' ? this.$t('stockAdjustment.messages.approved') : this.$t('stockAdjustment.messages.rejectedMsg'))
         this.closeDrawer()
         await this.fetchAdjustments()
         await this.fetchSummary()
@@ -771,6 +767,19 @@ export default {
       return 'badge-gray'
     },
 
+    // A method (not a precomputed field on the row) so the displayed
+    // label stays reactive to the active locale — switching language
+    // must not require re-fetching the list.
+    statusText(status) {
+      switch (status) {
+        case 'DRAFT': return this.$t('stockAdjustment.status.draft')
+        case 'PENDING': return this.$t('stockAdjustment.status.pending')
+        case 'APPROVED': return this.$t('stockAdjustment.status.approved')
+        case 'REJECTED': return this.$t('stockAdjustment.status.rejected')
+        default: return status
+      }
+    },
+
     // Phase 20 — display formatting only; the age_hours value itself
     // and the overdue threshold it's compared against both come from
     // the API (internal/stockadjustment's pendingAging), never computed
@@ -785,7 +794,7 @@ export default {
 
     formatDateTime(isoString) {
       if (!isoString) return '—'
-      return new Date(isoString).toLocaleString()
+      return this.$d(new Date(isoString), 'long')
     }
   }
 }

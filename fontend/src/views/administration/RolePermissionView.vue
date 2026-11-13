@@ -2,9 +2,9 @@
   <div class="space-y-6">
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">Roles & Permissions</h1>
+        <h1 class="text-2xl font-bold text-slate-800">{{ $t('rolePermission.title') }}</h1>
         <p class="text-slate-500">
-          Manage role-based access control for warehouse operations
+          {{ $t('rolePermission.subtitle') }}
         </p>
       </div>
 
@@ -12,7 +12,7 @@
         @click="openNewRole"
         class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
       >
-        + New Role
+        {{ $t('rolePermission.newRoleButton') }}
       </button>
     </div>
 
@@ -28,7 +28,7 @@
             v-model="roleKeyword"
             type="text"
             class="input"
-            placeholder="Search role..."
+            :placeholder="$t('rolePermission.searchPlaceholder')"
           />
         </div>
 
@@ -51,7 +51,7 @@
               </div>
 
               <span :class="getStatusClass(role.status)">
-                {{ role.status }}
+                {{ role.status === 'ACTIVE' ? $t('common.status.active') : $t('common.status.inactive') }}
               </span>
             </div>
 
@@ -71,7 +71,7 @@
                 {{ selectedRole.roleName }}
               </h2>
               <p class="text-slate-500">
-                {{ selectedRole.roleCode }} permission configuration
+                {{ $t('rolePermission.permissionConfigLabel', { code: selectedRole.roleCode }) }}
               </p>
             </div>
 
@@ -80,7 +80,7 @@
               :disabled="saving"
               class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
             >
-              {{ saving ? 'Saving...' : 'Save Permissions' }}
+              {{ saving ? $t('rolePermission.saving') : $t('rolePermission.savePermissionsButton') }}
             </button>
           </div>
 
@@ -92,7 +92,7 @@
           <div class="p-6 border-b border-slate-200">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label class="label">Role Name</label>
+                <label class="label">{{ $t('rolePermission.fields.roleName') }}</label>
                 <input
                   v-model="roleForm.roleName"
                   type="text"
@@ -101,7 +101,7 @@
               </div>
 
               <div>
-                <label class="label">Role Code</label>
+                <label class="label">{{ $t('rolePermission.fields.roleCode') }}</label>
                 <input
                   v-model="roleForm.roleCode"
                   type="text"
@@ -110,16 +110,16 @@
               </div>
 
               <div>
-                <label class="label">Status</label>
+                <label class="label">{{ $t('rolePermission.fields.status') }}</label>
                 <select v-model="roleForm.status" class="input">
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="INACTIVE">INACTIVE</option>
+                  <option value="ACTIVE">{{ $t('common.status.active') }}</option>
+                  <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
                 </select>
               </div>
             </div>
 
             <div class="mt-4">
-              <label class="label">Description</label>
+              <label class="label">{{ $t('rolePermission.fields.description') }}</label>
               <textarea
                 v-model="roleForm.description"
                 rows="3"
@@ -131,12 +131,12 @@
           <!-- Warehouse Access -->
           <div class="p-6 border-b border-slate-200">
             <h3 class="font-bold text-slate-800 mb-4">
-              Warehouse Access
+              {{ $t('rolePermission.warehouseAccess.title') }}
             </h3>
 
-            <p v-if="warehousesLoading" class="text-sm text-slate-400">Loading warehouses...</p>
+            <p v-if="warehousesLoading" class="text-sm text-slate-400">{{ $t('rolePermission.warehouseAccess.loading') }}</p>
             <p v-else-if="warehousesError" class="text-sm text-red-600">{{ warehousesError }}</p>
-            <p v-else-if="warehouses.length === 0" class="text-sm text-slate-400">No active warehouses found.</p>
+            <p v-else-if="warehouses.length === 0" class="text-sm text-slate-400">{{ $t('rolePermission.warehouseAccess.noWarehouses') }}</p>
 
             <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-3">
               <label
@@ -166,14 +166,14 @@
           <div class="p-6">
             <div class="flex items-center justify-between mb-4">
               <h3 class="font-bold text-slate-800">
-                Permission Matrix
+                {{ $t('rolePermission.permissionMatrix.title') }}
               </h3>
 
               <button
                 @click="toggleAllPermissions"
                 class="text-orange-600 hover:text-orange-700 font-semibold text-sm"
               >
-                {{ allChecked ? 'Uncheck All' : 'Check All' }}
+                {{ allChecked ? $t('rolePermission.permissionMatrix.uncheckAll') : $t('rolePermission.permissionMatrix.checkAll') }}
               </button>
             </div>
 
@@ -181,13 +181,13 @@
               <table class="min-w-[850px] w-full text-sm">
                 <thead class="bg-slate-50 text-slate-500">
                   <tr>
-                    <th class="table-th text-left">Module</th>
+                    <th class="table-th text-left">{{ $t('rolePermission.permissionMatrix.moduleColumn') }}</th>
                     <th
                       v-for="action in actions"
                       :key="action"
                       class="table-th text-center"
                     >
-                      {{ action }}
+                      {{ actionLabel(action) }}
                     </th>
                   </tr>
                 </thead>
@@ -199,7 +199,7 @@
                     class="border-t hover:bg-orange-50"
                   >
                     <td class="table-td font-semibold text-slate-800">
-                      {{ module.name }}
+                      {{ moduleName(module.code) }}
                     </td>
 
                     <td
@@ -227,7 +227,7 @@
           v-else
           class="h-[500px] flex items-center justify-center text-slate-400"
         >
-          Select a role to configure permissions
+          {{ $t('rolePermission.selectRolePrompt') }}
         </div>
       </div>
     </div>
@@ -249,26 +249,37 @@ import { listWarehouses } from '../../services/warehouses'
 // mapping. The frontend previously hardcoded the full permission matrix;
 // now only these labels are local — which modules/actions actually exist
 // and which are granted per role both come from the API.
+//
+// MODULE_ORDER/ACTION_CODES stay plain English keys — they are object
+// keys used for lookups (roleForm.permissions[module.code][action],
+// ACTION_CODES[action]) and must never change with locale. Only the
+// *display* string (MODULE_NAMES values, actionLabel() below) is
+// translated.
 const MODULE_ORDER = [
   'dashboard', 'receiving', 'quality_check', 'putaway', 'stock_inquiry',
   'stock_adjustment', 'order', 'picking', 'shipping', 'users', 'roles', 'warehouse', 'product'
 ]
-const MODULE_NAMES = {
-  dashboard: 'Dashboard',
-  receiving: 'Receiving',
-  quality_check: 'Quality Check',
-  putaway: 'Putaway',
-  stock_inquiry: 'Stock Inquiry',
-  stock_adjustment: 'Stock Adjustment',
-  order: 'Order Management',
-  picking: 'Picking',
-  shipping: 'Shipping',
-  users: 'User Management',
-  roles: 'Roles & Permissions',
-  warehouse: 'Warehouse Setup',
-  product: 'Product Master'
+// Maps each module code to its rolePermission.modules.* key suffix.
+// Display names are looked up through this at render time (see the
+// moduleName() method), never cached onto permissionModules, so a
+// locale switch updates the matrix immediately without a re-fetch.
+const MODULE_NAME_KEYS = {
+  dashboard: 'dashboard',
+  receiving: 'receiving',
+  quality_check: 'qualityCheck',
+  putaway: 'putaway',
+  stock_inquiry: 'stockInquiry',
+  stock_adjustment: 'stockAdjustment',
+  order: 'order',
+  picking: 'picking',
+  shipping: 'shipping',
+  users: 'users',
+  roles: 'roles',
+  warehouse: 'warehouse',
+  product: 'product'
 }
 const ACTION_CODES = { View: 'view', Create: 'create', Edit: 'update', Delete: 'delete', Approve: 'approve', Export: 'export' }
+const ACTION_LABEL_KEYS = { View: 'view', Create: 'create', Edit: 'edit', Delete: 'delete', Approve: 'approve', Export: 'export' }
 
 export default {
   name: 'RolePermissionView',
@@ -325,6 +336,10 @@ export default {
   },
 
   methods: {
+    moduleName(code) {
+      return this.$t('rolePermission.modules.' + (MODULE_NAME_KEYS[code] || code))
+    },
+
     // Only active warehouses — matches Warehouse Setup's own precedent
     // for a picker (e.g. User Management's Warehouse select) rather than
     // Warehouse Setup's own management screen, which shows every status.
@@ -335,7 +350,7 @@ export default {
         const res = await listWarehouses({ status: 'ACTIVE', limit: 100 })
         this.warehouses = res.data
       } catch (err) {
-        this.warehousesError = err.message || 'Failed to load warehouses'
+        this.warehousesError = err.message || this.$t('rolePermission.messages.loadWarehousesFailed')
       } finally {
         this.warehousesLoading = false
       }
@@ -364,12 +379,15 @@ export default {
           .filter((code) => actionsByModule[code])
           .map((code) => ({
             code,
-            name: MODULE_NAMES[code] || code,
             actions: this.actions.filter((label) => actionsByModule[code].has(ACTION_CODES[label]))
           }))
       } catch (err) {
-        this.loadError = err.message || 'Failed to load roles and permissions'
+        this.loadError = err.message || this.$t('rolePermission.messages.loadFailed')
       }
+    },
+
+    actionLabel(action) {
+      return this.$t(`rolePermission.actions.${ACTION_LABEL_KEYS[action]}`)
     },
 
     createEmptyPermissions() {
@@ -402,7 +420,7 @@ export default {
           }
         })
       } catch (err) {
-        this.loadError = err.message || 'Failed to load role permissions'
+        this.loadError = err.message || this.$t('rolePermission.messages.loadPermissionsFailed')
       }
 
       let warehouseAccess = []
@@ -410,7 +428,7 @@ export default {
         const res = await getRoleWarehouseAccess(role.id)
         warehouseAccess = res.data.warehouse_access.map((w) => w.id)
       } catch (err) {
-        this.loadError = err.message || 'Failed to load role warehouse access'
+        this.loadError = err.message || this.$t('rolePermission.messages.loadAccessFailed')
       }
 
       this.roleForm = {
@@ -434,14 +452,14 @@ export default {
       this.selectedRole = {
         id: null,
         roleCode: 'NEW_ROLE',
-        roleName: 'New Role',
+        roleName: this.$t('rolePermission.newRoleDefaults.name'),
         description: '',
         status: 'ACTIVE',
         warehouseAccess: []
       }
 
       this.roleForm = {
-        roleName: 'New Role',
+        roleName: this.$t('rolePermission.newRoleDefaults.name'),
         roleCode: 'NEW_ROLE',
         description: '',
         status: 'ACTIVE',
@@ -478,7 +496,7 @@ export default {
       this.saveError = ''
 
       if (!this.selectedRole || !this.selectedRole.id) {
-        this.saveError = 'Creating new roles is not supported yet.'
+        this.saveError = this.$t('rolePermission.messages.createNotSupported')
         return
       }
 
@@ -504,9 +522,9 @@ export default {
           setRolePermissions(this.selectedRole.id, codes),
           setRoleWarehouseAccess(this.selectedRole.id, warehouseIds)
         ])
-        alert('Permissions saved successfully')
+        alert(this.$t('rolePermission.messages.saveSuccess'))
       } catch (err) {
-        this.saveError = err.message || 'Failed to save permissions'
+        this.saveError = err.message || this.$t('rolePermission.messages.saveFailed')
       } finally {
         this.saving = false
       }

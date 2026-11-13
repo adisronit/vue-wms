@@ -10,23 +10,25 @@
         class="hidden md:flex flex-col justify-center bg-slate-900 text-white p-12"
       >
         <h1 class="text-5xl font-bold mb-6">
-          Smart WMS
+          {{ $t('auth.login.brandTitle') }}
         </h1>
 
         <h2 class="text-2xl font-semibold mb-4">
-          Warehouse Management System
+          {{ $t('auth.login.brandSubtitle') }}
         </h2>
 
         <p class="text-slate-300 leading-8">
-          Manage inbound receiving, inventory control,
-          picking, packing and shipping operations
-          through a modern warehouse platform.
+          {{ $t('auth.login.brandDescription') }}
         </p>
       </div>
 
       <!-- Right Section -->
       <div class="p-10 md:p-14">
         <div class="max-w-md mx-auto">
+          <div class="flex justify-end mb-4">
+            <LanguageSwitcher />
+          </div>
+
           <div
             class="w-16 h-16 rounded-full bg-orange-600 flex items-center justify-center text-white text-2xl font-bold mx-auto shadow-lg"
           >
@@ -36,13 +38,13 @@
           <h2
             class="text-center text-3xl font-bold text-slate-800 mt-6"
           >
-            Sign In
+            {{ $t('auth.login.signInTitle') }}
           </h2>
 
           <p
             class="text-center text-slate-500 mt-2 mb-8"
           >
-            Login to Smart WMS
+            {{ $t('auth.login.signInSubtitle') }}
           </p>
 
           <form @submit.prevent="handleLogin">
@@ -51,13 +53,13 @@
               <label
                 class="block text-sm font-medium text-slate-700 mb-2"
               >
-                Username
+                {{ $t('auth.login.username') }}
               </label>
 
               <input
                 v-model="form.username"
                 type="text"
-                placeholder="Enter username"
+                :placeholder="$t('auth.login.usernamePlaceholder')"
                 class="w-full border border-slate-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:outline-none"
               />
             </div>
@@ -67,13 +69,13 @@
               <label
                 class="block text-sm font-medium text-slate-700 mb-2"
               >
-                Password
+                {{ $t('auth.login.password') }}
               </label>
 
               <input
                 v-model="form.password"
                 type="password"
-                placeholder="Enter password"
+                :placeholder="$t('auth.login.passwordPlaceholder')"
                 class="w-full border border-slate-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-orange-500 focus:outline-none"
               />
             </div>
@@ -89,14 +91,14 @@
                   v-model="form.rememberMe"
                   type="checkbox"
                 />
-                Remember Me
+                {{ $t('auth.login.rememberMe') }}
               </label>
 
               <a
                 href="#"
                 class="text-orange-600 text-sm hover:underline"
               >
-                Forgot Password?
+                {{ $t('auth.login.forgotPassword') }}
               </a>
             </div>
 
@@ -114,14 +116,14 @@
               :disabled="loading"
               class="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-60"
             >
-              {{ loading ? 'Signing in...' : 'Sign In' }}
+              {{ loading ? $t('auth.login.signingIn') : $t('auth.login.signIn') }}
             </button>
           </form>
 
           <div
             class="mt-8 text-center text-sm text-slate-400"
           >
-            © 2026 Smart WMS
+            {{ $t('auth.login.copyright') }}
           </div>
         </div>
       </div>
@@ -131,9 +133,12 @@
 
 <script>
 import { login } from '../../services/auth'
+import LanguageSwitcher from '../../components/LanguageSwitcher.vue'
 
 export default {
   name: 'LoginPage',
+
+  components: { LanguageSwitcher },
 
   data() {
     return {
@@ -152,12 +157,12 @@ export default {
       this.errorMessage = ''
 
       if (!this.form.username) {
-        this.errorMessage = 'Username is required'
+        this.errorMessage = this.$t('auth.login.usernameRequired')
         return
       }
 
       if (!this.form.password) {
-        this.errorMessage = 'Password is required'
+        this.errorMessage = this.$t('auth.login.passwordRequired')
         return
       }
 
@@ -166,7 +171,13 @@ export default {
         await login(this.form.username, this.form.password)
         this.$router.push('/dashboard')
       } catch (err) {
-        this.errorMessage = err.message || 'Login failed'
+        // err.message comes from the Go backend's own error envelope
+        // (see services/auth.js) and is not run through i18n — only
+        // the client-side fallback below is translated. Translating
+        // server-generated text client-side would require a fragile
+        // string-matching map; out of this phase's scope (backend is
+        // not modified).
+        this.errorMessage = err.message || this.$t('auth.login.loginFailed')
       } finally {
         this.loading = false
       }

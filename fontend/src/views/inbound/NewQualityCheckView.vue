@@ -3,9 +3,9 @@
     <!-- Page Header -->
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">New Quality Check</h1>
+        <h1 class="text-2xl font-bold text-slate-800">{{ $t('newQualityCheck.title') }}</h1>
         <p class="text-slate-500">
-          Create inspection record for received items before putaway
+          {{ $t('newQualityCheck.subtitle') }}
         </p>
       </div>
 
@@ -13,21 +13,21 @@
         @click="$router.push('/inbound/quality-check')"
         class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold"
       >
-        Back to QC List
+        {{ $t('newQualityCheck.backButton') }}
       </button>
     </div>
 
     <!-- QC Header -->
     <div class="bg-white rounded-2xl border border-slate-200 p-6">
       <h2 class="text-lg font-bold text-slate-800 mb-5">
-        QC Document Information
+        {{ $t('newQualityCheck.documentInfo') }}
       </h2>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label class="label">Receiving No.</label>
+          <label class="label">{{ $t('newQualityCheck.fields.receivingNo') }}</label>
           <select v-model="form.receivingNo" class="input">
-            <option value="">Select receiving document</option>
+            <option value="">{{ $t('newQualityCheck.fields.selectReceivingDoc') }}</option>
             <option value="RCV-20260608-001">RCV-20260608-001</option>
             <option value="RCV-20260608-002">RCV-20260608-002</option>
             <option value="RCV-20260608-003">RCV-20260608-003</option>
@@ -35,71 +35,71 @@
         </div>
 
         <div>
-          <label class="label">QC Date</label>
+          <label class="label">{{ $t('newQualityCheck.fields.qcDate') }}</label>
           <input v-model="form.qcDate" type="date" class="input" />
         </div>
 
         <div>
-          <label class="label">Inspector</label>
+          <label class="label">{{ $t('newQualityCheck.fields.inspector') }}</label>
           <input
             v-model="form.inspector"
             type="text"
             class="input"
-            placeholder="Inspector name"
+            :placeholder="$t('newQualityCheck.fields.inspectorPlaceholder')"
           />
         </div>
 
         <div>
-          <label class="label">Warehouse</label>
+          <label class="label">{{ $t('newQualityCheck.fields.warehouse') }}</label>
           <select v-model="form.warehouse" class="input">
-            <option value="">Select warehouse</option>
+            <option value="">{{ $t('newQualityCheck.fields.selectWarehouse') }}</option>
             <option value="WH-01">WH-01</option>
             <option value="WH-02">WH-02</option>
           </select>
         </div>
 
         <div>
-          <label class="label">QC Type</label>
+          <label class="label">{{ $t('newQualityCheck.fields.qcType') }}</label>
           <select v-model="form.qcType" class="input">
-            <option value="NORMAL">Normal Inspection</option>
-            <option value="FULL">Full Inspection</option>
-            <option value="RANDOM">Random Sampling</option>
-            <option value="DAMAGE">Damage Inspection</option>
+            <option value="NORMAL">{{ $t('newQualityCheck.qcTypeOptions.normal') }}</option>
+            <option value="FULL">{{ $t('newQualityCheck.qcTypeOptions.full') }}</option>
+            <option value="RANDOM">{{ $t('newQualityCheck.qcTypeOptions.random') }}</option>
+            <option value="DAMAGE">{{ $t('newQualityCheck.qcTypeOptions.damage') }}</option>
           </select>
         </div>
 
         <div>
-          <label class="label">Overall Result</label>
+          <label class="label">{{ $t('newQualityCheck.fields.overallResult') }}</label>
           <select v-model="form.overallResult" class="input">
-            <option value="">Pending</option>
-            <option value="PASS">Pass</option>
-            <option value="HOLD">Hold</option>
-            <option value="FAIL">Fail</option>
+            <option value="">{{ $t('common.status.pending') }}</option>
+            <option value="PASS">{{ $t('newQualityCheck.resultOptions.pass') }}</option>
+            <option value="HOLD">{{ $t('newQualityCheck.resultOptions.hold') }}</option>
+            <option value="FAIL">{{ $t('newQualityCheck.resultOptions.fail') }}</option>
           </select>
         </div>
       </div>
 
       <div class="mt-4">
-        <label class="label">Remark</label>
+        <label class="label">{{ $t('common.labels.remark') }}</label>
         <textarea
           v-model="form.remark"
           rows="3"
           class="input"
-          placeholder="Enter QC remark"
+          :placeholder="$t('newQualityCheck.fields.remarkPlaceholder')"
         ></textarea>
       </div>
     </div>
 
     <!-- Scan Area -->
     <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5">
-      <label class="label">Scan SKU / Barcode</label>
+      <label class="label">{{ $t('newQualityCheck.scan.label') }}</label>
 
       <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
         <input
           v-model="scanText"
           type="text"
           class="input bg-white"
-          placeholder="Scan barcode or SKU"
+          :placeholder="$t('newQualityCheck.scan.placeholder')"
           @keyup.enter="scanItem"
         />
 
@@ -107,27 +107,27 @@
           v-model.number="scanSampleQty"
           type="number"
           class="input bg-white input-number"
-          placeholder="Sample Qty"
+          :placeholder="$t('newQualityCheck.scan.sampleQtyPlaceholder')"
         />
 
         <input
           v-model.number="scanDefectQty"
           type="number"
           class="input bg-white input-number"
-          placeholder="Defect Qty"
+          :placeholder="$t('newQualityCheck.scan.defectQtyPlaceholder')"
         />
 
         <select v-model="scanResult" class="input bg-white">
-          <option value="PASS">Pass</option>
-          <option value="HOLD">Hold</option>
-          <option value="FAIL">Fail</option>
+          <option value="PASS">{{ $t('newQualityCheck.resultOptions.pass') }}</option>
+          <option value="HOLD">{{ $t('newQualityCheck.resultOptions.hold') }}</option>
+          <option value="FAIL">{{ $t('newQualityCheck.resultOptions.fail') }}</option>
         </select>
 
         <button
           @click="scanItem"
           class="bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold"
         >
-          Add QC
+          {{ $t('newQualityCheck.scan.addQc') }}
         </button>
       </div>
     </div>
@@ -136,9 +136,9 @@
     <div class="bg-white rounded-2xl border border-slate-200 p-6">
       <div class="flex items-center justify-between mb-5">
         <div>
-          <h2 class="text-lg font-bold text-slate-800">QC Items</h2>
+          <h2 class="text-lg font-bold text-slate-800">{{ $t('newQualityCheck.itemsSection.title') }}</h2>
           <p class="text-sm text-slate-500">
-            Inspect received items by SKU, lot and sample quantity
+            {{ $t('newQualityCheck.itemsSection.subtitle') }}
           </p>
         </div>
 
@@ -146,7 +146,7 @@
           @click="addItem"
           class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
         >
-          + Add Item
+          {{ $t('newQualityCheck.itemsSection.addItem') }}
         </button>
       </div>
 
@@ -155,16 +155,16 @@
           <table class="min-w-[1350px] w-full text-sm">
             <thead class="bg-slate-50 text-slate-500">
               <tr>
-                <th class="table-th">SKU</th>
-                <th class="table-th">Product Name</th>
-                <th class="table-th">Lot No.</th>
-                <th class="table-th">Received Qty</th>
-                <th class="table-th">Sample Qty</th>
-                <th class="table-th">Defect Qty</th>
-                <th class="table-th">Defect Reason</th>
-                <th class="table-th">Result</th>
-                <th class="table-th">Remark</th>
-                <th class="table-th text-right">Action</th>
+                <th class="table-th">{{ $t('newQualityCheck.table.sku') }}</th>
+                <th class="table-th">{{ $t('newQualityCheck.table.productName') }}</th>
+                <th class="table-th">{{ $t('newQualityCheck.table.lotNo') }}</th>
+                <th class="table-th">{{ $t('newQualityCheck.table.receivedQty') }}</th>
+                <th class="table-th">{{ $t('newQualityCheck.table.sampleQty') }}</th>
+                <th class="table-th">{{ $t('newQualityCheck.table.defectQty') }}</th>
+                <th class="table-th">{{ $t('newQualityCheck.table.defectReason') }}</th>
+                <th class="table-th">{{ $t('newQualityCheck.table.result') }}</th>
+                <th class="table-th">{{ $t('common.labels.remark') }}</th>
+                <th class="table-th text-right">{{ $t('newQualityCheck.table.action') }}</th>
               </tr>
             </thead>
 
@@ -212,20 +212,20 @@
 
                 <td class="table-td">
                   <select v-model="item.defectReason" class="table-input min-w-[180px]">
-                    <option value="">None</option>
-                    <option value="DAMAGED">Damaged</option>
-                    <option value="WRONG_ITEM">Wrong Item</option>
-                    <option value="EXPIRED">Expired</option>
-                    <option value="SHORTAGE">Shortage</option>
-                    <option value="PACKAGING_ISSUE">Packaging Issue</option>
+                    <option value="">{{ $t('newQualityCheck.defectReasonOptions.none') }}</option>
+                    <option value="DAMAGED">{{ $t('newQualityCheck.defectReasonOptions.damaged') }}</option>
+                    <option value="WRONG_ITEM">{{ $t('newQualityCheck.defectReasonOptions.wrongItem') }}</option>
+                    <option value="EXPIRED">{{ $t('newQualityCheck.defectReasonOptions.expired') }}</option>
+                    <option value="SHORTAGE">{{ $t('newQualityCheck.defectReasonOptions.shortage') }}</option>
+                    <option value="PACKAGING_ISSUE">{{ $t('newQualityCheck.defectReasonOptions.packagingIssue') }}</option>
                   </select>
                 </td>
 
                 <td class="table-td">
                   <select v-model="item.result" class="table-input">
-                    <option value="PASS">Pass</option>
-                    <option value="HOLD">Hold</option>
-                    <option value="FAIL">Fail</option>
+                    <option value="PASS">{{ $t('newQualityCheck.resultOptions.pass') }}</option>
+                    <option value="HOLD">{{ $t('newQualityCheck.resultOptions.hold') }}</option>
+                    <option value="FAIL">{{ $t('newQualityCheck.resultOptions.fail') }}</option>
                   </select>
                 </td>
 
@@ -238,14 +238,14 @@
                     @click="removeItem(index)"
                     class="text-red-600 hover:text-red-700 font-semibold"
                   >
-                    Remove
+                    {{ $t('common.buttons.remove') }}
                   </button>
                 </td>
               </tr>
 
               <tr v-if="items.length === 0">
                 <td colspan="10" class="text-center py-10 text-slate-400">
-                  No QC items
+                  {{ $t('newQualityCheck.table.noItems') }}
                 </td>
               </tr>
             </tbody>
@@ -257,29 +257,29 @@
     <!-- Summary -->
     <div class="bg-white rounded-2xl border border-slate-200 p-6">
       <h2 class="text-lg font-bold text-slate-800 mb-5">
-        QC Summary
+        {{ $t('newQualityCheck.summary.title') }}
       </h2>
 
       <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
         <div class="summary-card">
-          <p class="summary-label">Total Lines</p>
+          <p class="summary-label">{{ $t('newQualityCheck.summary.totalLines') }}</p>
           <h2 class="summary-value text-number">{{ items.length }}</h2>
         </div>
 
         <div class="summary-card">
-          <p class="summary-label">Sample Qty</p>
+          <p class="summary-label">{{ $t('newQualityCheck.summary.sampleQty') }}</p>
           <h2 class="summary-value text-number">{{ totalSampleQty }}</h2>
         </div>
 
         <div class="summary-card">
-          <p class="summary-label">Defect Qty</p>
+          <p class="summary-label">{{ $t('newQualityCheck.summary.defectQty') }}</p>
           <h2 class="summary-value text-red-600 text-number">
             {{ totalDefectQty }}
           </h2>
         </div>
 
         <div class="summary-card">
-          <p class="summary-label">Pass Rate</p>
+          <p class="summary-label">{{ $t('newQualityCheck.summary.passRate') }}</p>
           <h2 class="summary-value text-green-600 text-number">
             {{ passRate }}%
           </h2>
@@ -294,14 +294,14 @@
           @click="saveDraft"
           class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-6 py-3 rounded-xl font-semibold"
         >
-          Save Draft
+          {{ $t('common.buttons.saveDraft') }}
         </button>
 
         <button
           @click="submitQc"
           class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold"
         >
-          Confirm QC
+          {{ $t('newQualityCheck.actions.confirmQc') }}
         </button>
       </div>
     </div>
@@ -385,7 +385,7 @@ export default {
 
     scanItem() {
       if (!this.scanText) {
-        alert('Barcode or SKU is required')
+        alert(this.$t('newQualityCheck.messages.barcodeRequired'))
         return
       }
 
@@ -423,22 +423,22 @@ export default {
     },
 
     saveDraft() {
-      alert('QC draft saved successfully')
+      alert(this.$t('newQualityCheck.messages.draftSaved'))
     },
 
     submitQc() {
       if (!this.form.receivingNo) {
-        alert('Receiving No. is required')
+        alert(this.$t('newQualityCheck.messages.receivingNoRequired'))
         return
       }
 
       if (!this.form.warehouse) {
-        alert('Warehouse is required')
+        alert(this.$t('newQualityCheck.messages.warehouseRequired'))
         return
       }
 
       if (this.items.length === 0) {
-        alert('At least one QC item is required')
+        alert(this.$t('newQualityCheck.messages.atLeastOneItem'))
         return
       }
 
@@ -447,11 +447,11 @@ export default {
       })
 
       if (invalidFailItem) {
-        alert('Defect Reason is required for failed item')
+        alert(this.$t('newQualityCheck.messages.defectReasonRequiredForFail'))
         return
       }
 
-      alert('QC confirmed successfully')
+      alert(this.$t('newQualityCheck.messages.qcConfirmed'))
       this.$router.push('/inbound/quality-check')
     }
   }

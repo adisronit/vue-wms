@@ -2,9 +2,9 @@
   <div class="space-y-6">
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">Replenishment</h1>
+        <h1 class="text-2xl font-bold text-slate-800">{{ $t('replenishment.title') }}</h1>
         <p class="text-slate-500">
-          Move stock from bulk/reserve locations to pick-face locations
+          {{ $t('replenishment.subtitle') }}
         </p>
       </div>
 
@@ -14,7 +14,7 @@
           @click="openRecommendations"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold"
         >
-          🎯 Recommendations
+          {{ $t('replenishment.recommendations') }}
         </button>
 
         <button
@@ -22,7 +22,7 @@
           @click="openNewTask"
           class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
         >
-          + New Task
+          {{ $t('replenishment.newTask') }}
         </button>
       </div>
     </div>
@@ -33,24 +33,24 @@
 
     <div class="bg-white rounded-2xl border border-slate-200 p-5">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <input v-model="filters.search" type="text" placeholder="Search Task No, SKU, Product..." class="input" />
+        <input v-model="filters.search" type="text" :placeholder="$t('replenishment.filters.searchPlaceholder')" class="input" />
 
         <select v-model="filters.status" class="input">
-          <option value="">All Status</option>
-          <option value="PENDING">Pending</option>
-          <option value="IN_PROGRESS">In Progress</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="CANCELLED">Cancelled</option>
-          <option value="ISSUE">Issue</option>
+          <option value="">{{ $t('replenishment.filters.allStatus') }}</option>
+          <option value="PENDING">{{ $t('replenishment.status.pending') }}</option>
+          <option value="IN_PROGRESS">{{ $t('replenishment.status.inProgress') }}</option>
+          <option value="COMPLETED">{{ $t('replenishment.status.completed') }}</option>
+          <option value="CANCELLED">{{ $t('replenishment.status.cancelled') }}</option>
+          <option value="ISSUE">{{ $t('replenishment.status.issue') }}</option>
         </select>
 
         <select v-model="filters.warehouseId" class="input">
-          <option value="">All Warehouses</option>
+          <option value="">{{ $t('replenishment.filters.allWarehouses') }}</option>
           <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }}</option>
         </select>
 
         <button @click="clearFilter" class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold">
-          Clear Filter
+          {{ $t('common.buttons.clearFilter') }}
         </button>
       </div>
     </div>
@@ -60,23 +60,23 @@
         <table class="min-w-[1000px] w-full text-sm">
           <thead class="bg-slate-50 text-slate-500">
             <tr>
-              <th class="table-th">Task No.</th>
-              <th class="table-th">SKU</th>
-              <th class="table-th">Product</th>
-              <th class="table-th">From</th>
-              <th class="table-th">To</th>
-              <th class="table-th">Qty</th>
-              <th class="table-th">Warehouse</th>
-              <th class="table-th">Status</th>
-              <th class="table-th text-right">Action</th>
+              <th class="table-th">{{ $t('replenishment.table.taskNo') }}</th>
+              <th class="table-th">{{ $t('replenishment.table.sku') }}</th>
+              <th class="table-th">{{ $t('replenishment.table.product') }}</th>
+              <th class="table-th">{{ $t('replenishment.table.from') }}</th>
+              <th class="table-th">{{ $t('replenishment.table.to') }}</th>
+              <th class="table-th">{{ $t('replenishment.table.qty') }}</th>
+              <th class="table-th">{{ $t('replenishment.table.warehouse') }}</th>
+              <th class="table-th">{{ $t('replenishment.table.status') }}</th>
+              <th class="table-th text-right">{{ $t('replenishment.table.action') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="9" class="text-center py-10 text-slate-400">Loading replenishment tasks…</td>
+              <td colspan="9" class="text-center py-10 text-slate-400">{{ $t('replenishment.table.loading') }}</td>
             </tr>
             <tr v-else-if="taskList.length === 0">
-              <td colspan="9" class="text-center py-10 text-slate-400">No replenishment tasks found</td>
+              <td colspan="9" class="text-center py-10 text-slate-400">{{ $t('replenishment.table.noData') }}</td>
             </tr>
             <template v-else>
               <tr v-for="t in taskList" :key="t.id" class="border-t hover:bg-orange-50">
@@ -87,9 +87,9 @@
                 <td class="table-td">{{ t.to_location_code }}</td>
                 <td class="table-td">{{ t.quantity }}</td>
                 <td class="table-td">{{ t.warehouse_code }}</td>
-                <td class="table-td"><span :class="statusBadgeClass(t.status)">{{ t.status }}</span></td>
+                <td class="table-td"><span :class="statusBadgeClass(t.status)">{{ statusText(t.status) }}</span></td>
                 <td class="table-td text-right">
-                  <button @click="openDetail(t.id)" class="text-orange-600 hover:underline font-semibold">View</button>
+                  <button @click="openDetail(t.id)" class="text-orange-600 hover:underline font-semibold">{{ $t('replenishment.table.view') }}</button>
                 </td>
               </tr>
             </template>
@@ -102,7 +102,7 @@
     <div v-if="showNewForm" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-lg font-bold text-slate-800">New Replenishment Task</h2>
+          <h2 class="text-lg font-bold text-slate-800">{{ $t('replenishment.newTaskForm.title') }}</h2>
           <button @click="showNewForm = false" class="text-slate-400 hover:text-slate-600">✕</button>
         </div>
 
@@ -110,33 +110,33 @@
 
         <div class="grid grid-cols-1 gap-3">
           <select v-model="form.warehouseId" @change="onFormWarehouseChange" class="input">
-            <option value="">Select Warehouse</option>
+            <option value="">{{ $t('replenishment.newTaskForm.selectWarehouse') }}</option>
             <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
           </select>
 
-          <input v-model="form.sku" type="text" placeholder="Product SKU" class="input" />
+          <input v-model="form.sku" type="text" :placeholder="$t('replenishment.newTaskForm.skuPlaceholder')" class="input" />
 
-          <input v-model="form.lotNo" type="text" placeholder="Lot No (optional)" class="input" />
+          <input v-model="form.lotNo" type="text" :placeholder="$t('replenishment.newTaskForm.lotNoPlaceholder')" class="input" />
 
           <select v-model="form.fromLocationId" class="input">
-            <option value="">From Location</option>
+            <option value="">{{ $t('replenishment.newTaskForm.fromLocation') }}</option>
             <option v-for="l in formLocations" :key="l.id" :value="l.id">{{ l.code }}</option>
           </select>
 
           <select v-model="form.toLocationId" class="input">
-            <option value="">To Location</option>
+            <option value="">{{ $t('replenishment.newTaskForm.toLocation') }}</option>
             <option v-for="l in formLocations" :key="l.id" :value="l.id">{{ l.code }}</option>
           </select>
 
-          <input v-model.number="form.quantity" type="number" min="0" step="0.01" placeholder="Quantity" class="input" />
+          <input v-model.number="form.quantity" type="number" min="0" step="0.01" :placeholder="$t('replenishment.newTaskForm.quantityPlaceholder')" class="input" />
 
-          <textarea v-model="form.remark" placeholder="Remark (optional)" class="input" rows="2"></textarea>
+          <textarea v-model="form.remark" :placeholder="$t('replenishment.newTaskForm.remarkPlaceholder')" class="input" rows="2"></textarea>
         </div>
 
         <div class="flex justify-end gap-3">
-          <button @click="showNewForm = false" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold">Cancel</button>
+          <button @click="showNewForm = false" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold">{{ $t('replenishment.newTaskForm.cancel') }}</button>
           <button @click="submitNewTask" :disabled="submitting" class="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold disabled:opacity-60">
-            {{ submitting ? 'Creating…' : 'Create Task' }}
+            {{ submitting ? $t('replenishment.newTaskForm.creating') : $t('replenishment.newTaskForm.createTask') }}
           </button>
         </div>
       </div>
@@ -146,17 +146,17 @@
     <div v-if="showRecommendations" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 space-y-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-lg font-bold text-slate-800">Replenishment Recommendations</h2>
+          <h2 class="text-lg font-bold text-slate-800">{{ $t('replenishment.recommendationsPanel.title') }}</h2>
           <button @click="showRecommendations = false" class="text-slate-400 hover:text-slate-600">✕</button>
         </div>
 
         <div class="flex gap-3">
           <select v-model="recommendWarehouseId" class="input">
-            <option value="">Select Warehouse</option>
+            <option value="">{{ $t('replenishment.recommendationsPanel.selectWarehouse') }}</option>
             <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
           </select>
           <button @click="loadRecommendations" :disabled="!recommendWarehouseId || recommendLoading" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold disabled:opacity-60">
-            {{ recommendLoading ? 'Loading…' : 'Load' }}
+            {{ recommendLoading ? $t('replenishment.recommendationsPanel.loading') : $t('replenishment.recommendationsPanel.load') }}
           </button>
         </div>
 
@@ -166,17 +166,17 @@
           <table class="min-w-[700px] w-full text-sm">
             <thead class="bg-slate-50 text-slate-500">
               <tr>
-                <th class="table-th">SKU</th>
-                <th class="table-th">Product</th>
-                <th class="table-th">From</th>
-                <th class="table-th">To</th>
-                <th class="table-th">Suggested Qty</th>
-                <th class="table-th text-right">Action</th>
+                <th class="table-th">{{ $t('replenishment.recommendationsPanel.table.sku') }}</th>
+                <th class="table-th">{{ $t('replenishment.recommendationsPanel.table.product') }}</th>
+                <th class="table-th">{{ $t('replenishment.recommendationsPanel.table.from') }}</th>
+                <th class="table-th">{{ $t('replenishment.recommendationsPanel.table.to') }}</th>
+                <th class="table-th">{{ $t('replenishment.recommendationsPanel.table.suggestedQty') }}</th>
+                <th class="table-th text-right">{{ $t('replenishment.recommendationsPanel.table.action') }}</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="recommendations.length === 0">
-                <td colspan="6" class="text-center py-8 text-slate-400">No recommendations loaded</td>
+                <td colspan="6" class="text-center py-8 text-slate-400">{{ $t('replenishment.recommendationsPanel.table.noData') }}</td>
               </tr>
               <tr v-for="(r, i) in recommendations" :key="i" class="border-t">
                 <td class="table-td">{{ r.sku }}</td>
@@ -185,7 +185,7 @@
                 <td class="table-td">{{ r.to_location_code }}</td>
                 <td class="table-td">{{ r.suggested_qty }}</td>
                 <td class="table-td text-right">
-                  <button @click="useRecommendation(r)" class="text-orange-600 hover:underline font-semibold">Use</button>
+                  <button @click="useRecommendation(r)" class="text-orange-600 hover:underline font-semibold">{{ $t('replenishment.recommendationsPanel.table.use') }}</button>
                 </td>
               </tr>
             </tbody>
@@ -205,40 +205,40 @@
         <p v-if="detailError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">{{ detailError }}</p>
 
         <div class="space-y-2 text-sm">
-          <p><span class="text-slate-500">Status:</span> <span :class="statusBadgeClass(selectedTask.status)">{{ selectedTask.status }}</span></p>
-          <p><span class="text-slate-500">Product:</span> {{ selectedTask.sku }} — {{ selectedTask.product_name }}</p>
-          <p><span class="text-slate-500">Lot:</span> {{ selectedTask.lot_no || '—' }}</p>
-          <p><span class="text-slate-500">From:</span> {{ selectedTask.from_location_code }}</p>
-          <p><span class="text-slate-500">To:</span> {{ selectedTask.to_location_code }}</p>
-          <p><span class="text-slate-500">Quantity:</span> {{ selectedTask.quantity }}</p>
-          <p><span class="text-slate-500">Warehouse:</span> {{ selectedTask.warehouse_code }}</p>
-          <p v-if="selectedTask.remark"><span class="text-slate-500">Remark:</span> {{ selectedTask.remark }}</p>
-          <p v-if="selectedTask.issue_remark" class="text-red-600"><span class="text-slate-500">Issue:</span> {{ selectedTask.issue_remark }}</p>
-          <p v-if="selectedTask.cancel_remark" class="text-slate-600"><span class="text-slate-500">Cancel Remark:</span> {{ selectedTask.cancel_remark }}</p>
-          <p><span class="text-slate-500">Created By:</span> {{ selectedTask.created_by_name || '—' }}</p>
+          <p><span class="text-slate-500">{{ $t('replenishment.detail.status') }}</span> <span :class="statusBadgeClass(selectedTask.status)">{{ statusText(selectedTask.status) }}</span></p>
+          <p><span class="text-slate-500">{{ $t('replenishment.detail.product') }}</span> {{ selectedTask.sku }} — {{ selectedTask.product_name }}</p>
+          <p><span class="text-slate-500">{{ $t('replenishment.detail.lot') }}</span> {{ selectedTask.lot_no || '—' }}</p>
+          <p><span class="text-slate-500">{{ $t('replenishment.detail.from') }}</span> {{ selectedTask.from_location_code }}</p>
+          <p><span class="text-slate-500">{{ $t('replenishment.detail.to') }}</span> {{ selectedTask.to_location_code }}</p>
+          <p><span class="text-slate-500">{{ $t('replenishment.detail.quantity') }}</span> {{ selectedTask.quantity }}</p>
+          <p><span class="text-slate-500">{{ $t('replenishment.detail.warehouse') }}</span> {{ selectedTask.warehouse_code }}</p>
+          <p v-if="selectedTask.remark"><span class="text-slate-500">{{ $t('replenishment.detail.remark') }}</span> {{ selectedTask.remark }}</p>
+          <p v-if="selectedTask.issue_remark" class="text-red-600"><span class="text-slate-500">{{ $t('replenishment.detail.issue') }}</span> {{ selectedTask.issue_remark }}</p>
+          <p v-if="selectedTask.cancel_remark" class="text-slate-600"><span class="text-slate-500">{{ $t('replenishment.detail.cancelRemark') }}</span> {{ selectedTask.cancel_remark }}</p>
+          <p><span class="text-slate-500">{{ $t('replenishment.detail.createdBy') }}</span> {{ selectedTask.created_by_name || '—' }}</p>
         </div>
 
         <div v-if="canUpdate && selectedTask.status === 'PENDING'" class="flex gap-3">
           <button @click="doStart" :disabled="actionBusy" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold disabled:opacity-60">
-            Start
+            {{ $t('replenishment.detail.start') }}
           </button>
         </div>
 
         <div v-if="canUpdate && (selectedTask.status === 'PENDING' || selectedTask.status === 'IN_PROGRESS')">
           <button @click="doConfirm" :disabled="actionBusy" class="w-full px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold disabled:opacity-60">
-            {{ actionBusy ? 'Confirming…' : 'Confirm Move' }}
+            {{ actionBusy ? $t('replenishment.detail.confirming') : $t('replenishment.detail.confirmMove') }}
           </button>
         </div>
 
         <div v-if="canApprove && (selectedTask.status === 'PENDING' || selectedTask.status === 'IN_PROGRESS')" class="space-y-2 pt-2 border-t">
-          <textarea v-model="cancelRemark" placeholder="Cancel remark (optional)" class="input" rows="2"></textarea>
+          <textarea v-model="cancelRemark" :placeholder="$t('replenishment.detail.cancelRemarkPlaceholder')" class="input" rows="2"></textarea>
           <button @click="doCancel" :disabled="actionBusy" class="w-full px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold disabled:opacity-60">
-            Cancel Task
+            {{ $t('replenishment.detail.cancelTask') }}
           </button>
 
-          <textarea v-model="issueRemark" placeholder="Issue remark (required)" class="input" rows="2"></textarea>
+          <textarea v-model="issueRemark" :placeholder="$t('replenishment.detail.issueRemarkPlaceholder')" class="input" rows="2"></textarea>
           <button @click="doReportIssue" :disabled="actionBusy" class="w-full px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-semibold disabled:opacity-60">
-            Report Issue
+            {{ $t('replenishment.detail.reportIssue') }}
           </button>
         </div>
       </div>
@@ -295,12 +295,26 @@ export default {
     await this.fetchTasks()
   },
   methods: {
+    // Called from the template, not cached onto a row at map/load time,
+    // so the displayed label stays reactive to the active locale —
+    // switching language must not require re-fetching.
+    statusText(status) {
+      switch (status) {
+        case 'PENDING': return this.$t('replenishment.status.pending')
+        case 'IN_PROGRESS': return this.$t('replenishment.status.inProgress')
+        case 'COMPLETED': return this.$t('replenishment.status.completed')
+        case 'CANCELLED': return this.$t('replenishment.status.cancelled')
+        case 'ISSUE': return this.$t('replenishment.status.issue')
+        default: return status
+      }
+    },
+
     async fetchWarehouses() {
       try {
         const res = await listWarehouses({ limit: 100 })
         this.warehouses = res.data
       } catch (err) {
-        this.loadError = err.message || 'Failed to load warehouses'
+        this.loadError = err.message || this.$t('replenishment.messages.loadWarehousesFailed')
       }
     },
 
@@ -311,7 +325,7 @@ export default {
         const res = await listReplenishment(this.filters)
         this.taskList = res.data
       } catch (err) {
-        this.loadError = err.message || 'Failed to load replenishment tasks'
+        this.loadError = err.message || this.$t('replenishment.messages.loadTasksFailed')
       } finally {
         this.loading = false
       }
@@ -348,19 +362,19 @@ export default {
         }
         this.formLocations = allLocations
       } catch (err) {
-        this.formError = err.message || 'Failed to load locations'
+        this.formError = err.message || this.$t('replenishment.messages.loadLocationsFailed')
       }
     },
 
     async submitNewTask() {
       this.formError = ''
       if (!this.form.warehouseId || !this.form.fromLocationId || !this.form.toLocationId || !this.form.quantity) {
-        this.formError = 'Warehouse, from/to location, and quantity are required'
+        this.formError = this.$t('replenishment.messages.requiredFields')
         return
       }
       const trimmedSku = (this.form.sku || '').trim()
       if (!trimmedSku) {
-        this.formError = 'Product SKU is required'
+        this.formError = this.$t('replenishment.messages.skuRequired')
         return
       }
 
@@ -369,7 +383,7 @@ export default {
         const productRes = await listProducts({ search: trimmedSku, limit: 20 })
         const product = productRes.data.find((p) => p.sku === trimmedSku || p.barcode === trimmedSku)
         if (!product) {
-          this.formError = `No product found for SKU/barcode "${trimmedSku}"`
+          this.formError = this.$t('replenishment.messages.noProductFound', { value: trimmedSku })
           return
         }
 
@@ -386,7 +400,7 @@ export default {
         this.showNewForm = false
         await this.fetchTasks()
       } catch (err) {
-        this.formError = err.message || 'Failed to create replenishment task'
+        this.formError = err.message || this.$t('replenishment.messages.createTaskFailed')
       } finally {
         this.submitting = false
       }
@@ -406,7 +420,7 @@ export default {
         const res = await getReplenishmentRecommendations(this.recommendWarehouseId)
         this.recommendations = res.data
       } catch (err) {
-        this.recommendError = err.message || 'Failed to load recommendations'
+        this.recommendError = err.message || this.$t('replenishment.messages.loadRecommendationsFailed')
       } finally {
         this.recommendLoading = false
       }
@@ -432,7 +446,7 @@ export default {
         const res = await getReplenishmentTask(id)
         this.selectedTask = res.data
       } catch (err) {
-        this.loadError = err.message || 'Failed to load task detail'
+        this.loadError = err.message || this.$t('replenishment.messages.loadDetailFailed')
       }
     },
 
@@ -480,7 +494,7 @@ export default {
 
     async doReportIssue() {
       if (!this.issueRemark.trim()) {
-        this.detailError = 'Issue remark is required'
+        this.detailError = this.$t('replenishment.messages.issueRemarkRequired')
         return
       }
       this.actionBusy = true

@@ -2,9 +2,9 @@
   <div class="space-y-6">
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">Check Stock</h1>
+        <h1 class="text-2xl font-bold text-slate-800">{{ $t('checkStock.title') }}</h1>
         <p class="text-slate-500">
-          Perform physical stock count and compare with system quantity
+          {{ $t('checkStock.subtitle') }}
         </p>
       </div>
 
@@ -14,7 +14,7 @@
         :disabled="submitting"
         class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
       >
-        + New Count Task
+        {{ $t('checkStock.newCountTask') }}
       </button>
       <span v-else class="text-sm text-slate-500 font-semibold">
         {{ countNo }} — {{ statusText }}
@@ -28,9 +28,9 @@
     <div class="bg-white rounded-2xl border border-slate-200 p-6">
       <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-5">
         <div>
-          <h2 class="text-lg font-bold text-slate-800">Stock Count History</h2>
+          <h2 class="text-lg font-bold text-slate-800">{{ $t('checkStock.history.title') }}</h2>
           <p class="text-sm text-slate-500">
-            Past and in-progress count tasks — select one to view or continue it
+            {{ $t('checkStock.history.subtitle') }}
           </p>
         </div>
         <button
@@ -38,7 +38,7 @@
           @click="resetWorkspace"
           class="text-orange-600 hover:text-orange-700 font-semibold text-sm"
         >
-          + Start a Different Count
+          {{ $t('checkStock.startDifferentCount') }}
         </button>
       </div>
 
@@ -46,18 +46,18 @@
         <input
           v-model="historyFilters.search"
           type="text"
-          placeholder="Search Count No..."
+          :placeholder="$t('checkStock.history.searchPlaceholder')"
           class="input"
         />
 
         <select v-model="historyFilters.status" class="input">
-          <option value="">All Status</option>
-          <option value="DRAFT">Draft</option>
-          <option value="CONFIRMED">Confirmed</option>
+          <option value="">{{ $t('checkStock.history.allStatus') }}</option>
+          <option value="DRAFT">{{ $t('checkStock.status.draft') }}</option>
+          <option value="CONFIRMED">{{ $t('checkStock.status.confirmed') }}</option>
         </select>
 
         <select v-model="historyFilters.warehouseId" class="input">
-          <option value="">All Warehouses</option>
+          <option value="">{{ $t('checkStock.history.allWarehouses') }}</option>
           <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }}</option>
         </select>
 
@@ -67,7 +67,7 @@
           @click="clearHistoryFilters"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
         >
-          Clear Filter
+          {{ $t('common.buttons.clearFilter') }}
         </button>
       </div>
 
@@ -77,7 +77,7 @@
           :disabled="exportingHistory"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl font-semibold text-sm disabled:opacity-60"
         >
-          {{ exportingHistory ? 'Exporting…' : '⬇ Export CSV' }}
+          {{ exportingHistory ? $t('common.buttons.exporting') : '⬇ ' + $t('common.buttons.exportCsv') }}
         </button>
       </div>
 
@@ -90,24 +90,24 @@
           <table class="min-w-[1100px] w-full text-sm">
             <thead class="bg-slate-50 text-slate-500">
               <tr>
-                <th class="table-th">Count No.</th>
-                <th class="table-th">Type</th>
-                <th class="table-th">Warehouse</th>
-                <th class="table-th">Zone</th>
-                <th class="table-th">Created Date</th>
-                <th class="table-th">Created By</th>
-                <th class="table-th text-right">Items</th>
-                <th class="table-th text-right">Variance Lines</th>
-                <th class="table-th">Status</th>
-                <th class="table-th text-right">Action</th>
+                <th class="table-th">{{ $t('checkStock.history.table.countNo') }}</th>
+                <th class="table-th">{{ $t('checkStock.history.table.type') }}</th>
+                <th class="table-th">{{ $t('checkStock.history.table.warehouse') }}</th>
+                <th class="table-th">{{ $t('checkStock.history.table.zone') }}</th>
+                <th class="table-th">{{ $t('checkStock.history.table.createdDate') }}</th>
+                <th class="table-th">{{ $t('checkStock.history.table.createdBy') }}</th>
+                <th class="table-th text-right">{{ $t('checkStock.history.table.items') }}</th>
+                <th class="table-th text-right">{{ $t('checkStock.history.table.varianceLines') }}</th>
+                <th class="table-th">{{ $t('checkStock.history.table.status') }}</th>
+                <th class="table-th text-right">{{ $t('checkStock.history.table.action') }}</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="historyLoading">
-                <td colspan="10" class="text-center py-10 text-slate-400">Loading stock count history…</td>
+                <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('checkStock.history.table.loading') }}</td>
               </tr>
               <tr v-else-if="historyList.length === 0">
-                <td colspan="10" class="text-center py-10 text-slate-400">No stock counts found</td>
+                <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('checkStock.history.table.noData') }}</td>
               </tr>
               <template v-else>
                 <tr
@@ -136,7 +136,7 @@
                       @click="viewCount(row)"
                       class="text-orange-600 hover:text-orange-700 font-semibold"
                     >
-                      View
+                      {{ $t('checkStock.history.table.view') }}
                     </button>
                   </td>
                 </tr>
@@ -148,37 +148,37 @@
     </div>
 
     <div class="bg-white rounded-2xl border border-slate-200 p-6">
-      <h2 class="text-lg font-bold text-slate-800 mb-5">Count Information</h2>
+      <h2 class="text-lg font-bold text-slate-800 mb-5">{{ $t('checkStock.countInfo.title') }}</h2>
 
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
-          <label class="label">Count Type</label>
+          <label class="label">{{ $t('checkStock.countInfo.countType') }}</label>
           <select v-model="form.countType" class="input" :disabled="!!countId">
-            <option value="CYCLE_COUNT">Cycle Count</option>
-            <option value="FULL_COUNT">Full Count</option>
-            <option value="LOCATION_COUNT">Location Count</option>
-            <option value="SKU_COUNT">SKU Count</option>
+            <option value="CYCLE_COUNT">{{ $t('checkStock.countInfo.cycleCount') }}</option>
+            <option value="FULL_COUNT">{{ $t('checkStock.countInfo.fullCount') }}</option>
+            <option value="LOCATION_COUNT">{{ $t('checkStock.countInfo.locationCount') }}</option>
+            <option value="SKU_COUNT">{{ $t('checkStock.countInfo.skuCount') }}</option>
           </select>
         </div>
 
         <div>
-          <label class="label">Warehouse</label>
+          <label class="label">{{ $t('checkStock.countInfo.warehouse') }}</label>
           <select v-model="form.warehouseId" class="input" :disabled="!!countId" @change="onWarehouseChange">
-            <option value="">Select warehouse</option>
+            <option value="">{{ $t('checkStock.countInfo.selectWarehouse') }}</option>
             <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
           </select>
         </div>
 
         <div>
-          <label class="label">Zone</label>
+          <label class="label">{{ $t('checkStock.countInfo.zone') }}</label>
           <select v-model="form.zoneId" class="input" :disabled="!!countId">
-            <option value="">All Zone</option>
+            <option value="">{{ $t('checkStock.countInfo.allZone') }}</option>
             <option v-for="z in zones" :key="z.id" :value="z.id">{{ z.code }}</option>
           </select>
         </div>
 
         <div>
-          <label class="label">Count Date</label>
+          <label class="label">{{ $t('checkStock.countInfo.countDate') }}</label>
           <input v-model="form.countDate" type="date" class="input" :disabled="!!countId" />
         </div>
       </div>
@@ -187,13 +187,13 @@
     <div v-if="countId" class="bg-orange-50 border border-orange-200 rounded-2xl p-5">
       <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-4">
         <div>
-          <h2 class="text-lg font-bold text-slate-800">Scan Stock</h2>
+          <h2 class="text-lg font-bold text-slate-800">{{ $t('checkStock.scan.title') }}</h2>
           <p class="text-sm text-slate-500">
-            Scan SKU, barcode or bin location to update physical count
+            {{ $t('checkStock.scan.subtitle') }}
           </p>
         </div>
 
-        <span class="badge-orange">Scanner Ready</span>
+        <span class="badge-orange">{{ $t('checkStock.scan.scannerReady') }}</span>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -201,7 +201,7 @@
           v-model="scanForm.sku"
           type="text"
           class="input bg-white"
-          placeholder="Scan SKU / Barcode"
+          :placeholder="$t('checkStock.scan.skuPlaceholder')"
           @keyup.enter="focusCountQty"
           ref="skuInput"
           :disabled="!canEdit"
@@ -211,7 +211,7 @@
           v-model="scanForm.location"
           type="text"
           class="input bg-white"
-          placeholder="Scan Location"
+          :placeholder="$t('checkStock.scan.locationPlaceholder')"
           :disabled="!canEdit"
         />
 
@@ -219,16 +219,16 @@
           v-model.number="scanForm.countQty"
           type="number"
           class="input bg-white input-number"
-          placeholder="Count Qty"
+          :placeholder="$t('checkStock.scan.countQtyPlaceholder')"
           @keyup.enter="confirmScan"
           ref="countQtyInput"
           :disabled="!canEdit"
         />
 
         <select v-model="scanForm.condition" class="input bg-white" :disabled="!canEdit">
-          <option value="GOOD">Good</option>
-          <option value="DAMAGED">Damaged</option>
-          <option value="HOLD">Hold</option>
+          <option value="GOOD">{{ $t('checkStock.scan.good') }}</option>
+          <option value="DAMAGED">{{ $t('checkStock.scan.damaged') }}</option>
+          <option value="HOLD">{{ $t('checkStock.scan.hold') }}</option>
         </select>
 
         <button
@@ -236,7 +236,7 @@
           :disabled="!canEdit || submitting"
           class="bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold disabled:opacity-60"
         >
-          Confirm Count
+          {{ $t('checkStock.scan.confirmCount') }}
         </button>
       </div>
     </div>
@@ -244,22 +244,22 @@
     <div v-if="countId" class="bg-white rounded-2xl border border-slate-200 p-6">
       <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-5">
         <div>
-          <h2 class="text-lg font-bold text-slate-800">Stock Count Items</h2>
+          <h2 class="text-lg font-bold text-slate-800">{{ $t('checkStock.items.title') }}</h2>
           <p class="text-sm text-slate-500">
-            Review system quantity, counted quantity and variance
+            {{ $t('checkStock.items.subtitle') }}
           </p>
         </div>
       </div>
 
       <div v-if="canEdit" class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5 bg-slate-50 rounded-2xl p-4">
-        <input v-model="addItemForm.sku" type="text" class="input" placeholder="SKU / Barcode" />
+        <input v-model="addItemForm.sku" type="text" class="input" :placeholder="$t('checkStock.items.skuPlaceholder')" />
         <select v-model="addItemForm.locationId" class="input">
-          <option value="">Location</option>
+          <option value="">{{ $t('checkStock.items.locationPlaceholder') }}</option>
           <option v-for="l in drawerLocations" :key="l.id" :value="l.id">{{ l.code }}</option>
         </select>
-        <input v-model="addItemForm.lotNo" type="text" class="input" placeholder="Lot No. (optional)" />
+        <input v-model="addItemForm.lotNo" type="text" class="input" :placeholder="$t('checkStock.items.lotNoPlaceholder')" />
         <button @click="addItem" :disabled="submitting" class="bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-semibold disabled:opacity-60">
-          + Add Item
+          {{ $t('checkStock.items.addItem') }}
         </button>
       </div>
 
@@ -268,18 +268,18 @@
           <table class="min-w-[1400px] w-full text-sm">
             <thead class="bg-slate-50 text-slate-500">
               <tr>
-                <th class="table-th">SKU</th>
-                <th class="table-th">Product Name</th>
-                <th class="table-th">Location</th>
-                <th class="table-th">Lot No.</th>
-                <th class="table-th text-right">System Qty</th>
-                <th class="table-th text-right">Count Qty</th>
-                <th class="table-th text-right">Variance</th>
-                <th class="table-th">UOM</th>
-                <th class="table-th">Condition</th>
-                <th class="table-th">Status</th>
-                <th class="table-th">Remark</th>
-                <th class="table-th text-right">Action</th>
+                <th class="table-th">{{ $t('checkStock.items.table.sku') }}</th>
+                <th class="table-th">{{ $t('checkStock.items.table.productName') }}</th>
+                <th class="table-th">{{ $t('checkStock.items.table.location') }}</th>
+                <th class="table-th">{{ $t('checkStock.items.table.lotNo') }}</th>
+                <th class="table-th text-right">{{ $t('checkStock.items.table.systemQty') }}</th>
+                <th class="table-th text-right">{{ $t('checkStock.items.table.countQty') }}</th>
+                <th class="table-th text-right">{{ $t('checkStock.items.table.variance') }}</th>
+                <th class="table-th">{{ $t('checkStock.items.table.uom') }}</th>
+                <th class="table-th">{{ $t('checkStock.items.table.condition') }}</th>
+                <th class="table-th">{{ $t('checkStock.items.table.status') }}</th>
+                <th class="table-th">{{ $t('checkStock.items.table.remark') }}</th>
+                <th class="table-th text-right">{{ $t('checkStock.items.table.action') }}</th>
               </tr>
             </thead>
 
@@ -316,21 +316,21 @@
 
                 <td class="table-td">
                   <select v-model="item.editCondition" class="table-input min-w-[130px]" :disabled="!canEdit">
-                    <option value="GOOD">Good</option>
-                    <option value="DAMAGED">Damaged</option>
-                    <option value="HOLD">Hold</option>
+                    <option value="GOOD">{{ $t('checkStock.scan.good') }}</option>
+                    <option value="DAMAGED">{{ $t('checkStock.scan.damaged') }}</option>
+                    <option value="HOLD">{{ $t('checkStock.scan.hold') }}</option>
                   </select>
                 </td>
 
                 <td class="table-td">
-                  <span :class="getItemStatusClass(item.status)">{{ item.status }}</span>
+                  <span :class="getItemStatusClass(item.status)">{{ $t('checkStock.itemStatus.' + item.status.toLowerCase()) }}</span>
                 </td>
 
                 <td class="table-td">
                   <input
                     v-model="item.editRemark"
                     class="table-input min-w-[220px]"
-                    placeholder="Remark"
+                    :placeholder="$t('checkStock.items.table.remarkPlaceholder')"
                     :readonly="!canEdit"
                   />
                 </td>
@@ -342,14 +342,14 @@
                     :disabled="submitting"
                     class="text-orange-600 hover:text-orange-700 font-semibold disabled:opacity-60"
                   >
-                    Save
+                    {{ $t('checkStock.items.table.save') }}
                   </button>
                 </td>
               </tr>
 
               <tr v-if="items.length === 0">
                 <td colspan="12" class="text-center py-10 text-slate-400">
-                  No stock count items
+                  {{ $t('checkStock.items.table.noData') }}
                 </td>
               </tr>
             </tbody>
@@ -359,26 +359,26 @@
     </div>
 
     <div v-if="countId" class="bg-white rounded-2xl border border-slate-200 p-6">
-      <h2 class="text-lg font-bold text-slate-800 mb-5">Count Summary</h2>
+      <h2 class="text-lg font-bold text-slate-800 mb-5">{{ $t('checkStock.summary.title') }}</h2>
 
       <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
         <div class="summary-card">
-          <p class="summary-label">Total Lines</p>
+          <p class="summary-label">{{ $t('checkStock.summary.totalLines') }}</p>
           <h2 class="summary-value text-number">{{ items.length }}</h2>
         </div>
 
         <div class="summary-card">
-          <p class="summary-label">Matched Lines</p>
+          <p class="summary-label">{{ $t('checkStock.summary.matchedLines') }}</p>
           <h2 class="summary-value text-green-600 text-number">{{ matchedLines }}</h2>
         </div>
 
         <div class="summary-card">
-          <p class="summary-label">Variance Lines</p>
+          <p class="summary-label">{{ $t('checkStock.summary.varianceLines') }}</p>
           <h2 class="summary-value text-red-600 text-number">{{ varianceLines }}</h2>
         </div>
 
         <div class="summary-card">
-          <p class="summary-label">Net Variance</p>
+          <p class="summary-label">{{ $t('checkStock.summary.netVariance') }}</p>
           <h2
             class="summary-value text-number"
             :class="netVariance === 0 ? 'text-green-600' : 'text-orange-600'"
@@ -392,16 +392,16 @@
     <div v-if="countId && generatedAdjustments.length > 0" class="bg-white rounded-2xl border border-slate-200 p-6">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <div>
-          <h2 class="text-lg font-bold text-slate-800">Generated Adjustments</h2>
+          <h2 class="text-lg font-bold text-slate-800">{{ $t('checkStock.generatedAdjustments.title') }}</h2>
           <p class="text-sm text-slate-500">
-            Stock Adjustment document(s) created from this count's variance via "Create Adjustment"
+            {{ $t('checkStock.generatedAdjustments.subtitle') }}
           </p>
         </div>
         <button
           @click="$router.push('/inventory/stock-adjustment')"
           class="text-orange-600 hover:text-orange-700 font-semibold text-sm"
         >
-          View in Stock Adjustments →
+          {{ $t('checkStock.generatedAdjustments.viewLink') }}
         </button>
       </div>
 
@@ -409,10 +409,10 @@
         <table class="min-w-full w-full text-sm">
           <thead class="bg-slate-50 text-slate-500">
             <tr>
-              <th class="table-th">Adjustment No.</th>
-              <th class="table-th">Reason</th>
-              <th class="table-th">Status</th>
-              <th class="table-th">Created</th>
+              <th class="table-th">{{ $t('checkStock.generatedAdjustments.table.adjustmentNo') }}</th>
+              <th class="table-th">{{ $t('checkStock.generatedAdjustments.table.reason') }}</th>
+              <th class="table-th">{{ $t('checkStock.generatedAdjustments.table.status') }}</th>
+              <th class="table-th">{{ $t('checkStock.generatedAdjustments.table.created') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -420,7 +420,7 @@
               <td class="table-td font-semibold text-slate-800">{{ adj.adjustment_no }}</td>
               <td class="table-td">{{ adj.reason }}</td>
               <td class="table-td">
-                <span :class="adjustmentStatusClass(adj.status)">{{ adj.status }}</span>
+                <span :class="adjustmentStatusClass(adj.status)">{{ adjustmentStatusLabel(adj.status) }}</span>
               </td>
               <td class="table-td">{{ (adj.created_at || '').slice(0, 10) }}</td>
             </tr>
@@ -431,9 +431,7 @@
 
     <div v-if="countId && canEdit" class="bg-white border border-slate-200 rounded-2xl p-6">
       <p v-if="varianceLines > 0" class="text-xs text-slate-500 mb-3 text-right">
-        Choose one: "Confirm Count" applies this variance to inventory immediately, or
-        "Create Adjustment" routes it through a separate approval instead. Only one can
-        be used per count — whichever you click first locks out the other.
+        {{ $t('checkStock.actions.chooseOneNote') }}
       </p>
       <div class="flex flex-col md:flex-row justify-end gap-3">
         <button
@@ -441,7 +439,7 @@
           :disabled="submitting"
           class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-6 py-3 rounded-xl font-semibold disabled:opacity-60"
         >
-          Save Draft
+          {{ $t('checkStock.actions.saveDraft') }}
         </button>
 
         <button
@@ -449,7 +447,7 @@
           :disabled="submitting"
           class="bg-slate-800 hover:bg-slate-900 text-white px-6 py-3 rounded-xl font-semibold disabled:opacity-60"
         >
-          Create Adjustment
+          {{ $t('checkStock.actions.createAdjustment') }}
         </button>
 
         <button
@@ -457,7 +455,7 @@
           :disabled="submitting"
           class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold disabled:opacity-60"
         >
-          Confirm Count
+          {{ $t('checkStock.actions.confirmCount') }}
         </button>
       </div>
     </div>
@@ -468,6 +466,7 @@
 import { listStockCounts, getStockCount, createStockCount, addStockCountItem, recordStockCount, confirmStockCount, createAdjustmentsFromCount, newIdempotencyKey, exportStockCounts } from '../../services/stockCount'
 import { listWarehouses, listZones, listLocations } from '../../services/warehouses'
 import { listProducts } from '../../services/products'
+import i18n from '../../i18n'
 
 let historySearchDebounce = null
 
@@ -476,11 +475,12 @@ function todayDate() {
 }
 
 function countTypeText(type) {
+  const t = i18n.global.t
   switch (type) {
-    case 'CYCLE_COUNT': return 'Cycle Count'
-    case 'FULL_COUNT': return 'Full Count'
-    case 'LOCATION_COUNT': return 'Location Count'
-    case 'SKU_COUNT': return 'SKU Count'
+    case 'CYCLE_COUNT': return t('checkStock.countInfo.cycleCount')
+    case 'FULL_COUNT': return t('checkStock.countInfo.fullCount')
+    case 'LOCATION_COUNT': return t('checkStock.countInfo.locationCount')
+    case 'SKU_COUNT': return t('checkStock.countInfo.skuCount')
     default: return type
   }
 }
@@ -491,9 +491,10 @@ function countTypeText(type) {
 // DRAFT-only, unchanged), but need their own distinct label so a count
 // routed through the adjustment bridge doesn't display as "Draft".
 function historyStatusText(status) {
-  if (status === 'CONFIRMED') return 'Confirmed'
-  if (status === 'ADJUSTMENT_CREATED') return 'Adjustment Created'
-  return 'Draft'
+  const t = i18n.global.t
+  if (status === 'CONFIRMED') return t('checkStock.status.confirmed')
+  if (status === 'ADJUSTMENT_CREATED') return t('checkStock.status.adjustmentCreated')
+  return t('checkStock.status.draft')
 }
 
 function historyStatusClass(status) {
@@ -511,6 +512,21 @@ function adjustmentStatusClass(status) {
   if (status === 'PENDING') return 'badge-orange'
   if (status === 'REJECTED') return 'badge-red'
   return 'badge-gray'
+}
+
+// Reuses stockAdjustment.status.* (StockAdjustmentView.vue's own
+// vocabulary for this exact DRAFT/PENDING/APPROVED/REJECTED set) rather
+// than duplicating the labels under checkStock.*. Called from the
+// template, not cached at map time, so it stays reactive to the locale.
+function adjustmentStatusLabel(status) {
+  const t = i18n.global.t
+  switch (status) {
+    case 'DRAFT': return t('stockAdjustment.status.draft')
+    case 'PENDING': return t('stockAdjustment.status.pending')
+    case 'APPROVED': return t('stockAdjustment.status.approved')
+    case 'REJECTED': return t('stockAdjustment.status.rejected')
+    default: return status
+  }
 }
 
 function mapHistoryRow(r) {
@@ -637,6 +653,7 @@ export default {
     historyStatusText,
     historyStatusClass,
     adjustmentStatusClass,
+    adjustmentStatusLabel,
 
     async fetchHistory() {
       this.historyLoading = true
@@ -757,7 +774,7 @@ export default {
     async createCountTask() {
       this.pageError = ''
       if (!this.form.warehouseId) {
-        this.pageError = 'Warehouse is required'
+        this.pageError = this.$t('checkStock.messages.warehouseRequired')
         return
       }
 
@@ -785,11 +802,11 @@ export default {
     async addItem() {
       this.pageError = ''
       if (!this.addItemForm.sku) {
-        this.pageError = 'SKU / Barcode is required'
+        this.pageError = this.$t('checkStock.messages.skuBarcodeRequired')
         return
       }
       if (!this.addItemForm.locationId) {
-        this.pageError = 'Location is required'
+        this.pageError = this.$t('checkStock.messages.locationRequired')
         return
       }
 
@@ -803,7 +820,7 @@ export default {
         return
       }
       if (!product) {
-        this.pageError = `No product found for SKU/barcode "${trimmed}"`
+        this.pageError = this.$t('checkStock.messages.noProductFound', { value: trimmed })
         return
       }
 
@@ -829,14 +846,14 @@ export default {
     async confirmScan() {
       this.pageError = ''
       if (!this.scanForm.sku) {
-        this.pageError = 'SKU or Barcode is required'
+        this.pageError = this.$t('checkStock.messages.skuOrBarcodeRequired')
         return
       }
 
       const item = this.items.find((it) => it.sku === this.scanForm.sku &&
         (!this.scanForm.location || it.locationCode === this.scanForm.location))
       if (!item) {
-        this.pageError = 'Stock item not found'
+        this.pageError = this.$t('checkStock.messages.itemNotFound')
         return
       }
 
@@ -877,7 +894,7 @@ export default {
         const res = await getStockCount(this.countId)
         this.items = (res.data.items || []).map(mapItem)
         this.generatedAdjustments = res.data.generated_adjustments || []
-        alert('Stock count draft saved successfully')
+        alert(this.$t('checkStock.messages.draftSaved'))
       } catch (err) {
         this.pageError = err.message
       } finally {
@@ -900,7 +917,7 @@ export default {
     async createAdjustment() {
       this.pageError = ''
       if (this.varianceLines === 0) {
-        this.pageError = 'No variance found'
+        this.pageError = this.$t('checkStock.messages.noVarianceFound')
         return
       }
 
@@ -931,7 +948,7 @@ export default {
       this.pageError = ''
       const pendingItem = this.items.find((item) => !item.editCountQty && item.editCountQty !== 0)
       if (pendingItem) {
-        this.pageError = 'Some items are still pending count'
+        this.pageError = this.$t('checkStock.messages.someItemsPending')
         return
       }
 
@@ -947,7 +964,7 @@ export default {
         // guarantee (Phase 17).
         this.generatedAdjustments = res.data.generated_adjustments || []
         await this.fetchHistory()
-        alert('Stock count confirmed successfully')
+        alert(this.$t('checkStock.messages.countConfirmed'))
       } catch (err) {
         this.pageError = err.message
       } finally {

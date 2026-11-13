@@ -4,10 +4,10 @@
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold text-slate-800">
-          Quality Check
+          {{ $t('qualityCheck.title') }}
         </h1>
         <p class="text-slate-500">
-          Inspect received items before putaway process
+          {{ $t('qualityCheck.subtitle') }}
         </p>
       </div>
 
@@ -15,29 +15,29 @@
         @click="$router.push('/inbound/quality-check/new')"
         class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
       >
-        + New QC Task
+        {{ $t('qualityCheck.newButton') }}
       </button>
     </div>
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
       <div class="summary-card">
-        <p class="summary-label">Pending QC</p>
+        <p class="summary-label">{{ $t('qualityCheck.summary.pendingQc') }}</p>
         <h2 class="summary-value">9</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">In Progress</p>
+        <p class="summary-label">{{ $t('common.status.inProgress') }}</p>
         <h2 class="summary-value">4</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Passed</p>
+        <p class="summary-label">{{ $t('qualityCheck.summary.passed') }}</p>
         <h2 class="summary-value">21</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">Rejected</p>
+        <p class="summary-label">{{ $t('qualityCheck.summary.rejected') }}</p>
         <h2 class="summary-value text-red-600">2</h2>
       </div>
     </div>
@@ -48,30 +48,30 @@
         <input
           v-model="filters.keyword"
           type="text"
-          placeholder="Search QC No, PO, SKU..."
+          :placeholder="$t('qualityCheck.filters.searchPlaceholder')"
           class="input"
         />
 
         <select v-model="filters.status" class="input">
-          <option value="">All Status</option>
-          <option value="PENDING">Pending</option>
-          <option value="IN_PROGRESS">In Progress</option>
-          <option value="PASSED">Passed</option>
-          <option value="REJECTED">Rejected</option>
+          <option value="">{{ $t('qualityCheck.filters.allStatus') }}</option>
+          <option value="PENDING">{{ $t('common.status.pending') }}</option>
+          <option value="IN_PROGRESS">{{ $t('common.status.inProgress') }}</option>
+          <option value="PASSED">{{ $t('qualityCheck.summary.passed') }}</option>
+          <option value="REJECTED">{{ $t('qualityCheck.summary.rejected') }}</option>
         </select>
 
         <select v-model="filters.result" class="input">
-          <option value="">All Result</option>
-          <option value="PASS">Pass</option>
-          <option value="FAIL">Fail</option>
-          <option value="HOLD">Hold</option>
+          <option value="">{{ $t('qualityCheck.filters.allResult') }}</option>
+          <option value="PASS">{{ $t('qualityCheck.results.pass') }}</option>
+          <option value="FAIL">{{ $t('qualityCheck.results.fail') }}</option>
+          <option value="HOLD">{{ $t('qualityCheck.results.hold') }}</option>
         </select>
 
         <button
           @click="clearFilter"
           class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
         >
-          Clear Filter
+          {{ $t('common.buttons.clearFilter') }}
         </button>
       </div>
     </div>
@@ -82,16 +82,16 @@
         <table class="min-w-[1100px] w-full text-sm">
           <thead class="bg-slate-50 text-slate-500">
             <tr>
-              <th class="table-th">QC No.</th>
-              <th class="table-th">PO No.</th>
-              <th class="table-th">SKU</th>
-              <th class="table-th">Product Name</th>
-              <th class="table-th">Received Qty</th>
-              <th class="table-th">Sample Qty</th>
-              <th class="table-th">Defect Qty</th>
-              <th class="table-th">Result</th>
-              <th class="table-th">Status</th>
-              <th class="table-th text-right">Action</th>
+              <th class="table-th">{{ $t('qualityCheck.table.qcNo') }}</th>
+              <th class="table-th">{{ $t('qualityCheck.table.poNo') }}</th>
+              <th class="table-th">{{ $t('qualityCheck.table.sku') }}</th>
+              <th class="table-th">{{ $t('qualityCheck.table.productName') }}</th>
+              <th class="table-th">{{ $t('qualityCheck.table.receivedQty') }}</th>
+              <th class="table-th">{{ $t('qualityCheck.table.sampleQty') }}</th>
+              <th class="table-th">{{ $t('qualityCheck.table.defectQty') }}</th>
+              <th class="table-th">{{ $t('qualityCheck.table.result') }}</th>
+              <th class="table-th">{{ $t('common.labels.status') }}</th>
+              <th class="table-th text-right">{{ $t('qualityCheck.table.action') }}</th>
             </tr>
           </thead>
 
@@ -131,13 +131,13 @@
 
               <td class="table-td">
                 <span :class="getResultClass(item.result)">
-                  {{ item.result }}
+                  {{ resultLabel(item.result) }}
                 </span>
               </td>
 
               <td class="table-td">
                 <span :class="getStatusClass(item.status)">
-                  {{ item.statusText }}
+                  {{ statusLabel(item.status) }}
                 </span>
               </td>
 
@@ -146,7 +146,7 @@
                   @click="openQc(item)"
                   class="text-orange-600 hover:text-orange-700 font-semibold"
                 >
-                  Inspect
+                  {{ $t('qualityCheck.table.inspect') }}
                 </button>
               </td>
             </tr>
@@ -164,7 +164,7 @@
         <div class="flex items-center justify-between mb-6">
           <div>
             <h2 class="text-xl font-bold text-slate-800">
-              QC Inspection
+              {{ $t('qualityCheck.drawer.title') }}
             </h2>
             <p class="text-slate-500">
               {{ selectedQc.qcNo }} / {{ selectedQc.sku }}
@@ -183,22 +183,22 @@
         <div class="bg-slate-50 rounded-2xl p-5 mb-6">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <p class="detail-label">Product</p>
+              <p class="detail-label">{{ $t('qualityCheck.drawer.product') }}</p>
               <p class="detail-value">{{ selectedQc.productName }}</p>
             </div>
 
             <div>
-              <p class="detail-label">PO No.</p>
+              <p class="detail-label">{{ $t('qualityCheck.table.poNo') }}</p>
               <p class="detail-value">{{ selectedQc.poNo }}</p>
             </div>
 
             <div>
-              <p class="detail-label">Received Qty</p>
+              <p class="detail-label">{{ $t('qualityCheck.table.receivedQty') }}</p>
               <p class="detail-value">{{ selectedQc.receivedQty }}</p>
             </div>
 
             <div>
-              <p class="detail-label">Lot No.</p>
+              <p class="detail-label">{{ $t('qualityCheck.drawer.lotNo') }}</p>
               <p class="detail-value">{{ selectedQc.lotNo }}</p>
             </div>
           </div>
@@ -207,54 +207,54 @@
         <!-- QC Form -->
         <div class="space-y-4">
           <div>
-            <label class="label">Sample Qty</label>
+            <label class="label">{{ $t('qualityCheck.table.sampleQty') }}</label>
             <input
               v-model="qcForm.sampleQty"
               type="number"
               class="input"
-              placeholder="Enter sample quantity"
+              :placeholder="$t('qualityCheck.drawer.sampleQtyPlaceholder')"
             />
           </div>
 
           <div>
-            <label class="label">Defect Qty</label>
+            <label class="label">{{ $t('qualityCheck.table.defectQty') }}</label>
             <input
               v-model="qcForm.defectQty"
               type="number"
               class="input"
-              placeholder="Enter defect quantity"
+              :placeholder="$t('qualityCheck.drawer.defectQtyPlaceholder')"
             />
           </div>
 
           <div>
-            <label class="label">Inspection Result</label>
+            <label class="label">{{ $t('qualityCheck.drawer.inspectionResult') }}</label>
             <select v-model="qcForm.result" class="input">
-              <option value="">Select result</option>
-              <option value="PASS">Pass</option>
-              <option value="FAIL">Fail</option>
-              <option value="HOLD">Hold</option>
+              <option value="">{{ $t('qualityCheck.drawer.selectResult') }}</option>
+              <option value="PASS">{{ $t('qualityCheck.results.pass') }}</option>
+              <option value="FAIL">{{ $t('qualityCheck.results.fail') }}</option>
+              <option value="HOLD">{{ $t('qualityCheck.results.hold') }}</option>
             </select>
           </div>
 
           <div>
-            <label class="label">Defect Reason</label>
+            <label class="label">{{ $t('qualityCheck.drawer.defectReason') }}</label>
             <select v-model="qcForm.defectReason" class="input">
-              <option value="">Select defect reason</option>
-              <option value="DAMAGED">Damaged</option>
-              <option value="WRONG_ITEM">Wrong Item</option>
-              <option value="EXPIRED">Expired</option>
-              <option value="SHORTAGE">Shortage</option>
-              <option value="PACKAGING_ISSUE">Packaging Issue</option>
+              <option value="">{{ $t('qualityCheck.defectReasons.none') }}</option>
+              <option value="DAMAGED">{{ $t('qualityCheck.defectReasons.damaged') }}</option>
+              <option value="WRONG_ITEM">{{ $t('qualityCheck.defectReasons.wrongItem') }}</option>
+              <option value="EXPIRED">{{ $t('qualityCheck.defectReasons.expired') }}</option>
+              <option value="SHORTAGE">{{ $t('qualityCheck.defectReasons.shortage') }}</option>
+              <option value="PACKAGING_ISSUE">{{ $t('qualityCheck.defectReasons.packagingIssue') }}</option>
             </select>
           </div>
 
           <div>
-            <label class="label">Remark</label>
+            <label class="label">{{ $t('common.labels.remark') }}</label>
             <textarea
               v-model="qcForm.remark"
               rows="4"
               class="input"
-              placeholder="Enter inspection remark"
+              :placeholder="$t('qualityCheck.drawer.remarkPlaceholder')"
             ></textarea>
           </div>
 
@@ -263,21 +263,21 @@
               @click="submitQc('PASS')"
               class="bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold"
             >
-              Pass
+              {{ $t('qualityCheck.drawer.pass') }}
             </button>
 
             <button
               @click="submitQc('HOLD')"
               class="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold"
             >
-              Hold
+              {{ $t('qualityCheck.drawer.hold') }}
             </button>
 
             <button
               @click="submitQc('FAIL')"
               class="bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold"
             >
-              Reject
+              {{ $t('qualityCheck.drawer.reject') }}
             </button>
           </div>
         </div>
@@ -287,6 +287,33 @@
 </template>
 
 <script>
+import i18n from '../../i18n'
+
+const { t } = i18n.global
+
+function resultLabel(result) {
+  switch (result) {
+    case 'PASS': return t('qualityCheck.results.pass')
+    case 'FAIL': return t('qualityCheck.results.fail')
+    case 'HOLD': return t('qualityCheck.results.hold')
+    case 'WAITING': return t('qualityCheck.results.waiting')
+    default: return result
+  }
+}
+
+// Called from the template (methods.statusLabel below), not cached
+// onto a qcList row, so the displayed label stays reactive to the
+// active locale — switching language must not require a remount.
+function statusLabel(status) {
+  switch (status) {
+    case 'PASSED': return t('qualityCheck.statusLabels.passed')
+    case 'IN_PROGRESS': return t('qualityCheck.statusLabels.inProgress')
+    case 'REJECTED': return t('qualityCheck.statusLabels.rejected')
+    case 'PENDING': return t('qualityCheck.statusLabels.pending')
+    default: return status
+  }
+}
+
 export default {
   name: 'QualityCheckView',
 
@@ -320,8 +347,7 @@ export default {
           defectQty: 0,
           lotNo: 'LOT-0001',
           result: 'PASS',
-          status: 'PASSED',
-          statusText: 'Passed'
+          status: 'PASSED'
         },
         {
           id: 2,
@@ -334,8 +360,7 @@ export default {
           defectQty: 3,
           lotNo: 'LOT-0002',
           result: 'HOLD',
-          status: 'IN_PROGRESS',
-          statusText: 'In Progress'
+          status: 'IN_PROGRESS'
         },
         {
           id: 3,
@@ -348,8 +373,7 @@ export default {
           defectQty: 8,
           lotNo: 'LOT-0003',
           result: 'FAIL',
-          status: 'REJECTED',
-          statusText: 'Rejected'
+          status: 'REJECTED'
         },
         {
           id: 4,
@@ -362,8 +386,7 @@ export default {
           defectQty: 0,
           lotNo: 'LOT-0004',
           result: 'WAITING',
-          status: 'PENDING',
-          statusText: 'Pending'
+          status: 'PENDING'
         }
       ]
     }
@@ -392,6 +415,9 @@ export default {
   },
 
   methods: {
+    resultLabel,
+    statusLabel,
+
     openQc(item) {
       this.selectedQc = item
 
@@ -412,16 +438,16 @@ export default {
       this.qcForm.result = result
 
       if (!this.qcForm.sampleQty) {
-        alert('Sample Qty is required')
+        alert(this.$t('qualityCheck.messages.sampleQtyRequired'))
         return
       }
 
       if (result === 'FAIL' && !this.qcForm.defectReason) {
-        alert('Defect Reason is required')
+        alert(this.$t('qualityCheck.messages.defectReasonRequired'))
         return
       }
 
-      alert(`QC ${result} saved successfully`)
+      alert(this.$t('qualityCheck.messages.qcSaved', { result: resultLabel(result) }))
       this.selectedQc = null
     },
 

@@ -2,9 +2,9 @@
   <div class="space-y-6">
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">User Management</h1>
+        <h1 class="text-2xl font-bold text-slate-800">{{ $t('userManagement.title') }}</h1>
         <p class="text-slate-500">
-          Manage system users, roles and warehouse access
+          {{ $t('userManagement.subtitle') }}
         </p>
       </div>
 
@@ -12,28 +12,28 @@
         @click="openUser(null)"
         class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
       >
-        + New User
+        {{ $t('userManagement.newUserButton') }}
       </button>
     </div>
 
     <div class="bg-white rounded-2xl border border-slate-200 p-5">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <input v-model="filters.keyword" type="text" placeholder="Search user, email, role..." class="input" />
+        <input v-model="filters.keyword" type="text" :placeholder="$t('userManagement.filters.searchPlaceholder')" class="input" />
 
         <select v-model="filters.role" class="input">
-          <option value="">All Roles</option>
+          <option value="">{{ $t('userManagement.filters.allRoles') }}</option>
           <option v-for="role in roles" :key="role.code" :value="role.code">{{ role.name }}</option>
         </select>
 
         <select v-model="filters.status" class="input">
-          <option value="">All Status</option>
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
-          <option value="LOCKED">Locked</option>
+          <option value="">{{ $t('userManagement.filters.allStatus') }}</option>
+          <option value="ACTIVE">{{ $t('common.status.active') }}</option>
+          <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
+          <option value="LOCKED">{{ $t('userManagement.status.locked') }}</option>
         </select>
 
         <button @click="clearFilter" class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold">
-          Clear Filter
+          {{ $t('common.buttons.clearFilter') }}
         </button>
       </div>
     </div>
@@ -47,22 +47,22 @@
         <table class="min-w-[1000px] w-full text-sm">
           <thead class="bg-slate-50 text-slate-500">
             <tr>
-              <th class="table-th">User</th>
-              <th class="table-th">Email</th>
-              <th class="table-th">Role</th>
-              <th class="table-th">Warehouse</th>
-              <th class="table-th">Last Login</th>
-              <th class="table-th">Status</th>
-              <th class="table-th text-right">Action</th>
+              <th class="table-th">{{ $t('userManagement.table.user') }}</th>
+              <th class="table-th">{{ $t('userManagement.table.email') }}</th>
+              <th class="table-th">{{ $t('userManagement.table.role') }}</th>
+              <th class="table-th">{{ $t('userManagement.table.warehouse') }}</th>
+              <th class="table-th">{{ $t('userManagement.table.lastLogin') }}</th>
+              <th class="table-th">{{ $t('userManagement.table.status') }}</th>
+              <th class="table-th text-right">{{ $t('userManagement.table.action') }}</th>
             </tr>
           </thead>
 
           <tbody>
             <tr v-if="loading">
-              <td class="table-td" colspan="7">Loading users...</td>
+              <td class="table-td" colspan="7">{{ $t('userManagement.loadingUsers') }}</td>
             </tr>
             <tr v-else-if="users.length === 0">
-              <td class="table-td" colspan="7">No users found.</td>
+              <td class="table-td" colspan="7">{{ $t('userManagement.noUsers') }}</td>
             </tr>
             <tr v-for="user in users" :key="user.id" class="border-t hover:bg-orange-50">
               <td class="table-td font-semibold text-slate-800">{{ user.full_name }}</td>
@@ -77,7 +77,7 @@
               </td>
               <td class="table-td text-right">
                 <button @click="openUser(user)" class="text-orange-600 hover:text-orange-700 font-semibold">
-                  Edit
+                  {{ $t('common.buttons.edit') }}
                 </button>
               </td>
             </tr>
@@ -91,9 +91,9 @@
         <div class="flex items-center justify-between mb-6">
           <div>
             <h2 class="text-xl font-bold text-slate-800">
-              {{ selectedUser.id ? 'Edit User' : 'New User' }}
+              {{ selectedUser.id ? $t('userManagement.drawer.editTitle') : $t('userManagement.drawer.newTitle') }}
             </h2>
-            <p class="text-slate-500">User profile and access control</p>
+            <p class="text-slate-500">{{ $t('userManagement.drawer.subtitle') }}</p>
           </div>
 
           <button @click="selectedUser = null" class="text-slate-500 hover:text-red-600 text-xl">
@@ -103,52 +103,52 @@
 
         <div class="space-y-4">
           <div>
-            <label class="label">Full Name</label>
-            <input v-model="userForm.fullName" type="text" class="input" placeholder="Enter full name" />
+            <label class="label">{{ $t('userManagement.fields.fullName') }}</label>
+            <input v-model="userForm.fullName" type="text" class="input" :placeholder="$t('userManagement.fields.fullNamePlaceholder')" />
           </div>
 
           <div>
-            <label class="label">Email</label>
-            <input v-model="userForm.email" type="email" class="input" placeholder="Enter email" />
+            <label class="label">{{ $t('userManagement.fields.email') }}</label>
+            <input v-model="userForm.email" type="email" class="input" :placeholder="$t('userManagement.fields.emailPlaceholder')" />
           </div>
 
           <div>
-            <label class="label">Username</label>
-            <input v-model="userForm.username" type="text" class="input" placeholder="Enter username" :disabled="!!selectedUser.id" />
+            <label class="label">{{ $t('userManagement.fields.username') }}</label>
+            <input v-model="userForm.username" type="text" class="input" :placeholder="$t('userManagement.fields.usernamePlaceholder')" :disabled="!!selectedUser.id" />
           </div>
 
           <!-- Only collected on create: the backend has no separate
                password-reset endpoint yet, and editing an existing user
                never requires re-entering it. -->
           <div v-if="!selectedUser.id">
-            <label class="label">Password</label>
-            <input v-model="userForm.password" type="password" class="input" placeholder="Set initial password (min 8 characters)" />
+            <label class="label">{{ $t('userManagement.fields.password') }}</label>
+            <input v-model="userForm.password" type="password" class="input" :placeholder="$t('userManagement.fields.passwordPlaceholder')" />
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="label">Role</label>
+              <label class="label">{{ $t('userManagement.fields.role') }}</label>
               <select v-model="userForm.role" class="input">
-                <option value="">Select role</option>
+                <option value="">{{ $t('userManagement.fields.selectRole') }}</option>
                 <option v-for="role in roles" :key="role.code" :value="role.code">{{ role.name }}</option>
               </select>
             </div>
 
             <div>
-              <label class="label">Warehouse</label>
+              <label class="label">{{ $t('userManagement.fields.warehouse') }}</label>
               <select v-model="userForm.warehouseId" class="input">
-                <option value="">Unassigned (-)</option>
+                <option value="">{{ $t('userManagement.fields.unassigned') }}</option>
                 <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">{{ wh.code }} - {{ wh.name }}</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label class="label">Status</label>
+            <label class="label">{{ $t('userManagement.fields.status') }}</label>
             <select v-model="userForm.status" class="input">
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-              <option value="LOCKED">Locked</option>
+              <option value="ACTIVE">{{ $t('common.status.active') }}</option>
+              <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
+              <option value="LOCKED">{{ $t('userManagement.status.locked') }}</option>
             </select>
           </div>
 
@@ -161,7 +161,7 @@
             :disabled="saving"
             class="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl font-semibold mt-4 disabled:opacity-60"
           >
-            {{ saving ? 'Saving...' : 'Save User' }}
+            {{ saving ? $t('userManagement.saving') : $t('userManagement.saveButton') }}
           </button>
         </div>
       </div>
@@ -231,7 +231,7 @@ export default {
         const res = await listRoles()
         this.roles = res.data
       } catch (err) {
-        this.listError = err.message || 'Failed to load roles'
+        this.listError = err.message || this.$t('userManagement.messages.loadRolesFailed')
       }
     },
 
@@ -240,7 +240,7 @@ export default {
         const res = await listWarehouses({ status: 'ACTIVE', limit: 100 })
         this.warehouses = res.data
       } catch (err) {
-        this.listError = err.message || 'Failed to load warehouses'
+        this.listError = err.message || this.$t('userManagement.messages.loadWarehousesFailed')
       }
     },
 
@@ -256,7 +256,7 @@ export default {
         })
         this.users = res.data
       } catch (err) {
-        this.listError = err.message || 'Failed to load users'
+        this.listError = err.message || this.$t('userManagement.messages.loadUsersFailed')
       } finally {
         this.loading = false
       }
@@ -322,7 +322,7 @@ export default {
         this.selectedUser = null
         await this.fetchUsers()
       } catch (err) {
-        this.formError = err.message || 'Failed to save user'
+        this.formError = err.message || this.$t('userManagement.messages.saveFailed')
       } finally {
         this.saving = false
       }
@@ -338,19 +338,14 @@ export default {
     },
 
     formatLastLogin(isoString) {
-      if (!isoString) return 'Never logged in'
-      const d = new Date(isoString)
-      const day = String(d.getDate()).padStart(2, '0')
-      const month = d.toLocaleString('en-US', { month: 'short' })
-      const hours = String(d.getHours()).padStart(2, '0')
-      const minutes = String(d.getMinutes()).padStart(2, '0')
-      return `${day} ${month} ${d.getFullYear()} ${hours}:${minutes}`
+      if (!isoString) return this.$t('userManagement.messages.neverLoggedIn')
+      return this.$d(new Date(isoString), 'long')
     },
 
     statusLabel(status) {
-      if (status === 'ACTIVE') return 'Active'
-      if (status === 'INACTIVE') return 'Inactive'
-      if (status === 'LOCKED') return 'Locked'
+      if (status === 'ACTIVE') return this.$t('common.status.active')
+      if (status === 'INACTIVE') return this.$t('common.status.inactive')
+      if (status === 'LOCKED') return this.$t('userManagement.status.locked')
       return status
     },
 

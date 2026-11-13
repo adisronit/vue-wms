@@ -8,8 +8,8 @@
         </div>
 
         <div class="ml-3 min-w-0">
-          <h1 class="text-lg font-bold truncate">Smart WMS</h1>
-          <p class="text-xs text-slate-400 truncate">Warehouse System</p>
+          <h1 class="text-lg font-bold truncate">{{ $t('common.appName') }}</h1>
+          <p class="text-xs text-slate-400 truncate">{{ $t('common.appTagline') }}</p>
         </div>
       </div>
 
@@ -20,10 +20,10 @@
           active-class="menu-active"
         >
           <span class="menu-icon">🏠</span>
-          <span class="menu-text">Dashboard</span>
+          <span class="menu-text">{{ $t('nav.dashboard') }}</span>
         </router-link>
 
-        <div class="menu-title">Inbound</div>
+        <div class="menu-title">{{ $t('nav.sectionInbound') }}</div>
 
         <router-link
           to="/inbound/receiving"
@@ -31,7 +31,7 @@
           active-class="menu-active"
         >
           <span class="menu-icon">📥</span>
-          <span class="menu-text">Receiving</span>
+          <span class="menu-text">{{ $t('nav.receiving') }}</span>
         </router-link>
 
         <router-link
@@ -40,7 +40,7 @@
           active-class="menu-active"
         >
           <span class="menu-icon">✅</span>
-          <span class="menu-text">Quality Check</span>
+          <span class="menu-text">{{ $t('nav.qualityCheck') }}</span>
         </router-link>
 
         <router-link
@@ -49,10 +49,10 @@
           active-class="menu-active"
         >
           <span class="menu-icon">📍</span>
-          <span class="menu-text">Putaway</span>
+          <span class="menu-text">{{ $t('nav.putaway') }}</span>
         </router-link>
 
-        <div class="menu-title">Inventory</div>
+        <div class="menu-title">{{ $t('nav.sectionInventory') }}</div>
 
         <router-link
           to="/inventory/stock-inquiry"
@@ -60,7 +60,7 @@
           active-class="menu-active"
         >
           <span class="menu-icon">📦</span>
-          <span class="menu-text">Stock Inquiry</span>
+          <span class="menu-text">{{ $t('nav.stockInquiry') }}</span>
         </router-link>
 
         <router-link
@@ -69,7 +69,7 @@
           active-class="menu-active"
         >
           <span class="menu-icon">🔄</span>
-          <span class="menu-text">Stock Adjustment</span>
+          <span class="menu-text">{{ $t('nav.stockAdjustment') }}</span>
         </router-link>
 
         <router-link
@@ -78,7 +78,7 @@
           active-class="menu-active"
         >
           <span class="menu-icon">🧾</span>
-          <span class="menu-text">Check Stock</span>
+          <span class="menu-text">{{ $t('nav.checkStock') }}</span>
         </router-link>
 
         <router-link
@@ -88,10 +88,10 @@
           active-class="menu-active"
         >
           <span class="menu-icon">🚛</span>
-          <span class="menu-text">Replenishment</span>
+          <span class="menu-text">{{ $t('nav.replenishment') }}</span>
         </router-link>
 
-        <div class="menu-title">Outbound</div>
+        <div class="menu-title">{{ $t('nav.sectionOutbound') }}</div>
 
         <router-link
           to="/outbound/orders"
@@ -99,7 +99,7 @@
           active-class="menu-active"
         >
           <span class="menu-icon">🧾</span>
-          <span class="menu-text">Orders</span>
+          <span class="menu-text">{{ $t('nav.orders') }}</span>
         </router-link>
 
         <router-link
@@ -108,7 +108,7 @@
           active-class="menu-active"
         >
           <span class="menu-icon">📤</span>
-          <span class="menu-text">Picking</span>
+          <span class="menu-text">{{ $t('nav.picking') }}</span>
         </router-link>
 
         <router-link
@@ -117,10 +117,10 @@
           active-class="menu-active"
         >
           <span class="menu-icon">🚚</span>
-          <span class="menu-text">Shipping</span>
+          <span class="menu-text">{{ $t('nav.shipping') }}</span>
         </router-link>
 
-        <div class="menu-title">Administration</div>
+        <div class="menu-title">{{ $t('nav.sectionAdministration') }}</div>
 
           <router-link
             v-if="canViewUsers"
@@ -129,7 +129,7 @@
             active-class="menu-active"
           >
             <span class="menu-icon">👤</span>
-            <span class="menu-text">User Management</span>
+            <span class="menu-text">{{ $t('nav.userManagement') }}</span>
           </router-link>
 
           <router-link
@@ -139,7 +139,7 @@
             active-class="menu-active"
           >
             <span class="menu-icon">🔐</span>
-            <span class="menu-text">Roles & Permissions</span>
+            <span class="menu-text">{{ $t('nav.roles') }}</span>
           </router-link>
 
           <router-link
@@ -149,7 +149,7 @@
             active-class="menu-active"
           >
             <span class="menu-icon">🏭</span>
-            <span class="menu-text">Warehouse Setup</span>
+            <span class="menu-text">{{ $t('nav.warehouse') }}</span>
           </router-link>
 
           <router-link
@@ -159,15 +159,15 @@
             active-class="menu-active"
           >
             <span class="menu-icon">📦</span>
-            <span class="menu-text">Product Master</span>
+            <span class="menu-text">{{ $t('nav.productMaster') }}</span>
           </router-link>
       </nav>
 
       <div class="p-4 border-t border-slate-700">
-        <button @click="logout"       
+        <button @click="logout"
           class="w-full bg-slate-800 hover:bg-red-600 text-white py-3 rounded-xl transition"
         >
-          Logout
+          {{ $t('nav.logout') }}
         </button>
       </div>
     </aside>
@@ -178,14 +178,16 @@
       <header class="h-20 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-6">
         <div class="min-w-0">
           <h2 class="text-xl font-bold text-slate-800 truncate">
-            Warehouse Management System
+            {{ $t('layout.headerTitle') }}
           </h2>
           <p class="text-sm text-slate-500 truncate">
-            Manage warehouse operations efficiently
+            {{ $t('layout.headerSubtitle') }}
           </p>
         </div>
 
         <div class="flex items-center gap-4 shrink-0">
+          <LanguageSwitcher />
+
           <div class="relative">
             <button
               @click="toggleNotifications"
@@ -200,15 +202,15 @@
               class="absolute right-0 mt-2 w-96 max-h-[28rem] overflow-y-auto bg-white rounded-2xl border border-slate-200 shadow-lg z-50"
             >
               <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-                <h3 class="font-bold text-slate-800">Notifications</h3>
-                <span class="text-xs text-slate-500">{{ unreadCount }} unread</span>
+                <h3 class="font-bold text-slate-800">{{ $t('layout.notifications.title') }}</h3>
+                <span class="text-xs text-slate-500">{{ unreadCount }} {{ $t('layout.notifications.unread') }}</span>
               </div>
 
               <div v-if="notificationsLoading" class="p-6 text-center text-slate-400 text-sm">
-                Loading…
+                {{ $t('layout.notifications.loading') }}
               </div>
               <div v-else-if="notifications.length === 0" class="p-6 text-center text-slate-400 text-sm">
-                No notifications
+                {{ $t('layout.notifications.empty') }}
               </div>
               <button
                 v-else
@@ -229,7 +231,7 @@
 
           <div class="flex items-center gap-3">
             <div class="text-right hidden sm:block">
-              <p class="text-sm font-semibold text-slate-800">{{ user?.full_name || 'User' }}</p>
+              <p class="text-sm font-semibold text-slate-800">{{ user?.full_name || $t('layout.userFallback') }}</p>
               <p class="text-xs text-slate-500">{{ user?.role?.name || '' }}</p>
             </div>
 
@@ -251,10 +253,12 @@
 <script>
 import { currentUser, hasPermission, logout as clearSession } from '../services/auth'
 import { listNotifications, markNotificationRead } from '../services/notifications'
+import LanguageSwitcher from '../components/LanguageSwitcher.vue'
 
 let notificationPoll = null
 
 export default {
+  components: { LanguageSwitcher },
   data() {
     return {
       user: currentUser(),

@@ -1,0 +1,1594 @@
+{
+  "common": {
+    "appName": "Smart WMS",
+    "appTagline": "ระบบคลังสินค้า",
+    "buttons": {
+      "save": "บันทึก",
+      "saveDraft": "บันทึกฉบับร่าง",
+      "cancel": "ยกเลิก",
+      "edit": "แก้ไข",
+      "delete": "ลบ",
+      "remove": "นำออก",
+      "create": "สร้าง",
+      "add": "เพิ่ม",
+      "search": "ค้นหา",
+      "filter": "ตัวกรอง",
+      "clearFilter": "ล้างตัวกรอง",
+      "reset": "รีเซ็ต",
+      "export": "ส่งออก",
+      "exportCsv": "ส่งออก CSV",
+      "exporting": "กำลังส่งออก…",
+      "confirm": "ยืนยัน",
+      "close": "ปิด",
+      "back": "กลับ",
+      "submit": "ส่ง",
+      "submitting": "กำลังส่ง…",
+      "view": "ดู",
+      "approve": "อนุมัติ",
+      "reject": "ปฏิเสธ",
+      "print": "พิมพ์",
+      "refresh": "รีเฟรช",
+      "loading": "กำลังโหลด…"
+    },
+    "labels": {
+      "actions": "การดำเนินการ",
+      "status": "สถานะ",
+      "date": "วันที่",
+      "time": "เวลา",
+      "createdBy": "สร้างโดย",
+      "createdAt": "สร้างเมื่อ",
+      "updatedAt": "แก้ไขล่าสุด",
+      "remark": "หมายเหตุ",
+      "warehouse": "คลังสินค้า",
+      "zone": "โซน",
+      "location": "ตำแหน่ง",
+      "product": "สินค้า",
+      "quantity": "จำนวน",
+      "total": "รวม",
+      "yes": "ใช่",
+      "no": "ไม่",
+      "selectOption": "เลือกตัวเลือก",
+      "optional": "ไม่บังคับ"
+    },
+    "status": {
+      "active": "เปิดใช้งาน",
+      "inactive": "ปิดใช้งาน",
+      "pending": "รอดำเนินการ",
+      "completed": "เสร็จสิ้น",
+      "cancelled": "ยกเลิกแล้ว",
+      "draft": "ฉบับร่าง",
+      "approved": "อนุมัติแล้ว",
+      "rejected": "ปฏิเสธแล้ว",
+      "inProgress": "กำลังดำเนินการ"
+    },
+    "pagination": {
+      "page": "หน้า",
+      "of": "จาก",
+      "showing": "แสดง",
+      "to": "ถึง",
+      "results": "รายการ",
+      "noData": "ไม่พบข้อมูล",
+      "previous": "ก่อนหน้า",
+      "next": "ถัดไป"
+    },
+    "messages": {
+      "requiredField": "จำเป็นต้องกรอกข้อมูลนี้",
+      "loadFailed": "ไม่สามารถโหลดข้อมูลได้",
+      "saveSuccess": "บันทึกสำเร็จ",
+      "saveFailed": "บันทึกไม่สำเร็จ",
+      "deleteConfirm": "คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?",
+      "deleteSuccess": "ลบสำเร็จ",
+      "deleteFailed": "ลบไม่สำเร็จ",
+      "networkError": "เกิดข้อผิดพลาดเครือข่าย กรุณาลองใหม่อีกครั้ง"
+    }
+  },
+  "nav": {
+    "dashboard": "แดชบอร์ด",
+    "sectionInbound": "รับสินค้าเข้า",
+    "receiving": "รับสินค้า",
+    "qualityCheck": "ตรวจสอบคุณภาพ",
+    "putaway": "จัดเก็บสินค้า",
+    "sectionInventory": "คลังสินค้า",
+    "stockInquiry": "ตรวจสอบสต็อก",
+    "stockAdjustment": "ปรับปรุงสต็อก",
+    "checkStock": "ตรวจนับสต็อก",
+    "replenishment": "เติมสินค้า",
+    "sectionOutbound": "ส่งสินค้าออก",
+    "orders": "คำสั่งซื้อ",
+    "picking": "หยิบสินค้า",
+    "shipping": "จัดส่งสินค้า",
+    "sectionAdministration": "การจัดการระบบ",
+    "userManagement": "จัดการผู้ใช้งาน",
+    "roles": "สิทธิ์และบทบาท",
+    "warehouse": "ตั้งค่าคลังสินค้า",
+    "productMaster": "ข้อมูลสินค้าหลัก",
+    "logout": "ออกจากระบบ"
+  },
+  "layout": {
+    "headerTitle": "ระบบจัดการคลังสินค้า",
+    "headerSubtitle": "จัดการการดำเนินงานคลังสินค้าอย่างมีประสิทธิภาพ",
+    "userFallback": "ผู้ใช้งาน",
+    "notifications": {
+      "title": "การแจ้งเตือน",
+      "unread": "ยังไม่อ่าน",
+      "loading": "กำลังโหลด…",
+      "empty": "ไม่มีการแจ้งเตือน"
+    }
+  },
+  "auth": {
+    "login": {
+      "brandTitle": "Smart WMS",
+      "brandSubtitle": "ระบบจัดการคลังสินค้า",
+      "brandDescription": "จัดการการรับสินค้าเข้า การควบคุมสต็อก การหยิบสินค้า การแพ็ค และการจัดส่งสินค้า ผ่านแพลตฟอร์มคลังสินค้าที่ทันสมัย",
+      "signInTitle": "เข้าสู่ระบบ",
+      "signInSubtitle": "เข้าสู่ระบบ Smart WMS",
+      "username": "ชื่อผู้ใช้",
+      "usernamePlaceholder": "กรอกชื่อผู้ใช้",
+      "password": "รหัสผ่าน",
+      "passwordPlaceholder": "กรอกรหัสผ่าน",
+      "rememberMe": "จดจำฉัน",
+      "forgotPassword": "ลืมรหัสผ่าน?",
+      "signIn": "เข้าสู่ระบบ",
+      "signingIn": "กำลังเข้าสู่ระบบ...",
+      "usernameRequired": "กรุณากรอกชื่อผู้ใช้",
+      "passwordRequired": "กรุณากรอกรหัสผ่าน",
+      "loginFailed": "เข้าสู่ระบบไม่สำเร็จ",
+      "copyright": "© 2026 Smart WMS",
+      "language": "ภาษา"
+    }
+  },
+  "dashboard": {
+    "title": "แดชบอร์ด",
+    "subtitle": "ภาพรวมการดำเนินงานคลังสินค้า",
+    "cards": {
+      "pendingReceiving": "รอรับสินค้า",
+      "pendingReceivingNote": "คำสั่งรับสินค้าเข้า",
+      "availableStock": "สต็อกพร้อมใช้งาน",
+      "availableStockNote": "สินค้าในคลัง",
+      "pendingPicking": "รอหยิบสินค้า",
+      "pendingPickingNote": "งานส่งสินค้าออก",
+      "lowStock": "สต็อกต่ำ",
+      "lowStockNote": "ต้องดำเนินการ"
+    },
+    "recentInbound": "กิจกรรมรับสินค้าล่าสุด",
+    "table": {
+      "documentNo": "เลขที่เอกสาร",
+      "vendor": "ผู้จำหน่าย",
+      "status": "สถานะ",
+      "date": "วันที่"
+    },
+    "noRecentInbound": "ไม่มีกิจกรรมรับสินค้าล่าสุด",
+    "quickActions": "การดำเนินการด่วน",
+    "quickAction": {
+      "startReceiving": "เริ่มรับสินค้า",
+      "stockInquiry": "ตรวจสอบสต็อก",
+      "createPickingTask": "สร้างงานหยิบสินค้า",
+      "stockAdjustment": "ปรับปรุงสต็อก"
+    },
+    "loadFailed": "ไม่สามารถโหลดข้อมูลสรุปแดชบอร์ดได้",
+    "status": {
+      "draft": "ฉบับร่าง",
+      "waiting": "รอดำเนินการ",
+      "partiallyReceived": "กำลังรับสินค้า",
+      "completed": "เสร็จสิ้น",
+      "cancelled": "ยกเลิกแล้ว"
+    }
+  },
+  "receiving": {
+    "title": "รับสินค้า",
+    "subtitle": "จัดการใบสั่งซื้อและงานรับสินค้าเข้า",
+    "newButton": "+ รับสินค้าใหม่",
+    "summary": {
+      "waitingReceive": "รอรับสินค้า",
+      "receiving": "กำลังรับสินค้า",
+      "partialReceived": "รับสินค้าบางส่วน",
+      "completed": "เสร็จสิ้น"
+    },
+    "filters": {
+      "searchPlaceholder": "ค้นหาเลขที่เอกสาร, เลขที่อ้างอิง, ผู้จำหน่าย...",
+      "allStatus": "สถานะทั้งหมด",
+      "statusWaiting": "รอดำเนินการ",
+      "statusReceiving": "กำลังรับสินค้า",
+      "statusPartial": "รับสินค้าบางส่วน",
+      "statusCompleted": "เสร็จสิ้น"
+    },
+    "table": {
+      "documentNo": "เลขที่เอกสาร",
+      "asnNo": "เลขที่ ASN",
+      "vendor": "ผู้จำหน่าย",
+      "warehouse": "คลังสินค้า",
+      "expectedDate": "วันที่คาดว่าจะได้รับ",
+      "items": "รายการ",
+      "progress": "ความคืบหน้า",
+      "status": "สถานะ",
+      "action": "การดำเนินการ",
+      "startReceive": "เริ่มรับสินค้า"
+    },
+    "loadingDocuments": "กำลังโหลดเอกสารรับสินค้า…",
+    "noDocuments": "ไม่พบเอกสารรับสินค้า",
+    "detail": {
+      "title": "รายละเอียดการรับสินค้า",
+      "vendor": "ผู้จำหน่าย",
+      "warehouse": "คลังสินค้า",
+      "expectedDate": "วันที่คาดว่าจะได้รับ",
+      "status": "สถานะ",
+      "cancelledAt": "ยกเลิกเมื่อ",
+      "cancelledBy": "ยกเลิกโดย",
+      "cancellationRemark": "หมายเหตุการยกเลิก",
+      "itemsTitle": "รายการสินค้ารับเข้า",
+      "loadingItems": "กำลังโหลดรายการ…",
+      "noLines": "ไม่มีรายการในใบรับสินค้านี้",
+      "receivedOf": "รับแล้ว {received} / {expected}",
+      "expectedQty": "จำนวนที่คาดไว้",
+      "receiveQtyPlaceholder": "จำนวนที่รับ",
+      "selectLocation": "เลือกตำแหน่ง",
+      "fullyReceived": "รับสินค้าครบแล้ว",
+      "confirmButton": "ยืนยันการรับสินค้า",
+      "confirming": "กำลังยืนยัน…",
+      "viewOnlyNote": "สิทธิ์ของคุณสามารถดูใบรับสินค้านี้ได้ แต่ไม่สามารถยืนยันการรับสินค้าได้",
+      "cancelRemarkPlaceholder": "หมายเหตุการยกเลิก (ไม่บังคับ)",
+      "cancelButton": "ยกเลิกใบรับสินค้า"
+    },
+    "messages": {
+      "enterReceiveQty": "กรุณากรอกจำนวนรับสินค้าอย่างน้อยหนึ่งรายการเพื่อยืนยัน",
+      "locationRequired": "ทุกรายการที่ยืนยันต้องมีตำแหน่งจัดเก็บ",
+      "receivingConfirmed": "ยืนยันการรับสินค้าสำเร็จ",
+      "receiptCancelled": "ยกเลิกใบรับสินค้าแล้ว"
+    }
+  },
+  "newReceiving": {
+    "title": "รับสินค้าใหม่",
+    "subtitle": "สร้างเอกสารรับสินค้าเข้าใหม่",
+    "backButton": "กลับไปหน้ารับสินค้า",
+    "documentInfo": "ข้อมูลเอกสาร",
+    "fields": {
+      "receivingType": "ประเภทการรับสินค้า",
+      "referenceNo": "เลขที่อ้างอิง",
+      "referenceNoPlaceholder": "เลขที่ PO / ASN / การโอนย้าย",
+      "receivingDate": "วันที่รับสินค้า",
+      "vendor": "ผู้จำหน่าย",
+      "selectVendor": "เลือกผู้จำหน่าย",
+      "warehouse": "คลังสินค้า",
+      "selectWarehouse": "เลือกคลังสินค้า",
+      "stagingLocation": "ตำแหน่งพักสินค้า",
+      "selectStagingLocation": "เลือกตำแหน่งพักสินค้า",
+      "remark": "หมายเหตุ",
+      "remarkPlaceholder": "กรอกหมายเหตุการรับสินค้า"
+    },
+    "receivingTypeOptions": {
+      "po": "ใบสั่งซื้อ",
+      "asn": "ASN",
+      "return": "สินค้าตีคืนจากลูกค้า",
+      "transfer": "โอนย้ายระหว่างคลัง"
+    },
+    "itemsSection": {
+      "title": "รายการสินค้ารับเข้า",
+      "subtitle": "เพิ่มสินค้าด้วยตนเองหรือสแกนบาร์โค้ด",
+      "addItem": "+ เพิ่มรายการ"
+    },
+    "scan": {
+      "label": "สแกนบาร์โค้ด / SKU",
+      "placeholder": "สแกนบาร์โค้ดหรือกรอก SKU",
+      "qtyPlaceholder": "จำนวน",
+      "selectLocation": "เลือกตำแหน่ง",
+      "addScan": "เพิ่มจากการสแกน",
+      "lookingUp": "กำลังค้นหา…"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "ชื่อสินค้า",
+      "barcode": "บาร์โค้ด",
+      "expectedQty": "จำนวนที่คาดไว้",
+      "receiveQty": "จำนวนที่รับ",
+      "uom": "หน่วย",
+      "lotNo": "เลขที่ล็อต",
+      "expiryDate": "วันหมดอายุ",
+      "location": "ตำแหน่ง",
+      "action": "การดำเนินการ",
+      "remove": "นำออก",
+      "noItems": "ไม่มีรายการรับสินค้า",
+      "skuPlaceholder": "SKU หรือบาร์โค้ด"
+    },
+    "summary": {
+      "title": "สรุปการรับสินค้า",
+      "totalLines": "จำนวนรายการ",
+      "expectedQty": "จำนวนที่คาดไว้",
+      "receiveQty": "จำนวนที่รับ",
+      "variance": "ผลต่าง"
+    },
+    "actions": {
+      "saveDraft": "บันทึกฉบับร่าง",
+      "confirmReceiving": "ยืนยันการรับสินค้า",
+      "submitting": "กำลังส่ง…",
+      "viewOnlyNote": "สิทธิ์ของคุณสามารถบันทึกฉบับร่างได้ แต่ไม่สามารถยืนยันการรับสินค้าได้"
+    },
+    "messages": {
+      "referenceNoRequired": "กรุณากรอกเลขที่อ้างอิง",
+      "vendorRequired": "กรุณาเลือกผู้จำหน่าย",
+      "warehouseRequired": "กรุณาเลือกคลังสินค้า",
+      "stagingLocationRequired": "กรุณาเลือกตำแหน่งพักสินค้า",
+      "atLeastOneItem": "ต้องมีรายการสินค้าอย่างน้อยหนึ่งรายการ",
+      "everyItemMustResolve": "ทุกรายการต้องตรงกับสินค้าที่มีอยู่ — ตรวจสอบคอลัมน์ SKU/บาร์โค้ด",
+      "everyItemMustHaveLocation": "ทุกรายการต้องมีตำแหน่งจัดเก็บ",
+      "enterReceiveQty": "กรุณากรอกจำนวนรับสินค้าอย่างน้อยหนึ่งรายการเพื่อยืนยัน",
+      "noProductFound": "ไม่พบสินค้าสำหรับ SKU/บาร์โค้ด \"{value}\"",
+      "barcodeRequired": "กรุณากรอกบาร์โค้ดหรือ SKU",
+      "draftSaved": "บันทึกฉบับร่างการรับสินค้าสำเร็จ",
+      "receivingConfirmed": "ยืนยันการรับสินค้าสำเร็จ"
+    }
+  },
+  "picking": {
+    "title": "หยิบสินค้า",
+    "subtitle": "จัดการงานหยิบสินค้าออกและยืนยันรายการที่หยิบแล้ว",
+    "newTaskButton": "+ สร้างงานหยิบสินค้าใหม่",
+    "summary": {
+      "pendingPick": "รอหยิบสินค้า",
+      "inProgress": "กำลังดำเนินการ",
+      "completed": "เสร็จสิ้น",
+      "shortPick": "หยิบสินค้าไม่ครบ"
+    },
+    "filters": {
+      "searchPlaceholder": "ค้นหาเลขที่หยิบสินค้า, เลขที่คำสั่งซื้อ, SKU...",
+      "allStatus": "สถานะทั้งหมด",
+      "statusShortPick": "หยิบสินค้าไม่ครบ",
+      "allPriority": "ความสำคัญทั้งหมด"
+    },
+    "priority": {
+      "high": "สูง",
+      "normal": "ปานกลาง",
+      "low": "ต่ำ"
+    },
+    "table": {
+      "pickNo": "เลขที่หยิบสินค้า",
+      "orderNo": "เลขที่คำสั่งซื้อ",
+      "customer": "ลูกค้า",
+      "warehouse": "คลังสินค้า",
+      "priority": "ความสำคัญ",
+      "items": "รายการ",
+      "progress": "ความคืบหน้า",
+      "dueDate": "วันครบกำหนด",
+      "status": "สถานะ",
+      "action": "การดำเนินการ",
+      "startPick": "เริ่มหยิบสินค้า"
+    },
+    "loadingTasks": "กำลังโหลดงานหยิบสินค้า…",
+    "noTasks": "ไม่พบงานหยิบสินค้า",
+    "drawer": {
+      "newTaskTitle": "สร้างงานหยิบสินค้าใหม่",
+      "taskTitle": "งานหยิบสินค้า",
+      "orderNo": "เลขที่คำสั่งซื้อ",
+      "orderNoPlaceholder": "SO-20260608-005",
+      "customer": "ลูกค้า",
+      "customerPlaceholder": "ชื่อลูกค้า",
+      "warehouse": "คลังสินค้า",
+      "selectWarehouse": "เลือกคลังสินค้า",
+      "priority": "ความสำคัญ",
+      "dueDate": "วันครบกำหนด",
+      "cancelledAt": "ยกเลิกเมื่อ",
+      "cancelledBy": "ยกเลิกโดย",
+      "cancellationRemark": "หมายเหตุการยกเลิก",
+      "addItemTitle": "เพิ่มรายการ",
+      "skuBarcodePlaceholder": "SKU / บาร์โค้ด",
+      "locationOption": "ตำแหน่ง",
+      "lotNoOptionalPlaceholder": "เลขที่ล็อต (ไม่บังคับ)",
+      "orderQtyPlaceholder": "จำนวนสั่ง",
+      "addItem": "+ เพิ่มรายการ",
+      "itemsTitle": "รายการหยิบสินค้า",
+      "noItemsYet": "ยังไม่มีรายการที่เพิ่ม",
+      "locationPrefix": "ตำแหน่ง: {location}",
+      "order": "สั่ง",
+      "picked": "หยิบแล้ว",
+      "remain": "คงเหลือ",
+      "remove": "นำออก",
+      "lineResolved": "รายการนี้ได้รับการดำเนินการแล้ว ({status})",
+      "pickQtyPlaceholder": "จำนวนที่หยิบ",
+      "confirmPick": "ยืนยันการหยิบ",
+      "shortPick": "หยิบไม่ครบ",
+      "remarkPlaceholder": "หมายเหตุ (จำเป็นสำหรับการหยิบไม่ครบ)",
+      "viewOnlyNote": "สิทธิ์ของคุณสามารถดูงานนี้ได้ แต่ไม่สามารถยืนยันการหยิบสินค้าได้",
+      "cancelledNote": "งานนี้ถูกยกเลิกแล้ว",
+      "saveTask": "บันทึกงานหยิบสินค้า",
+      "saving": "กำลังบันทึก…",
+      "cancelRemarkPlaceholder": "หมายเหตุการยกเลิก (ไม่บังคับ)",
+      "cancelTask": "ยกเลิกงาน",
+      "close": "ปิด"
+    },
+    "itemStatus": {
+      "pending": "รอดำเนินการ",
+      "partiallyPicked": "หยิบบางส่วน",
+      "completed": "เสร็จสิ้น",
+      "short": "ไม่ครบ"
+    },
+    "messages": {
+      "skuBarcodeRequired": "กรุณากรอก SKU / บาร์โค้ด",
+      "locationRequired": "กรุณาเลือกตำแหน่ง",
+      "orderQtyPositive": "จำนวนสั่งต้องมากกว่าศูนย์",
+      "noProductFound": "ไม่พบสินค้าสำหรับ SKU/บาร์โค้ด \"{value}\"",
+      "orderNoRequired": "กรุณากรอกเลขที่คำสั่งซื้อ",
+      "warehouseRequired": "กรุณาเลือกคลังสินค้า",
+      "atLeastOneItem": "ต้องมีรายการสินค้าอย่างน้อยหนึ่งรายการ",
+      "taskCreated": "สร้างงานหยิบสินค้าสำเร็จ",
+      "pickQtyPositive": "จำนวนที่หยิบต้องมากกว่าศูนย์",
+      "pickQtyExceedsRemaining": "จำนวนที่หยิบต้องไม่เกินจำนวนที่คงเหลือ",
+      "remarkRequiredForShortPick": "กรุณากรอกหมายเหตุเพื่อรายงานการหยิบไม่ครบ"
+    }
+  },
+  "shipping": {
+    "title": "จัดส่งสินค้า",
+    "subtitle": "จัดการคำสั่งซื้อที่แพ็คแล้ว การยืนยันการจัดส่ง และการนำส่งสินค้า",
+    "newShipmentButton": "+ สร้างการจัดส่งใหม่",
+    "summary": {
+      "readyToShip": "พร้อมจัดส่ง",
+      "inTransit": "กำลังจัดส่ง",
+      "delivered": "จัดส่งสำเร็จ",
+      "deliveryIssues": "ปัญหาการจัดส่ง"
+    },
+    "filters": {
+      "searchPlaceholder": "ค้นหาเลขที่จัดส่ง, เลขที่คำสั่งซื้อ, ลูกค้า...",
+      "allStatus": "สถานะทั้งหมด",
+      "statusReady": "พร้อมจัดส่ง",
+      "statusDispatched": "นำส่งแล้ว",
+      "statusInTransit": "กำลังจัดส่ง",
+      "statusDelivered": "จัดส่งสำเร็จ",
+      "statusIssue": "มีปัญหา",
+      "allCarriers": "ผู้ให้บริการขนส่งทั้งหมด"
+    },
+    "table": {
+      "shipmentNo": "เลขที่จัดส่ง",
+      "orderNo": "เลขที่คำสั่งซื้อ",
+      "customer": "ลูกค้า",
+      "carrier": "ผู้ให้บริการขนส่ง",
+      "trackingNo": "เลขที่ติดตามพัสดุ",
+      "packages": "จำนวนพัสดุ",
+      "weight": "น้ำหนัก",
+      "shipDate": "วันที่จัดส่ง",
+      "status": "สถานะ",
+      "action": "การดำเนินการ",
+      "manage": "จัดการ"
+    },
+    "loadingShipments": "กำลังโหลดรายการจัดส่ง…",
+    "noShipments": "ไม่พบรายการจัดส่ง",
+    "drawer": {
+      "newShipmentTitle": "สร้างการจัดส่งใหม่",
+      "detailTitle": "รายละเอียดการจัดส่ง",
+      "sourcePickingTask": "งานหยิบสินค้าต้นทาง",
+      "selectSourceTask": "เลือกงานหยิบสินค้าที่เสร็จสิ้นแล้ว",
+      "itemCountSuffix": "({count} รายการ)",
+      "noSourceTasks": "ไม่มีงานหยิบสินค้าที่เสร็จสิ้นแล้วรอการจัดส่ง",
+      "customer": "ลูกค้า",
+      "carrierLabel": "ผู้ให้บริการขนส่ง",
+      "packages": "จำนวนพัสดุ",
+      "totalWeight": "น้ำหนักรวม",
+      "cancelledAt": "ยกเลิกเมื่อ",
+      "cancelledBy": "ยกเลิกโดย",
+      "cancellationRemark": "หมายเหตุการยกเลิก",
+      "selectCarrier": "เลือกผู้ให้บริการขนส่ง",
+      "trackingNo": "เลขที่ติดตามพัสดุ",
+      "trackingNoPlaceholder": "กรอกเลขที่ติดตามพัสดุ",
+      "packageCount": "จำนวนพัสดุ",
+      "packagesPlaceholder": "จำนวนพัสดุ",
+      "totalWeightField": "น้ำหนักรวม",
+      "weightPlaceholder": "น้ำหนัก",
+      "shipDate": "วันที่จัดส่ง",
+      "deliveryAddress": "ที่อยู่จัดส่ง",
+      "addressPlaceholder": "กรอกที่อยู่จัดส่ง",
+      "remark": "หมายเหตุ",
+      "remarkPlaceholder": "กรอกหมายเหตุ",
+      "saveShipment": "บันทึกการจัดส่ง",
+      "saveChanges": "บันทึกการเปลี่ยนแปลง",
+      "saving": "กำลังบันทึก…",
+      "packageItemsTitle": "รายการพัสดุ",
+      "noItemsOnShipment": "ไม่มีรายการในการจัดส่งนี้",
+      "qty": "จำนวน",
+      "confirmDispatch": "ยืนยันการนำส่ง",
+      "markDelivered": "บันทึกว่าจัดส่งสำเร็จ",
+      "reportIssue": "รายงานปัญหา",
+      "viewOnlyNote": "สิทธิ์ของคุณสามารถดูการจัดส่งนี้ได้ แต่ไม่สามารถยืนยันการนำส่ง การจัดส่งสำเร็จ หรือปัญหาได้",
+      "cancelRemarkPlaceholder": "หมายเหตุการยกเลิก (ไม่บังคับ)",
+      "cancelShipment": "ยกเลิกการจัดส่ง"
+    },
+    "statusLabels": {
+      "readyToShip": "พร้อมจัดส่ง",
+      "inTransit": "กำลังจัดส่ง",
+      "delivered": "จัดส่งสำเร็จ",
+      "issue": "มีปัญหา"
+    },
+    "messages": {
+      "selectSourceRequired": "กรุณาเลือกงานหยิบสินค้าต้นทาง",
+      "shipmentCreated": "สร้างการจัดส่งสำเร็จ",
+      "remarkRequiredForIssue": "กรุณากรอกหมายเหตุเพื่อรายงานปัญหา",
+      "dispatchedSuccess": "นำส่งสินค้าสำเร็จ",
+      "deliveredSuccess": "บันทึกการจัดส่งสำเร็จแล้ว",
+      "issueReported": "รายงานปัญหาการจัดส่งแล้ว",
+      "shipmentCancelled": "ยกเลิกการจัดส่งแล้ว"
+    }
+  },
+  "qualityCheck": {
+    "title": "ตรวจสอบคุณภาพ",
+    "subtitle": "ตรวจสอบสินค้าที่รับเข้าก่อนนำไปจัดเก็บ",
+    "newButton": "+ สร้างงานตรวจสอบคุณภาพ",
+    "summary": {
+      "pendingQc": "รอตรวจสอบ",
+      "passed": "ผ่านการตรวจสอบ",
+      "rejected": "ถูกปฏิเสธ"
+    },
+    "filters": {
+      "searchPlaceholder": "ค้นหาเลขที่ QC, PO, SKU...",
+      "allStatus": "สถานะทั้งหมด",
+      "allResult": "ผลตรวจทั้งหมด"
+    },
+    "table": {
+      "qcNo": "เลขที่ QC",
+      "poNo": "เลขที่ PO",
+      "sku": "SKU",
+      "productName": "ชื่อสินค้า",
+      "receivedQty": "จำนวนที่รับ",
+      "sampleQty": "จำนวนตัวอย่าง",
+      "defectQty": "จำนวนของเสีย",
+      "result": "ผลตรวจ",
+      "action": "การดำเนินการ",
+      "inspect": "ตรวจสอบ"
+    },
+    "drawer": {
+      "title": "การตรวจสอบคุณภาพ",
+      "product": "สินค้า",
+      "lotNo": "เลขที่ล็อต",
+      "sampleQtyPlaceholder": "กรอกจำนวนตัวอย่าง",
+      "defectQtyPlaceholder": "กรอกจำนวนของเสีย",
+      "inspectionResult": "ผลการตรวจสอบ",
+      "selectResult": "เลือกผลตรวจ",
+      "defectReason": "สาเหตุของเสีย",
+      "remarkPlaceholder": "กรอกหมายเหตุการตรวจสอบ",
+      "pass": "ผ่าน",
+      "hold": "พักไว้",
+      "reject": "ปฏิเสธ"
+    },
+    "defectReasons": {
+      "none": "ไม่มี",
+      "damaged": "เสียหาย",
+      "wrongItem": "สินค้าผิด",
+      "expired": "หมดอายุ",
+      "shortage": "จำนวนขาด",
+      "packagingIssue": "บรรจุภัณฑ์มีปัญหา"
+    },
+    "results": {
+      "pass": "ผ่าน",
+      "fail": "ไม่ผ่าน",
+      "hold": "พักไว้",
+      "waiting": "รอตรวจสอบ"
+    },
+    "statusLabels": {
+      "pending": "รอดำเนินการ",
+      "inProgress": "กำลังดำเนินการ",
+      "passed": "ผ่านการตรวจสอบ",
+      "rejected": "ถูกปฏิเสธ"
+    },
+    "messages": {
+      "sampleQtyRequired": "กรุณากรอกจำนวนตัวอย่าง",
+      "defectReasonRequired": "กรุณาเลือกสาเหตุของเสีย",
+      "qcSaved": "บันทึกผลตรวจ QC {result} สำเร็จ"
+    }
+  },
+  "putaway": {
+    "title": "จัดเก็บสินค้า",
+    "subtitle": "เคลื่อนย้ายสินค้าที่ตรวจสอบแล้วจากพื้นที่พักสินค้าไปยังตำแหน่งจัดเก็บ",
+    "newButton": "+ สร้างงานจัดเก็บสินค้า",
+    "summary": {
+      "pendingPutaway": "รอจัดเก็บ",
+      "locationIssues": "ปัญหาตำแหน่งจัดเก็บ"
+    },
+    "filters": {
+      "searchPlaceholder": "ค้นหางาน, SKU, ตำแหน่ง...",
+      "allStatus": "สถานะทั้งหมด",
+      "allZones": "โซนทั้งหมด"
+    },
+    "table": {
+      "taskNo": "เลขที่งาน",
+      "receivingNo": "เลขที่รับสินค้า",
+      "sku": "SKU",
+      "product": "สินค้า",
+      "qty": "จำนวน",
+      "fromLocation": "ตำแหน่งต้นทาง",
+      "suggestedBin": "ตำแหน่งที่แนะนำ",
+      "actualBin": "ตำแหน่งจริง",
+      "action": "การดำเนินการ",
+      "putawayAction": "จัดเก็บสินค้า"
+    },
+    "loadingTasks": "กำลังโหลดงานจัดเก็บสินค้า…",
+    "noTasks": "ไม่พบงานจัดเก็บสินค้า",
+    "statusLabels": {
+      "issue": "มีปัญหา"
+    },
+    "drawer": {
+      "title": "งานจัดเก็บสินค้า",
+      "product": "สินค้า",
+      "quantity": "จำนวน",
+      "cancelledAt": "ยกเลิกเมื่อ",
+      "cancelledBy": "ยกเลิกโดย",
+      "cancellationRemark": "หมายเหตุการยกเลิก",
+      "alreadyResolved": "รายการนี้ได้รับการดำเนินการแล้ว ({status})",
+      "terminalMessage": "งานจัดเก็บสินค้านี้มีสถานะ {status} และไม่สามารถดำเนินการต่อได้",
+      "terminalCancelled": "งานจัดเก็บสินค้านี้ถูกยกเลิกแล้ว ไม่สามารถดำเนินการเพิ่มเติมได้",
+      "scanSkuBarcode": "สแกน SKU / บาร์โค้ด",
+      "scanSkuPlaceholder": "สแกนหรือกรอกบาร์โค้ด",
+      "actualBinLocation": "ตำแหน่งจัดเก็บจริง",
+      "actualBinPlaceholder": "สแกนหรือกรอกตำแหน่งจัดเก็บ",
+      "putawayQty": "จำนวนที่จัดเก็บ",
+      "putawayQtyPlaceholder": "กรอกจำนวนที่จัดเก็บ",
+      "remarkPlaceholder": "กรอกหมายเหตุ",
+      "confirmButton": "ยืนยันการจัดเก็บ",
+      "reportIssue": "รายงานปัญหา",
+      "viewOnlyNote": "สิทธิ์ของคุณสามารถดูงานนี้ได้ แต่ไม่สามารถยืนยันการจัดเก็บได้",
+      "cancelRemarkPlaceholder": "หมายเหตุการยกเลิก (ไม่บังคับ)",
+      "cancelButton": "ยกเลิกงานจัดเก็บสินค้า"
+    },
+    "messages": {
+      "barcodeRequired": "กรุณากรอกบาร์โค้ด",
+      "actualBinRequired": "กรุณากรอกตำแหน่งจัดเก็บจริง",
+      "putawayQtyRequired": "กรุณากรอกจำนวนที่จัดเก็บ",
+      "noLocationFound": "ไม่พบตำแหน่งสำหรับรหัสตำแหน่ง \"{value}\"",
+      "remarkRequiredForIssue": "กรุณากรอกหมายเหตุเพื่อรายงานปัญหา",
+      "issueReported": "รายงานปัญหาการจัดเก็บสินค้าแล้ว",
+      "putawayConfirmed": "ยืนยันการจัดเก็บสินค้าสำเร็จ",
+      "taskCancelled": "ยกเลิกงานจัดเก็บสินค้าแล้ว"
+    }
+  },
+  "newQualityCheck": {
+    "title": "สร้างการตรวจสอบคุณภาพใหม่",
+    "subtitle": "สร้างบันทึกการตรวจสอบสำหรับสินค้าที่รับเข้าก่อนนำไปจัดเก็บ",
+    "backButton": "กลับไปหน้ารายการ QC",
+    "documentInfo": "ข้อมูลเอกสาร QC",
+    "fields": {
+      "receivingNo": "เลขที่รับสินค้า",
+      "selectReceivingDoc": "เลือกเอกสารรับสินค้า",
+      "qcDate": "วันที่ตรวจสอบ",
+      "inspector": "ผู้ตรวจสอบ",
+      "inspectorPlaceholder": "ชื่อผู้ตรวจสอบ",
+      "warehouse": "คลังสินค้า",
+      "selectWarehouse": "เลือกคลังสินค้า",
+      "qcType": "ประเภทการตรวจสอบ",
+      "overallResult": "ผลตรวจสอบโดยรวม",
+      "remarkPlaceholder": "กรอกหมายเหตุ QC"
+    },
+    "qcTypeOptions": {
+      "normal": "ตรวจสอบทั่วไป",
+      "full": "ตรวจสอบทั้งหมด",
+      "random": "สุ่มตรวจสอบ",
+      "damage": "ตรวจสอบความเสียหาย"
+    },
+    "resultOptions": {
+      "pass": "ผ่าน",
+      "hold": "พักไว้",
+      "fail": "ไม่ผ่าน"
+    },
+    "scan": {
+      "label": "สแกน SKU / บาร์โค้ด",
+      "placeholder": "สแกนบาร์โค้ดหรือ SKU",
+      "sampleQtyPlaceholder": "จำนวนตัวอย่าง",
+      "defectQtyPlaceholder": "จำนวนของเสีย",
+      "addQc": "เพิ่มรายการ QC"
+    },
+    "itemsSection": {
+      "title": "รายการตรวจสอบคุณภาพ",
+      "subtitle": "ตรวจสอบสินค้าที่รับเข้าตาม SKU ล็อต และจำนวนตัวอย่าง",
+      "addItem": "+ เพิ่มรายการ"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "ชื่อสินค้า",
+      "lotNo": "เลขที่ล็อต",
+      "receivedQty": "จำนวนที่รับ",
+      "sampleQty": "จำนวนตัวอย่าง",
+      "defectQty": "จำนวนของเสีย",
+      "defectReason": "สาเหตุของเสีย",
+      "result": "ผลตรวจ",
+      "action": "การดำเนินการ",
+      "noItems": "ไม่มีรายการตรวจสอบคุณภาพ"
+    },
+    "defectReasonOptions": {
+      "none": "ไม่มี",
+      "damaged": "เสียหาย",
+      "wrongItem": "สินค้าผิด",
+      "expired": "หมดอายุ",
+      "shortage": "จำนวนขาด",
+      "packagingIssue": "บรรจุภัณฑ์มีปัญหา"
+    },
+    "summary": {
+      "title": "สรุปผลตรวจสอบคุณภาพ",
+      "totalLines": "จำนวนรายการ",
+      "sampleQty": "จำนวนตัวอย่าง",
+      "defectQty": "จำนวนของเสีย",
+      "passRate": "อัตราการผ่าน"
+    },
+    "actions": {
+      "confirmQc": "ยืนยัน QC"
+    },
+    "messages": {
+      "barcodeRequired": "กรุณากรอกบาร์โค้ดหรือ SKU",
+      "draftSaved": "บันทึกฉบับร่าง QC สำเร็จ",
+      "receivingNoRequired": "กรุณาเลือกเลขที่รับสินค้า",
+      "warehouseRequired": "กรุณาเลือกคลังสินค้า",
+      "atLeastOneItem": "ต้องมีรายการตรวจสอบคุณภาพอย่างน้อยหนึ่งรายการ",
+      "defectReasonRequiredForFail": "กรุณาเลือกสาเหตุของเสียสำหรับรายการที่ไม่ผ่าน",
+      "qcConfirmed": "ยืนยันผลตรวจสอบคุณภาพสำเร็จ"
+    }
+  },
+  "newPutaway": {
+    "title": "สร้างงานจัดเก็บสินค้าใหม่",
+    "subtitle": "เคลื่อนย้ายสินค้าที่ผ่าน QC จากพื้นที่พักสินค้าไปยังตำแหน่งจัดเก็บ",
+    "backButton": "กลับไปหน้าจัดเก็บสินค้า",
+    "taskInfo": "ข้อมูลงาน",
+    "fields": {
+      "sourceDocument": "เอกสารต้นทาง",
+      "selectSourceDoc": "เลือกเอกสารต้นทาง",
+      "putawayDate": "วันที่จัดเก็บ",
+      "assignedTo": "ผู้รับผิดชอบ",
+      "assignedToPlaceholder": "เจ้าหน้าที่คลังสินค้า",
+      "warehouse": "คลังสินค้า",
+      "selectWarehouse": "เลือกคลังสินค้า",
+      "fromLocation": "ตำแหน่งต้นทาง",
+      "selectStagingLocation": "เลือกตำแหน่งพักสินค้า",
+      "priority": "ความสำคัญ",
+      "remarkPlaceholder": "กรอกหมายเหตุงาน"
+    },
+    "priorityOptions": {
+      "normal": "ปกติ",
+      "high": "สูง",
+      "low": "ต่ำ"
+    },
+    "scan": {
+      "title": "สแกนจัดเก็บสินค้า",
+      "subtitle": "สแกน SKU และตำแหน่งจัดเก็บจริงเพื่อยืนยันการเคลื่อนย้าย",
+      "scannerReady": "เครื่องสแกนพร้อมใช้งาน",
+      "lookingUp": "กำลังค้นหา…",
+      "skuPlaceholder": "สแกน SKU / บาร์โค้ด",
+      "actualBinPlaceholder": "สแกนตำแหน่งจัดเก็บจริง (รหัสตำแหน่ง)",
+      "qtyPlaceholder": "จำนวน",
+      "confirmScan": "ยืนยันการสแกน",
+      "reportedByScanRemark": "รายงานโดยการสแกน"
+    },
+    "scanStatusOptions": {
+      "confirmed": "ยืนยันแล้ว",
+      "issue": "มีปัญหา"
+    },
+    "itemsSection": {
+      "title": "รายการจัดเก็บสินค้า",
+      "subtitle": "ตรวจสอบตำแหน่งต้นทาง ตำแหน่งที่แนะนำ และตำแหน่งจริงก่อนยืนยัน",
+      "addItem": "+ เพิ่มรายการ"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "ชื่อสินค้า",
+      "lotNo": "เลขที่ล็อต",
+      "fromLocation": "ตำแหน่งต้นทาง",
+      "suggestedBin": "ตำแหน่งที่แนะนำ",
+      "actualBin": "ตำแหน่งจริง",
+      "qty": "จำนวน",
+      "uom": "หน่วย",
+      "action": "การดำเนินการ",
+      "noItems": "ไม่มีรายการจัดเก็บสินค้า",
+      "skuPlaceholder": "SKU หรือบาร์โค้ด",
+      "selectLocation": "เลือกตำแหน่ง",
+      "selectBin": "เลือกตำแหน่งจัดเก็บ",
+      "remarkPlaceholder": "หมายเหตุ"
+    },
+    "itemStatusOptions": {
+      "pending": "รอดำเนินการ",
+      "confirmed": "ยืนยันแล้ว",
+      "issue": "มีปัญหา"
+    },
+    "summary": {
+      "title": "สรุปการจัดเก็บสินค้า",
+      "totalLines": "จำนวนรายการ",
+      "totalQty": "จำนวนรวม",
+      "confirmedLines": "รายการที่ยืนยันแล้ว",
+      "issueLines": "รายการที่มีปัญหา"
+    },
+    "actions": {
+      "confirmPutaway": "ยืนยันการจัดเก็บ",
+      "viewOnlyNote": "สิทธิ์ของคุณสามารถบันทึกฉบับร่างได้ แต่ไม่สามารถยืนยันการจัดเก็บได้"
+    },
+    "messages": {
+      "noProductFound": "ไม่พบสินค้าสำหรับ SKU/บาร์โค้ด \"{value}\"",
+      "skuRequired": "กรุณากรอก SKU หรือบาร์โค้ด",
+      "actualBinRequiredScan": "กรุณากรอกตำแหน่งจัดเก็บจริง",
+      "noLocationFound": "ไม่พบตำแหน่งสำหรับรหัสตำแหน่ง \"{value}\"",
+      "warehouseRequired": "กรุณาเลือกคลังสินค้า",
+      "atLeastOneItem": "ต้องมีรายการจัดเก็บสินค้าอย่างน้อยหนึ่งรายการ",
+      "everyItemMustResolve": "ทุกรายการต้องตรงกับสินค้าที่มีอยู่ — ตรวจสอบคอลัมน์ SKU/บาร์โค้ด",
+      "everyItemMustHaveFromLocation": "ทุกรายการต้องมีตำแหน่งต้นทาง",
+      "everyItemNeedsActualBin": "ทุกรายการต้องมีตำแหน่งจัดเก็บจริง",
+      "fromAndActualMustDiffer": "ตำแหน่งต้นทางและตำแหน่งจัดเก็บจริงต้องไม่ซ้ำกัน",
+      "everyItemNeedsQtyGreaterThanZero": "ทุกรายการต้องมีจำนวนมากกว่าศูนย์",
+      "everyIssueNeedsRemark": "ทุกรายการที่มีปัญหาต้องมีหมายเหตุ",
+      "setAtLeastOneItemAction": "กรุณาตั้งค่าอย่างน้อยหนึ่งรายการเป็นยืนยันแล้วหรือมีปัญหาก่อนยืนยันการจัดเก็บ",
+      "draftSaved": "บันทึกฉบับร่างการจัดเก็บสินค้าสำเร็จ",
+      "putawayConfirmed": "ยืนยันการจัดเก็บสินค้าสำเร็จ"
+    }
+  },
+  "orders": {
+    "title": "คำสั่งซื้อ",
+    "subtitle": "รับคำสั่งซื้อ — ส่งต่อไปยังงานหยิบสินค้าเมื่อกำหนดตำแหน่ง/ล็อตแล้ว",
+    "newButton": "+ สร้างคำสั่งซื้อใหม่",
+    "filters": {
+      "searchPlaceholder": "ค้นหาเลขที่คำสั่งซื้อ, เลขที่อ้างอิง, ลูกค้า...",
+      "allStatus": "สถานะทั้งหมด",
+      "allWarehouses": "คลังสินค้าทั้งหมด"
+    },
+    "table": {
+      "orderNo": "เลขที่คำสั่งซื้อ",
+      "externalRef": "เลขที่อ้างอิง",
+      "customer": "ลูกค้า",
+      "items": "รายการ",
+      "fulfillment": "สถานะการจัดส่ง",
+      "createdAt": "สร้างเมื่อ",
+      "action": "การดำเนินการ"
+    },
+    "loadingOrders": "กำลังโหลดคำสั่งซื้อ…",
+    "noOrders": "ไม่พบคำสั่งซื้อ",
+    "form": {
+      "editTitle": "แก้ไขคำสั่งซื้อ",
+      "newTitle": "คำสั่งซื้อใหม่",
+      "selectWarehouse": "เลือกคลังสินค้า",
+      "customerPlaceholder": "ลูกค้า (ไม่บังคับ)",
+      "externalReferencePlaceholder": "เลขที่อ้างอิง (ไม่บังคับ)",
+      "remarkPlaceholder": "หมายเหตุ (ไม่บังคับ)",
+      "itemsTitle": "รายการสินค้า",
+      "skuPlaceholder": "SKU สินค้า",
+      "qtyPlaceholder": "จำนวน",
+      "addItem": "เพิ่มรายการ",
+      "tableSku": "SKU",
+      "tableProduct": "สินค้า",
+      "tableQty": "จำนวน",
+      "noItemsYet": "ยังไม่มีรายการสินค้า",
+      "saveChanges": "บันทึกการเปลี่ยนแปลง",
+      "createOrder": "สร้างคำสั่งซื้อ",
+      "saving": "กำลังบันทึก…"
+    },
+    "detail": {
+      "statusLabel": "สถานะ",
+      "fulfillmentLabel": "สถานะการจัดส่ง",
+      "customerLabel": "ลูกค้า",
+      "externalRefLabel": "เลขที่อ้างอิง",
+      "warehouseLabel": "คลังสินค้า",
+      "pickingTaskLabel": "งานหยิบสินค้า",
+      "remarkLabel": "หมายเหตุ",
+      "cancelRemarkLabel": "หมายเหตุการยกเลิก",
+      "createdByLabel": "สร้างโดย",
+      "itemsTitle": "รายการสินค้า",
+      "tableSku": "SKU",
+      "tableProduct": "สินค้า",
+      "tableQty": "จำนวน",
+      "tableUom": "หน่วย",
+      "createPickingTask": "สร้างงานหยิบสินค้า",
+      "cancelRemarkPlaceholder": "หมายเหตุการยกเลิก (ไม่บังคับ)",
+      "cancelOrder": "ยกเลิกคำสั่งซื้อ",
+      "pickingTaskNote": "มีการสร้างงานหยิบสินค้าสำหรับคำสั่งซื้อนี้แล้ว — หากต้องการยกเลิกให้ดำเนินการที่หน้าหยิบสินค้าโดยตรง"
+    },
+    "release": {
+      "title": "สร้างงานหยิบสินค้า — {orderNo}",
+      "priorityNormal": "ความสำคัญ: ปกติ",
+      "priorityLow": "ความสำคัญ: ต่ำ",
+      "priorityHigh": "ความสำคัญ: สูง",
+      "assignLocationTitle": "กำหนดตำแหน่ง/ล็อตให้แต่ละรายการ",
+      "selectLocation": "เลือกตำแหน่ง",
+      "lotNoPlaceholder": "เลขที่ล็อต (ไม่บังคับ)",
+      "creating": "กำลังสร้าง…"
+    },
+    "messages": {
+      "loadWarehousesFailed": "ไม่สามารถโหลดข้อมูลคลังสินค้าได้",
+      "loadOrdersFailed": "ไม่สามารถโหลดข้อมูลคำสั่งซื้อได้",
+      "skuQtyRequired": "กรุณากรอก SKU และจำนวนเพื่อเพิ่มรายการ",
+      "noProductFound": "ไม่พบสินค้าสำหรับ SKU/บาร์โค้ด \"{value}\"",
+      "warehouseRequired": "กรุณาเลือกคลังสินค้า",
+      "atLeastOneItem": "ต้องมีรายการสินค้าอย่างน้อยหนึ่งรายการ",
+      "saveOrderFailed": "ไม่สามารถบันทึกคำสั่งซื้อได้",
+      "loadOrderDetailFailed": "ไม่สามารถโหลดรายละเอียดคำสั่งซื้อได้",
+      "loadLocationsFailed": "ไม่สามารถโหลดตำแหน่งได้",
+      "lineNeedsLocation": "ทุกรายการต้องกำหนดตำแหน่ง",
+      "createPickingTaskFailed": "ไม่สามารถสร้างงานหยิบสินค้าได้",
+      "lookupProductFailed": "ไม่สามารถค้นหาสินค้าได้"
+    },
+    "statusLabels": {
+      "pending": "รอดำเนินการ",
+      "picking": "หยิบสินค้า",
+      "pickingCancelled": "ยกเลิกการหยิบสินค้า",
+      "picked": "หยิบสินค้าแล้ว",
+      "shipping": "จัดส่งสินค้า",
+      "shipIssue": "มีปัญหา",
+      "delivered": "จัดส่งสำเร็จ",
+      "cancelled": "ยกเลิกแล้ว"
+    }
+  },
+  "userManagement": {
+    "title": "จัดการผู้ใช้งาน",
+    "subtitle": "จัดการผู้ใช้งานระบบ บทบาท และสิทธิ์การเข้าถึงคลังสินค้า",
+    "newUserButton": "+ ผู้ใช้งานใหม่",
+    "filters": {
+      "searchPlaceholder": "ค้นหาผู้ใช้, อีเมล, บทบาท...",
+      "allRoles": "บทบาททั้งหมด",
+      "allStatus": "สถานะทั้งหมด"
+    },
+    "status": {
+      "locked": "ถูกล็อก"
+    },
+    "table": {
+      "user": "ผู้ใช้งาน",
+      "email": "อีเมล",
+      "role": "บทบาท",
+      "warehouse": "คลังสินค้า",
+      "lastLogin": "เข้าสู่ระบบล่าสุด",
+      "status": "สถานะ",
+      "action": "การดำเนินการ"
+    },
+    "loadingUsers": "กำลังโหลดผู้ใช้งาน...",
+    "noUsers": "ไม่พบผู้ใช้งาน",
+    "drawer": {
+      "editTitle": "แก้ไขผู้ใช้งาน",
+      "newTitle": "ผู้ใช้งานใหม่",
+      "subtitle": "ข้อมูลผู้ใช้งานและการควบคุมการเข้าถึง"
+    },
+    "fields": {
+      "fullName": "ชื่อ-นามสกุล",
+      "fullNamePlaceholder": "กรอกชื่อ-นามสกุล",
+      "email": "อีเมล",
+      "emailPlaceholder": "กรอกอีเมล",
+      "username": "ชื่อผู้ใช้",
+      "usernamePlaceholder": "กรอกชื่อผู้ใช้",
+      "password": "รหัสผ่าน",
+      "passwordPlaceholder": "ตั้งรหัสผ่านเริ่มต้น (อย่างน้อย 8 ตัวอักษร)",
+      "role": "บทบาท",
+      "selectRole": "เลือกบทบาท",
+      "warehouse": "คลังสินค้า",
+      "unassigned": "ไม่ได้กำหนด (-)",
+      "status": "สถานะ"
+    },
+    "saveButton": "บันทึกผู้ใช้งาน",
+    "saving": "กำลังบันทึก...",
+    "messages": {
+      "loadRolesFailed": "ไม่สามารถโหลดบทบาทได้",
+      "loadWarehousesFailed": "ไม่สามารถโหลดคลังสินค้าได้",
+      "loadUsersFailed": "ไม่สามารถโหลดผู้ใช้งานได้",
+      "saveFailed": "ไม่สามารถบันทึกผู้ใช้งานได้",
+      "neverLoggedIn": "ยังไม่เคยเข้าสู่ระบบ"
+    }
+  },
+  "rolePermission": {
+    "title": "สิทธิ์และบทบาท",
+    "subtitle": "จัดการการควบคุมสิทธิ์การเข้าถึงตามบทบาทสำหรับการดำเนินงานคลังสินค้า",
+    "newRoleButton": "+ บทบาทใหม่",
+    "searchPlaceholder": "ค้นหาบทบาท...",
+    "savePermissionsButton": "บันทึกสิทธิ์",
+    "saving": "กำลังบันทึก...",
+    "fields": {
+      "roleName": "ชื่อบทบาท",
+      "roleCode": "โค้ดบทบาท",
+      "status": "สถานะ",
+      "description": "คำอธิบาย"
+    },
+    "newRoleDefaults": {
+      "name": "บทบาทใหม่"
+    },
+    "warehouseAccess": {
+      "title": "สิทธิ์การเข้าถึงคลังสินค้า",
+      "loading": "กำลังโหลดคลังสินค้า...",
+      "noWarehouses": "ไม่พบคลังสินค้าที่เปิดใช้งาน"
+    },
+    "permissionMatrix": {
+      "title": "ตารางสิทธิ์การเข้าถึง",
+      "checkAll": "เลือกทั้งหมด",
+      "uncheckAll": "ยกเลิกทั้งหมด",
+      "moduleColumn": "โมดูล"
+    },
+    "actions": {
+      "view": "ดู",
+      "create": "สร้าง",
+      "edit": "แก้ไข",
+      "delete": "ลบ",
+      "approve": "อนุมัติ",
+      "export": "ส่งออก"
+    },
+    "modules": {
+      "dashboard": "แดชบอร์ด",
+      "receiving": "รับสินค้า",
+      "qualityCheck": "ตรวจสอบคุณภาพ",
+      "putaway": "จัดเก็บสินค้า",
+      "stockInquiry": "ตรวจสอบสต็อก",
+      "stockAdjustment": "ปรับปรุงสต็อก",
+      "order": "จัดการคำสั่งซื้อ",
+      "picking": "หยิบสินค้า",
+      "shipping": "จัดส่งสินค้า",
+      "users": "จัดการผู้ใช้งาน",
+      "roles": "สิทธิ์และบทบาท",
+      "warehouse": "ตั้งค่าคลังสินค้า",
+      "product": "ข้อมูลสินค้าหลัก"
+    },
+    "selectRolePrompt": "เลือกบทบาทเพื่อตั้งค่าสิทธิ์การเข้าถึง",
+    "permissionConfigLabel": "การตั้งค่าสิทธิ์ของ {code}",
+    "messages": {
+      "loadFailed": "ไม่สามารถโหลดบทบาทและสิทธิ์ได้",
+      "loadWarehousesFailed": "ไม่สามารถโหลดคลังสินค้าได้",
+      "loadPermissionsFailed": "ไม่สามารถโหลดสิทธิ์ของบทบาทได้",
+      "loadAccessFailed": "ไม่สามารถโหลดสิทธิ์การเข้าถึงคลังสินค้าของบทบาทได้",
+      "saveFailed": "ไม่สามารถบันทึกสิทธิ์ได้",
+      "saveSuccess": "บันทึกสิทธิ์สำเร็จ",
+      "createNotSupported": "ยังไม่รองรับการสร้างบทบาทใหม่"
+    }
+  },
+  "warehouseSetup": {
+    "title": "ตั้งค่าคลังสินค้า",
+    "subtitle": "จัดการข้อมูลหลักคลังสินค้า โซน และตำแหน่งจัดเก็บ",
+    "newWarehouseButton": "+ คลังสินค้าใหม่",
+    "summary": {
+      "totalWarehouses": "คลังสินค้าทั้งหมด",
+      "totalZones": "โซนทั้งหมด",
+      "totalLocations": "ตำแหน่งทั้งหมด",
+      "avgUtilization": "อัตราการใช้งานเฉลี่ย"
+    },
+    "filters": {
+      "searchPlaceholder": "ค้นหาคลังสินค้า...",
+      "allTypes": "ประเภททั้งหมด",
+      "allStatus": "สถานะทั้งหมด"
+    },
+    "warehouseTypes": {
+      "distributionCenter": "ศูนย์กระจายสินค้า",
+      "factoryWarehouse": "คลังสินค้าโรงงาน",
+      "transitWarehouse": "คลังสินค้าระหว่างทาง"
+    },
+    "table": {
+      "code": "โค้ดคลังสินค้า",
+      "name": "ชื่อคลังสินค้า",
+      "type": "ประเภท",
+      "address": "ที่อยู่",
+      "zones": "โซน",
+      "locations": "ตำแหน่ง",
+      "utilization": "อัตราการใช้งาน",
+      "status": "สถานะ",
+      "action": "การดำเนินการ"
+    },
+    "loadingWarehouses": "กำลังโหลดคลังสินค้า...",
+    "noWarehouses": "ไม่พบคลังสินค้า",
+    "manageButton": "จัดการ",
+    "drawer": {
+      "detailTitle": "รายละเอียดคลังสินค้า",
+      "newTitle": "คลังสินค้าใหม่",
+      "subtitle": "ข้อมูลหลักคลังสินค้าและโครงสร้างตำแหน่งจัดเก็บ"
+    },
+    "tabs": {
+      "info": "ข้อมูลคลังสินค้า",
+      "zone": "ตั้งค่าโซน",
+      "location": "โครงสร้างตำแหน่ง",
+      "capacity": "แดชบอร์ดความจุ"
+    },
+    "infoTab": {
+      "code": "โค้ดคลังสินค้า",
+      "name": "ชื่อคลังสินค้า",
+      "type": "ประเภทคลังสินค้า",
+      "status": "สถานะ",
+      "contactPerson": "ผู้ติดต่อ",
+      "phone": "โทรศัพท์",
+      "capacity": "ความจุ",
+      "capacityPlaceholder": "ความจุรวม (บิน/หน่วย)",
+      "address": "ที่อยู่"
+    },
+    "saveWarehouseButton": "บันทึกคลังสินค้า",
+    "saving": "กำลังบันทึก...",
+    "zoneTab": {
+      "saveFirst": "กรุณาบันทึกคลังสินค้าก่อนเพิ่มโซน",
+      "title": "ตั้งค่าโซน",
+      "addZoneButton": "+ เพิ่มโซน",
+      "codePlaceholder": "โค้ดโซน",
+      "namePlaceholder": "ชื่อโซน",
+      "saveZonesButton": "บันทึกโซน"
+    },
+    "zoneTypes": {
+      "receiving": "รับสินค้า",
+      "storage": "จัดเก็บ",
+      "picking": "หยิบสินค้า",
+      "packing": "แพ็คสินค้า",
+      "shipping": "จัดส่งสินค้า",
+      "qc": "ตรวจสอบคุณภาพ",
+      "hold": "กักสินค้า"
+    },
+    "locationTab": {
+      "title": "โครงสร้างตำแหน่ง",
+      "aislePrefix": "ทางเดิน",
+      "rackPrefix": "ชั้นวาง",
+      "generateButton": "สร้างตำแหน่งจัดเก็บ"
+    },
+    "capacityTab": {
+      "utilizationTitle": "อัตราการใช้งานคลังสินค้า",
+      "totalCapacity": "ความจุทั้งหมด",
+      "occupied": "ใช้งานแล้ว",
+      "available": "คงเหลือ"
+    },
+    "messages": {
+      "loadFailed": "ไม่สามารถโหลดคลังสินค้าได้",
+      "saveFailed": "ไม่สามารถบันทึกคลังสินค้าได้",
+      "loadZonesFailed": "ไม่สามารถโหลดโซนได้",
+      "saveZonesFailed": "ไม่สามารถบันทึกโซนได้",
+      "binsGenerated": "สร้างตำแหน่งจัดเก็บสำเร็จ"
+    }
+  },
+  "productMaster": {
+    "title": "ข้อมูลสินค้าหลัก",
+    "subtitle": "จัดการข้อมูลสินค้า การจับคู่บาร์โค้ด หน่วยนับ และกฎการจัดเก็บ",
+    "newProductButton": "+ สินค้าใหม่",
+    "summary": {
+      "totalProducts": "สินค้าทั้งหมด",
+      "activeProducts": "สินค้าที่เปิดใช้งาน",
+      "lotRequired": "ต้องระบุล็อต",
+      "inactive": "ปิดใช้งาน"
+    },
+    "filters": {
+      "searchPlaceholder": "ค้นหา SKU, สินค้า, บาร์โค้ด...",
+      "allCategories": "หมวดหมู่ทั้งหมด",
+      "allStatus": "สถานะทั้งหมด",
+      "lotRule": "กฎการระบุล็อต",
+      "lotRequiredOption": "ต้องระบุล็อต",
+      "noLotOption": "ไม่ต้องระบุล็อต"
+    },
+    "categories": {
+      "packaging": "บรรจุภัณฑ์",
+      "label": "ป้ายฉลาก",
+      "rfid": "RFID",
+      "rawMaterial": "วัตถุดิบ"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "ชื่อสินค้า",
+      "category": "หมวดหมู่",
+      "baseUom": "หน่วยนับหลัก",
+      "packSize": "ขนาดแพ็ค",
+      "lot": "ล็อต",
+      "serial": "ซีเรียล",
+      "expiry": "วันหมดอายุ",
+      "defaultZone": "โซนเริ่มต้น",
+      "status": "สถานะ",
+      "action": "การดำเนินการ"
+    },
+    "loadingProducts": "กำลังโหลดสินค้า...",
+    "noProducts": "ไม่พบสินค้า",
+    "manageButton": "จัดการ",
+    "drawer": {
+      "detailTitle": "รายละเอียดสินค้า",
+      "newTitle": "สินค้าใหม่",
+      "subtitle": "ข้อมูลหลักสินค้า การจับคู่บาร์โค้ด และกฎการจัดการสต็อก"
+    },
+    "tabs": {
+      "info": "ข้อมูลสินค้า",
+      "barcode": "การจับคู่บาร์โค้ด",
+      "rules": "กฎการจัดการสต็อก",
+      "uom": "การแปลงหน่วยนับ"
+    },
+    "infoTab": {
+      "sku": "SKU",
+      "productName": "ชื่อสินค้า",
+      "category": "หมวดหมู่",
+      "baseUom": "หน่วยนับหลัก",
+      "status": "สถานะ",
+      "barcode": "บาร์โค้ด",
+      "barcodePlaceholder": "บาร์โค้ดหลัก (ไม่บังคับ)",
+      "description": "คำอธิบาย"
+    },
+    "barcodeTab": {
+      "title": "การจับคู่บาร์โค้ด",
+      "addButton": "+ เพิ่มบาร์โค้ด",
+      "table": {
+        "value": "ค่าบาร์โค้ด",
+        "type": "ประเภทบาร์โค้ด",
+        "uom": "หน่วยนับ",
+        "qtyPerBarcode": "จำนวนต่อบาร์โค้ด",
+        "primary": "หลัก",
+        "status": "สถานะ",
+        "action": "การดำเนินการ"
+      },
+      "noMapping": "ไม่มีการจับคู่บาร์โค้ด",
+      "removeButton": "นำออก"
+    },
+    "barcodeTypes": {
+      "supplier": "บาร์โค้ดผู้จำหน่าย",
+      "internal": "บาร์โค้ดภายใน",
+      "box": "โค้ดกล่อง",
+      "qr": "คิวอาร์โค้ด"
+    },
+    "rulesTab": {
+      "lotRequiredTitle": "ต้องระบุล็อต",
+      "lotRequiredDesc": "กำหนดให้ระบุเลขที่ล็อตเมื่อรับสินค้าและตรวจสต็อก",
+      "serialRequiredTitle": "ต้องระบุซีเรียล",
+      "serialRequiredDesc": "กำหนดให้ระบุหมายเลขซีเรียลต่อหน่วยสินค้า",
+      "expiryRequiredTitle": "ต้องระบุวันหมดอายุ",
+      "expiryRequiredDesc": "กำหนดให้ควบคุมวันหมดอายุ",
+      "defaultZone": "โซนจัดเก็บเริ่มต้น",
+      "minStock": "สต็อกขั้นต่ำ",
+      "maxStock": "สต็อกสูงสุด"
+    },
+    "uomTab": {
+      "title": "การแปลงหน่วยนับ",
+      "addButton": "+ เพิ่มหน่วยนับ",
+      "qtyPlaceholder": "จำนวน",
+      "removeButton": "นำออก"
+    },
+    "cancelButton": "ยกเลิก",
+    "saveProductButton": "บันทึกสินค้า",
+    "saving": "กำลังบันทึก...",
+    "messages": {
+      "skuRequired": "กรุณากรอก SKU",
+      "nameRequired": "กรุณากรอกชื่อสินค้า",
+      "saveFailed": "ไม่สามารถบันทึกสินค้าได้",
+      "loadFailed": "ไม่สามารถโหลดสินค้าได้"
+    }
+  },
+  "stockInquiry": {
+    "title": "ตรวจสอบสต็อก",
+    "subtitle": "ค้นหาและตรวจสอบสินค้าคงคลังตาม SKU, ล็อต, โซน และตำแหน่ง",
+    "exportStock": "ส่งออกสต็อก",
+    "exportTransactionHistory": "⬇ ส่งออกประวัติการเคลื่อนไหว",
+    "generatingExport": "กำลังสร้างไฟล์ส่งออกประวัติการเคลื่อนไหว…",
+    "exportReady": "ไฟล์ส่งออกพร้อมแล้ว — กำลังดาวน์โหลด…",
+    "exportFailed": "ส่งออกประวัติการเคลื่อนไหวล้มเหลว: {error}",
+    "summary": {
+      "totalSkus": "SKU ทั้งหมด",
+      "availableQty": "จำนวนพร้อมใช้งาน",
+      "reservedQty": "จำนวนที่จอง",
+      "lowStock": "สต็อกต่ำ"
+    },
+    "filters": {
+      "searchPlaceholder": "ค้นหา SKU, สินค้า, บาร์โค้ด...",
+      "allWarehouses": "คลังสินค้าทั้งหมด",
+      "allZones": "โซนทั้งหมด",
+      "zonePrefix": "โซน",
+      "allStockStatus": "สถานะสต็อกทั้งหมด",
+      "statusAvailable": "พร้อมใช้งาน",
+      "statusReserved": "จองแล้ว",
+      "statusHold": "พักสินค้า",
+      "statusLowStock": "สต็อกต่ำ"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "ชื่อสินค้า",
+      "barcode": "บาร์โค้ด",
+      "warehouse": "คลังสินค้า",
+      "location": "ตำแหน่ง",
+      "lotNo": "เลขที่ล็อต",
+      "available": "พร้อมใช้งาน",
+      "reserved": "จองแล้ว",
+      "onHand": "คงเหลือ",
+      "uom": "หน่วย",
+      "status": "สถานะ",
+      "action": "การดำเนินการ",
+      "viewDetail": "ดูรายละเอียด",
+      "loading": "กำลังโหลดสินค้าคงคลัง...",
+      "noData": "ไม่พบสินค้าคงคลัง"
+    },
+    "detail": {
+      "title": "รายละเอียดสต็อก",
+      "productName": "ชื่อสินค้า",
+      "barcode": "บาร์โค้ด",
+      "warehouse": "คลังสินค้า",
+      "location": "ตำแหน่ง",
+      "lotNo": "เลขที่ล็อต",
+      "expiryDate": "วันหมดอายุ",
+      "available": "พร้อมใช้งาน",
+      "reserved": "จองแล้ว",
+      "onHand": "คงเหลือ",
+      "recentMovement": "การเคลื่อนไหวล่าสุด",
+      "noMovement": "ยังไม่มีการเคลื่อนไหว",
+      "createAdjustment": "สร้างการปรับปรุง"
+    },
+    "messages": {
+      "loadWarehousesFailed": "ไม่สามารถโหลดคลังสินค้าได้",
+      "loadZonesFailed": "ไม่สามารถโหลดโซนได้",
+      "loadSummaryFailed": "ไม่สามารถโหลดข้อมูลสรุปสต็อกได้",
+      "loadInventoryFailed": "ไม่สามารถโหลดสินค้าคงคลังได้",
+      "loadMovementFailed": "ไม่สามารถโหลดประวัติการเคลื่อนไหวได้"
+    }
+  },
+  "stockAdjustment": {
+    "title": "ปรับปรุงสต็อก",
+    "subtitle": "สร้างและตรวจสอบรายการปรับปรุงสินค้าคงคลัง",
+    "newButton": "+ สร้างการปรับปรุงใหม่",
+    "summary": {
+      "pendingApproval": "รออนุมัติ",
+      "approvedToday": "อนุมัติวันนี้",
+      "rejected": "ปฏิเสธแล้ว",
+      "totalVariance": "ผลต่างรวม"
+    },
+    "filters": {
+      "searchPlaceholder": "ค้นหาเลขที่ปรับปรุง, SKU, สาเหตุ...",
+      "allTypes": "ประเภททั้งหมด",
+      "increase": "เพิ่ม",
+      "decrease": "ลด",
+      "allStatus": "สถานะทั้งหมด",
+      "overduePending": "เกินกำหนด (รออนุมัติ)"
+    },
+    "table": {
+      "adjustmentNo": "เลขที่ปรับปรุง",
+      "date": "วันที่",
+      "sku": "SKU",
+      "product": "สินค้า",
+      "location": "ตำแหน่ง",
+      "currentQty": "จำนวนปัจจุบัน",
+      "adjustQty": "จำนวนที่ปรับ",
+      "newQty": "จำนวนใหม่",
+      "reason": "สาเหตุ",
+      "pendingAge": "ระยะเวลารอ",
+      "status": "สถานะ",
+      "action": "การดำเนินการ",
+      "overdue": "เกินกำหนด",
+      "viewDetail": "ดูรายละเอียด",
+      "loading": "กำลังโหลดรายการปรับปรุง…",
+      "noData": "ไม่พบรายการปรับปรุงสต็อก"
+    },
+    "drawer": {
+      "newTitle": "สร้างการปรับปรุงสต็อกใหม่",
+      "detailTitle": "รายละเอียดการปรับปรุง",
+      "subtitle": "ปรับปรุงจำนวนสินค้าคงคลังผ่านขั้นตอนการอนุมัติ",
+      "skuBarcode": "SKU / บาร์โค้ด",
+      "skuPlaceholder": "สแกนหรือกรอก SKU",
+      "warehouse": "คลังสินค้า",
+      "selectWarehouse": "เลือกคลังสินค้า",
+      "location": "ตำแหน่ง",
+      "selectLocation": "เลือกตำแหน่ง",
+      "lotNoOptional": "เลขที่ล็อต (ไม่บังคับ)",
+      "lotNoPlaceholder": "เว้นว่างสำหรับสินค้าที่ไม่ติดตามล็อต",
+      "createdBy": "สร้างโดย",
+      "createdAt": "สร้างเมื่อ",
+      "pendingFor": "รอดำเนินการมา {age}",
+      "overdueThreshold": "— เกินกำหนด (เกณฑ์: {hours} ชม.)",
+      "currentQty": "จำนวนปัจจุบัน",
+      "adjustmentType": "ประเภทการปรับปรุง",
+      "increase": "เพิ่ม",
+      "decrease": "ลด",
+      "adjustQty": "จำนวนที่ปรับ",
+      "qtyPlaceholder": "จำนวน",
+      "resultingQuantity": "จำนวนผลลัพธ์",
+      "newQuantityEstimated": "จำนวนใหม่ (ประมาณการ)",
+      "reason": "สาเหตุ",
+      "selectReason": "เลือกสาเหตุ",
+      "remark": "หมายเหตุ",
+      "remarkPlaceholder": "กรอกหมายเหตุ",
+      "submitForApproval": "ส่งเพื่อขออนุมัติ",
+      "saveDraft": "บันทึกฉบับร่าง",
+      "approve": "อนุมัติ",
+      "reject": "ปฏิเสธ",
+      "viewOnlyNote": "สิทธิ์ของคุณสามารถดูการปรับปรุงนี้ได้ แต่ไม่สามารถอนุมัติหรือปฏิเสธได้"
+    },
+    "status": {
+      "draft": "ฉบับร่าง",
+      "pending": "รออนุมัติ",
+      "approved": "อนุมัติแล้ว",
+      "rejected": "ปฏิเสธแล้ว"
+    },
+    "messages": {
+      "skuRequired": "กรุณากรอก SKU",
+      "noProductFound": "ไม่พบสินค้าสำหรับ SKU/บาร์โค้ด \"{value}\"",
+      "locationRequired": "กรุณาเลือกตำแหน่ง",
+      "adjustQtyPositive": "จำนวนที่ปรับต้องมากกว่าศูนย์",
+      "reasonRequired": "กรุณาเลือกสาเหตุ",
+      "remarkRequiredToReject": "ต้องกรอกหมายเหตุเพื่อปฏิเสธการปรับปรุง",
+      "submittedForApproval": "ส่งการปรับปรุงสต็อกเพื่อขออนุมัติแล้ว",
+      "draftSaved": "บันทึกฉบับร่างสำเร็จ",
+      "approved": "อนุมัติการปรับปรุงสต็อกแล้ว",
+      "rejectedMsg": "ปฏิเสธการปรับปรุงสต็อกแล้ว"
+    }
+  },
+  "checkStock": {
+    "title": "ตรวจนับสต็อก",
+    "subtitle": "ตรวจนับสต็อกจริงและเปรียบเทียบกับจำนวนในระบบ",
+    "newCountTask": "+ สร้างงานตรวจนับใหม่",
+    "startDifferentCount": "+ เริ่มตรวจนับรายการอื่น",
+    "history": {
+      "title": "ประวัติการตรวจนับสต็อก",
+      "subtitle": "งานตรวจนับที่ผ่านมาและกำลังดำเนินการ — เลือกเพื่อดูหรือดำเนินการต่อ",
+      "searchPlaceholder": "ค้นหาเลขที่ตรวจนับ...",
+      "allStatus": "สถานะทั้งหมด",
+      "allWarehouses": "คลังสินค้าทั้งหมด",
+      "table": {
+        "countNo": "เลขที่ตรวจนับ",
+        "type": "ประเภท",
+        "warehouse": "คลังสินค้า",
+        "zone": "โซน",
+        "createdDate": "วันที่สร้าง",
+        "createdBy": "สร้างโดย",
+        "items": "รายการ",
+        "varianceLines": "รายการที่มีผลต่าง",
+        "status": "สถานะ",
+        "action": "การดำเนินการ",
+        "view": "ดู",
+        "loading": "กำลังโหลดประวัติการตรวจนับสต็อก…",
+        "noData": "ไม่พบรายการตรวจนับสต็อก"
+      }
+    },
+    "countInfo": {
+      "title": "ข้อมูลการตรวจนับ",
+      "countType": "ประเภทการตรวจนับ",
+      "cycleCount": "ตรวจนับตามรอบ",
+      "fullCount": "ตรวจนับทั้งหมด",
+      "locationCount": "ตรวจนับตามตำแหน่ง",
+      "skuCount": "ตรวจนับตาม SKU",
+      "warehouse": "คลังสินค้า",
+      "selectWarehouse": "เลือกคลังสินค้า",
+      "zone": "โซน",
+      "allZone": "ทุกโซน",
+      "countDate": "วันที่ตรวจนับ"
+    },
+    "scan": {
+      "title": "สแกนสต็อก",
+      "subtitle": "สแกน SKU, บาร์โค้ด หรือตำแหน่งจัดเก็บเพื่อปรับปรุงจำนวนที่นับได้จริง",
+      "scannerReady": "พร้อมสแกน",
+      "skuPlaceholder": "สแกน SKU / บาร์โค้ด",
+      "locationPlaceholder": "สแกนตำแหน่ง",
+      "countQtyPlaceholder": "จำนวนที่นับได้",
+      "good": "สภาพดี",
+      "damaged": "เสียหาย",
+      "hold": "พักสินค้า",
+      "confirmCount": "ยืนยันการนับ"
+    },
+    "items": {
+      "title": "รายการตรวจนับสต็อก",
+      "subtitle": "ตรวจสอบจำนวนในระบบ จำนวนที่นับได้ และผลต่าง",
+      "skuPlaceholder": "SKU / บาร์โค้ด",
+      "locationPlaceholder": "ตำแหน่ง",
+      "lotNoPlaceholder": "เลขที่ล็อต (ไม่บังคับ)",
+      "addItem": "+ เพิ่มรายการ",
+      "table": {
+        "sku": "SKU",
+        "productName": "ชื่อสินค้า",
+        "location": "ตำแหน่ง",
+        "lotNo": "เลขที่ล็อต",
+        "systemQty": "จำนวนในระบบ",
+        "countQty": "จำนวนที่นับได้",
+        "variance": "ผลต่าง",
+        "uom": "หน่วย",
+        "condition": "สภาพสินค้า",
+        "status": "สถานะ",
+        "remark": "หมายเหตุ",
+        "remarkPlaceholder": "หมายเหตุ",
+        "action": "การดำเนินการ",
+        "save": "บันทึก",
+        "noData": "ไม่มีรายการตรวจนับสต็อก"
+      }
+    },
+    "summary": {
+      "title": "สรุปการตรวจนับ",
+      "totalLines": "จำนวนรายการ",
+      "matchedLines": "รายการที่ตรงกัน",
+      "varianceLines": "รายการที่มีผลต่าง",
+      "netVariance": "ผลต่างสุทธิ"
+    },
+    "generatedAdjustments": {
+      "title": "การปรับปรุงที่สร้างขึ้น",
+      "subtitle": "เอกสารปรับปรุงสต็อกที่สร้างจากผลต่างของการตรวจนับนี้ผ่าน \"สร้างการปรับปรุง\"",
+      "viewLink": "ดูในรายการปรับปรุงสต็อก →",
+      "table": {
+        "adjustmentNo": "เลขที่ปรับปรุง",
+        "reason": "สาเหตุ",
+        "status": "สถานะ",
+        "created": "สร้างเมื่อ"
+      }
+    },
+    "actions": {
+      "chooseOneNote": "เลือกอย่างใดอย่างหนึ่ง: \"ยืนยันการนับ\" จะนำผลต่างไปปรับปรุงสต็อกทันที หรือ \"สร้างการปรับปรุง\" จะส่งผลต่างผ่านขั้นตอนการอนุมัติแยกต่างหาก ใช้ได้เพียงอย่างเดียวต่อการตรวจนับหนึ่งครั้ง — เมื่อเลือกอย่างใดอย่างหนึ่งแล้วจะไม่สามารถใช้อีกอย่างได้",
+      "saveDraft": "บันทึกฉบับร่าง",
+      "createAdjustment": "สร้างการปรับปรุง",
+      "confirmCount": "ยืนยันการนับ",
+      "creating": "กำลังสร้าง…"
+    },
+    "status": {
+      "draft": "ฉบับร่าง",
+      "confirmed": "ยืนยันแล้ว",
+      "adjustmentCreated": "สร้างการปรับปรุงแล้ว"
+    },
+    "itemStatus": {
+      "pending": "PENDING",
+      "counted": "COUNTED",
+      "recount": "RECOUNT"
+    },
+    "messages": {
+      "warehouseRequired": "กรุณาเลือกคลังสินค้า",
+      "skuBarcodeRequired": "กรุณากรอก SKU / บาร์โค้ด",
+      "locationRequired": "กรุณาเลือกตำแหน่ง",
+      "noProductFound": "ไม่พบสินค้าสำหรับ SKU/บาร์โค้ด \"{value}\"",
+      "skuOrBarcodeRequired": "กรุณากรอก SKU หรือบาร์โค้ด",
+      "itemNotFound": "ไม่พบรายการสต็อกนี้",
+      "draftSaved": "บันทึกฉบับร่างการตรวจนับสต็อกสำเร็จ",
+      "noVarianceFound": "ไม่พบผลต่าง",
+      "someItemsPending": "ยังมีบางรายการที่รอการตรวจนับ",
+      "countConfirmed": "ยืนยันการตรวจนับสต็อกสำเร็จ"
+    }
+  },
+  "replenishment": {
+    "title": "เติมสินค้า",
+    "subtitle": "ย้ายสินค้าจากตำแหน่งสำรอง/จำนวนมากไปยังตำแหน่งหยิบสินค้า",
+    "recommendations": "🎯 คำแนะนำ",
+    "newTask": "+ งานใหม่",
+    "filters": {
+      "searchPlaceholder": "ค้นหาเลขที่งาน, SKU, สินค้า...",
+      "allStatus": "สถานะทั้งหมด",
+      "allWarehouses": "คลังสินค้าทั้งหมด"
+    },
+    "status": {
+      "pending": "รอดำเนินการ",
+      "inProgress": "กำลังดำเนินการ",
+      "completed": "เสร็จสิ้น",
+      "cancelled": "ยกเลิกแล้ว",
+      "issue": "มีปัญหา"
+    },
+    "table": {
+      "taskNo": "เลขที่งาน",
+      "sku": "SKU",
+      "product": "สินค้า",
+      "from": "จาก",
+      "to": "ไปยัง",
+      "qty": "จำนวน",
+      "warehouse": "คลังสินค้า",
+      "status": "สถานะ",
+      "action": "การดำเนินการ",
+      "view": "ดู",
+      "loading": "กำลังโหลดงานเติมสินค้า…",
+      "noData": "ไม่พบงานเติมสินค้า"
+    },
+    "newTaskForm": {
+      "title": "สร้างงานเติมสินค้าใหม่",
+      "selectWarehouse": "เลือกคลังสินค้า",
+      "skuPlaceholder": "SKU สินค้า",
+      "lotNoPlaceholder": "เลขที่ล็อต (ไม่บังคับ)",
+      "fromLocation": "ตำแหน่งต้นทาง",
+      "toLocation": "ตำแหน่งปลายทาง",
+      "quantityPlaceholder": "จำนวน",
+      "remarkPlaceholder": "หมายเหตุ (ไม่บังคับ)",
+      "cancel": "ยกเลิก",
+      "createTask": "สร้างงาน",
+      "creating": "กำลังสร้าง…"
+    },
+    "recommendationsPanel": {
+      "title": "คำแนะนำการเติมสินค้า",
+      "selectWarehouse": "เลือกคลังสินค้า",
+      "load": "โหลด",
+      "loading": "กำลังโหลด…",
+      "table": {
+        "sku": "SKU",
+        "product": "สินค้า",
+        "from": "จาก",
+        "to": "ไปยัง",
+        "suggestedQty": "จำนวนที่แนะนำ",
+        "action": "การดำเนินการ",
+        "use": "ใช้",
+        "noData": "ยังไม่มีคำแนะนำ"
+      }
+    },
+    "detail": {
+      "status": "สถานะ:",
+      "product": "สินค้า:",
+      "lot": "ล็อต:",
+      "from": "จาก:",
+      "to": "ไปยัง:",
+      "quantity": "จำนวน:",
+      "warehouse": "คลังสินค้า:",
+      "remark": "หมายเหตุ:",
+      "issue": "ปัญหา:",
+      "cancelRemark": "หมายเหตุการยกเลิก:",
+      "createdBy": "สร้างโดย:",
+      "start": "เริ่ม",
+      "confirmMove": "ยืนยันการย้าย",
+      "confirming": "กำลังยืนยัน…",
+      "cancelRemarkPlaceholder": "หมายเหตุการยกเลิก (ไม่บังคับ)",
+      "cancelTask": "ยกเลิกงาน",
+      "issueRemarkPlaceholder": "หมายเหตุปัญหา (ต้องกรอก)",
+      "reportIssue": "รายงานปัญหา"
+    },
+    "messages": {
+      "loadWarehousesFailed": "ไม่สามารถโหลดคลังสินค้าได้",
+      "loadTasksFailed": "ไม่สามารถโหลดงานเติมสินค้าได้",
+      "loadLocationsFailed": "ไม่สามารถโหลดตำแหน่งได้",
+      "requiredFields": "ต้องกรอกคลังสินค้า ตำแหน่งต้นทาง/ปลายทาง และจำนวน",
+      "skuRequired": "กรุณากรอก SKU สินค้า",
+      "noProductFound": "ไม่พบสินค้าสำหรับ SKU/บาร์โค้ด \"{value}\"",
+      "createTaskFailed": "ไม่สามารถสร้างงานเติมสินค้าได้",
+      "loadRecommendationsFailed": "ไม่สามารถโหลดคำแนะนำได้",
+      "loadDetailFailed": "ไม่สามารถโหลดรายละเอียดงานได้",
+      "issueRemarkRequired": "กรุณากรอกหมายเหตุปัญหา"
+    }
+  }
+}

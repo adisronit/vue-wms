@@ -4,10 +4,10 @@
     <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold text-slate-800">
-          New Putaway Task
+          {{ $t('newPutaway.title') }}
         </h1>
         <p class="text-slate-500">
-          Move QC passed goods from staging area to storage bin locations
+          {{ $t('newPutaway.subtitle') }}
         </p>
       </div>
 
@@ -15,62 +15,62 @@
         @click="$router.push('/inbound/putaway')"
         class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold"
       >
-        Back to Putaway
+        {{ $t('newPutaway.backButton') }}
       </button>
     </div>
 
     <!-- Task Information -->
     <div class="bg-white rounded-2xl border border-slate-200 p-6">
       <h2 class="text-lg font-bold text-slate-800 mb-5">
-        Task Information
+        {{ $t('newPutaway.taskInfo') }}
       </h2>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label class="label">Source Document</label>
+          <label class="label">{{ $t('newPutaway.fields.sourceDocument') }}</label>
           <select v-model="form.sourceDocument" class="input" @change="loadSourceItems">
-            <option value="">Select source document</option>
+            <option value="">{{ $t('newPutaway.fields.selectSourceDoc') }}</option>
             <option v-for="r in sourceReceipts" :key="r.id" :value="r.id">{{ r.receipt_no }}</option>
           </select>
         </div>
 
         <div>
-          <label class="label">Putaway Date</label>
+          <label class="label">{{ $t('newPutaway.fields.putawayDate') }}</label>
           <input v-model="form.putawayDate" type="date" class="input" />
         </div>
 
         <div>
-          <label class="label">Assigned To</label>
+          <label class="label">{{ $t('newPutaway.fields.assignedTo') }}</label>
           <input
             v-model="form.assignedTo"
             type="text"
             class="input"
-            placeholder="Warehouse staff"
+            :placeholder="$t('newPutaway.fields.assignedToPlaceholder')"
           />
         </div>
 
         <div>
-          <label class="label">Warehouse</label>
+          <label class="label">{{ $t('newPutaway.fields.warehouse') }}</label>
           <select v-model="form.warehouseId" class="input">
-            <option value="">Select warehouse</option>
+            <option value="">{{ $t('newPutaway.fields.selectWarehouse') }}</option>
             <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
           </select>
         </div>
 
         <div>
-          <label class="label">From Location</label>
+          <label class="label">{{ $t('newPutaway.fields.fromLocation') }}</label>
           <select v-model="form.fromLocationId" class="input" :disabled="!form.warehouseId">
-            <option value="">Select staging location</option>
+            <option value="">{{ $t('newPutaway.fields.selectStagingLocation') }}</option>
             <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
           </select>
         </div>
 
         <div>
-          <label class="label">Priority</label>
+          <label class="label">{{ $t('newPutaway.fields.priority') }}</label>
           <select v-model="form.priority" class="input">
-            <option value="NORMAL">Normal</option>
-            <option value="HIGH">High</option>
-            <option value="LOW">Low</option>
+            <option value="NORMAL">{{ $t('newPutaway.priorityOptions.normal') }}</option>
+            <option value="HIGH">{{ $t('newPutaway.priorityOptions.high') }}</option>
+            <option value="LOW">{{ $t('newPutaway.priorityOptions.low') }}</option>
           </select>
         </div>
       </div>
@@ -80,12 +80,12 @@
       </div>
 
       <div class="mt-4">
-        <label class="label">Remark</label>
+        <label class="label">{{ $t('common.labels.remark') }}</label>
         <textarea
           v-model="form.remark"
           rows="3"
           class="input"
-          placeholder="Enter task remark"
+          :placeholder="$t('newPutaway.fields.remarkPlaceholder')"
         ></textarea>
       </div>
     </div>
@@ -95,15 +95,15 @@
       <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-4">
         <div>
           <h2 class="text-lg font-bold text-slate-800">
-            Scan Putaway
+            {{ $t('newPutaway.scan.title') }}
           </h2>
           <p class="text-sm text-slate-500">
-            Scan SKU and actual bin location to confirm movement
+            {{ $t('newPutaway.scan.subtitle') }}
           </p>
         </div>
 
         <span class="badge-orange">
-          {{ scanning ? 'Looking up…' : 'Scanner Ready' }}
+          {{ scanning ? $t('newPutaway.scan.lookingUp') : $t('newPutaway.scan.scannerReady') }}
         </span>
       </div>
 
@@ -112,7 +112,7 @@
           v-model="scanForm.sku"
           type="text"
           class="input bg-white"
-          placeholder="Scan SKU / Barcode"
+          :placeholder="$t('newPutaway.scan.skuPlaceholder')"
           @keyup.enter="focusActualBin"
           ref="skuInput"
         />
@@ -121,7 +121,7 @@
           v-model="scanForm.actualBin"
           type="text"
           class="input bg-white"
-          placeholder="Scan Actual Bin (location code)"
+          :placeholder="$t('newPutaway.scan.actualBinPlaceholder')"
           @keyup.enter="scanItem"
           ref="actualBinInput"
         />
@@ -130,13 +130,13 @@
           v-model.number="scanForm.qty"
           type="number"
           class="input bg-white input-number"
-          placeholder="Qty"
+          :placeholder="$t('newPutaway.scan.qtyPlaceholder')"
         />
 
         <select v-model="scanForm.status" class="input bg-white">
-          <option value="CONFIRMED">Confirmed</option>
-          <option value="PENDING">Pending</option>
-          <option value="ISSUE">Issue</option>
+          <option value="CONFIRMED">{{ $t('newPutaway.scanStatusOptions.confirmed') }}</option>
+          <option value="PENDING">{{ $t('common.status.pending') }}</option>
+          <option value="ISSUE">{{ $t('newPutaway.scanStatusOptions.issue') }}</option>
         </select>
 
         <button
@@ -144,7 +144,7 @@
           :disabled="scanning"
           class="bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold disabled:opacity-60"
         >
-          Confirm Scan
+          {{ $t('newPutaway.scan.confirmScan') }}
         </button>
       </div>
     </div>
@@ -154,10 +154,10 @@
       <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-5">
         <div>
           <h2 class="text-lg font-bold text-slate-800">
-            Putaway Items
+            {{ $t('newPutaway.itemsSection.title') }}
           </h2>
           <p class="text-sm text-slate-500">
-            Validate source location, suggested bin and actual bin before confirmation
+            {{ $t('newPutaway.itemsSection.subtitle') }}
           </p>
         </div>
 
@@ -165,7 +165,7 @@
           @click="addItem"
           class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
         >
-          + Add Item
+          {{ $t('newPutaway.itemsSection.addItem') }}
         </button>
       </div>
 
@@ -174,17 +174,17 @@
           <table class="min-w-[1450px] w-full text-sm">
             <thead class="bg-slate-50 text-slate-500">
               <tr>
-                <th class="table-th">SKU</th>
-                <th class="table-th">Product Name</th>
-                <th class="table-th">Lot No.</th>
-                <th class="table-th">From Location</th>
-                <th class="table-th">Suggested Bin</th>
-                <th class="table-th">Actual Bin</th>
-                <th class="table-th text-right">Qty</th>
-                <th class="table-th">UOM</th>
-                <th class="table-th">Status</th>
-                <th class="table-th">Remark</th>
-                <th class="table-th text-right">Action</th>
+                <th class="table-th">{{ $t('newPutaway.table.sku') }}</th>
+                <th class="table-th">{{ $t('newPutaway.table.productName') }}</th>
+                <th class="table-th">{{ $t('newPutaway.table.lotNo') }}</th>
+                <th class="table-th">{{ $t('newPutaway.table.fromLocation') }}</th>
+                <th class="table-th">{{ $t('newPutaway.table.suggestedBin') }}</th>
+                <th class="table-th">{{ $t('newPutaway.table.actualBin') }}</th>
+                <th class="table-th text-right">{{ $t('newPutaway.table.qty') }}</th>
+                <th class="table-th">{{ $t('newPutaway.table.uom') }}</th>
+                <th class="table-th">{{ $t('common.labels.status') }}</th>
+                <th class="table-th">{{ $t('common.labels.remark') }}</th>
+                <th class="table-th text-right">{{ $t('newPutaway.table.action') }}</th>
               </tr>
             </thead>
 
@@ -200,7 +200,7 @@
                     v-model="item.sku"
                     class="table-input"
                     :class="{ 'border-red-400': item.sku && !item.productId }"
-                    placeholder="SKU or barcode"
+                    :placeholder="$t('newPutaway.table.skuPlaceholder')"
                     @blur="lookupItemProduct(item)"
                     @keyup.enter="lookupItemProduct(item)"
                   />
@@ -216,7 +216,7 @@
 
                 <td class="table-td">
                   <select v-model="item.sourceLocationId" class="table-input">
-                    <option value="">Select location</option>
+                    <option value="">{{ $t('newPutaway.table.selectLocation') }}</option>
                     <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
                   </select>
                 </td>
@@ -230,7 +230,7 @@
 
                 <td class="table-td">
                   <select v-model="item.destinationLocationId" class="table-input">
-                    <option value="">Select bin</option>
+                    <option value="">{{ $t('newPutaway.table.selectBin') }}</option>
                     <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
                   </select>
                 </td>
@@ -254,9 +254,9 @@
 
                 <td class="table-td">
                   <select v-model="item.status" class="table-input min-w-[140px]">
-                    <option value="PENDING">Pending</option>
-                    <option value="CONFIRMED">Confirmed</option>
-                    <option value="ISSUE">Issue</option>
+                    <option value="PENDING">{{ $t('newPutaway.itemStatusOptions.pending') }}</option>
+                    <option value="CONFIRMED">{{ $t('newPutaway.itemStatusOptions.confirmed') }}</option>
+                    <option value="ISSUE">{{ $t('newPutaway.itemStatusOptions.issue') }}</option>
                   </select>
                 </td>
 
@@ -264,7 +264,7 @@
                   <input
                     v-model="item.remark"
                     class="table-input min-w-[220px]"
-                    placeholder="Remark"
+                    :placeholder="$t('newPutaway.table.remarkPlaceholder')"
                   />
                 </td>
 
@@ -273,14 +273,14 @@
                     @click="removeItem(index)"
                     class="text-red-600 hover:text-red-700 font-semibold"
                   >
-                    Remove
+                    {{ $t('common.buttons.remove') }}
                   </button>
                 </td>
               </tr>
 
               <tr v-if="items.length === 0">
                 <td colspan="11" class="text-center py-10 text-slate-400">
-                  No putaway items
+                  {{ $t('newPutaway.table.noItems') }}
                 </td>
               </tr>
             </tbody>
@@ -292,29 +292,29 @@
     <!-- Summary -->
     <div class="bg-white rounded-2xl border border-slate-200 p-6">
       <h2 class="text-lg font-bold text-slate-800 mb-5">
-        Putaway Summary
+        {{ $t('newPutaway.summary.title') }}
       </h2>
 
       <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
         <div class="summary-card">
-          <p class="summary-label">Total Lines</p>
+          <p class="summary-label">{{ $t('newPutaway.summary.totalLines') }}</p>
           <h2 class="summary-value text-number">{{ items.length }}</h2>
         </div>
 
         <div class="summary-card">
-          <p class="summary-label">Total Qty</p>
+          <p class="summary-label">{{ $t('newPutaway.summary.totalQty') }}</p>
           <h2 class="summary-value text-number">{{ totalQty }}</h2>
         </div>
 
         <div class="summary-card">
-          <p class="summary-label">Confirmed Lines</p>
+          <p class="summary-label">{{ $t('newPutaway.summary.confirmedLines') }}</p>
           <h2 class="summary-value text-green-600 text-number">
             {{ confirmedLines }}
           </h2>
         </div>
 
         <div class="summary-card">
-          <p class="summary-label">Issue Lines</p>
+          <p class="summary-label">{{ $t('newPutaway.summary.issueLines') }}</p>
           <h2 class="summary-value text-red-600 text-number">
             {{ issueLines }}
           </h2>
@@ -330,7 +330,7 @@
           :disabled="submitting"
           class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-6 py-3 rounded-xl font-semibold disabled:opacity-60"
         >
-          Save Draft
+          {{ $t('common.buttons.saveDraft') }}
         </button>
 
         <button
@@ -339,10 +339,10 @@
           :disabled="submitting"
           class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold disabled:opacity-60"
         >
-          {{ submitting ? 'Submitting…' : 'Confirm Putaway' }}
+          {{ submitting ? $t('common.buttons.submitting') : $t('newPutaway.actions.confirmPutaway') }}
         </button>
         <p v-else class="text-sm text-slate-500 self-center">
-          Your role can save drafts but not confirm putaway.
+          {{ $t('newPutaway.actions.viewOnlyNote') }}
         </p>
       </div>
     </div>
@@ -494,7 +494,7 @@ export default {
         if (!product) {
           item.productId = null
           item.productName = ''
-          this.formError = `No product found for SKU/barcode "${item.sku}"`
+          this.formError = this.$t('newPutaway.messages.noProductFound', { value: item.sku })
           return
         }
         item.productId = product.id
@@ -561,11 +561,11 @@ export default {
 
     async scanItem() {
       if (!this.scanForm.sku) {
-        this.formError = 'SKU or Barcode is required'
+        this.formError = this.$t('newPutaway.messages.skuRequired')
         return
       }
       if (!this.scanForm.actualBin) {
-        this.formError = 'Actual Bin is required'
+        this.formError = this.$t('newPutaway.messages.actualBinRequiredScan')
         return
       }
 
@@ -574,13 +574,13 @@ export default {
       try {
         const product = await this.findProduct(this.scanForm.sku)
         if (!product) {
-          this.formError = `No product found for SKU/barcode "${this.scanForm.sku}"`
+          this.formError = this.$t('newPutaway.messages.noProductFound', { value: this.scanForm.sku })
           return
         }
 
         const destination = this.findLocationByCode(this.scanForm.actualBin)
         if (!destination) {
-          this.formError = `No location found for bin code "${this.scanForm.actualBin}"`
+          this.formError = this.$t('newPutaway.messages.noLocationFound', { value: this.scanForm.actualBin })
           return
         }
 
@@ -599,7 +599,7 @@ export default {
             requestedQty: Number(this.scanForm.qty || 1),
             uom: product.base_uom || 'PCS',
             status: this.scanForm.status,
-            remark: this.scanForm.status === 'ISSUE' ? 'Reported by scan' : ''
+            remark: this.scanForm.status === 'ISSUE' ? this.$t('newPutaway.scan.reportedByScanRemark') : ''
           })
         } else {
           matchedItem.destinationLocationId = destination.id
@@ -631,21 +631,21 @@ export default {
     // the original mock's own confirmPutaway() validation, which also
     // required Actual Bin + Qty for every line, not just actioned ones.
     validateForm() {
-      if (!this.form.warehouseId) return 'Warehouse is required'
-      if (this.items.length === 0) return 'At least one putaway item is required'
+      if (!this.form.warehouseId) return this.$t('newPutaway.messages.warehouseRequired')
+      if (this.items.length === 0) return this.$t('newPutaway.messages.atLeastOneItem')
       if (this.items.some((item) => !item.productId)) {
-        return 'Every item must resolve to a known product — check the SKU/barcode column'
+        return this.$t('newPutaway.messages.everyItemMustResolve')
       }
-      if (this.items.some((item) => !item.sourceLocationId)) return 'Every item must have a from location'
-      if (this.items.some((item) => !item.destinationLocationId)) return 'Every item needs an Actual Bin'
+      if (this.items.some((item) => !item.sourceLocationId)) return this.$t('newPutaway.messages.everyItemMustHaveFromLocation')
+      if (this.items.some((item) => !item.destinationLocationId)) return this.$t('newPutaway.messages.everyItemNeedsActualBin')
       if (this.items.some((item) => item.sourceLocationId === item.destinationLocationId)) {
-        return 'From Location and Actual Bin must differ'
+        return this.$t('newPutaway.messages.fromAndActualMustDiffer')
       }
       if (this.items.some((item) => !item.requestedQty || item.requestedQty <= 0)) {
-        return 'Every item needs a quantity greater than zero'
+        return this.$t('newPutaway.messages.everyItemNeedsQtyGreaterThanZero')
       }
       if (this.items.some((item) => item.status === 'ISSUE' && !item.remark)) {
-        return 'Every issue item needs a remark'
+        return this.$t('newPutaway.messages.everyIssueNeedsRemark')
       }
       return ''
     },
@@ -681,7 +681,7 @@ export default {
       this.formError = ''
       try {
         await createPutawayTask(this.buildCreatePayload())
-        alert('Putaway draft saved successfully')
+        alert(this.$t('newPutaway.messages.draftSaved'))
         this.$router.push('/inbound/put-away')
       } catch (err) {
         this.formError = err.message
@@ -699,7 +699,7 @@ export default {
 
       const actioned = this.items.filter((item) => item.status === 'CONFIRMED' || item.status === 'ISSUE')
       if (actioned.length === 0) {
-        this.formError = 'Set at least one item to Confirmed or Issue before confirming putaway'
+        this.formError = this.$t('newPutaway.messages.setAtLeastOneItemAction')
         return
       }
 
@@ -726,7 +726,7 @@ export default {
           items: confirmItems
         })
 
-        alert('Putaway confirmed successfully')
+        alert(this.$t('newPutaway.messages.putawayConfirmed'))
         this.$router.push('/inbound/put-away')
       } catch (err) {
         this.formError = err.message
