@@ -296,39 +296,47 @@ func TestMasterDataExpansion_List_DoesNotLeakOtherTenantRows(t *testing.T) {
 // member whose role has none of the product_category/customer/supplier
 // permissions (every role this suite seeds besides ADMIN) is rejected
 // with 403, not merely relying on the UI to hide the button.
-func TestMasterDataExpansion_RBAC_RequiresPermission(t *testing.T) {
-	h := newHarness(t)
-	a := h.seedRealTenant("A")
+// seedNoAccessMember creates a fresh custom role within tenantID,
+// granted zero permissions, plus a user+membership using it, and
+// returns a logged-in bearer token for that user — the standard
+// "a tenant member whose role grants nothing" fixture for RBAC-enforces
+// -it-server-side tests (not merely "the UI hides the button") across
+// any RequireTenantContext-gated module's endpoints. role.Role requires
+// a tenant-scoped unique code (migrations/0048), so the generated code
+// (prefixed with label) cannot collide with another test or call.
+func (h *harness) seedNoAccessMember(tenantID int64, label string) string {
+	h.t.Helper()
+	suffix := uniqueSuffix()
 
-	// A fresh custom role within tenant A's own tenant, granted zero
-	// permissions — role.Role requires a tenant-scoped unique code
-	// (migrations/0048), so this cannot collide with another test.
-	noAccessRole := struct {
-		ID int64
-	}{}
+	noAccessRole := struct{ ID int64 }{}
 	if err := h.db.Raw(
 		"INSERT INTO roles (tenant_id, code, name, description, is_active) OUTPUT INSERTED.id VALUES (?, ?, ?, ?, 1)",
-		a.TenantID, "MDE_NO_ACCESS_"+uniqueSuffix(), "No Access", "Isolation-suite fixture role with zero grants",
+		tenantID, label+"_NO_ACCESS_"+suffix, "No Access", "Isolation-suite fixture role with zero grants",
 	).Scan(&noAccessRole.ID).Error; err != nil {
-		t.Fatalf("create no-access role: %v", err)
+		h.t.Fatalf("seedNoAccessMember(%s): create no-access role: %v", label, err)
 	}
 
-	suffix := uniqueSuffix()
 	password := "Fixture-Pass-" + suffix + "!"
 	noAccessUser := &user.User{
-		Username: "mde_noaccess_" + suffix, PasswordHash: hashPassword(h.t, password),
-		FullName: "No Access User", Email: "mde.noaccess." + suffix + "@isolation.test",
+		Username: "noaccess_" + label + "_" + suffix, PasswordHash: hashPassword(h.t, password),
+		FullName: "No Access User " + label, Email: "noaccess." + label + "." + suffix + "@isolation.test",
 		RoleID: noAccessRole.ID, Status: user.StatusActive,
 	}
 	now := time.Now().UTC()
 	membership := &tenant.TenantUser{RoleID: noAccessRole.ID, Status: tenant.TenantUserStatusActive, JoinedAt: &now}
-	if err := h.deps.TenantRepo.CreateMembershipWithNewUser(context.Background(), a.TenantID, noAccessUser, membership, func(membershipID int64) *tenant.TenantAuditLog {
-		return &tenant.TenantAuditLog{TenantID: &a.TenantID, ActorUserID: 0, ActorType: tenant.AuditActorSystem, Action: "isolation_test.create_no_access_membership"}
+	if err := h.deps.TenantRepo.CreateMembershipWithNewUser(context.Background(), tenantID, noAccessUser, membership, func(membershipID int64) *tenant.TenantAuditLog {
+		return &tenant.TenantAuditLog{TenantID: &tenantID, ActorUserID: 0, ActorType: tenant.AuditActorSystem, Action: "isolation_test.create_no_access_membership"}
 	}); err != nil {
-		t.Fatalf("create no-access membership: %v", err)
+		h.t.Fatalf("seedNoAccessMember(%s): create no-access membership: %v", label, err)
 	}
 
-	noAccessToken := h.login(noAccessUser.Username, password)
+	return h.login(noAccessUser.Username, password)
+}
+
+func TestMasterDataExpansion_RBAC_RequiresPermission(t *testing.T) {
+	h := newHarness(t)
+	a := h.seedRealTenant("A")
+	noAccessToken := h.seedNoAccessMember(a.TenantID, "MDE")
 
 	for _, tc := range masterDataExpansionCases() {
 		tc := tc

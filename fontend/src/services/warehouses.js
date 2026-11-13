@@ -49,8 +49,24 @@ export function deleteZone(id) {
   return apiDelete(`/zones/${id}`)
 }
 
-export function listLocations(zoneId) {
-  return apiGet(`/locations?zone_id=${zoneId}`)
+// listLocations always requires zoneId (the backend's own contract) —
+// params is optional and additive (search/status/page/limit), added for
+// the standalone Location Management screen; existing call sites that
+// only ever passed zoneId (WarehouseView.vue's Location Structure tab)
+// are unaffected.
+export function listLocations(zoneId, params = {}) {
+  const query = new URLSearchParams()
+  query.set('zone_id', zoneId)
+  if (params.search) query.set('search', params.search)
+  if (params.status) query.set('status', params.status)
+  if (params.page) query.set('page', params.page)
+  if (params.limit) query.set('limit', params.limit)
+
+  return apiGet(`/locations?${query.toString()}`)
+}
+
+export function getLocation(id) {
+  return apiGet(`/locations/${id}`)
 }
 
 export function createLocation(payload) {

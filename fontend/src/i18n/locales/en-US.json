@@ -102,6 +102,7 @@
     "roles": "Roles & Permissions",
     "sectionMasterData": "Master Data",
     "warehouse": "Warehouse Setup",
+    "locations": "Locations",
     "productMaster": "Product Master",
     "productCategories": "Product Categories",
     "customers": "Customers",
@@ -1274,6 +1275,61 @@
       "loadFailed": "Failed to load categories",
       "saveFailed": "Failed to save category",
       "deleteFailed": "Failed to delete category"
+    }
+  },
+  "locationMaster": {
+    "title": "Location Management",
+    "subtitle": "Manage bin-level storage locations within a warehouse zone",
+    "newButton": "+ New Location",
+    "selectors": {
+      "warehousePlaceholder": "Select Warehouse",
+      "zonePlaceholder": "Select Zone",
+      "zoneDisabledPlaceholder": "Select a warehouse first"
+    },
+    "prompts": {
+      "selectWarehouse": "Select a warehouse to begin.",
+      "selectZone": "Select a zone to view its locations."
+    },
+    "filters": {
+      "searchPlaceholder": "Search code or name...",
+      "allStatus": "All Status"
+    },
+    "table": {
+      "code": "Location Code",
+      "name": "Name",
+      "position": "Position (Aisle / Rack / Bin)",
+      "type": "Type",
+      "capacity": "Capacity",
+      "status": "Status",
+      "action": "Action"
+    },
+    "loading": "Loading locations...",
+    "empty": "No locations found.",
+    "drawer": {
+      "detailTitle": "Location Detail",
+      "newTitle": "New Location",
+      "subtitle": "Location code, position, type, capacity and status"
+    },
+    "fields": {
+      "zone": "Zone",
+      "code": "Code",
+      "name": "Name",
+      "aisle": "Aisle",
+      "rack": "Rack",
+      "bin": "Bin",
+      "type": "Type",
+      "noTypeOption": "No Type",
+      "capacity": "Capacity",
+      "capacityPlaceholder": "Leave blank for unlimited",
+      "status": "Status"
+    },
+    "deleteTitle": "Delete Location",
+    "messages": {
+      "loadFailed": "Failed to load locations",
+      "loadWarehousesFailed": "Failed to load warehouses",
+      "loadZonesFailed": "Failed to load zones",
+      "saveFailed": "Failed to save location",
+      "deleteFailed": "Failed to delete location"
     }
   },
   "customers": {

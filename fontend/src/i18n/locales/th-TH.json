@@ -102,6 +102,7 @@
     "roles": "สิทธิ์และบทบาท",
     "sectionMasterData": "ข้อมูลหลัก",
     "warehouse": "ตั้งค่าคลังสินค้า",
+    "locations": "ตำแหน่งจัดเก็บ",
     "productMaster": "ข้อมูลสินค้าหลัก",
     "productCategories": "หมวดหมู่สินค้า",
     "customers": "ลูกค้า",
@@ -1274,6 +1275,61 @@
       "loadFailed": "ไม่สามารถโหลดหมวดหมู่ได้",
       "saveFailed": "ไม่สามารถบันทึกหมวดหมู่ได้",
       "deleteFailed": "ไม่สามารถลบหมวดหมู่ได้"
+    }
+  },
+  "locationMaster": {
+    "title": "จัดการตำแหน่งจัดเก็บ",
+    "subtitle": "จัดการตำแหน่งจัดเก็บระดับบินภายในโซนของคลังสินค้า",
+    "newButton": "+ ตำแหน่งใหม่",
+    "selectors": {
+      "warehousePlaceholder": "เลือกคลังสินค้า",
+      "zonePlaceholder": "เลือกโซน",
+      "zoneDisabledPlaceholder": "กรุณาเลือกคลังสินค้าก่อน"
+    },
+    "prompts": {
+      "selectWarehouse": "กรุณาเลือกคลังสินค้าเพื่อเริ่มต้น",
+      "selectZone": "กรุณาเลือกโซนเพื่อดูตำแหน่งจัดเก็บ"
+    },
+    "filters": {
+      "searchPlaceholder": "ค้นหาโค้ดหรือชื่อ...",
+      "allStatus": "สถานะทั้งหมด"
+    },
+    "table": {
+      "code": "โค้ดตำแหน่ง",
+      "name": "ชื่อ",
+      "position": "ตำแหน่ง (ทางเดิน / ชั้นวาง / ช่อง)",
+      "type": "ประเภท",
+      "capacity": "ความจุ",
+      "status": "สถานะ",
+      "action": "การดำเนินการ"
+    },
+    "loading": "กำลังโหลดตำแหน่งจัดเก็บ...",
+    "empty": "ไม่พบตำแหน่งจัดเก็บ",
+    "drawer": {
+      "detailTitle": "รายละเอียดตำแหน่ง",
+      "newTitle": "ตำแหน่งใหม่",
+      "subtitle": "โค้ด ตำแหน่ง ประเภท ความจุ และสถานะของตำแหน่งจัดเก็บ"
+    },
+    "fields": {
+      "zone": "โซน",
+      "code": "โค้ด",
+      "name": "ชื่อ",
+      "aisle": "ทางเดิน",
+      "rack": "ชั้นวาง",
+      "bin": "ช่อง",
+      "type": "ประเภท",
+      "noTypeOption": "ไม่ระบุประเภท",
+      "capacity": "ความจุ",
+      "capacityPlaceholder": "เว้นว่างไว้หากไม่จำกัด",
+      "status": "สถานะ"
+    },
+    "deleteTitle": "ลบตำแหน่งจัดเก็บ",
+    "messages": {
+      "loadFailed": "ไม่สามารถโหลดตำแหน่งจัดเก็บได้",
+      "loadWarehousesFailed": "ไม่สามารถโหลดคลังสินค้าได้",
+      "loadZonesFailed": "ไม่สามารถโหลดโซนได้",
+      "saveFailed": "ไม่สามารถบันทึกตำแหน่งจัดเก็บได้",
+      "deleteFailed": "ไม่สามารถลบตำแหน่งจัดเก็บได้"
     }
   },
   "customers": {

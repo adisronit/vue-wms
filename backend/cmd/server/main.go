@@ -175,6 +175,13 @@ func main() {
 	// location) and none of the three import each other in a cycle.
 	zoneRepo := zone.NewRepository(dbManager.DB())
 	locationRepo := location.NewRepository(dbManager.DB())
+	// inventoryRepo is constructed here, ahead of its own service/handler
+	// registration below, because Location Master Management's
+	// locationService needs it (CountByLocation) for the stock-
+	// referential-safety check on Delete — the same "construct early for
+	// a later dependency" shape warehouseRepo/productCategoryRepo above
+	// already use.
+	inventoryRepo := inventory.NewRepository(dbManager.DB())
 
 	warehouseService := warehouse.NewService(warehouseRepo, zoneRepo)
 	warehouse.NewHandler(warehouseService).Register(v1, cfg.JWTSecret)
@@ -182,8 +189,15 @@ func main() {
 	zoneService := zone.NewService(zoneRepo, warehouseRepo, locationRepo)
 	zone.NewHandler(zoneService).Register(v1, cfg.JWTSecret)
 
-	locationService := location.NewService(locationRepo, zoneRepo)
-	location.NewHandler(locationService).Register(v1, cfg.JWTSecret)
+	// Location Master Management: Register now uses the RequireJWT ->
+	// RequireTenantContext -> RequirePermission chain (same
+	// tenantService/cfg.TenantMembershipCacheTTL as the Tenant Admin
+	// membership API and Master Data Expansion's new modules above) —
+	// see internal/location/handler.go's doc for why this package is
+	// now held to that stricter standard while warehouse/zone's own
+	// routes above are deliberately left unchanged.
+	locationService := location.NewService(locationRepo, zoneRepo, inventoryRepo)
+	location.NewHandler(locationService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Master Data Expansion: Product Category, Customer, Supplier.
 	// Registered ahead of product below because productService.Create/
@@ -213,12 +227,17 @@ func main() {
 	supplierService := supplier.NewService(supplierRepo)
 	supplier.NewHandler(supplierService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
-	inventoryRepo := inventory.NewRepository(dbManager.DB())
 	inventoryService := inventory.NewService(inventoryRepo)
 	inventory.NewHandler(inventoryService).Register(v1, cfg.JWTSecret)
 
+	// locationUnscoped adapts locationRepo's new tenant-scoped FindByID
+	// back to the single-arg shape receiving/stockadjustment/stockcount's
+	// own locationChecker interfaces still require — see
+	// location.UnscopedAdapter's own doc.
+	locationUnscoped := location.NewUnscopedAdapter(locationRepo)
+
 	receivingRepo := receiving.NewRepository(dbManager.DB())
-	receivingService := receiving.NewService(receivingRepo, productRepo, warehouseRepo, locationRepo, inventoryService)
+	receivingService := receiving.NewService(receivingRepo, productRepo, warehouseRepo, locationUnscoped, inventoryService)
 	receiving.NewHandler(receivingService).Register(v1, cfg.JWTSecret)
 
 	putawayRepo := putaway.NewRepository(dbManager.DB())
@@ -234,11 +253,11 @@ func main() {
 	shipping.NewHandler(shippingService).Register(v1, cfg.JWTSecret)
 
 	stockAdjustmentRepo := stockadjustment.NewRepository(dbManager.DB())
-	stockAdjustmentService := stockadjustment.NewService(stockAdjustmentRepo, productRepo, locationRepo, inventoryService, cfg.StockAdjustmentPendingWarningHours)
+	stockAdjustmentService := stockadjustment.NewService(stockAdjustmentRepo, productRepo, locationUnscoped, inventoryService, cfg.StockAdjustmentPendingWarningHours)
 	stockadjustment.NewHandler(stockAdjustmentService).Register(v1, cfg.JWTSecret)
 
 	stockCountRepo := stockcount.NewRepository(dbManager.DB())
-	stockCountService := stockcount.NewService(stockCountRepo, warehouseRepo, zoneRepo, productRepo, locationRepo, inventoryService, stockAdjustmentService)
+	stockCountService := stockcount.NewService(stockCountRepo, warehouseRepo, zoneRepo, productRepo, locationUnscoped, inventoryService, stockAdjustmentService)
 	stockcount.NewHandler(stockCountService).Register(v1, cfg.JWTSecret)
 
 	notificationRepo := notification.NewRepository(dbManager.DB())

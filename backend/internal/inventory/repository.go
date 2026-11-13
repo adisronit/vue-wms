@@ -343,3 +343,22 @@ func (r *Repository) CreateBalance(ctx context.Context, inv *Inventory) error {
 func (r *Repository) InsertTransaction(ctx context.Context, t *Transaction) error {
 	return r.db.WithContext(ctx).Create(t).Error
 }
+
+// CountByLocation reports how many inventory rows, within tenantID,
+// currently hold a positive quantity at locationID — used by
+// internal/location.Service.Delete's referential-safety check before
+// deleting a location. Unlike every other method on this Repository
+// (which, consistent with this module's pre-existing, documented lack
+// of tenant enforcement, ignore tenant_id entirely), this one new
+// method filters by it: it exists specifically to answer a question
+// posed by a module that IS correctly tenant-scoped (Location Master
+// Management), and must not leak a count across tenants back to it.
+// Zero-quantity residual rows (a balance drained to exactly 0 but not
+// yet cleaned up) don't count as "stock still exists."
+func (r *Repository) CountByLocation(ctx context.Context, tenantID, locationID int64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&Inventory{}).
+		Where("tenant_id = ? AND location_id = ? AND quantity > 0", tenantID, locationID).
+		Count(&count).Error
+	return count, err
+}
