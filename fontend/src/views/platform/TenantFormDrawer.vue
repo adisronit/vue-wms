@@ -155,7 +155,7 @@ export default {
   display: block;
   margin-bottom: 8px;
   color: #334155;
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: var(--fw-label);
+  font-size: var(--fs-label);
 }
 </style>

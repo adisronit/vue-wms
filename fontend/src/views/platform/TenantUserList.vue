@@ -313,7 +313,8 @@ export default {
 
 .table-th {
   padding: 14px 16px;
-  font-weight: 700;
+  font-weight: var(--fw-table-header);
+  font-size: var(--fs-table-header);
   white-space: nowrap;
 }
 

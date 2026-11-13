@@ -395,6 +395,9 @@ export default {
 
   color: #cbd5e1;
 
+  font-size: 14px;
+  font-weight: 500;
+
   transition: all .2s;
 
   text-decoration: none;
@@ -419,9 +422,9 @@ export default {
 
   text-transform: uppercase;
 
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* Custom Scrollbar */
