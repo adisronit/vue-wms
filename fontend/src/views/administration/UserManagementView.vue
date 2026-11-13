@@ -1,90 +1,76 @@
 <template>
   <div class="space-y-6">
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">{{ $t('userManagement.title') }}</h1>
-        <p class="text-slate-500">
-          {{ $t('userManagement.subtitle') }}
-        </p>
-      </div>
-
-      <button
-        @click="openUser(null)"
-        class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
-      >
-        {{ $t('userManagement.newUserButton') }}
-      </button>
-    </div>
-
-    <div class="bg-white rounded-2xl border border-slate-200 p-5">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <input v-model="filters.keyword" type="text" :placeholder="$t('userManagement.filters.searchPlaceholder')" class="input" />
-
-        <select v-model="filters.role" class="input">
-          <option value="">{{ $t('userManagement.filters.allRoles') }}</option>
-          <option v-for="role in roles" :key="role.code" :value="role.code">{{ role.name }}</option>
-        </select>
-
-        <select v-model="filters.status" class="input">
-          <option value="">{{ $t('userManagement.filters.allStatus') }}</option>
-          <option value="ACTIVE">{{ $t('common.status.active') }}</option>
-          <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
-          <option value="LOCKED">{{ $t('userManagement.status.locked') }}</option>
-        </select>
-
-        <button @click="clearFilter" class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold">
-          {{ $t('common.buttons.clearFilter') }}
+    <PageHeader :title="$t('userManagement.title')" :subtitle="$t('userManagement.subtitle')">
+      <template #actions>
+        <button
+          @click="openUser(null)"
+          class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
+        >
+          {{ $t('userManagement.newUserButton') }}
         </button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
+
+    <FilterBar>
+      <input v-model="filters.keyword" type="text" :placeholder="$t('userManagement.filters.searchPlaceholder')" class="input" />
+
+      <select v-model="filters.role" class="input">
+        <option value="">{{ $t('userManagement.filters.allRoles') }}</option>
+        <option v-for="role in roles" :key="role.code" :value="role.code">{{ role.name }}</option>
+      </select>
+
+      <select v-model="filters.status" class="input">
+        <option value="">{{ $t('userManagement.filters.allStatus') }}</option>
+        <option value="ACTIVE">{{ $t('common.status.active') }}</option>
+        <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
+        <option value="LOCKED">{{ $t('userManagement.status.locked') }}</option>
+      </select>
+
+      <button @click="clearFilter" class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold">
+        {{ $t('common.buttons.clearFilter') }}
+      </button>
+    </FilterBar>
 
     <div v-if="listError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
       {{ listError }}
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="w-full overflow-x-auto">
-        <table class="min-w-[1000px] w-full text-sm">
-          <thead class="bg-slate-50 text-slate-500">
-            <tr>
-              <th class="table-th">{{ $t('userManagement.table.user') }}</th>
-              <th class="table-th">{{ $t('userManagement.table.email') }}</th>
-              <th class="table-th">{{ $t('userManagement.table.role') }}</th>
-              <th class="table-th">{{ $t('userManagement.table.warehouse') }}</th>
-              <th class="table-th">{{ $t('userManagement.table.lastLogin') }}</th>
-              <th class="table-th">{{ $t('userManagement.table.status') }}</th>
-              <th class="table-th text-right">{{ $t('userManagement.table.action') }}</th>
-            </tr>
-          </thead>
+    <DataTable
+      :loading="loading"
+      :is-empty="users.length === 0"
+      :loading-text="$t('userManagement.loadingUsers')"
+      :empty-text="$t('userManagement.noUsers')"
+      :colspan="7"
+      min-width="1000px"
+    >
+      <template #head>
+        <tr>
+          <th class="table-th">{{ $t('userManagement.table.user') }}</th>
+          <th class="table-th">{{ $t('userManagement.table.email') }}</th>
+          <th class="table-th">{{ $t('userManagement.table.role') }}</th>
+          <th class="table-th">{{ $t('userManagement.table.warehouse') }}</th>
+          <th class="table-th">{{ $t('userManagement.table.lastLogin') }}</th>
+          <th class="table-th">{{ $t('userManagement.table.status') }}</th>
+          <th class="table-th text-right">{{ $t('userManagement.table.action') }}</th>
+        </tr>
+      </template>
 
-          <tbody>
-            <tr v-if="loading">
-              <td class="table-td" colspan="7">{{ $t('userManagement.loadingUsers') }}</td>
-            </tr>
-            <tr v-else-if="users.length === 0">
-              <td class="table-td" colspan="7">{{ $t('userManagement.noUsers') }}</td>
-            </tr>
-            <tr v-for="user in users" :key="user.id" class="border-t hover:bg-orange-50">
-              <td class="table-td font-semibold text-slate-800">{{ user.full_name }}</td>
-              <td class="table-td">{{ user.email }}</td>
-              <td class="table-td">{{ user.role.name }}</td>
-              <td class="table-td">{{ formatWarehouse(user) }}</td>
-              <td class="table-td">{{ formatLastLogin(user.last_login_at) }}</td>
-              <td class="table-td">
-                <span :class="getStatusClass(user.status)">
-                  {{ statusLabel(user.status) }}
-                </span>
-              </td>
-              <td class="table-td text-right">
-                <button @click="openUser(user)" class="text-orange-600 hover:text-orange-700 font-semibold">
-                  {{ $t('common.buttons.edit') }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+      <tr v-for="user in users" :key="user.id" class="border-t hover:bg-orange-50">
+        <td class="table-td font-semibold text-slate-800">{{ user.full_name }}</td>
+        <td class="table-td">{{ user.email }}</td>
+        <td class="table-td">{{ user.role.name }}</td>
+        <td class="table-td">{{ formatWarehouse(user) }}</td>
+        <td class="table-td">{{ formatLastLogin(user.last_login_at) }}</td>
+        <td class="table-td">
+          <StatusBadge :tone="statusTone(user.status)">{{ statusLabel(user.status) }}</StatusBadge>
+        </td>
+        <td class="table-td text-right">
+          <button @click="openUser(user)" class="text-orange-600 hover:text-orange-700 font-semibold">
+            {{ $t('common.buttons.edit') }}
+          </button>
+        </td>
+      </tr>
+    </DataTable>
 
     <div v-if="selectedUser" class="fixed inset-0 bg-black/40 flex justify-end z-50">
       <div class="w-full max-w-2xl bg-white h-full p-6 overflow-y-auto">
@@ -173,11 +159,17 @@
 import { listUsers, createUser, updateUser } from '../../services/users'
 import { listRoles } from '../../services/roles'
 import { listWarehouses } from '../../services/warehouses'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FilterBar from '../../components/ui/FilterBar.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 
 let searchDebounce = null
 
 export default {
   name: 'UserManagementView',
+
+  components: { PageHeader, FilterBar, DataTable, StatusBadge },
 
   data() {
     return {
@@ -349,11 +341,10 @@ export default {
       return status
     },
 
-    getStatusClass(status) {
-      if (status === 'ACTIVE') return 'badge-green'
-      if (status === 'INACTIVE') return 'badge-gray'
-      if (status === 'LOCKED') return 'badge-red'
-      return 'badge-gray'
+    statusTone(status) {
+      if (status === 'ACTIVE') return 'green'
+      if (status === 'LOCKED') return 'red'
+      return 'gray'
     }
   }
 }
