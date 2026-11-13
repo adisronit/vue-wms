@@ -56,6 +56,21 @@ func (r *Repository) FindByID(ctx context.Context, tenantID, id int64) (*Supplie
 	return &s, nil
 }
 
+// Exists reports whether id exists within tenantID — the ownership
+// check internal/product.Service uses to confirm a product's optional
+// default_supplier_id belongs to the same tenant as the product
+// itself, mirroring internal/productcategory.Repository's own Exists.
+func (r *Repository) Exists(ctx context.Context, tenantID, id int64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&Supplier{}).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (r *Repository) Update(ctx context.Context, tenantID int64, s *Supplier) error {
 	result := r.db.WithContext(ctx).Model(&Supplier{}).
 		Where("id = ? AND tenant_id = ?", s.ID, tenantID).

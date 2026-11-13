@@ -61,6 +61,7 @@ services:
       - "${BACKEND_PORT:-9099}:8080"
     volumes:
       - export_files:/app/exports
+      - product_images:/app/images
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -108,3 +109,8 @@ volumes:
   # same path so a file the worker produces is immediately readable by
   # the server without any additional transfer step.
   export_files:
+  # EWTA Product Master enhancement — persistent storage for uploaded
+  # product images. Mounted into backend only: uploads are synchronous
+  # HTTP (POST /products/:id/image), never RabbitMQ-driven, so unlike
+  # export_files the worker has no reason to read or write here.
+  product_images:

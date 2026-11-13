@@ -35,12 +35,14 @@ package testrouter
 
 import (
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"wms-backend/internal/auth"
+	"wms-backend/internal/brand"
 	"wms-backend/internal/customer"
 	"wms-backend/internal/inventory"
 	"wms-backend/internal/location"
@@ -48,6 +50,7 @@ import (
 	"wms-backend/internal/platform/middleware"
 	"wms-backend/internal/product"
 	"wms-backend/internal/productcategory"
+	"wms-backend/internal/productfamily"
 	"wms-backend/internal/role"
 	"wms-backend/internal/supplier"
 	"wms-backend/internal/tenant"
@@ -74,6 +77,9 @@ type RouterDeps struct {
 	CustomerRepo        *customer.Repository
 	SupplierRepo        *supplier.Repository
 	InventoryRepo       *inventory.Repository
+	BrandRepo           *brand.Repository
+	ProductFamilyRepo   *productfamily.Repository
+	ImageStorageDir     string
 }
 
 // membershipCacheTTL is the fixed TTL BuildTestRouter uses for every
@@ -123,10 +129,24 @@ func BuildTestRouter(db *gorm.DB, jwtSecret string) RouterDeps {
 	location.NewHandler(locationService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)
 
 	productCategoryRepo := productcategory.NewRepository(db)
+	supplierRepo := supplier.NewRepository(db)
+	brandRepo := brand.NewRepository(db)
+	familyRepo := productfamily.NewRepository(db)
+
+	// A fresh temp directory per router build — these are ephemeral
+	// test runs, never meant to persist across invocations, unlike the
+	// real IMAGE_STORAGE_DIR Docker volume cmd/server/main.go points at.
+	imageStorageDir, err := os.MkdirTemp("", "wms-test-images-*")
+	if err != nil {
+		panic(err)
+	}
 
 	productRepo := product.NewRepository(db)
-	productService := product.NewService(productRepo, productCategoryRepo)
-	product.NewHandler(productService).Register(v1, jwtSecret)
+	productService := product.NewService(
+		productRepo, productCategoryRepo, brandRepo, familyRepo, supplierRepo, warehouseRepo, zoneRepo,
+		imageStorageDir, 0,
+	)
+	product.NewHandler(productService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)
 
 	productCategoryService := productcategory.NewService(productCategoryRepo, productRepo)
 	productcategory.NewHandler(productCategoryService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)
@@ -135,9 +155,14 @@ func BuildTestRouter(db *gorm.DB, jwtSecret string) RouterDeps {
 	customerService := customer.NewService(customerRepo)
 	customer.NewHandler(customerService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)
 
-	supplierRepo := supplier.NewRepository(db)
 	supplierService := supplier.NewService(supplierRepo)
 	supplier.NewHandler(supplierService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)
+
+	brandService := brand.NewService(brandRepo)
+	brand.NewHandler(brandService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)
+
+	familyService := productfamily.NewService(familyRepo)
+	productfamily.NewHandler(familyService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)
 
 	return RouterDeps{
 		Engine:              engine,
@@ -153,5 +178,8 @@ func BuildTestRouter(db *gorm.DB, jwtSecret string) RouterDeps {
 		CustomerRepo:        customerRepo,
 		SupplierRepo:        supplierRepo,
 		InventoryRepo:       inventoryRepo,
+		BrandRepo:           brandRepo,
+		ProductFamilyRepo:   familyRepo,
+		ImageStorageDir:     imageStorageDir,
 	}
 }
