@@ -157,172 +157,183 @@
             {{ formError }}
           </div>
 
-          <FormSection :title="$t('productMaster.sections.basic')">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label class="label">{{ $t('productMaster.basic.sku') }}*</label>
-                <input v-model="productForm.sku" class="input" :class="{ 'input--error': fieldErrors.sku }" />
-                <p v-if="fieldErrors.sku" class="field-error">{{ fieldErrors.sku }}</p>
-              </div>
-
-              <div>
-                <label class="label">{{ $t('productMaster.basic.nameEn') }}*</label>
-                <input v-model="productForm.name" class="input" :class="{ 'input--error': fieldErrors.name }" />
-                <p v-if="fieldErrors.name" class="field-error">{{ fieldErrors.name }}</p>
-              </div>
-
-              <div>
-                <label class="label">{{ $t('productMaster.basic.nameTh') }}</label>
-                <input v-model="productForm.nameTh" class="input" />
-              </div>
-
-              <div>
-                <label class="label">{{ $t('productMaster.basic.category') }}*</label>
-                <SearchableSelect
-                  v-model="productForm.categoryId"
-                  v-model:display-value="productForm.categoryLabel"
-                  :fetch-options="fetchCategoryOptions"
-                  :placeholder="$t('productMaster.basic.categoryPlaceholder')"
-                />
-                <p v-if="fieldErrors.categoryId" class="field-error">{{ fieldErrors.categoryId }}</p>
-              </div>
-
-              <div>
-                <label class="label">{{ $t('productMaster.basic.brand') }}</label>
-                <SearchableSelect
-                  v-model="productForm.brandId"
-                  v-model:display-value="productForm.brandLabel"
-                  :fetch-options="fetchBrandOptions"
-                  :placeholder="$t('productMaster.basic.brandPlaceholder')"
-                />
-              </div>
-
-              <div>
-                <label class="label">{{ $t('productMaster.basic.barcode') }}</label>
-                <input v-model="productForm.barcode" class="input" :placeholder="$t('productMaster.basic.barcodePlaceholder')" />
-              </div>
-
-              <div>
-                <label class="label">{{ $t('productMaster.basic.packSize') }}</label>
-                <input v-model.number="productForm.packSize" type="number" min="0" class="input input-number" />
-              </div>
-
-              <div>
-                <label class="label">{{ $t('productMaster.basic.packSizeUnit') }}</label>
-                <select v-model="productForm.packSizeUnit" class="input">
-                  <option value="">—</option>
-                  <option v-for="u in uomOptions" :key="u" :value="u">{{ u }}</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="label">{{ $t('productMaster.basic.baseUom') }}*</label>
-                <select v-model="productForm.baseUom" class="input" :class="{ 'input--error': fieldErrors.baseUom }">
-                  <option v-for="u in uomOptions" :key="u" :value="u">{{ u }}</option>
-                </select>
-                <p v-if="fieldErrors.baseUom" class="field-error">{{ fieldErrors.baseUom }}</p>
-              </div>
-
-              <div>
-                <label class="label">{{ $t('productMaster.basic.status') }}</label>
-                <select v-model="productForm.status" class="input">
-                  <option value="ACTIVE">{{ $t('common.status.active') }}</option>
-                  <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label class="label">{{ $t('productMaster.image.placeholder') }}</label>
-              <ProductImageUpload
-                ref="imageUpload"
-                :product-id="productForm.id"
-                :has-image="productForm.hasImage"
-                :alt-text="productForm.name"
-                @uploaded="onImageUploaded"
-                @removed="onImageRemoved"
-              />
-            </div>
-          </FormSection>
-
-          <FormSection :title="$t('productMaster.sections.warehouse')">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label class="label">{{ $t('productMaster.warehouse.storageType') }}</label>
-                <select v-model="productForm.storageType" class="input">
-                  <option value="">{{ $t('productMaster.warehouse.noStorageTypeOption') }}</option>
-                  <option value="AMBIENT">{{ $t('productMaster.warehouse.storageTypes.AMBIENT') }}</option>
-                  <option value="CHILLED">{{ $t('productMaster.warehouse.storageTypes.CHILLED') }}</option>
-                  <option value="FROZEN">{{ $t('productMaster.warehouse.storageTypes.FROZEN') }}</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="label">{{ $t('productMaster.warehouse.rotationRule') }}</label>
-                <select v-model="productForm.rotationRule" class="input">
-                  <option value="">{{ $t('productMaster.warehouse.noRotationRuleOption') }}</option>
-                  <option value="FIFO">{{ $t('productMaster.warehouse.rotationRules.FIFO') }}</option>
-                  <option value="FEFO">{{ $t('productMaster.warehouse.rotationRules.FEFO') }}</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="label">{{ $t('productMaster.warehouse.countryOfOrigin') }}</label>
-                <input v-model="productForm.countryOfOrigin" class="input" :placeholder="$t('productMaster.warehouse.countryOfOriginPlaceholder')" />
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label class="checkbox-card">
-                <input type="checkbox" v-model="productForm.lotRequired" />
-                <div>
-                  <p class="font-semibold text-slate-800">{{ $t('productMaster.warehouse.lotTrackingTitle') }}</p>
-                  <p class="text-sm text-slate-500">{{ $t('productMaster.warehouse.lotTrackingDesc') }}</p>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            <!-- Left: Product Identity -->
+            <FormSection :title="$t('productMaster.sections.basic')">
+              <div class="field-grid">
+                <div class="field field--span2">
+                  <label class="label">{{ $t('productMaster.basic.nameEn') }}*</label>
+                  <input v-model="productForm.name" class="input" :class="{ 'input--error': fieldErrors.name }" />
+                  <p v-if="fieldErrors.name" class="field-error">{{ fieldErrors.name }}</p>
                 </div>
-              </label>
-              <label class="checkbox-card">
-                <input type="checkbox" v-model="productForm.expiryRequired" />
-                <div>
-                  <p class="font-semibold text-slate-800">{{ $t('productMaster.warehouse.expiryTrackingTitle') }}</p>
-                  <p class="text-sm text-slate-500">{{ $t('productMaster.warehouse.expiryTrackingDesc') }}</p>
+
+                <div class="field field--span2">
+                  <label class="label">{{ $t('productMaster.basic.nameTh') }}</label>
+                  <input v-model="productForm.nameTh" class="input" />
                 </div>
-              </label>
+
+                <div class="field">
+                  <label class="label">{{ $t('productMaster.basic.sku') }}*</label>
+                  <input v-model="productForm.sku" class="input" :class="{ 'input--error': fieldErrors.sku }" />
+                  <p v-if="fieldErrors.sku" class="field-error">{{ fieldErrors.sku }}</p>
+                </div>
+
+                <div class="field">
+                  <label class="label">{{ $t('productMaster.basic.barcode') }}</label>
+                  <input v-model="productForm.barcode" class="input" :placeholder="$t('productMaster.basic.barcodePlaceholder')" />
+                </div>
+
+                <div class="field">
+                  <label class="label">{{ $t('productMaster.basic.category') }}*</label>
+                  <SearchableSelect
+                    v-model="productForm.categoryId"
+                    v-model:display-value="productForm.categoryLabel"
+                    :fetch-options="fetchCategoryOptions"
+                    :placeholder="$t('productMaster.basic.categoryPlaceholder')"
+                  />
+                  <p v-if="fieldErrors.categoryId" class="field-error">{{ fieldErrors.categoryId }}</p>
+                </div>
+
+                <div class="field">
+                  <label class="label">{{ $t('productMaster.basic.brand') }}</label>
+                  <SearchableSelect
+                    v-model="productForm.brandId"
+                    v-model:display-value="productForm.brandLabel"
+                    :fetch-options="fetchBrandOptions"
+                    :placeholder="$t('productMaster.basic.brandPlaceholder')"
+                  />
+                </div>
+
+                <div class="field">
+                  <label class="label">{{ $t('productMaster.basic.packSize') }}</label>
+                  <input
+                    v-model.number="productForm.packSize"
+                    type="number"
+                    min="0"
+                    class="input input-number"
+                    :placeholder="$t('productMaster.basic.packSizePlaceholder')"
+                  />
+                </div>
+
+                <div class="field">
+                  <label class="label">{{ $t('productMaster.basic.packSizeUnit') }}</label>
+                  <select v-model="productForm.packSizeUnit" class="input">
+                    <option value="">—</option>
+                    <option v-for="u in uomOptions" :key="u" :value="u">{{ u }}</option>
+                  </select>
+                </div>
+                <p class="field-hint field--span2">{{ $t('productMaster.basic.netContentHelp') }}</p>
+
+                <div class="field">
+                  <label class="label">{{ $t('productMaster.basic.baseUom') }}*</label>
+                  <select v-model="productForm.baseUom" class="input" :class="{ 'input--error': fieldErrors.baseUom }">
+                    <option value="" disabled>{{ $t('productMaster.basic.baseUomPlaceholder') }}</option>
+                    <option v-for="u in uomOptions" :key="u" :value="u">{{ u }}</option>
+                  </select>
+                  <p v-if="fieldErrors.baseUom" class="field-error">{{ fieldErrors.baseUom }}</p>
+                  <p v-else class="field-hint">{{ $t('productMaster.basic.baseUomHelp') }}</p>
+                </div>
+
+                <div class="field">
+                  <label class="label">{{ $t('productMaster.basic.status') }}</label>
+                  <select v-model="productForm.status" class="input">
+                    <option value="ACTIVE">{{ $t('common.status.active') }}</option>
+                    <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
+                  </select>
+                </div>
+              </div>
+            </FormSection>
+
+            <!-- Right: prominent Product Image + compact Warehouse Settings -->
+            <div class="space-y-6">
+              <FormSection :title="$t('productMaster.sections.image')">
+                <ProductImageUpload
+                  ref="imageUpload"
+                  size="lg"
+                  :product-id="productForm.id"
+                  :has-image="productForm.hasImage"
+                  :alt-text="productForm.name"
+                  @uploaded="onImageUploaded"
+                  @removed="onImageRemoved"
+                />
+              </FormSection>
+
+              <FormSection :title="$t('productMaster.sections.warehouse')">
+                <div class="field-grid field-grid--compact">
+                  <div class="field">
+                    <label class="label">{{ $t('productMaster.warehouse.storageType') }}</label>
+                    <select v-model="productForm.storageType" class="input">
+                      <option value="">{{ $t('productMaster.warehouse.noStorageTypeOption') }}</option>
+                      <option value="AMBIENT">{{ $t('productMaster.warehouse.storageTypes.AMBIENT') }}</option>
+                      <option value="CHILLED">{{ $t('productMaster.warehouse.storageTypes.CHILLED') }}</option>
+                      <option value="FROZEN">{{ $t('productMaster.warehouse.storageTypes.FROZEN') }}</option>
+                    </select>
+                  </div>
+
+                  <div class="field">
+                    <label class="label">{{ $t('productMaster.warehouse.rotationRule') }}</label>
+                    <select v-model="productForm.rotationRule" class="input">
+                      <option value="">{{ $t('productMaster.warehouse.noRotationRuleOption') }}</option>
+                      <option value="FIFO">{{ $t('productMaster.warehouse.rotationRules.FIFO') }}</option>
+                      <option value="FEFO">{{ $t('productMaster.warehouse.rotationRules.FEFO') }}</option>
+                    </select>
+                  </div>
+
+                  <div class="field field--span2">
+                    <label class="label">{{ $t('productMaster.warehouse.countryOfOrigin') }}</label>
+                    <input v-model="productForm.countryOfOrigin" class="input" :placeholder="$t('productMaster.warehouse.countryOfOriginPlaceholder')" />
+                  </div>
+
+                  <label class="checkbox-card checkbox-card--compact">
+                    <input type="checkbox" v-model="productForm.lotRequired" />
+                    <div>
+                      <p class="font-semibold text-slate-800">{{ $t('productMaster.warehouse.lotTrackingTitle') }}</p>
+                      <p class="text-sm text-slate-500">{{ $t('productMaster.warehouse.lotTrackingDesc') }}</p>
+                    </div>
+                  </label>
+                  <label class="checkbox-card checkbox-card--compact">
+                    <input type="checkbox" v-model="productForm.expiryRequired" />
+                    <div>
+                      <p class="font-semibold text-slate-800">{{ $t('productMaster.warehouse.expiryTrackingTitle') }}</p>
+                      <p class="text-sm text-slate-500">{{ $t('productMaster.warehouse.expiryTrackingDesc') }}</p>
+                    </div>
+                  </label>
+
+                  <div class="field field--span2">
+                    <label class="label">{{ $t('productMaster.warehouse.defaultSupplier') }}</label>
+                    <SearchableSelect
+                      v-model="productForm.defaultSupplierId"
+                      v-model:display-value="productForm.defaultSupplierLabel"
+                      :fetch-options="fetchSupplierOptions"
+                      :placeholder="$t('productMaster.warehouse.defaultSupplierPlaceholder')"
+                    />
+                  </div>
+
+                  <div class="field">
+                    <label class="label">{{ $t('productMaster.warehouse.preferredWarehouse') }}</label>
+                    <SearchableSelect
+                      v-model="productForm.preferredWarehouseId"
+                      v-model:display-value="productForm.preferredWarehouseLabel"
+                      :fetch-options="fetchWarehouseOptions"
+                      :placeholder="$t('productMaster.warehouse.preferredWarehousePlaceholder')"
+                      @change="onWarehouseChanged"
+                    />
+                  </div>
+
+                  <div class="field">
+                    <label class="label">{{ $t('productMaster.warehouse.preferredZone') }}</label>
+                    <SearchableSelect
+                      v-model="productForm.preferredZoneId"
+                      v-model:display-value="productForm.preferredZoneLabel"
+                      :options="zoneOptions"
+                      :disabled="!productForm.preferredWarehouseId"
+                      :placeholder="$t('productMaster.warehouse.preferredZonePlaceholder')"
+                    />
+                  </div>
+                </div>
+              </FormSection>
             </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="label">{{ $t('productMaster.warehouse.defaultSupplier') }}</label>
-                <SearchableSelect
-                  v-model="productForm.defaultSupplierId"
-                  v-model:display-value="productForm.defaultSupplierLabel"
-                  :fetch-options="fetchSupplierOptions"
-                  :placeholder="$t('productMaster.warehouse.defaultSupplierPlaceholder')"
-                />
-              </div>
-
-              <div>
-                <label class="label">{{ $t('productMaster.warehouse.preferredWarehouse') }}</label>
-                <SearchableSelect
-                  v-model="productForm.preferredWarehouseId"
-                  v-model:display-value="productForm.preferredWarehouseLabel"
-                  :fetch-options="fetchWarehouseOptions"
-                  :placeholder="$t('productMaster.warehouse.preferredWarehousePlaceholder')"
-                  @change="onWarehouseChanged"
-                />
-              </div>
-
-              <div>
-                <label class="label">{{ $t('productMaster.warehouse.preferredZone') }}</label>
-                <SearchableSelect
-                  v-model="productForm.preferredZoneId"
-                  v-model:display-value="productForm.preferredZoneLabel"
-                  :options="zoneOptions"
-                  :disabled="!productForm.preferredWarehouseId"
-                  :placeholder="$t('productMaster.warehouse.preferredZonePlaceholder')"
-                />
-              </div>
-            </div>
-          </FormSection>
+          </div>
 
           <FormSection>
             <template #default>
@@ -656,7 +667,7 @@ export default {
         sku: '', name: '', nameTh: '', description: '',
         category: 'PACKAGING', categoryId: '', categoryLabel: '',
         brandId: '', brandLabel: '', familyId: '', familyLabel: '', variantName: '',
-        baseUom: 'PCS', packSize: 1, packSizeUnit: '', barcode: '',
+        baseUom: '', packSize: null, packSizeUnit: '', barcode: '',
         lotRequired: false, serialRequired: false, expiryRequired: false,
         storageType: '', rotationRule: '',
         defaultSupplierId: '', defaultSupplierLabel: '', countryOfOrigin: '',
@@ -1042,6 +1053,45 @@ export default {
 .checkbox-card:hover {
   background: #fff7ed;
   border-color: #fb923c;
+}
+
+.checkbox-card--compact {
+  padding: 12px 14px;
+  border-radius: 12px;
+}
+
+/* Balanced 2-column field layout used inside the Product Identity and
+   Warehouse Settings cards — a short field takes one slot, a field that
+   needs room (name, country of origin, default supplier) spans both via
+   field--span2. The compact variant keeps the same shape with tighter
+   gaps so the narrower right-hand column doesn't feel cramped. */
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.field-grid--compact {
+  gap: 12px;
+}
+
+.field--span2 {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .field-grid {
+    grid-template-columns: 1fr;
+  }
+  .field--span2 {
+    grid-column: auto;
+  }
+}
+
+.field-hint {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  margin-top: -6px;
 }
 
 .rows-per-page {

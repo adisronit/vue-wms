@@ -1153,8 +1153,8 @@
       "productName": "产品名称",
       "brand": "品牌",
       "category": "类别",
-      "baseUom": "基本单位",
-      "packSize": "包装规格",
+      "baseUom": "库存单位",
+      "packSize": "净含量",
       "rules": "规则",
       "status": "状态",
       "action": "操作"
@@ -1168,7 +1168,8 @@
       "subtitle": "基本信息、仓库设置和其他详情"
     },
     "sections": {
-      "basic": "基本信息",
+      "basic": "产品标识信息",
+      "image": "产品图片",
       "warehouse": "仓库设置",
       "advanced": "其他详情",
       "advancedHint": "选填 — 描述、附加条码、重量与尺寸、制造商、规格",
@@ -1187,9 +1188,13 @@
       "noBrandOption": "无品牌",
       "barcode": "主条码",
       "barcodePlaceholder": "主条码（选填）",
-      "packSize": "包装规格",
+      "packSize": "净含量",
+      "packSizePlaceholder": "例如 150",
       "packSizeUnit": "单位",
-      "baseUom": "基本单位",
+      "netContentHelp": "一个可售单位内的数量与单位，例如 150 克 或 500 毫升。",
+      "baseUom": "库存单位",
+      "baseUomPlaceholder": "选择单位",
+      "baseUomHelp": "用于库存计数与上架的单位 — 必填。",
       "status": "启用状态"
     },
     "warehouse": {
