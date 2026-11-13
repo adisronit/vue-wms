@@ -107,6 +107,17 @@ func NewMembershipService(repo membershipManagementRepository, users userLookup,
 // Users tab, applying the same page/limit defaulting/clamping
 // convention every other module's List already uses. Returns ErrNotFound
 // if tenantID doesn't exist.
+// allowedMembershipSortColumns is the sort-column allowlist GET
+// .../users' sort_by validates against — the same set
+// membership_repository.go's membershipSortColumns maps to real,
+// table-qualified column names.
+var allowedMembershipSortColumns = map[string]bool{
+	"name":     true,
+	"role":     true,
+	"status":   true,
+	"joinedAt": true,
+}
+
 func (s *MembershipService) ListMemberships(ctx context.Context, tenantID int64, params MembershipListParams) ([]MembershipResponse, int64, error) {
 	if _, err := s.tenants.FindByID(ctx, tenantID); err != nil {
 		return nil, 0, err
@@ -117,11 +128,28 @@ func (s *MembershipService) ListMemberships(ctx context.Context, tenantID int64,
 		page = 1
 	}
 	if limit < 1 || limit > 100 {
-		limit = 20
+		limit = defaultLimit
+	}
+
+	sortBy := defaultSortBy
+	if raw := strings.TrimSpace(params.SortBy); raw != "" {
+		if !allowedMembershipSortColumns[raw] {
+			return nil, 0, ErrInvalidSort
+		}
+		sortBy = raw
+	}
+
+	sortDir := defaultSortDir
+	if raw := strings.ToUpper(strings.TrimSpace(params.SortDir)); raw != "" {
+		if raw != "ASC" && raw != "DESC" {
+			return nil, 0, ErrInvalidSort
+		}
+		sortDir = raw
 	}
 
 	rows, total, err := s.repo.ListMemberships(ctx, tenantID, MembershipListFilter{
 		Search: params.Search, RoleCode: params.RoleCode, Status: params.Status, Page: page, Limit: limit,
+		SortBy: sortBy, SortDir: sortDir,
 	})
 	if err != nil {
 		return nil, 0, err

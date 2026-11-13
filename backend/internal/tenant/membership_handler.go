@@ -38,16 +38,19 @@ func parseUserID(c *gin.Context) (int64, error) {
 //	@Tags			PlatformAdmin
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id		path		int		true	"Tenant ID"
-//	@Param			page	query		int		false	"Page number"			default(1)
-//	@Param			limit	query		int		false	"Page size (max 100)"	default(20)
-//	@Param			search	query		string	false	"Matches full name, username, or email"
-//	@Param			role	query		string	false	"Role code, e.g. ADMIN"
-//	@Param			status	query		string	false	"INVITED, ACTIVE, or DISABLED"
-//	@Success		200		{object}	apihttp.ListResponse{data=[]MembershipResponse}
-//	@Failure		401		{object}	apihttp.ErrorResponse
-//	@Failure		403		{object}	apihttp.ErrorResponse	"not a platform admin"
-//	@Failure		404		{object}	apihttp.ErrorResponse	"tenant not found"
+//	@Param			id			path		int		true	"Tenant ID"
+//	@Param			page		query		int		false	"Page number"			default(1)
+//	@Param			limit		query		int		false	"Page size (max 100)"	default(25)
+//	@Param			search		query		string	false	"Matches full name, username, or email"
+//	@Param			role		query		string	false	"Role code, e.g. ADMIN"
+//	@Param			status		query		string	false	"INVITED, ACTIVE, or DISABLED"
+//	@Param			sort_by		query		string	false	"name, role, status, or joinedAt"	default(name)
+//	@Param			sort_dir	query		string	false	"asc or desc"						default(asc)
+//	@Success		200			{object}	apihttp.ListResponse{data=[]MembershipResponse}
+//	@Failure		400			{object}	apihttp.ErrorResponse	"invalid sort_by/sort_dir"
+//	@Failure		401			{object}	apihttp.ErrorResponse
+//	@Failure		403			{object}	apihttp.ErrorResponse	"not a platform admin"
+//	@Failure		404			{object}	apihttp.ErrorResponse	"tenant not found"
 //	@Router			/platform/tenants/{id}/users [get]
 func (h *Handler) ListMembers(c *gin.Context) {
 	tenantID, err := parseID(c)
@@ -61,6 +64,7 @@ func (h *Handler) ListMembers(c *gin.Context) {
 	params := MembershipListParams{
 		Search: c.Query("search"), RoleCode: c.Query("role"), Status: c.Query("status"),
 		Page: page, Limit: limit,
+		SortBy: c.Query("sort_by"), SortDir: c.Query("sort_dir"),
 	}
 
 	responses, total, err := h.membership.ListMemberships(c.Request.Context(), tenantID, params)
@@ -294,6 +298,8 @@ func writeMembershipError(c *gin.Context, err error) {
 		apihttp.Fail(c, http.StatusForbidden, "cannot change your own membership through this endpoint", "FORBIDDEN")
 	case errors.As(err, &validationErr):
 		apihttp.Fail(c, http.StatusUnprocessableEntity, validationErr.Message, "VALIDATION_ERROR")
+	case errors.Is(err, ErrInvalidSort):
+		apihttp.Fail(c, http.StatusBadRequest, "sort_by must be name, role, status, or joinedAt; sort_dir must be asc or desc", "INVALID_SORT")
 	default:
 		apihttp.Fail(c, http.StatusInternalServerError, "tenant membership operation failed", "INTERNAL_ERROR")
 	}

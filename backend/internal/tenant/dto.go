@@ -49,10 +49,12 @@ type UpdateStatusRequest struct {
 // ListParams narrows GET /api/v1/platform/tenants to the Tenant
 // Management screen's search box and status filter, with pagination.
 type ListParams struct {
-	Search string
-	Status string
-	Page   int
-	Limit  int
+	Search  string
+	Status  string
+	Page    int
+	Limit   int
+	SortBy  string
+	SortDir string
 }
 
 func toResponse(t Tenant) Response {

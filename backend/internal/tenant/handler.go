@@ -56,27 +56,36 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, platformAdminC
 //	@Tags			PlatformAdmin
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page	query		int		false	"Page number"			default(1)
-//	@Param			limit	query		int		false	"Page size (max 100)"	default(20)
-//	@Param			search	query		string	false	"Matches slug or name"
-//	@Param			status	query		string	false	"TRIAL, ACTIVE, SUSPENDED, or CANCELLED"
-//	@Success		200		{object}	apihttp.ListResponse{data=[]Response}
-//	@Failure		401		{object}	apihttp.ErrorResponse
-//	@Failure		403		{object}	apihttp.ErrorResponse	"not a platform admin"
+//	@Param			page		query		int		false	"Page number"			default(1)
+//	@Param			limit		query		int		false	"Page size (max 100)"	default(25)
+//	@Param			search		query		string	false	"Matches slug or name"
+//	@Param			status		query		string	false	"TRIAL, ACTIVE, SUSPENDED, or CANCELLED"
+//	@Param			sort_by		query		string	false	"name, slug, status, or createdAt"	default(name)
+//	@Param			sort_dir	query		string	false	"asc or desc"						default(asc)
+//	@Success		200			{object}	apihttp.ListResponse{data=[]Response}
+//	@Failure		400			{object}	apihttp.ErrorResponse	"invalid sort_by/sort_dir"
+//	@Failure		401			{object}	apihttp.ErrorResponse
+//	@Failure		403			{object}	apihttp.ErrorResponse	"not a platform admin"
 //	@Router			/platform/tenants [get]
 func (h *Handler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.Query("page"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
 
 	params := ListParams{
-		Search: c.Query("search"),
-		Status: c.Query("status"),
-		Page:   page,
-		Limit:  limit,
+		Search:  c.Query("search"),
+		Status:  c.Query("status"),
+		Page:    page,
+		Limit:   limit,
+		SortBy:  c.Query("sort_by"),
+		SortDir: c.Query("sort_dir"),
 	}
 
 	responses, total, err := h.service.List(c.Request.Context(), params)
 	if err != nil {
+		if errors.Is(err, ErrInvalidSort) {
+			apihttp.Fail(c, http.StatusBadRequest, "sort_by must be name, slug, status, or createdAt; sort_dir must be asc or desc", "INVALID_SORT")
+			return
+		}
 		apihttp.Fail(c, http.StatusInternalServerError, "failed to list tenants", "INTERNAL_ERROR")
 		return
 	}

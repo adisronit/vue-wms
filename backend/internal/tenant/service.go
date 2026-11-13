@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
+	"strings"
 	"time"
 
 	"wms-backend/internal/platform/dbctx"
@@ -43,6 +44,28 @@ type ErrValidation struct {
 }
 
 func (e ErrValidation) Error() string { return e.Message }
+
+// ErrInvalidSort is returned when sort_by/sort_dir is present but not
+// one of the values the Tenant Management screen's sortable column
+// headers can actually send — a 400, not a silent fallback, mirroring
+// internal/productcategory's ErrInvalidSort.
+var ErrInvalidSort = errors.New("tenant: invalid sort_by or sort_dir")
+
+const (
+	defaultSortBy  = "name"
+	defaultSortDir = "ASC"
+	defaultLimit   = 25
+)
+
+// allowedSortColumns is the sort-column allowlist GET
+// /api/v1/platform/tenants' sort_by validates against — the same set
+// repository.go's sortColumns maps to real column names.
+var allowedSortColumns = map[string]bool{
+	"name":      true,
+	"slug":      true,
+	"status":    true,
+	"createdAt": true,
+}
 
 // slugPattern enforces a URL/subdomain-safe tenant slug: lowercase
 // letters, digits, and single hyphens between segments — never a
@@ -141,11 +164,28 @@ func (s *Service) List(ctx context.Context, params ListParams) ([]Response, int6
 		page = 1
 	}
 	if limit < 1 || limit > 100 {
-		limit = 20
+		limit = defaultLimit
+	}
+
+	sortBy := defaultSortBy
+	if raw := strings.TrimSpace(params.SortBy); raw != "" {
+		if !allowedSortColumns[raw] {
+			return nil, 0, ErrInvalidSort
+		}
+		sortBy = raw
+	}
+
+	sortDir := defaultSortDir
+	if raw := strings.ToUpper(strings.TrimSpace(params.SortDir)); raw != "" {
+		if raw != "ASC" && raw != "DESC" {
+			return nil, 0, ErrInvalidSort
+		}
+		sortDir = raw
 	}
 
 	rows, total, err := s.management.List(ctx, ListFilter{
 		Search: params.Search, Status: params.Status, Page: page, Limit: limit,
+		SortBy: sortBy, SortDir: sortDir,
 	})
 	if err != nil {
 		return nil, 0, err

@@ -59,10 +59,10 @@
     >
       <template #head>
         <tr>
-          <th class="table-th">{{ $t('platformAdmin.tenantUsers.table.user') }}</th>
-          <th class="table-th">{{ $t('platformAdmin.tenantUsers.table.role') }}</th>
-          <th class="table-th">{{ $t('platformAdmin.tenantUsers.table.status') }}</th>
-          <th class="table-th">{{ $t('platformAdmin.tenantUsers.table.joinedAt') }}</th>
+          <SortableTh column="name" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">{{ $t('platformAdmin.tenantUsers.table.user') }}</SortableTh>
+          <SortableTh column="role" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">{{ $t('platformAdmin.tenantUsers.table.role') }}</SortableTh>
+          <SortableTh column="status" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">{{ $t('platformAdmin.tenantUsers.table.status') }}</SortableTh>
+          <SortableTh column="joinedAt" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">{{ $t('platformAdmin.tenantUsers.table.joinedAt') }}</SortableTh>
           <th class="table-th text-right">{{ $t('platformAdmin.tenantUsers.table.action') }}</th>
         </tr>
       </template>
@@ -88,30 +88,15 @@
       </tr>
 
       <template v-if="!loading && members.length > 0" #footer>
-        <div class="flex items-center justify-between px-5 py-4 text-sm text-slate-500">
-          <span>
-            {{ $t('common.pagination.showing') }} {{ rangeStart }} {{ $t('common.pagination.to') }} {{ rangeEnd }}
-            {{ $t('common.pagination.of') }} {{ total }} {{ $t('common.pagination.results') }}
-          </span>
-
-          <div class="flex items-center gap-3">
-            <button
-              @click="page > 1 && goToPage(page - 1)"
-              :disabled="page <= 1"
-              class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold disabled:opacity-50"
-            >
-              {{ $t('common.pagination.previous') }}
-            </button>
-            <span>{{ $t('common.pagination.page') }} {{ page }} {{ $t('common.pagination.of') }} {{ totalPages }}</span>
-            <button
-              @click="page < totalPages && goToPage(page + 1)"
-              :disabled="page >= totalPages"
-              class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold disabled:opacity-50"
-            >
-              {{ $t('common.pagination.next') }}
-            </button>
-          </div>
-        </div>
+        <PaginationFooter
+          :page="page"
+          :limit="limit"
+          :total="total"
+          :total-pages="totalPages"
+          :page-size-options="pageSizeOptions"
+          @update:page="goToPage"
+          @update:limit="limit = $event"
+        />
       </template>
     </DataTable>
 
@@ -156,9 +141,11 @@ import MembershipStatusDialog from './MembershipStatusDialog.vue'
 import FilterBar from '../../components/ui/FilterBar.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
+import SortableTh from '../../components/ui/SortableTh.vue'
+import PaginationFooter from '../../components/ui/PaginationFooter.vue'
+import listPagination from '../../mixins/listPagination'
 
 let searchDebounce = null
-const PAGE_LIMIT = 20
 
 // ROLE_NAME_KEYS maps a role code to its i18n key suffix — plain
 // English keys used only for lookups, never shown directly (mirrors
@@ -183,8 +170,12 @@ export default {
     MembershipStatusDialog,
     FilterBar,
     DataTable,
-    StatusBadge
+    StatusBadge,
+    SortableTh,
+    PaginationFooter
   },
+
+  mixins: [listPagination],
 
   props: {
     tenantId: {
@@ -201,9 +192,8 @@ export default {
       listError: '',
       members: [],
       filters: { search: '', role: '', status: '' },
-      page: 1,
-      total: 0,
-      totalPages: 1,
+      sortBy: 'name',
+      sortDir: 'asc',
       showForm: false,
       showAssignExisting: false,
       roleTarget: null,
@@ -211,29 +201,17 @@ export default {
     }
   },
 
-  computed: {
-    rangeStart() {
-      return this.total === 0 ? 0 : (this.page - 1) * PAGE_LIMIT + 1
-    },
-    rangeEnd() {
-      return Math.min(this.page * PAGE_LIMIT, this.total)
-    }
-  },
-
   watch: {
     'filters.role'() {
-      this.page = 1
-      this.fetchMembers()
+      this.resetToFirstPage()
     },
     'filters.status'() {
-      this.page = 1
-      this.fetchMembers()
+      this.resetToFirstPage()
     },
     'filters.search'() {
       clearTimeout(searchDebounce)
       searchDebounce = setTimeout(() => {
-        this.page = 1
-        this.fetchMembers()
+        this.resetToFirstPage()
       }, 300)
     }
   },
@@ -247,16 +225,22 @@ export default {
       return ROLE_NAME_KEYS[code] || code
     },
 
+    fetchList() {
+      return this.fetchMembers()
+    },
+
     async fetchMembers() {
       this.loading = true
       this.listError = ''
       try {
         const res = await listTenantUsers(this.tenantId, {
           page: this.page,
-          limit: PAGE_LIMIT,
+          limit: this.limit,
           search: this.filters.search,
           role: this.filters.role,
-          status: this.filters.status
+          status: this.filters.status,
+          sortBy: this.sortBy,
+          sortDir: this.sortDir
         })
         this.members = res.data
         this.total = res.meta.total
@@ -266,11 +250,6 @@ export default {
       } finally {
         this.loading = false
       }
-    },
-
-    goToPage(page) {
-      this.page = page
-      this.fetchMembers()
     },
 
     openChangeRole(member) {
@@ -284,8 +263,7 @@ export default {
     onCreated() {
       this.showForm = false
       this.showAssignExisting = false
-      this.page = 1
-      this.fetchMembers()
+      this.resetToFirstPage()
     },
 
     onUpdated() {

@@ -13,6 +13,8 @@ export function listTenantUsers(tenantId, params = {}) {
   if (params.search) query.set('search', params.search)
   if (params.role) query.set('role', params.role)
   if (params.status) query.set('status', params.status)
+  if (params.sortBy) query.set('sort_by', params.sortBy)
+  if (params.sortDir) query.set('sort_dir', params.sortDir)
 
   const qs = query.toString()
   return apiGet(`/platform/tenants/${tenantId}/users${qs ? `?${qs}` : ''}`)
