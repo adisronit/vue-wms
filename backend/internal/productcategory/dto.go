@@ -34,13 +34,17 @@ type UpdateRequest struct {
 
 // ListParams narrows GET /api/v1/product-categories to the Product
 // Category screen's search box, parent filter, and status filter, with
-// pagination.
+// pagination and sorting. SortBy/SortDir are the raw query values —
+// Service.List is what validates them against allowedSortColumns and
+// defaults them (code/ASC) before Repository ever sees them.
 type ListParams struct {
 	Search   string
 	ParentID *int64
 	Status   Status
 	Page     int
 	Limit    int
+	SortBy   string
+	SortDir  string
 }
 
 func toResponse(c Category) Response {

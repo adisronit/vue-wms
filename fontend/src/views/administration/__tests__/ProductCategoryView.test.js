@@ -28,8 +28,12 @@ const globalMocks = {
   $d: (v) => String(v)
 }
 
-function page(rows) {
-  return { success: true, data: rows, meta: { page: 1, limit: 100, total: rows.length, total_pages: 1 } }
+function page(rows, meta = {}) {
+  return {
+    success: true,
+    data: rows,
+    meta: { page: 1, limit: 25, total: rows.length, total_pages: 1, ...meta }
+  }
 }
 
 const parentCategory = {
@@ -129,5 +133,127 @@ describe('ProductCategoryView', () => {
     expect(alertSpy).not.toHaveBeenCalled()
     expect(showToast).toHaveBeenCalledWith('common.messages.deleteSuccess', 'success')
     expect(wrapper.vm.categoryToDelete).toBe(null)
+  })
+
+  it('fetches with the default sort (code ASC) and default page size (25) on mount', async () => {
+    listProductCategories.mockResolvedValue(page([parentCategory, childCategory]))
+
+    mount(ProductCategoryView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    expect(listProductCategories).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 1, limit: 25, sortBy: 'code', sortDir: 'asc' })
+    )
+  })
+
+  it('clicking a sortable column header sorts ascending, then descending on a second click, resetting to page 1', async () => {
+    listProductCategories.mockResolvedValue(page([parentCategory, childCategory]))
+
+    const wrapper = mount(ProductCategoryView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    wrapper.vm.page = 3
+    listProductCategories.mockClear()
+
+    const nameHeader = wrapper.findAll('th.sortable')[1]
+    await nameHeader.trigger('click')
+    await flushPromises()
+
+    expect(listProductCategories).toHaveBeenCalledWith(
+      expect.objectContaining({ sortBy: 'name', sortDir: 'asc', page: 1 })
+    )
+
+    listProductCategories.mockClear()
+    await nameHeader.trigger('click')
+    await flushPromises()
+
+    expect(listProductCategories).toHaveBeenCalledWith(
+      expect.objectContaining({ sortBy: 'name', sortDir: 'desc', page: 1 })
+    )
+  })
+
+  it('switching to a different sortable column always starts it at ascending', async () => {
+    listProductCategories.mockResolvedValue(page([parentCategory, childCategory]))
+
+    const wrapper = mount(ProductCategoryView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    wrapper.vm.sortBy = 'name'
+    wrapper.vm.sortDir = 'desc'
+    listProductCategories.mockClear()
+
+    wrapper.vm.toggleSort('status')
+    await flushPromises()
+
+    expect(wrapper.vm.sortDir).toBe('asc')
+    expect(listProductCategories).toHaveBeenCalledWith(
+      expect.objectContaining({ sortBy: 'status', sortDir: 'asc', page: 1 })
+    )
+  })
+
+  it('changing rows-per-page resets to page 1 and refetches with the new limit', async () => {
+    listProductCategories.mockResolvedValue(page([parentCategory, childCategory]))
+
+    const wrapper = mount(ProductCategoryView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    wrapper.vm.page = 2
+    listProductCategories.mockClear()
+
+    const select = wrapper.find('select.rows-per-page')
+    await select.setValue('50')
+    await flushPromises()
+
+    expect(listProductCategories).toHaveBeenCalledWith(expect.objectContaining({ limit: 50, page: 1 }))
+  })
+
+  it('pagination next/previous call the API with the updated page and respect the boundary disabled state', async () => {
+    listProductCategories.mockResolvedValue(
+      page([parentCategory], { page: 1, limit: 25, total: 60, total_pages: 3 })
+    )
+
+    const wrapper = mount(ProductCategoryView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    const [prevButton, nextButton] = wrapper.findAll('button').filter(
+      (b) => b.text() === 'common.pagination.previous' || b.text() === 'common.pagination.next'
+    )
+    expect(prevButton.attributes('disabled')).toBeDefined()
+    expect(nextButton.attributes('disabled')).toBeUndefined()
+
+    listProductCategories.mockClear()
+    await nextButton.trigger('click')
+    await flushPromises()
+
+    expect(listProductCategories).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }))
+  })
+
+  it('debounced search re-fetches with the search term after the user stops typing, resetting to page 1', async () => {
+    vi.useFakeTimers()
+    listProductCategories.mockResolvedValue(page([]))
+
+    const wrapper = mount(ProductCategoryView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    wrapper.vm.page = 2
+    listProductCategories.mockClear()
+
+    wrapper.vm.filters.keyword = 'pkg'
+    await wrapper.vm.$nextTick()
+    vi.advanceTimersByTime(300)
+    await flushPromises()
+
+    expect(listProductCategories).toHaveBeenCalledWith(expect.objectContaining({ search: 'pkg', page: 1 }))
+    vi.useRealTimers()
+  })
+
+  it('status filter re-fetches immediately (no debounce) and resets to page 1', async () => {
+    listProductCategories.mockResolvedValue(page([]))
+
+    const wrapper = mount(ProductCategoryView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    wrapper.vm.page = 2
+    listProductCategories.mockClear()
+
+    wrapper.vm.filters.status = 'ACTIVE'
+    await flushPromises()
+
+    expect(listProductCategories).toHaveBeenCalledWith(expect.objectContaining({ status: 'ACTIVE', page: 1 }))
   })
 })

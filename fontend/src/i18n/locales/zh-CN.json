@@ -69,7 +69,8 @@
       "results": "条记录",
       "noData": "暂无数据",
       "previous": "上一页",
-      "next": "下一页"
+      "next": "下一页",
+      "rowsPerPage": "每页行数"
     },
     "messages": {
       "requiredField": "此字段为必填项",
