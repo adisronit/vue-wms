@@ -2,9 +2,16 @@
 // Platform Super Admin persona, kept deliberately separate from any
 // tenant's RBAC (see docs/proposals/wms-saas/tenant-er-design.md §4: a
 // bug in tenant-role resolution must never also be a platform-privilege
-// bug). Schema-only for Phase 28; the RequirePlatformAdmin middleware
-// and grant/revoke handlers are a later phase
-// (docs/proposals/wms-saas/saas-module-roadmap.md's Phase 33).
+// bug).
+//
+// Schema-only through Phase 28. This phase (the Tenant Management API,
+// WMS-29) adds just enough to authorize that API without touching
+// tenant-level RBAC at all: Repository.IsPlatformAdmin, consumed by
+// middleware.RequirePlatformAdmin. Grant/revoke handlers for
+// platform_admins itself (who gets to become a platform admin) remain a
+// later phase (saas-module-roadmap.md's Phase 33) — today a row is
+// granted by hand (direct SQL), the same bootstrapping shape the
+// project's seeded dev admin user already uses.
 package platformadmin
 
 import "time"

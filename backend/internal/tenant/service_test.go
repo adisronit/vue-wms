@@ -40,7 +40,7 @@ func TestDefaultMembership_PicksFirstOfOrderedList(t *testing.T) {
 	repo := &fakeRepo{memberships: map[int64][]Membership{
 		1: {{TenantID: 100, TenantSlug: "a"}, {TenantID: 200, TenantSlug: "b"}},
 	}}
-	svc := NewService(repo)
+	svc := NewService(repo, nil) // nil: these tests exercise membership methods only
 
 	m, err := svc.DefaultMembership(context.Background(), 1)
 	if err != nil {
@@ -53,7 +53,7 @@ func TestDefaultMembership_PicksFirstOfOrderedList(t *testing.T) {
 
 func TestDefaultMembership_NoMemberships_FailsClosed(t *testing.T) {
 	repo := &fakeRepo{memberships: map[int64][]Membership{}}
-	svc := NewService(repo)
+	svc := NewService(repo, nil) // nil: these tests exercise membership methods only
 
 	_, err := svc.DefaultMembership(context.Background(), 1)
 	if !errors.Is(err, ErrMembershipNotFound) {
@@ -64,7 +64,7 @@ func TestDefaultMembership_NoMemberships_FailsClosed(t *testing.T) {
 func TestDefaultMembership_PropagatesRepositoryError(t *testing.T) {
 	wantErr := errors.New("database unreachable")
 	repo := &fakeRepo{err: wantErr}
-	svc := NewService(repo)
+	svc := NewService(repo, nil) // nil: these tests exercise membership methods only
 
 	_, err := svc.DefaultMembership(context.Background(), 1)
 	if !errors.Is(err, wantErr) {
@@ -76,7 +76,7 @@ func TestActiveMembership_Found(t *testing.T) {
 	repo := &fakeRepo{memberships: map[int64][]Membership{
 		1: {{TenantID: 100, TenantSlug: "a"}},
 	}}
-	svc := NewService(repo)
+	svc := NewService(repo, nil) // nil: these tests exercise membership methods only
 
 	m, err := svc.ActiveMembership(context.Background(), 1, 100)
 	if err != nil {
@@ -91,7 +91,7 @@ func TestValid_TrueForActiveMembership(t *testing.T) {
 	repo := &fakeRepo{memberships: map[int64][]Membership{
 		1: {{TenantID: 100}},
 	}}
-	svc := NewService(repo)
+	svc := NewService(repo, nil) // nil: these tests exercise membership methods only
 
 	ok, err := svc.Valid(context.Background(), 1, 100)
 	if err != nil {
@@ -109,7 +109,7 @@ func TestValid_TrueForActiveMembership(t *testing.T) {
 // bool, and must not need to know this package's specific error type.
 func TestValid_FalseNotErrorForMissingMembership(t *testing.T) {
 	repo := &fakeRepo{memberships: map[int64][]Membership{}}
-	svc := NewService(repo)
+	svc := NewService(repo, nil) // nil: these tests exercise membership methods only
 
 	ok, err := svc.Valid(context.Background(), 1, 100)
 	if err != nil {
@@ -123,7 +123,7 @@ func TestValid_FalseNotErrorForMissingMembership(t *testing.T) {
 func TestValid_PropagatesNonMembershipErrors(t *testing.T) {
 	wantErr := errors.New("database unreachable")
 	repo := &fakeRepo{err: wantErr}
-	svc := NewService(repo)
+	svc := NewService(repo, nil) // nil: these tests exercise membership methods only
 
 	ok, err := svc.Valid(context.Background(), 1, 100)
 	if ok {
