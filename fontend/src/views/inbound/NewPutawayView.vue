@@ -1,30 +1,18 @@
 <template>
   <div class="space-y-6">
-    <!-- Page Header -->
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">
-          {{ $t('newPutaway.title') }}
-        </h1>
-        <p class="text-slate-500">
-          {{ $t('newPutaway.subtitle') }}
-        </p>
-      </div>
-
-      <button
-        @click="$router.push('/inbound/putaway')"
-        class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold"
-      >
-        {{ $t('newPutaway.backButton') }}
-      </button>
-    </div>
+    <PageHeader :title="$t('newPutaway.title')" :subtitle="$t('newPutaway.subtitle')">
+      <template #actions>
+        <button
+          @click="$router.push('/inbound/putaway')"
+          class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold"
+        >
+          {{ $t('newPutaway.backButton') }}
+        </button>
+      </template>
+    </PageHeader>
 
     <!-- Task Information -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-6">
-      <h2 class="text-lg font-bold text-slate-800 mb-5">
-        {{ $t('newPutaway.taskInfo') }}
-      </h2>
-
+    <FormSection :title="$t('newPutaway.taskInfo')">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label class="label">{{ $t('newPutaway.fields.sourceDocument') }}</label>
@@ -88,69 +76,71 @@
           :placeholder="$t('newPutaway.fields.remarkPlaceholder')"
         ></textarea>
       </div>
-    </div>
+    </FormSection>
 
     <!-- Scan Area -->
-    <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5">
-      <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-4">
-        <div>
-          <h2 class="text-lg font-bold text-slate-800">
-            {{ $t('newPutaway.scan.title') }}
-          </h2>
-          <p class="text-sm text-slate-500">
-            {{ $t('newPutaway.scan.subtitle') }}
-          </p>
+    <FormSection>
+      <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5">
+        <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-800">
+              {{ $t('newPutaway.scan.title') }}
+            </h2>
+            <p class="text-sm text-slate-500">
+              {{ $t('newPutaway.scan.subtitle') }}
+            </p>
+          </div>
+
+          <StatusBadge :tone="scanning ? 'blue' : 'orange'">
+            {{ scanning ? $t('newPutaway.scan.lookingUp') : $t('newPutaway.scan.scannerReady') }}
+          </StatusBadge>
         </div>
 
-        <span class="badge-orange">
-          {{ scanning ? $t('newPutaway.scan.lookingUp') : $t('newPutaway.scan.scannerReady') }}
-        </span>
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <input
+            v-model="scanForm.sku"
+            type="text"
+            class="input bg-white"
+            :placeholder="$t('newPutaway.scan.skuPlaceholder')"
+            @keyup.enter="focusActualBin"
+            ref="skuInput"
+          />
+
+          <input
+            v-model="scanForm.actualBin"
+            type="text"
+            class="input bg-white"
+            :placeholder="$t('newPutaway.scan.actualBinPlaceholder')"
+            @keyup.enter="scanItem"
+            ref="actualBinInput"
+          />
+
+          <input
+            v-model.number="scanForm.qty"
+            type="number"
+            class="input bg-white input-number"
+            :placeholder="$t('newPutaway.scan.qtyPlaceholder')"
+          />
+
+          <select v-model="scanForm.status" class="input bg-white">
+            <option value="CONFIRMED">{{ $t('newPutaway.scanStatusOptions.confirmed') }}</option>
+            <option value="PENDING">{{ $t('common.status.pending') }}</option>
+            <option value="ISSUE">{{ $t('newPutaway.scanStatusOptions.issue') }}</option>
+          </select>
+
+          <button
+            @click="scanItem"
+            :disabled="scanning"
+            class="bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold disabled:opacity-60"
+          >
+            {{ $t('newPutaway.scan.confirmScan') }}
+          </button>
+        </div>
       </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <input
-          v-model="scanForm.sku"
-          type="text"
-          class="input bg-white"
-          :placeholder="$t('newPutaway.scan.skuPlaceholder')"
-          @keyup.enter="focusActualBin"
-          ref="skuInput"
-        />
-
-        <input
-          v-model="scanForm.actualBin"
-          type="text"
-          class="input bg-white"
-          :placeholder="$t('newPutaway.scan.actualBinPlaceholder')"
-          @keyup.enter="scanItem"
-          ref="actualBinInput"
-        />
-
-        <input
-          v-model.number="scanForm.qty"
-          type="number"
-          class="input bg-white input-number"
-          :placeholder="$t('newPutaway.scan.qtyPlaceholder')"
-        />
-
-        <select v-model="scanForm.status" class="input bg-white">
-          <option value="CONFIRMED">{{ $t('newPutaway.scanStatusOptions.confirmed') }}</option>
-          <option value="PENDING">{{ $t('common.status.pending') }}</option>
-          <option value="ISSUE">{{ $t('newPutaway.scanStatusOptions.issue') }}</option>
-        </select>
-
-        <button
-          @click="scanItem"
-          :disabled="scanning"
-          class="bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold disabled:opacity-60"
-        >
-          {{ $t('newPutaway.scan.confirmScan') }}
-        </button>
-      </div>
-    </div>
+    </FormSection>
 
     <!-- Putaway Items -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-6">
+    <FormSection>
       <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-5">
         <div>
           <h2 class="text-lg font-bold text-slate-800">
@@ -169,132 +159,121 @@
         </button>
       </div>
 
-      <div class="border border-slate-200 rounded-2xl overflow-hidden">
-        <div class="w-full overflow-x-auto">
-          <table class="min-w-[1450px] w-full text-sm">
-            <thead class="bg-slate-50 text-slate-500">
-              <tr>
-                <th class="table-th">{{ $t('newPutaway.table.sku') }}</th>
-                <th class="table-th">{{ $t('newPutaway.table.productName') }}</th>
-                <th class="table-th">{{ $t('newPutaway.table.lotNo') }}</th>
-                <th class="table-th">{{ $t('newPutaway.table.fromLocation') }}</th>
-                <th class="table-th">{{ $t('newPutaway.table.suggestedBin') }}</th>
-                <th class="table-th">{{ $t('newPutaway.table.actualBin') }}</th>
-                <th class="table-th text-right">{{ $t('newPutaway.table.qty') }}</th>
-                <th class="table-th">{{ $t('newPutaway.table.uom') }}</th>
-                <th class="table-th">{{ $t('common.labels.status') }}</th>
-                <th class="table-th">{{ $t('common.labels.remark') }}</th>
-                <th class="table-th text-right">{{ $t('newPutaway.table.action') }}</th>
-              </tr>
-            </thead>
+      <DataTable
+        :is-empty="items.length === 0"
+        :empty-text="$t('newPutaway.table.noItems')"
+        :colspan="11"
+        min-width="1450px"
+      >
+        <template #head>
+          <tr>
+            <th class="table-th">{{ $t('newPutaway.table.sku') }}</th>
+            <th class="table-th">{{ $t('newPutaway.table.productName') }}</th>
+            <th class="table-th">{{ $t('newPutaway.table.lotNo') }}</th>
+            <th class="table-th">{{ $t('newPutaway.table.fromLocation') }}</th>
+            <th class="table-th">{{ $t('newPutaway.table.suggestedBin') }}</th>
+            <th class="table-th">{{ $t('newPutaway.table.actualBin') }}</th>
+            <th class="table-th text-right">{{ $t('newPutaway.table.qty') }}</th>
+            <th class="table-th">{{ $t('newPutaway.table.uom') }}</th>
+            <th class="table-th">{{ $t('common.labels.status') }}</th>
+            <th class="table-th">{{ $t('common.labels.remark') }}</th>
+            <th class="table-th text-right">{{ $t('newPutaway.table.action') }}</th>
+          </tr>
+        </template>
 
-            <tbody>
-              <tr
-                v-for="(item, index) in items"
-                :key="item.id"
-                class="border-t hover:bg-orange-50"
-                :class="item.status === 'ISSUE' ? 'bg-red-50' : ''"
-              >
-                <td class="table-td">
-                  <input
-                    v-model="item.sku"
-                    class="table-input"
-                    :class="{ 'border-red-400': item.sku && !item.productId }"
-                    :placeholder="$t('newPutaway.table.skuPlaceholder')"
-                    @blur="lookupItemProduct(item)"
-                    @keyup.enter="lookupItemProduct(item)"
-                  />
-                </td>
+        <tr
+          v-for="(item, index) in items"
+          :key="item.id"
+          class="border-t hover:bg-orange-50"
+          :class="item.status === 'ISSUE' ? 'bg-red-50' : ''"
+        >
+          <td class="table-td">
+            <input
+              v-model="item.sku"
+              class="table-input"
+              :class="{ 'border-red-400': item.sku && !item.productId }"
+              :placeholder="$t('newPutaway.table.skuPlaceholder')"
+              @blur="lookupItemProduct(item)"
+              @keyup.enter="lookupItemProduct(item)"
+            />
+          </td>
 
-                <td class="table-td">
-                  <input v-model="item.productName" class="table-input min-w-[220px]" readonly />
-                </td>
+          <td class="table-td">
+            <input v-model="item.productName" class="table-input min-w-[220px]" readonly />
+          </td>
 
-                <td class="table-td">
-                  <input v-model="item.lotNo" class="table-input" />
-                </td>
+          <td class="table-td">
+            <input v-model="item.lotNo" class="table-input" />
+          </td>
 
-                <td class="table-td">
-                  <select v-model="item.sourceLocationId" class="table-input">
-                    <option value="">{{ $t('newPutaway.table.selectLocation') }}</option>
-                    <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
-                  </select>
-                </td>
+          <td class="table-td">
+            <select v-model="item.sourceLocationId" class="table-input">
+              <option value="">{{ $t('newPutaway.table.selectLocation') }}</option>
+              <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
+            </select>
+          </td>
 
-                <td class="table-td">
-                  <!-- No bin-suggestion algorithm exists in this codebase —
-                       see PROJECT_STATUS.md. This column is presentational
-                       only; the real destination is the "Actual Bin" select. -->
-                  <span class="text-slate-400">—</span>
-                </td>
+          <td class="table-td">
+            <!-- No bin-suggestion algorithm exists in this codebase —
+                 see PROJECT_STATUS.md. This column is presentational
+                 only; the real destination is the "Actual Bin" select. -->
+            <span class="text-slate-400">—</span>
+          </td>
 
-                <td class="table-td">
-                  <select v-model="item.destinationLocationId" class="table-input">
-                    <option value="">{{ $t('newPutaway.table.selectBin') }}</option>
-                    <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
-                  </select>
-                </td>
+          <td class="table-td">
+            <select v-model="item.destinationLocationId" class="table-input">
+              <option value="">{{ $t('newPutaway.table.selectBin') }}</option>
+              <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
+            </select>
+          </td>
 
-                <td class="table-td">
-                  <input
-                    v-model.number="item.requestedQty"
-                    type="number"
-                    class="table-input input-number"
-                  />
-                </td>
+          <td class="table-td">
+            <input
+              v-model.number="item.requestedQty"
+              type="number"
+              class="table-input input-number"
+            />
+          </td>
 
-                <td class="table-td">
-                  <select v-model="item.uom" class="table-input">
-                    <option value="PCS">PCS</option>
-                    <option value="BOX">BOX</option>
-                    <option value="ROLL">ROLL</option>
-                    <option value="KG">KG</option>
-                  </select>
-                </td>
+          <td class="table-td">
+            <select v-model="item.uom" class="table-input">
+              <option value="PCS">PCS</option>
+              <option value="BOX">BOX</option>
+              <option value="ROLL">ROLL</option>
+              <option value="KG">KG</option>
+            </select>
+          </td>
 
-                <td class="table-td">
-                  <select v-model="item.status" class="table-input min-w-[140px]">
-                    <option value="PENDING">{{ $t('newPutaway.itemStatusOptions.pending') }}</option>
-                    <option value="CONFIRMED">{{ $t('newPutaway.itemStatusOptions.confirmed') }}</option>
-                    <option value="ISSUE">{{ $t('newPutaway.itemStatusOptions.issue') }}</option>
-                  </select>
-                </td>
+          <td class="table-td">
+            <select v-model="item.status" class="table-input min-w-[140px]">
+              <option value="PENDING">{{ $t('newPutaway.itemStatusOptions.pending') }}</option>
+              <option value="CONFIRMED">{{ $t('newPutaway.itemStatusOptions.confirmed') }}</option>
+              <option value="ISSUE">{{ $t('newPutaway.itemStatusOptions.issue') }}</option>
+            </select>
+          </td>
 
-                <td class="table-td">
-                  <input
-                    v-model="item.remark"
-                    class="table-input min-w-[220px]"
-                    :placeholder="$t('newPutaway.table.remarkPlaceholder')"
-                  />
-                </td>
+          <td class="table-td">
+            <input
+              v-model="item.remark"
+              class="table-input min-w-[220px]"
+              :placeholder="$t('newPutaway.table.remarkPlaceholder')"
+            />
+          </td>
 
-                <td class="table-td text-right">
-                  <button
-                    @click="removeItem(index)"
-                    class="text-red-600 hover:text-red-700 font-semibold"
-                  >
-                    {{ $t('common.buttons.remove') }}
-                  </button>
-                </td>
-              </tr>
-
-              <tr v-if="items.length === 0">
-                <td colspan="11" class="text-center py-10 text-slate-400">
-                  {{ $t('newPutaway.table.noItems') }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+          <td class="table-td text-right">
+            <button
+              @click="removeItem(index)"
+              class="text-red-600 hover:text-red-700 font-semibold"
+            >
+              {{ $t('common.buttons.remove') }}
+            </button>
+          </td>
+        </tr>
+      </DataTable>
+    </FormSection>
 
     <!-- Summary -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-6">
-      <h2 class="text-lg font-bold text-slate-800 mb-5">
-        {{ $t('newPutaway.summary.title') }}
-      </h2>
-
+    <FormSection :title="$t('newPutaway.summary.title')">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
         <div class="summary-card">
           <p class="summary-label">{{ $t('newPutaway.summary.totalLines') }}</p>
@@ -320,10 +299,10 @@
           </h2>
         </div>
       </div>
-    </div>
+    </FormSection>
 
     <!-- Action Bar -->
-    <div class="bg-white border border-slate-200 rounded-2xl p-6">
+    <FormSection>
       <div class="flex flex-col md:flex-row justify-end gap-3">
         <button
           @click="saveDraft"
@@ -335,17 +314,30 @@
 
         <button
           v-if="canConfirm"
-          @click="confirmPutaway"
+          @click="confirmPutawayClick"
           :disabled="submitting"
           class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold disabled:opacity-60"
         >
-          {{ submitting ? $t('common.buttons.submitting') : $t('newPutaway.actions.confirmPutaway') }}
+          {{ $t('newPutaway.actions.confirmPutaway') }}
         </button>
         <p v-else class="text-sm text-slate-500 self-center">
           {{ $t('newPutaway.actions.viewOnlyNote') }}
         </p>
       </div>
-    </div>
+    </FormSection>
+
+    <ConfirmDialog
+      :open="showSubmitConfirm"
+      :title="$t('newPutaway.actions.confirmPutaway')"
+      :message="$t('newPutaway.messages.confirmSubmitDialog')"
+      :confirm-label="$t('newPutaway.actions.confirmPutaway')"
+      :cancel-label="$t('common.buttons.cancel')"
+      :loading-label="$t('common.buttons.submitting')"
+      :loading="submitting"
+      :error-message="submitError"
+      @cancel="showSubmitConfirm = false"
+      @confirm="confirmPutaway"
+    />
   </div>
 </template>
 
@@ -355,6 +347,12 @@ import { listProducts } from '../../services/products'
 import { listReceipts } from '../../services/receiving'
 import { createPutawayTask, confirmPutawayTask, getPutawaySources, newIdempotencyKey } from '../../services/putaway'
 import { hasPermission } from '../../services/auth'
+import { showToast } from '../../services/toast'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FormSection from '../../components/ui/FormSection.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
+import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
 
 function todayDate() {
   return new Date().toISOString().slice(0, 10)
@@ -362,6 +360,8 @@ function todayDate() {
 
 export default {
   name: 'NewPutawayView',
+
+  components: { PageHeader, FormSection, DataTable, StatusBadge, ConfirmDialog },
 
   data() {
     return {
@@ -372,6 +372,8 @@ export default {
       formError: '',
       submitting: false,
       scanning: false,
+      showSubmitConfirm: false,
+      submitError: '',
 
       form: {
         sourceDocument: '',
@@ -681,7 +683,7 @@ export default {
       this.formError = ''
       try {
         await createPutawayTask(this.buildCreatePayload())
-        alert(this.$t('newPutaway.messages.draftSaved'))
+        showToast(this.$t('newPutaway.messages.draftSaved'), 'success')
         this.$router.push('/inbound/put-away')
       } catch (err) {
         this.formError = err.message
@@ -690,7 +692,11 @@ export default {
       }
     },
 
-    async confirmPutaway() {
+    // Validates the form and the "at least one actioned item" rule up
+    // front (same rules as before) and, if they pass, opens the
+    // confirmation dialog. The actual submit logic is unchanged and now
+    // runs from confirmPutaway() once the dialog is confirmed.
+    confirmPutawayClick() {
       const error = this.validateForm()
       if (error) {
         this.formError = error
@@ -703,8 +709,14 @@ export default {
         return
       }
 
-      this.submitting = true
       this.formError = ''
+      this.submitError = ''
+      this.showSubmitConfirm = true
+    },
+
+    async confirmPutaway() {
+      this.submitting = true
+      this.submitError = ''
       try {
         const created = await createPutawayTask(this.buildCreatePayload())
 
@@ -726,10 +738,11 @@ export default {
           items: confirmItems
         })
 
-        alert(this.$t('newPutaway.messages.putawayConfirmed'))
+        this.showSubmitConfirm = false
+        showToast(this.$t('newPutaway.messages.putawayConfirmed'), 'success')
         this.$router.push('/inbound/put-away')
       } catch (err) {
-        this.formError = err.message
+        this.submitError = err.message
       } finally {
         this.submitting = false
       }
@@ -811,14 +824,5 @@ export default {
   color: #0f172a;
   margin-top: 8px;
   font-variant-numeric: tabular-nums;
-}
-
-.badge-orange {
-  background: #ffedd5;
-  color: #ea580c;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: 12px;
 }
 </style>

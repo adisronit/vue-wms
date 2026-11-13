@@ -1,51 +1,43 @@
 <template>
   <div class="space-y-6">
-    <!-- Page Header -->
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">
-          {{ $t('stockInquiry.title') }}
-        </h1>
-        <p class="text-slate-500">
-          {{ $t('stockInquiry.subtitle') }}
-        </p>
-      </div>
+    <PageHeader :title="$t('stockInquiry.title')" :subtitle="$t('stockInquiry.subtitle')">
+      <template #actions>
+        <div class="flex flex-col items-end gap-2">
+          <div class="flex gap-3">
+            <button
+              @click="exportCsv"
+              :disabled="exporting"
+              class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
+            >
+              {{ exporting ? $t('common.buttons.exporting') : $t('stockInquiry.exportStock') }}
+            </button>
 
-      <div class="flex flex-col items-end gap-2">
-        <div class="flex gap-3">
-          <button
-            @click="exportCsv"
-            :disabled="exporting"
-            class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
-          >
-            {{ exporting ? $t('common.buttons.exporting') : $t('stockInquiry.exportStock') }}
-          </button>
+            <button
+              v-if="canExportTransactions"
+              @click="exportTransactionsAsync"
+              :disabled="transactionJobStatus === 'PENDING' || transactionJobStatus === 'PROCESSING'"
+              class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
+            >
+              {{ $t('stockInquiry.exportTransactionHistory') }}
+            </button>
+          </div>
 
-          <button
-            v-if="canExportTransactions"
-            @click="exportTransactionsAsync"
-            :disabled="transactionJobStatus === 'PENDING' || transactionJobStatus === 'PROCESSING'"
-            class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
-          >
-            {{ $t('stockInquiry.exportTransactionHistory') }}
-          </button>
+          <!-- Phase 22 — the one async report; polls GET /reports/export-jobs/{id}
+               until COMPLETED/FAILED rather than blocking the request. -->
+          <p v-if="transactionJobStatus" class="text-sm" :class="transactionJobStatus === 'FAILED' ? 'text-red-600' : 'text-slate-500'">
+            <span v-if="transactionJobStatus === 'PENDING' || transactionJobStatus === 'PROCESSING'">
+              {{ $t('stockInquiry.generatingExport') }}
+            </span>
+            <span v-else-if="transactionJobStatus === 'COMPLETED'">
+              {{ $t('stockInquiry.exportReady') }}
+            </span>
+            <span v-else-if="transactionJobStatus === 'FAILED'">
+              {{ $t('stockInquiry.exportFailed', { error: transactionJobError }) }}
+            </span>
+          </p>
         </div>
-
-        <!-- Phase 22 — the one async report; polls GET /reports/export-jobs/{id}
-             until COMPLETED/FAILED rather than blocking the request. -->
-        <p v-if="transactionJobStatus" class="text-sm" :class="transactionJobStatus === 'FAILED' ? 'text-red-600' : 'text-slate-500'">
-          <span v-if="transactionJobStatus === 'PENDING' || transactionJobStatus === 'PROCESSING'">
-            {{ $t('stockInquiry.generatingExport') }}
-          </span>
-          <span v-else-if="transactionJobStatus === 'COMPLETED'">
-            {{ $t('stockInquiry.exportReady') }}
-          </span>
-          <span v-else-if="transactionJobStatus === 'FAILED'">
-            {{ $t('stockInquiry.exportFailed', { error: transactionJobError }) }}
-          </span>
-        </p>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
@@ -74,135 +66,124 @@
       {{ listError }}
     </div>
 
-    <!-- Filter -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-5">
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <input
-          v-model="filters.keyword"
-          type="text"
-          :placeholder="$t('stockInquiry.filters.searchPlaceholder')"
-          class="input"
-        />
+    <FilterBar :cols="5">
+      <input
+        v-model="filters.keyword"
+        type="text"
+        :placeholder="$t('stockInquiry.filters.searchPlaceholder')"
+        class="input"
+      />
 
-        <select v-model="filters.warehouseId" class="input">
-          <option value="">{{ $t('stockInquiry.filters.allWarehouses') }}</option>
-          <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
-        </select>
+      <select v-model="filters.warehouseId" class="input">
+        <option value="">{{ $t('stockInquiry.filters.allWarehouses') }}</option>
+        <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
+      </select>
 
-        <select v-model="filters.zoneId" class="input" :disabled="!filters.warehouseId">
-          <option value="">{{ $t('stockInquiry.filters.allZones') }}</option>
-          <option v-for="z in zones" :key="z.id" :value="z.id">{{ $t('stockInquiry.filters.zonePrefix') }} {{ z.code }}</option>
-        </select>
+      <select v-model="filters.zoneId" class="input" :disabled="!filters.warehouseId">
+        <option value="">{{ $t('stockInquiry.filters.allZones') }}</option>
+        <option v-for="z in zones" :key="z.id" :value="z.id">{{ $t('stockInquiry.filters.zonePrefix') }} {{ z.code }}</option>
+      </select>
 
-        <select v-model="filters.stockStatus" class="input">
-          <option value="">{{ $t('stockInquiry.filters.allStockStatus') }}</option>
-          <option value="AVAILABLE">{{ $t('stockInquiry.filters.statusAvailable') }}</option>
-          <option value="RESERVED">{{ $t('stockInquiry.filters.statusReserved') }}</option>
-          <option value="HOLD">{{ $t('stockInquiry.filters.statusHold') }}</option>
-          <option value="LOW_STOCK">{{ $t('stockInquiry.filters.statusLowStock') }}</option>
-        </select>
+      <select v-model="filters.stockStatus" class="input">
+        <option value="">{{ $t('stockInquiry.filters.allStockStatus') }}</option>
+        <option value="AVAILABLE">{{ $t('stockInquiry.filters.statusAvailable') }}</option>
+        <option value="RESERVED">{{ $t('stockInquiry.filters.statusReserved') }}</option>
+        <option value="HOLD">{{ $t('stockInquiry.filters.statusHold') }}</option>
+        <option value="LOW_STOCK">{{ $t('stockInquiry.filters.statusLowStock') }}</option>
+      </select>
 
-        <button
-          @click="clearFilter"
-          class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
-        >
-          {{ $t('common.buttons.clearFilter') }}
-        </button>
-      </div>
-    </div>
+      <button
+        @click="clearFilter"
+        class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
+      >
+        {{ $t('common.buttons.clearFilter') }}
+      </button>
+    </FilterBar>
 
-    <!-- Stock Table -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="w-full overflow-x-auto">
-        <table class="min-w-[1250px] w-full text-sm">
-          <thead class="bg-slate-50 text-slate-500">
-            <tr>
-              <th class="table-th">{{ $t('stockInquiry.table.sku') }}</th>
-              <th class="table-th">{{ $t('stockInquiry.table.productName') }}</th>
-              <th class="table-th">{{ $t('stockInquiry.table.barcode') }}</th>
-              <th class="table-th">{{ $t('stockInquiry.table.warehouse') }}</th>
-              <th class="table-th">{{ $t('stockInquiry.table.location') }}</th>
-              <th class="table-th">{{ $t('stockInquiry.table.lotNo') }}</th>
-              <th class="table-th">{{ $t('stockInquiry.table.available') }}</th>
-              <th class="table-th">{{ $t('stockInquiry.table.reserved') }}</th>
-              <th class="table-th">{{ $t('stockInquiry.table.onHand') }}</th>
-              <th class="table-th">{{ $t('stockInquiry.table.uom') }}</th>
-              <th class="table-th">{{ $t('stockInquiry.table.status') }}</th>
-              <th class="table-th text-right">{{ $t('stockInquiry.table.action') }}</th>
-            </tr>
-          </thead>
+    <DataTable
+      :loading="loading"
+      :is-empty="stockList.length === 0"
+      :loading-text="$t('stockInquiry.table.loading')"
+      :empty-text="$t('stockInquiry.table.noData')"
+      :colspan="12"
+      min-width="1250px"
+    >
+      <template #head>
+        <tr>
+          <th class="table-th">{{ $t('stockInquiry.table.sku') }}</th>
+          <th class="table-th">{{ $t('stockInquiry.table.productName') }}</th>
+          <th class="table-th">{{ $t('stockInquiry.table.barcode') }}</th>
+          <th class="table-th">{{ $t('stockInquiry.table.warehouse') }}</th>
+          <th class="table-th">{{ $t('stockInquiry.table.location') }}</th>
+          <th class="table-th">{{ $t('stockInquiry.table.lotNo') }}</th>
+          <th class="table-th">{{ $t('stockInquiry.table.available') }}</th>
+          <th class="table-th">{{ $t('stockInquiry.table.reserved') }}</th>
+          <th class="table-th">{{ $t('stockInquiry.table.onHand') }}</th>
+          <th class="table-th">{{ $t('stockInquiry.table.uom') }}</th>
+          <th class="table-th">{{ $t('stockInquiry.table.status') }}</th>
+          <th class="table-th text-right">{{ $t('stockInquiry.table.action') }}</th>
+        </tr>
+      </template>
 
-          <tbody>
-            <tr v-if="loading">
-              <td class="table-td" colspan="12">{{ $t('stockInquiry.table.loading') }}</td>
-            </tr>
-            <tr v-else-if="stockList.length === 0">
-              <td class="table-td" colspan="12">{{ $t('stockInquiry.table.noData') }}</td>
-            </tr>
-            <tr
-              v-for="item in stockList"
-              :key="item.id"
-              class="border-t hover:bg-orange-50"
-            >
-              <td class="table-td font-semibold text-slate-800">
-                {{ item.sku }}
-              </td>
+      <tr
+        v-for="item in stockList"
+        :key="item.id"
+        class="border-t hover:bg-orange-50"
+      >
+        <td class="table-td font-semibold text-slate-800">
+          {{ item.sku }}
+        </td>
 
-              <td class="table-td">
-                {{ item.productName }}
-              </td>
+        <td class="table-td">
+          {{ item.productName }}
+        </td>
 
-              <td class="table-td">
-                {{ item.barcode }}
-              </td>
+        <td class="table-td">
+          {{ item.barcode }}
+        </td>
 
-              <td class="table-td">
-                {{ item.warehouse }}
-              </td>
+        <td class="table-td">
+          {{ item.warehouse }}
+        </td>
 
-              <td class="table-td">
-                {{ item.location }}
-              </td>
+        <td class="table-td">
+          {{ item.location }}
+        </td>
 
-              <td class="table-td">
-                {{ item.lotNo }}
-              </td>
+        <td class="table-td">
+          {{ item.lotNo }}
+        </td>
 
-              <td class="table-td font-semibold text-green-600">
-                {{ item.availableQty }}
-              </td>
+        <td class="table-td font-semibold text-green-600">
+          {{ item.availableQty }}
+        </td>
 
-              <td class="table-td text-blue-600">
-                {{ item.reservedQty }}
-              </td>
+        <td class="table-td text-blue-600">
+          {{ item.reservedQty }}
+        </td>
 
-              <td class="table-td font-semibold">
-                {{ item.onHandQty }}
-              </td>
+        <td class="table-td font-semibold">
+          {{ item.onHandQty }}
+        </td>
 
-              <td class="table-td">
-                {{ item.uom }}
-              </td>
+        <td class="table-td">
+          {{ item.uom }}
+        </td>
 
-              <td class="table-td">
-                <span :class="getStatusClass(item.stockStatus)">
-                  {{ statusLabel(item.stockStatus) }}
-                </span>
-              </td>
+        <td class="table-td">
+          <StatusBadge :tone="statusTone(item.stockStatus)">{{ statusLabel(item.stockStatus) }}</StatusBadge>
+        </td>
 
-              <td class="table-td text-right">
-                <button
-                  @click="openStockDetail(item)"
-                  class="text-orange-600 hover:text-orange-700 font-semibold"
-                >
-                  {{ $t('stockInquiry.table.viewDetail') }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+        <td class="table-td text-right">
+          <button
+            @click="openStockDetail(item)"
+            class="text-orange-600 hover:text-orange-700 font-semibold"
+          >
+            {{ $t('stockInquiry.table.viewDetail') }}
+          </button>
+        </td>
+      </tr>
+    </DataTable>
 
     <!-- Stock Detail Drawer -->
     <div
@@ -349,6 +330,10 @@ import {
 import { listWarehouses, listZones } from '../../services/warehouses'
 import { hasPermission } from '../../services/auth'
 import i18n from '../../i18n'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FilterBar from '../../components/ui/FilterBar.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 
 let searchDebounce = null
 
@@ -390,6 +375,8 @@ function statusLabel(status) {
 
 export default {
   name: 'StockInquiryView',
+
+  components: { PageHeader, FilterBar, DataTable, StatusBadge },
 
   data() {
     return {
@@ -577,12 +564,12 @@ export default {
       this.filters.stockStatus = ''
     },
 
-    getStatusClass(status) {
-      if (status === 'AVAILABLE') return 'badge-green'
-      if (status === 'RESERVED') return 'badge-blue'
-      if (status === 'HOLD') return 'badge-orange'
-      if (status === 'LOW_STOCK') return 'badge-red'
-      return 'badge-gray'
+    statusTone(status) {
+      if (status === 'AVAILABLE') return 'green'
+      if (status === 'RESERVED') return 'blue'
+      if (status === 'HOLD') return 'orange'
+      if (status === 'LOW_STOCK') return 'red'
+      return 'gray'
     }
   }
 }
@@ -653,50 +640,5 @@ export default {
   color: #0f172a;
   font-weight: 700;
   margin-top: 4px;
-}
-
-.badge-gray {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-orange {
-  background: #ffedd5;
-  color: #ea580c;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-blue {
-  background: #dbeafe;
-  color: #2563eb;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-green {
-  background: #dcfce7;
-  color: #16a34a;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-red {
-  background: #fee2e2;
-  color: #dc2626;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
 }
 </style>

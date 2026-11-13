@@ -318,7 +318,8 @@
       "noProductFound": "No product found for SKU/barcode \"{value}\"",
       "barcodeRequired": "Barcode or SKU is required",
       "draftSaved": "Receiving draft saved successfully",
-      "receivingConfirmed": "Receiving confirmed successfully"
+      "receivingConfirmed": "Receiving confirmed successfully",
+      "confirmSubmitDialog": "This will confirm the receiving and update stock quantities. Continue?"
     }
   },
   "picking": {
@@ -716,7 +717,8 @@
       "warehouseRequired": "Warehouse is required",
       "atLeastOneItem": "At least one QC item is required",
       "defectReasonRequiredForFail": "Defect Reason is required for failed item",
-      "qcConfirmed": "QC confirmed successfully"
+      "qcConfirmed": "QC confirmed successfully",
+      "confirmSubmitDialog": "This will save the QC result for these items. Continue?"
     }
   },
   "newPutaway": {
@@ -809,7 +811,8 @@
       "everyIssueNeedsRemark": "Every issue item needs a remark",
       "setAtLeastOneItemAction": "Set at least one item to Confirmed or Issue before confirming putaway",
       "draftSaved": "Putaway draft saved successfully",
-      "putawayConfirmed": "Putaway confirmed successfully"
+      "putawayConfirmed": "Putaway confirmed successfully",
+      "confirmSubmitDialog": "This will confirm the putaway and move stock to the assigned bin locations. Continue?"
     }
   },
   "orders": {

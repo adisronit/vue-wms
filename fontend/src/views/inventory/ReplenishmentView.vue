@@ -1,14 +1,7 @@
 <template>
   <div class="space-y-6">
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">{{ $t('replenishment.title') }}</h1>
-        <p class="text-slate-500">
-          {{ $t('replenishment.subtitle') }}
-        </p>
-      </div>
-
-      <div class="flex gap-3">
+    <PageHeader :title="$t('replenishment.title')" :subtitle="$t('replenishment.subtitle')">
+      <template #actions>
         <button
           v-if="canCreate"
           @click="openRecommendations"
@@ -24,79 +17,71 @@
         >
           {{ $t('replenishment.newTask') }}
         </button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <div v-if="loadError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
       {{ loadError }}
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-5">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <input v-model="filters.search" type="text" :placeholder="$t('replenishment.filters.searchPlaceholder')" class="input" />
+    <FilterBar :cols="4">
+      <input v-model="filters.search" type="text" :placeholder="$t('replenishment.filters.searchPlaceholder')" class="input" />
 
-        <select v-model="filters.status" class="input">
-          <option value="">{{ $t('replenishment.filters.allStatus') }}</option>
-          <option value="PENDING">{{ $t('replenishment.status.pending') }}</option>
-          <option value="IN_PROGRESS">{{ $t('replenishment.status.inProgress') }}</option>
-          <option value="COMPLETED">{{ $t('replenishment.status.completed') }}</option>
-          <option value="CANCELLED">{{ $t('replenishment.status.cancelled') }}</option>
-          <option value="ISSUE">{{ $t('replenishment.status.issue') }}</option>
-        </select>
+      <select v-model="filters.status" class="input">
+        <option value="">{{ $t('replenishment.filters.allStatus') }}</option>
+        <option value="PENDING">{{ $t('replenishment.status.pending') }}</option>
+        <option value="IN_PROGRESS">{{ $t('replenishment.status.inProgress') }}</option>
+        <option value="COMPLETED">{{ $t('replenishment.status.completed') }}</option>
+        <option value="CANCELLED">{{ $t('replenishment.status.cancelled') }}</option>
+        <option value="ISSUE">{{ $t('replenishment.status.issue') }}</option>
+      </select>
 
-        <select v-model="filters.warehouseId" class="input">
-          <option value="">{{ $t('replenishment.filters.allWarehouses') }}</option>
-          <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }}</option>
-        </select>
+      <select v-model="filters.warehouseId" class="input">
+        <option value="">{{ $t('replenishment.filters.allWarehouses') }}</option>
+        <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }}</option>
+      </select>
 
-        <button @click="clearFilter" class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold">
-          {{ $t('common.buttons.clearFilter') }}
-        </button>
-      </div>
-    </div>
+      <button @click="clearFilter" class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold">
+        {{ $t('common.buttons.clearFilter') }}
+      </button>
+    </FilterBar>
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="w-full overflow-x-auto">
-        <table class="min-w-[1000px] w-full text-sm">
-          <thead class="bg-slate-50 text-slate-500">
-            <tr>
-              <th class="table-th">{{ $t('replenishment.table.taskNo') }}</th>
-              <th class="table-th">{{ $t('replenishment.table.sku') }}</th>
-              <th class="table-th">{{ $t('replenishment.table.product') }}</th>
-              <th class="table-th">{{ $t('replenishment.table.from') }}</th>
-              <th class="table-th">{{ $t('replenishment.table.to') }}</th>
-              <th class="table-th">{{ $t('replenishment.table.qty') }}</th>
-              <th class="table-th">{{ $t('replenishment.table.warehouse') }}</th>
-              <th class="table-th">{{ $t('replenishment.table.status') }}</th>
-              <th class="table-th text-right">{{ $t('replenishment.table.action') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="loading">
-              <td colspan="9" class="text-center py-10 text-slate-400">{{ $t('replenishment.table.loading') }}</td>
-            </tr>
-            <tr v-else-if="taskList.length === 0">
-              <td colspan="9" class="text-center py-10 text-slate-400">{{ $t('replenishment.table.noData') }}</td>
-            </tr>
-            <template v-else>
-              <tr v-for="t in taskList" :key="t.id" class="border-t hover:bg-orange-50">
-                <td class="table-td font-semibold text-slate-800">{{ t.task_no }}</td>
-                <td class="table-td">{{ t.sku }}</td>
-                <td class="table-td">{{ t.product_name }}</td>
-                <td class="table-td">{{ t.from_location_code }}</td>
-                <td class="table-td">{{ t.to_location_code }}</td>
-                <td class="table-td">{{ t.quantity }}</td>
-                <td class="table-td">{{ t.warehouse_code }}</td>
-                <td class="table-td"><span :class="statusBadgeClass(t.status)">{{ statusText(t.status) }}</span></td>
-                <td class="table-td text-right">
-                  <button @click="openDetail(t.id)" class="text-orange-600 hover:underline font-semibold">{{ $t('replenishment.table.view') }}</button>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <DataTable
+      :loading="loading"
+      :is-empty="taskList.length === 0"
+      :loading-text="$t('replenishment.table.loading')"
+      :empty-text="$t('replenishment.table.noData')"
+      :colspan="9"
+      min-width="1000px"
+    >
+      <template #head>
+        <tr>
+          <th class="table-th">{{ $t('replenishment.table.taskNo') }}</th>
+          <th class="table-th">{{ $t('replenishment.table.sku') }}</th>
+          <th class="table-th">{{ $t('replenishment.table.product') }}</th>
+          <th class="table-th">{{ $t('replenishment.table.from') }}</th>
+          <th class="table-th">{{ $t('replenishment.table.to') }}</th>
+          <th class="table-th">{{ $t('replenishment.table.qty') }}</th>
+          <th class="table-th">{{ $t('replenishment.table.warehouse') }}</th>
+          <th class="table-th">{{ $t('replenishment.table.status') }}</th>
+          <th class="table-th text-right">{{ $t('replenishment.table.action') }}</th>
+        </tr>
+      </template>
+
+      <tr v-for="t in taskList" :key="t.id" class="border-t hover:bg-orange-50">
+        <td class="table-td font-semibold text-slate-800">{{ t.task_no }}</td>
+        <td class="table-td">{{ t.sku }}</td>
+        <td class="table-td">{{ t.product_name }}</td>
+        <td class="table-td">{{ t.from_location_code }}</td>
+        <td class="table-td">{{ t.to_location_code }}</td>
+        <td class="table-td">{{ t.quantity }}</td>
+        <td class="table-td">{{ t.warehouse_code }}</td>
+        <td class="table-td"><StatusBadge :tone="statusTone(t.status)">{{ statusText(t.status) }}</StatusBadge></td>
+        <td class="table-td text-right">
+          <button @click="openDetail(t.id)" class="text-orange-600 hover:underline font-semibold">{{ $t('replenishment.table.view') }}</button>
+        </td>
+      </tr>
+    </DataTable>
 
     <!-- New Task panel -->
     <div v-if="showNewForm" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
@@ -205,7 +190,7 @@
         <p v-if="detailError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">{{ detailError }}</p>
 
         <div class="space-y-2 text-sm">
-          <p><span class="text-slate-500">{{ $t('replenishment.detail.status') }}</span> <span :class="statusBadgeClass(selectedTask.status)">{{ statusText(selectedTask.status) }}</span></p>
+          <p><span class="text-slate-500">{{ $t('replenishment.detail.status') }}</span> <StatusBadge :tone="statusTone(selectedTask.status)">{{ statusText(selectedTask.status) }}</StatusBadge></p>
           <p><span class="text-slate-500">{{ $t('replenishment.detail.product') }}</span> {{ selectedTask.sku }} — {{ selectedTask.product_name }}</p>
           <p><span class="text-slate-500">{{ $t('replenishment.detail.lot') }}</span> {{ selectedTask.lot_no || '—' }}</p>
           <p><span class="text-slate-500">{{ $t('replenishment.detail.from') }}</span> {{ selectedTask.from_location_code }}</p>
@@ -255,9 +240,14 @@ import {
 import { listWarehouses, listZones, listLocations } from '../../services/warehouses'
 import { listProducts } from '../../services/products'
 import { hasPermission } from '../../services/auth'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FilterBar from '../../components/ui/FilterBar.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 
 export default {
   name: 'ReplenishmentPage',
+  components: { PageHeader, FilterBar, DataTable, StatusBadge },
   data() {
     return {
       loading: false,
@@ -336,11 +326,11 @@ export default {
       this.fetchTasks()
     },
 
-    statusBadgeClass(status) {
-      if (status === 'COMPLETED') return 'badge-green'
-      if (status === 'IN_PROGRESS') return 'badge-orange'
-      if (status === 'ISSUE' || status === 'CANCELLED') return 'badge-gray'
-      return 'badge-gray'
+    statusTone(status) {
+      if (status === 'COMPLETED') return 'green'
+      if (status === 'IN_PROGRESS') return 'orange'
+      if (status === 'ISSUE' || status === 'CANCELLED') return 'gray'
+      return 'gray'
     },
 
     openNewTask() {
@@ -538,32 +528,5 @@ export default {
   padding: 14px 16px;
   color: #475569;
   white-space: nowrap;
-}
-
-.badge-gray {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-orange {
-  background: #ffedd5;
-  color: #ea580c;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-green {
-  background: #dcfce7;
-  color: #16a34a;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
 }
 </style>

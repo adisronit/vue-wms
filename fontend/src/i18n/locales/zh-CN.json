@@ -318,7 +318,8 @@
       "noProductFound": "未找到 SKU/条码为“{value}”的产品",
       "barcodeRequired": "条码或 SKU 为必填项",
       "draftSaved": "收货草稿保存成功",
-      "receivingConfirmed": "收货确认成功"
+      "receivingConfirmed": "收货确认成功",
+      "confirmSubmitDialog": "此操作将确认收货并更新库存数量。是否继续？"
     }
   },
   "picking": {
@@ -716,7 +717,8 @@
       "warehouseRequired": "请选择仓库",
       "atLeastOneItem": "至少需要一个质检项目",
       "defectReasonRequiredForFail": "不通过的项目必须填写不良原因",
-      "qcConfirmed": "质检确认成功"
+      "qcConfirmed": "质检确认成功",
+      "confirmSubmitDialog": "此操作将保存这些项目的质检结果。是否继续？"
     }
   },
   "newPutaway": {
@@ -809,7 +811,8 @@
       "everyIssueNeedsRemark": "每个异常项目都需要填写备注",
       "setAtLeastOneItemAction": "确认上架前请将至少一个项目设置为已确认或异常",
       "draftSaved": "上架草稿保存成功",
-      "putawayConfirmed": "上架确认成功"
+      "putawayConfirmed": "上架确认成功",
+      "confirmSubmitDialog": "此操作将确认上架并将库存移动到指定货位。是否继续？"
     }
   },
   "orders": {

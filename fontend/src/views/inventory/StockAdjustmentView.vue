@@ -1,14 +1,7 @@
 <template>
   <div class="space-y-6">
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">{{ $t('stockAdjustment.title') }}</h1>
-        <p class="text-slate-500">
-          {{ $t('stockAdjustment.subtitle') }}
-        </p>
-      </div>
-
-      <div class="flex gap-3">
+    <PageHeader :title="$t('stockAdjustment.title')" :subtitle="$t('stockAdjustment.subtitle')">
+      <template #actions>
         <button
           @click="exportCsv"
           :disabled="exporting"
@@ -24,8 +17,8 @@
         >
           {{ $t('stockAdjustment.newButton') }}
         </button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
       <div class="summary-card">
@@ -53,127 +46,114 @@
       {{ loadError }}
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-5">
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <input
-          v-model="filters.keyword"
-          type="text"
-          :placeholder="$t('stockAdjustment.filters.searchPlaceholder')"
-          class="input"
-        />
+    <FilterBar :cols="5">
+      <input
+        v-model="filters.keyword"
+        type="text"
+        :placeholder="$t('stockAdjustment.filters.searchPlaceholder')"
+        class="input"
+      />
 
-        <select v-model="filters.type" class="input">
-          <option value="">{{ $t('stockAdjustment.filters.allTypes') }}</option>
-          <option value="INCREASE">{{ $t('stockAdjustment.filters.increase') }}</option>
-          <option value="DECREASE">{{ $t('stockAdjustment.filters.decrease') }}</option>
-        </select>
+      <select v-model="filters.type" class="input">
+        <option value="">{{ $t('stockAdjustment.filters.allTypes') }}</option>
+        <option value="INCREASE">{{ $t('stockAdjustment.filters.increase') }}</option>
+        <option value="DECREASE">{{ $t('stockAdjustment.filters.decrease') }}</option>
+      </select>
 
-        <select v-model="filters.status" class="input">
-          <option value="">{{ $t('stockAdjustment.filters.allStatus') }}</option>
-          <option value="DRAFT">{{ $t('stockAdjustment.status.draft') }}</option>
-          <option value="PENDING">{{ $t('stockAdjustment.status.pending') }}</option>
-          <option value="APPROVED">{{ $t('stockAdjustment.status.approved') }}</option>
-          <option value="REJECTED">{{ $t('stockAdjustment.status.rejected') }}</option>
-          <option value="OVERDUE">{{ $t('stockAdjustment.filters.overduePending') }}</option>
-        </select>
+      <select v-model="filters.status" class="input">
+        <option value="">{{ $t('stockAdjustment.filters.allStatus') }}</option>
+        <option value="DRAFT">{{ $t('stockAdjustment.status.draft') }}</option>
+        <option value="PENDING">{{ $t('stockAdjustment.status.pending') }}</option>
+        <option value="APPROVED">{{ $t('stockAdjustment.status.approved') }}</option>
+        <option value="REJECTED">{{ $t('stockAdjustment.status.rejected') }}</option>
+        <option value="OVERDUE">{{ $t('stockAdjustment.filters.overduePending') }}</option>
+      </select>
 
-        <input
-          v-model="filters.date"
-          type="date"
-          class="input"
-        />
+      <input
+        v-model="filters.date"
+        type="date"
+        class="input"
+      />
 
-        <button
-          @click="clearFilter"
-          class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
+      <button
+        @click="clearFilter"
+        class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
+      >
+        {{ $t('common.buttons.clearFilter') }}
+      </button>
+    </FilterBar>
+
+    <DataTable
+      :loading="loading"
+      :is-empty="adjustmentList.length === 0"
+      :loading-text="$t('stockAdjustment.table.loading')"
+      :empty-text="$t('stockAdjustment.table.noData')"
+      :colspan="12"
+      min-width="1200px"
+    >
+      <template #head>
+        <tr>
+          <th class="table-th">{{ $t('stockAdjustment.table.adjustmentNo') }}</th>
+          <th class="table-th">{{ $t('stockAdjustment.table.date') }}</th>
+          <th class="table-th">{{ $t('stockAdjustment.table.sku') }}</th>
+          <th class="table-th">{{ $t('stockAdjustment.table.product') }}</th>
+          <th class="table-th">{{ $t('stockAdjustment.table.location') }}</th>
+          <th class="table-th">{{ $t('stockAdjustment.table.currentQty') }}</th>
+          <th class="table-th">{{ $t('stockAdjustment.table.adjustQty') }}</th>
+          <th class="table-th">{{ $t('stockAdjustment.table.newQty') }}</th>
+          <th class="table-th">{{ $t('stockAdjustment.table.reason') }}</th>
+          <th class="table-th">{{ $t('stockAdjustment.table.pendingAge') }}</th>
+          <th class="table-th">{{ $t('stockAdjustment.table.status') }}</th>
+          <th class="table-th text-right">{{ $t('stockAdjustment.table.action') }}</th>
+        </tr>
+      </template>
+
+      <tr
+        v-for="item in adjustmentList"
+        :key="item.id"
+        class="border-t hover:bg-orange-50"
+      >
+        <td class="table-td font-semibold text-slate-800">
+          {{ item.adjustmentNo }}
+        </td>
+        <td class="table-td">{{ item.date }}</td>
+        <td class="table-td">{{ item.sku }}</td>
+        <td class="table-td">{{ item.productName }}</td>
+        <td class="table-td">{{ item.location }}</td>
+        <td class="table-td">{{ item.currentQty != null ? item.currentQty : '—' }}</td>
+
+        <td
+          class="table-td font-semibold"
+          :class="item.adjustQty > 0 ? 'text-green-600' : 'text-red-600'"
         >
-          {{ $t('common.buttons.clearFilter') }}
-        </button>
-      </div>
-    </div>
+          {{ item.adjustQty > 0 ? '+' : '' }}{{ item.adjustQty }}
+        </td>
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="w-full overflow-x-auto">
-        <table class="min-w-[1200px] w-full text-sm">
-          <thead class="bg-slate-50 text-slate-500">
-            <tr>
-              <th class="table-th">{{ $t('stockAdjustment.table.adjustmentNo') }}</th>
-              <th class="table-th">{{ $t('stockAdjustment.table.date') }}</th>
-              <th class="table-th">{{ $t('stockAdjustment.table.sku') }}</th>
-              <th class="table-th">{{ $t('stockAdjustment.table.product') }}</th>
-              <th class="table-th">{{ $t('stockAdjustment.table.location') }}</th>
-              <th class="table-th">{{ $t('stockAdjustment.table.currentQty') }}</th>
-              <th class="table-th">{{ $t('stockAdjustment.table.adjustQty') }}</th>
-              <th class="table-th">{{ $t('stockAdjustment.table.newQty') }}</th>
-              <th class="table-th">{{ $t('stockAdjustment.table.reason') }}</th>
-              <th class="table-th">{{ $t('stockAdjustment.table.pendingAge') }}</th>
-              <th class="table-th">{{ $t('stockAdjustment.table.status') }}</th>
-              <th class="table-th text-right">{{ $t('stockAdjustment.table.action') }}</th>
-            </tr>
-          </thead>
+        <td class="table-td font-semibold">{{ item.newQty != null ? item.newQty : '—' }}</td>
+        <td class="table-td">{{ item.reason }}</td>
 
-          <tbody>
-            <tr v-if="loading">
-              <td colspan="12" class="text-center py-10 text-slate-400">{{ $t('stockAdjustment.table.loading') }}</td>
-            </tr>
+        <td class="table-td">
+          <span v-if="item.ageHours != null">
+            {{ formatAge(item.ageHours) }}
+            <StatusBadge v-if="item.isOverdue" tone="red" class="ml-1">{{ $t('stockAdjustment.table.overdue') }}</StatusBadge>
+          </span>
+          <span v-else>—</span>
+        </td>
 
-            <tr v-else-if="adjustmentList.length === 0">
-              <td colspan="12" class="text-center py-10 text-slate-400">{{ $t('stockAdjustment.table.noData') }}</td>
-            </tr>
+        <td class="table-td">
+          <StatusBadge :tone="statusTone(item.status)">{{ statusText(item.status) }}</StatusBadge>
+        </td>
 
-            <template v-else>
-            <tr
-              v-for="item in adjustmentList"
-              :key="item.id"
-              class="border-t hover:bg-orange-50"
-            >
-              <td class="table-td font-semibold text-slate-800">
-                {{ item.adjustmentNo }}
-              </td>
-              <td class="table-td">{{ item.date }}</td>
-              <td class="table-td">{{ item.sku }}</td>
-              <td class="table-td">{{ item.productName }}</td>
-              <td class="table-td">{{ item.location }}</td>
-              <td class="table-td">{{ item.currentQty != null ? item.currentQty : '—' }}</td>
-
-              <td
-                class="table-td font-semibold"
-                :class="item.adjustQty > 0 ? 'text-green-600' : 'text-red-600'"
-              >
-                {{ item.adjustQty > 0 ? '+' : '' }}{{ item.adjustQty }}
-              </td>
-
-              <td class="table-td font-semibold">{{ item.newQty != null ? item.newQty : '—' }}</td>
-              <td class="table-td">{{ item.reason }}</td>
-
-              <td class="table-td">
-                <span v-if="item.ageHours != null">
-                  {{ formatAge(item.ageHours) }}
-                  <span v-if="item.isOverdue" class="badge-red ml-1">{{ $t('stockAdjustment.table.overdue') }}</span>
-                </span>
-                <span v-else>—</span>
-              </td>
-
-              <td class="table-td">
-                <span :class="getStatusClass(item.status)">
-                  {{ statusText(item.status) }}
-                </span>
-              </td>
-
-              <td class="table-td text-right">
-                <button
-                  @click="openDetail(item)"
-                  class="text-orange-600 hover:text-orange-700 font-semibold"
-                >
-                  {{ $t('stockAdjustment.table.viewDetail') }}
-                </button>
-              </td>
-            </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
-    </div>
+        <td class="table-td text-right">
+          <button
+            @click="openDetail(item)"
+            class="text-orange-600 hover:text-orange-700 font-semibold"
+          >
+            {{ $t('stockAdjustment.table.viewDetail') }}
+          </button>
+        </td>
+      </tr>
+    </DataTable>
 
     <div
       v-if="showDrawer"
@@ -398,6 +378,11 @@ import { listWarehouses, listZones, listLocations } from '../../services/warehou
 import { listProducts } from '../../services/products'
 import { listInventory } from '../../services/inventory'
 import { hasPermission } from '../../services/auth'
+import { showToast } from '../../services/toast'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FilterBar from '../../components/ui/FilterBar.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 
 let searchDebounce = null
 
@@ -435,6 +420,8 @@ function emptyForm() {
 
 export default {
   name: 'StockAdjustmentView',
+
+  components: { PageHeader, FilterBar, DataTable, StatusBadge },
 
   data() {
     return {
@@ -711,13 +698,13 @@ export default {
             adjust_type: this.form.type, adjust_qty: this.form.adjustQty, reason: this.form.reason,
             remark: this.form.remark || null, status
           })
-          alert(status === 'PENDING' ? this.$t('stockAdjustment.messages.submittedForApproval') : this.$t('stockAdjustment.messages.draftSaved'))
+          showToast(status === 'PENDING' ? this.$t('stockAdjustment.messages.submittedForApproval') : this.$t('stockAdjustment.messages.draftSaved'), 'success')
         } else {
           await updateStockAdjustment(this.selectedId, {
             lot_no: this.form.lotNo || '', adjust_type: this.form.type, adjust_qty: this.form.adjustQty,
             reason: this.form.reason, remark: this.form.remark || null, status
           })
-          alert(status === 'PENDING' ? this.$t('stockAdjustment.messages.submittedForApproval') : this.$t('stockAdjustment.messages.draftSaved'))
+          showToast(status === 'PENDING' ? this.$t('stockAdjustment.messages.submittedForApproval') : this.$t('stockAdjustment.messages.draftSaved'), 'success')
         }
         this.closeDrawer()
         await this.fetchAdjustments()
@@ -748,7 +735,7 @@ export default {
         await confirmStockAdjustment(this.selectedId, {
           idempotency_key: newIdempotencyKey(), action, remark: this.form.remark || ''
         })
-        alert(action === 'APPROVE' ? this.$t('stockAdjustment.messages.approved') : this.$t('stockAdjustment.messages.rejectedMsg'))
+        showToast(action === 'APPROVE' ? this.$t('stockAdjustment.messages.approved') : this.$t('stockAdjustment.messages.rejectedMsg'), 'success')
         this.closeDrawer()
         await this.fetchAdjustments()
         await this.fetchSummary()
@@ -759,12 +746,12 @@ export default {
       }
     },
 
-    getStatusClass(status) {
-      if (status === 'DRAFT') return 'badge-gray'
-      if (status === 'PENDING') return 'badge-orange'
-      if (status === 'APPROVED') return 'badge-green'
-      if (status === 'REJECTED') return 'badge-red'
-      return 'badge-gray'
+    statusTone(status) {
+      if (status === 'DRAFT') return 'gray'
+      if (status === 'PENDING') return 'orange'
+      if (status === 'APPROVED') return 'green'
+      if (status === 'REJECTED') return 'red'
+      return 'gray'
     },
 
     // A method (not a precomputed field on the row) so the displayed
@@ -853,41 +840,5 @@ export default {
   padding: 14px 16px;
   color: #475569;
   white-space: nowrap;
-}
-
-.badge-gray {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-orange {
-  background: #ffedd5;
-  color: #ea580c;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-green {
-  background: #dcfce7;
-  color: #16a34a;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-red {
-  background: #fee2e2;
-  color: #dc2626;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
 }
 </style>
