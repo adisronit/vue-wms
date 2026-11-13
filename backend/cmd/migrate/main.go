@@ -353,8 +353,19 @@ func seedRoles(ctx context.Context, db *sql.DB, logger *slog.Logger) (map[string
 	return ids, nil
 }
 
+// seedPermissions inserts every rbac.PermissionCatalog() entry missing
+// from the permissions table. Each genuinely new row is logged
+// individually (mirroring seedRoles' own per-row "role seeded" log) —
+// deliberately not just a final count — so that running this against a
+// database whose permissions table has fallen behind the catalog (e.g.
+// a module added to internal/rbac/catalog.go after this database was
+// last seeded) produces a visible, auditable record of exactly which
+// permission codes were missing and are now backfilled, rather than a
+// silent no-op that leaves the gap undiagnosed until a user hits a 403
+// for a permission the code already grants their role.
 func seedPermissions(ctx context.Context, db *sql.DB, logger *slog.Logger) (map[string]int64, error) {
 	ids := map[string]int64{}
+	newCount := 0
 
 	for _, p := range rbac.PermissionCatalog() {
 		var id int64
@@ -368,17 +379,27 @@ func seedPermissions(ctx context.Context, db *sql.DB, logger *slog.Logger) (map[
 			if err != nil {
 				return nil, err
 			}
+			logger.Info("permission seeded", slog.String("code", p.Code))
+			newCount++
 		case err != nil:
 			return nil, err
 		}
 		ids[p.Code] = id
 	}
 
-	logger.Info("permissions seeded", slog.Int("count", len(ids)))
+	logger.Info("permissions seeded", slog.Int("count", len(ids)), slog.Int("newly_inserted", newCount))
 	return ids, nil
 }
 
+// seedRolePermissions grants every rbac.RoleDefaultGrants entry missing
+// from role_permissions. Like seedPermissions above, each newly-granted
+// (role, permission) pair is logged individually — the same
+// drift-must-be-visible reasoning applies: a role whose catalog grants
+// were extended (e.g. ADMIN gaining a newly-added module) must show
+// that correction in the log, not just a blanket "done".
 func seedRolePermissions(ctx context.Context, db *sql.DB, logger *slog.Logger, roleIDs, permissionIDs map[string]int64) error {
+	newCount := 0
+
 	for roleCode, grantedCodes := range rbac.RoleDefaultGrants {
 		roleID, ok := roleIDs[roleCode]
 		if !ok {
@@ -404,13 +425,15 @@ func seedRolePermissions(ctx context.Context, db *sql.DB, logger *slog.Logger, r
 				); err != nil {
 					return err
 				}
+				logger.Info("role_permission granted", slog.String("role", roleCode), slog.String("permission", code))
+				newCount++
 			case err != nil:
 				return err
 			}
 		}
 	}
 
-	logger.Info("role_permissions seeded")
+	logger.Info("role_permissions seeded", slog.Int("newly_granted", newCount))
 	return nil
 }
 
