@@ -161,6 +161,19 @@
             <span class="menu-icon">📦</span>
             <span class="menu-text">{{ $t('nav.productMaster') }}</span>
           </router-link>
+
+          <template v-if="canViewPlatformAdmin">
+            <div class="menu-title">{{ $t('nav.sectionPlatformAdmin') }}</div>
+
+            <router-link
+              to="/platform/tenants"
+              class="menu-item"
+              active-class="menu-active"
+            >
+              <span class="menu-icon">🏢</span>
+              <span class="menu-text">{{ $t('nav.platformTenants') }}</span>
+            </router-link>
+          </template>
       </nav>
 
       <div class="p-4 border-t border-slate-700">
@@ -251,7 +264,7 @@
 </template>
 
 <script>
-import { currentUser, hasPermission, logout as clearSession } from '../services/auth'
+import { currentUser, hasPermission, logout as clearSession, checkPlatformAdminStatus, isPlatformAdmin } from '../services/auth'
 import { listNotifications, markNotificationRead } from '../services/notifications'
 import LanguageSwitcher from '../components/LanguageSwitcher.vue'
 
@@ -265,7 +278,13 @@ export default {
       notifications: [],
       unreadCount: 0,
       notificationsLoading: false,
-      showNotifications: false
+      showNotifications: false,
+      // Resolved asynchronously below (checkPlatformAdminStatus), not
+      // read synchronously from isPlatformAdmin() at data() time — the
+      // very first render, before that check has resolved, must show
+      // the nav item hidden (fail closed), not stale-true from a
+      // previous session.
+      platformAdmin: false
     }
   },
 
@@ -287,10 +306,20 @@ export default {
     },
     canViewReplenishment() {
       return hasPermission('replenishment.view')
+    },
+    canViewPlatformAdmin() {
+      return this.platformAdmin
     }
   },
 
   mounted() {
+    // MainLayout mounts once per session on a full load/reload (e.g.
+    // the user refreshes while already logged in) — LoginView.vue
+    // already resolves this right after a fresh login, so this call is
+    // usually a cheap, already-cached re-read, not a second real check.
+    checkPlatformAdminStatus().then(() => {
+      this.platformAdmin = isPlatformAdmin()
+    })
     this.fetchUnreadCount()
     // Light periodic refresh so the badge doesn't need a page reload to
     // notice a new reminder — matches the reminder scanner's own

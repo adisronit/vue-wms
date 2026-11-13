@@ -102,7 +102,9 @@
     "roles": "Roles & Permissions",
     "warehouse": "Warehouse Setup",
     "productMaster": "Product Master",
-    "logout": "Logout"
+    "logout": "Logout",
+    "sectionPlatformAdmin": "Platform Administration",
+    "platformTenants": "Tenants"
   },
   "layout": {
     "headerTitle": "Warehouse Management System",
@@ -1589,6 +1591,89 @@
       "loadRecommendationsFailed": "Failed to load recommendations",
       "loadDetailFailed": "Failed to load task detail",
       "issueRemarkRequired": "Issue remark is required"
+    }
+  },
+  "platformAdmin": {
+    "tenants": {
+      "title": "Tenant Management",
+      "subtitle": "Manage SaaS tenants, onboarding status, and lifecycle.",
+      "addButton": "+ Add Tenant",
+      "filters": {
+        "searchPlaceholder": "Search by name or slug...",
+        "allStatus": "All Status"
+      },
+      "table": {
+        "name": "Tenant Name",
+        "slug": "Slug",
+        "status": "Status",
+        "createdAt": "Created",
+        "action": "Action",
+        "loading": "Loading tenants...",
+        "noData": "No tenants found",
+        "view": "View",
+        "edit": "Edit",
+        "changeStatus": "Status"
+      },
+      "messages": {
+        "loadFailed": "Failed to load tenants"
+      }
+    },
+    "form": {
+      "newTitle": "Add Tenant",
+      "editTitle": "Edit Tenant",
+      "subtitle": "Tenant identity used across the platform.",
+      "fields": {
+        "name": "Tenant Name",
+        "namePlaceholder": "e.g. Acme Logistics Co.",
+        "slug": "Slug",
+        "slugPlaceholder": "e.g. acme-logistics",
+        "slugHint": "Lowercase letters, numbers, and single hyphens only.",
+        "initialStatus": "Initial Status"
+      },
+      "cancelButton": "Cancel",
+      "saveButton": "Save",
+      "saving": "Saving...",
+      "messages": {
+        "nameRequired": "Tenant name is required",
+        "slugRequired": "Slug is required",
+        "duplicateSlug": "This slug is already in use by another tenant",
+        "saveFailed": "Failed to save tenant"
+      }
+    },
+    "status": {
+      "trial": "Trial",
+      "active": "Active",
+      "suspended": "Suspended",
+      "cancelled": "Cancelled",
+      "changeTitle": "Change Tenant Status",
+      "currentStatus": "Current Status",
+      "newStatus": "New Status",
+      "reasonLabel": "Reason (optional)",
+      "reasonPlaceholder": "Why is this status changing?",
+      "cancelButton": "Cancel",
+      "updateButton": "Update Status",
+      "confirmButton": "Confirm",
+      "updating": "Updating...",
+      "confirmSuspendMessage": "Suspending this tenant will block its users from accessing the system until reactivated. Continue?",
+      "confirmCancelMessage": "Cancelling this tenant is a significant lifecycle change and may be difficult to reverse. Continue?",
+      "messages": {
+        "updateFailed": "Failed to update tenant status"
+      }
+    },
+    "detail": {
+      "backButton": "Back to Tenants",
+      "editButton": "Edit",
+      "changeStatusButton": "Change Status",
+      "fields": {
+        "slug": "Slug",
+        "status": "Status",
+        "createdAt": "Created At",
+        "updatedAt": "Last Updated",
+        "suspendedAt": "Suspended At",
+        "cancelledAt": "Cancelled At"
+      },
+      "notFound": "Tenant not found",
+      "loadFailed": "Failed to load tenant"
     }
   }
 }

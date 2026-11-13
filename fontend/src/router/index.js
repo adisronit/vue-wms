@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { isAuthenticated } from '../services/auth'
+import { isAuthenticated, checkPlatformAdminStatus } from '../services/auth'
 import { setUnauthorizedHandler } from '../services/api'
 import LgoinView from '../views/auth/LoginView.vue'
 import MainLayout from '../layouts/MainLayout.vue'
@@ -21,6 +21,8 @@ import NewPutawayView from '../views/inbound/NewPutawayView.vue'
 import CheckStockView from '../views/inventory/CheckStockView.vue'
 import ProductMasterView from '../views/administration/ProductMasterView.vue'
 import ReplenishmentView from '../views/inventory/ReplenishmentView.vue'
+import TenantManagementView from '../views/platform/TenantManagementView.vue'
+import TenantDetailView from '../views/platform/TenantDetailView.vue'
 
 const routes = [
   {
@@ -124,6 +126,18 @@ const routes = [
         path: 'inventory/replenishment',
         name: 'Replenishment',
         component: ReplenishmentView
+      },
+      {
+        path: 'platform/tenants',
+        name: 'PlatformTenants',
+        component: TenantManagementView,
+        meta: { requiresPlatformAdmin: true }
+      },
+      {
+        path: 'platform/tenants/:id',
+        name: 'PlatformTenantDetail',
+        component: TenantDetailView,
+        meta: { requiresPlatformAdmin: true }
       }
     ]
   }
@@ -137,7 +151,17 @@ const router = createRouter({
 // Guard: unauthenticated users are redirected to /login for any other
 // route; an already-authenticated user landing on /login is sent
 // straight to /dashboard instead of being asked to log in again.
-router.beforeEach((to) => {
+//
+// requiresPlatformAdmin routes get one more check, re-verified fresh
+// against GET /api/v1/platform/me on every navigation into them — never
+// relying on a cached in-memory answer from earlier in the session, so
+// a mid-session revocation (or a user who was never a platform admin
+// deep-linking straight to a tenant-management URL) is denied
+// immediately in the UI too. This is a UX guard only: every actual
+// /api/v1/platform/tenants/* call the resulting page makes is
+// independently re-verified server-side by RequirePlatformAdmin
+// regardless of what this guard decides.
+router.beforeEach(async (to) => {
   const authed = isAuthenticated()
 
   if (to.path !== '/login' && !authed) {
@@ -146,6 +170,13 @@ router.beforeEach((to) => {
 
   if (to.path === '/login' && authed) {
     return '/dashboard'
+  }
+
+  if (to.matched.some((record) => record.meta.requiresPlatformAdmin)) {
+    const allowed = await checkPlatformAdminStatus()
+    if (!allowed) {
+      return '/dashboard'
+    }
   }
 
   return true
