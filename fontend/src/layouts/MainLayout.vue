@@ -8,6 +8,8 @@
       :can-view-product-categories="canViewProductCategories"
       :can-view-customers="canViewCustomers"
       :can-view-suppliers="canViewSuppliers"
+      :can-view-brands="canViewBrands"
+      :can-view-product-families="canViewProductFamilies"
       :can-view-replenishment="canViewReplenishment"
       :can-view-platform-admin="canViewPlatformAdmin"
       @logout="logout"
@@ -144,6 +146,12 @@ export default {
     },
     canViewSuppliers() {
       return hasPermission('supplier.view')
+    },
+    canViewBrands() {
+      return hasPermission('brand.view')
+    },
+    canViewProductFamilies() {
+      return hasPermission('product_family.view')
     },
     canViewReplenishment() {
       return hasPermission('replenishment.view')

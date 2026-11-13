@@ -90,6 +90,43 @@ export function apiGet(path) {
   return request(path, { method: 'GET' })
 }
 
+// apiUpload is the EWTA product-image counterpart to apiDownload below:
+// request() above always sets Content-Type: application/json and
+// JSON.stringifies the body, which a multipart/form-data upload can't
+// use — the browser must set its own Content-Type (with the multipart
+// boundary) when sending a FormData body, so this path omits the header
+// entirely rather than hardcoding one. Still sends the same Bearer auth
+// header and 401-handling every other request does.
+export async function apiUpload(path, formData) {
+  const auth = getStoredAuth()
+  const headers = {}
+  if (auth) headers.Authorization = `Bearer ${auth.accessToken}`
+
+  const response = await fetch(`${BASE_URL}${path}`, { method: 'POST', headers, body: formData })
+
+  let body = null
+  try {
+    body = await response.json()
+  } catch {
+    body = null
+  }
+
+  if (response.status === 401) {
+    clearStoredAuth()
+    if (onUnauthorized) onUnauthorized()
+  }
+
+  if (!response.ok) {
+    const message = body?.message || `Request failed with status ${response.status}`
+    const error = new Error(message)
+    error.status = response.status
+    error.code = body?.error
+    throw error
+  }
+
+  return body
+}
+
 export function apiPost(path, data) {
   return request(path, { method: 'POST', body: JSON.stringify(data) })
 }
