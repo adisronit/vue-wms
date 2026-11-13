@@ -1,20 +1,15 @@
 <template>
   <div class="space-y-6">
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">{{ $t('rolePermission.title') }}</h1>
-        <p class="text-slate-500">
-          {{ $t('rolePermission.subtitle') }}
-        </p>
-      </div>
-
-      <button
-        @click="openNewRole"
-        class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
-      >
-        {{ $t('rolePermission.newRoleButton') }}
-      </button>
-    </div>
+    <PageHeader :title="$t('rolePermission.title')" :subtitle="$t('rolePermission.subtitle')">
+      <template #actions>
+        <button
+          @click="openNewRole"
+          class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
+        >
+          {{ $t('rolePermission.newRoleButton') }}
+        </button>
+      </template>
+    </PageHeader>
 
     <div v-if="loadError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
       {{ loadError }}
@@ -50,9 +45,9 @@
                 </p>
               </div>
 
-              <span :class="getStatusClass(role.status)">
+              <StatusBadge :tone="statusTone(role.status)">
                 {{ role.status === 'ACTIVE' ? $t('common.status.active') : $t('common.status.inactive') }}
-              </span>
+              </StatusBadge>
             </div>
 
             <p class="text-sm text-slate-500 mt-3">
@@ -244,6 +239,9 @@ import {
   setRoleWarehouseAccess
 } from '../../services/roles'
 import { listWarehouses } from '../../services/warehouses'
+import { showToast } from '../../services/toast'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 
 // Module display order/names and the action label<->backend action code
 // mapping. The frontend previously hardcoded the full permission matrix;
@@ -285,6 +283,8 @@ const ACTION_LABEL_KEYS = { View: 'view', Create: 'create', Edit: 'edit', Delete
 
 export default {
   name: 'RolePermissionView',
+
+  components: { PageHeader, StatusBadge },
 
   data() {
     return {
@@ -524,7 +524,7 @@ export default {
           setRolePermissions(this.selectedRole.id, codes),
           setRoleWarehouseAccess(this.selectedRole.id, warehouseIds)
         ])
-        alert(this.$t('rolePermission.messages.saveSuccess'))
+        showToast(this.$t('rolePermission.messages.saveSuccess'), 'success')
       } catch (err) {
         this.saveError = err.message || this.$t('rolePermission.messages.saveFailed')
       } finally {
@@ -532,10 +532,9 @@ export default {
       }
     },
 
-    getStatusClass(status) {
-      if (status === 'ACTIVE') return 'badge-green'
-      if (status === 'INACTIVE') return 'badge-gray'
-      return 'badge-gray'
+    statusTone(status) {
+      if (status === 'ACTIVE') return 'green'
+      return 'gray'
     }
   }
 }
@@ -598,21 +597,4 @@ export default {
   white-space: nowrap;
 }
 
-.badge-gray {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-green {
-  background: #dcfce7;
-  color: #16a34a;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
 </style>
