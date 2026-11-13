@@ -2,6 +2,8 @@ package customer
 
 import (
 	"context"
+	"errors"
+	"strings"
 )
 
 // ErrValidation carries a client-facing message for a 422 response.
@@ -10,6 +12,39 @@ type ErrValidation struct {
 }
 
 func (e ErrValidation) Error() string { return e.Message }
+
+// ErrInvalidSort is returned when sort_by/sort_dir is present but not
+// one of the values the Customers screen's sortable column headers can
+// actually send — a 400, not a silent fallback to the default sort, so
+// a frontend bug (or a hand-crafted request) surfaces immediately
+// instead of quietly returning results in the wrong order. See
+// internal/productcategory/service.go's doc for the original of this
+// exact pattern.
+var ErrInvalidSort = errors.New("customer: invalid sort_by or sort_dir")
+
+// defaultSortBy/defaultSortDir match the Customers screen's default
+// view: code is the field users actually scan to find a row.
+const (
+	defaultSortBy  = "code"
+	defaultSortDir = "ASC"
+)
+
+// allowedSortColumns is the sort-column allowlist GET
+// /api/v1/customers' sort_by validates against — the same set
+// repository.go's sortColumns maps to real column names. Kept here, not
+// just in Repository, so an invalid value is rejected with
+// ErrInvalidSort before Service.List does anything else, rather than
+// silently falling back deep in the Repository call.
+var allowedSortColumns = map[string]bool{
+	"code":        true,
+	"companyName": true,
+	"status":      true,
+}
+
+// defaultLimit is the page size applied when the caller omits limit
+// (or sends one outside [1,100]) — the Customers screen's own default
+// is 25 rows per page.
+const defaultLimit = 25
 
 // Service holds Customer master data's business rules: validation and
 // uniqueness-error mapping. Handlers never call Repository directly.
@@ -27,11 +62,28 @@ func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) (
 		page = 1
 	}
 	if limit < 1 || limit > 100 {
-		limit = 20
+		limit = defaultLimit
+	}
+
+	sortBy := defaultSortBy
+	if raw := strings.TrimSpace(params.SortBy); raw != "" {
+		if !allowedSortColumns[raw] {
+			return nil, 0, ErrInvalidSort
+		}
+		sortBy = raw
+	}
+
+	sortDir := defaultSortDir
+	if raw := strings.ToUpper(strings.TrimSpace(params.SortDir)); raw != "" {
+		if raw != "ASC" && raw != "DESC" {
+			return nil, 0, ErrInvalidSort
+		}
+		sortDir = raw
 	}
 
 	customers, total, err := s.repo.List(ctx, tenantID, ListFilter{
 		Search: params.Search, Status: params.Status, Page: page, Limit: limit,
+		SortBy: sortBy, SortDir: sortDir,
 	})
 	if err != nil {
 		return nil, 0, err

@@ -47,11 +47,17 @@
     >
       <template #head>
         <tr>
-          <th class="table-th">{{ $t('suppliers.table.code') }}</th>
-          <th class="table-th">{{ $t('suppliers.table.companyName') }}</th>
+          <SortableTh column="code" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">
+            {{ $t('suppliers.table.code') }}
+          </SortableTh>
+          <SortableTh column="companyName" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">
+            {{ $t('suppliers.table.companyName') }}
+          </SortableTh>
           <th class="table-th">{{ $t('suppliers.table.taxId') }}</th>
           <th class="table-th">{{ $t('suppliers.table.contactPerson') }}</th>
-          <th class="table-th">{{ $t('suppliers.table.status') }}</th>
+          <SortableTh column="status" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">
+            {{ $t('suppliers.table.status') }}
+          </SortableTh>
           <th class="table-th text-right">{{ $t('suppliers.table.action') }}</th>
         </tr>
       </template>
@@ -98,6 +104,18 @@
           </button>
         </td>
       </tr>
+
+      <template v-if="!loading && suppliers.length > 0" #footer>
+        <PaginationFooter
+          :page="page"
+          :limit="limit"
+          :total="total"
+          :total-pages="totalPages"
+          :page-size-options="pageSizeOptions"
+          @update:page="goToPage"
+          @update:limit="limit = $event"
+        />
+      </template>
     </DataTable>
 
     <div
@@ -228,13 +246,18 @@ import DataTable from '../../components/ui/DataTable.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import FormSection from '../../components/ui/FormSection.vue'
 import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
+import SortableTh from '../../components/ui/SortableTh.vue'
+import PaginationFooter from '../../components/ui/PaginationFooter.vue'
+import listPagination from '../../mixins/listPagination'
 
 let searchDebounce = null
 
 export default {
   name: 'SupplierView',
 
-  components: { PageHeader, FilterBar, DataTable, StatusBadge, FormSection, ConfirmDialog },
+  components: { PageHeader, FilterBar, DataTable, StatusBadge, FormSection, ConfirmDialog, SortableTh, PaginationFooter },
+
+  mixins: [listPagination],
 
   data() {
     return {
@@ -251,17 +274,19 @@ export default {
       filters: {
         keyword: '',
         status: ''
-      }
+      },
+      sortBy: 'code',
+      sortDir: 'asc'
     }
   },
 
   watch: {
     'filters.status'() {
-      this.fetchSuppliers()
+      this.resetToFirstPage()
     },
     'filters.keyword'() {
       clearTimeout(searchDebounce)
-      searchDebounce = setTimeout(() => this.fetchSuppliers(), 300)
+      searchDebounce = setTimeout(() => this.resetToFirstPage(), 300)
     }
   },
 
@@ -284,6 +309,14 @@ export default {
       }
     },
 
+    // fetchList() is the listPagination mixin's required hook —
+    // resetToFirstPage()/goToPage()/toggleSort() all call it. Kept as a
+    // thin alias so the public method name every other handler in this
+    // file already calls (fetchSuppliers) stays unchanged.
+    fetchList() {
+      return this.fetchSuppliers()
+    },
+
     async fetchSuppliers() {
       this.loading = true
       this.listError = ''
@@ -291,9 +324,14 @@ export default {
         const res = await listSuppliers({
           search: this.filters.keyword,
           status: this.filters.status,
-          limit: 100
+          page: this.page,
+          limit: this.limit,
+          sortBy: this.sortBy,
+          sortDir: this.sortDir
         })
         this.suppliers = res.data
+        this.total = res.meta.total
+        this.totalPages = res.meta.total_pages
       } catch (err) {
         this.listError = err.message || this.$t('suppliers.messages.loadFailed')
       } finally {

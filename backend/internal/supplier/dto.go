@@ -45,12 +45,17 @@ type UpdateRequest struct {
 } //	@name	UpdateSupplierRequest
 
 // ListParams narrows GET /api/v1/suppliers to the Suppliers screen's
-// search box and status filter, with pagination.
+// search box and status filter, with pagination and sorting. SortBy is
+// one of "code", "companyName", or "status"; SortDir is "asc" or
+// "desc" (case-insensitive) — validated by Service.List against
+// allowedSortColumns, returning ErrInvalidSort otherwise.
 type ListParams struct {
-	Search string
-	Status Status
-	Page   int
-	Limit  int
+	Search  string
+	Status  Status
+	Page    int
+	Limit   int
+	SortBy  string
+	SortDir string
 }
 
 func toResponse(s Supplier) Response {

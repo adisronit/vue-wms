@@ -33,8 +33,12 @@ const globalMocks = {
   $d: (v) => String(v)
 }
 
-function page(rows) {
-  return { success: true, data: rows, meta: { page: 1, limit: 500, total: rows.length, total_pages: 1 } }
+function page(rows, meta = {}) {
+  return {
+    success: true,
+    data: rows,
+    meta: { page: 1, limit: 25, total: rows.length, total_pages: 1, ...meta }
+  }
 }
 
 const warehouse = { id: '1', code: 'WH1', name: 'Main Warehouse' }
@@ -188,5 +192,126 @@ describe('LocationView', () => {
     expect(wrapper.find('select[name="zone"]').exists()).toBe(false)
     expect(wrapper.vm.zoneDisplayLabel).toContain('WH1')
     expect(wrapper.vm.zoneDisplayLabel).toContain('Z1')
+  })
+
+  // --- Server-side sorting + pagination (Location Master Management) ---
+
+  it('fetches with the default sort (code asc) and standard page size when a zone is first selected', async () => {
+    const wrapper = mount(LocationView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    await selectWarehouseAndZone(wrapper)
+
+    expect(listLocations).toHaveBeenCalledWith(
+      zone.id,
+      expect.objectContaining({ page: 1, limit: 25, sortBy: 'code', sortDir: 'asc' })
+    )
+  })
+
+  it('clicking a sortable header toggles sort and resets to page 1', async () => {
+    listLocations.mockResolvedValue(page([location], { total_pages: 5 }))
+
+    const wrapper = mount(LocationView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    await selectWarehouseAndZone(wrapper)
+
+    wrapper.vm.page = 3
+    listLocations.mockClear()
+
+    wrapper.vm.toggleSort('name')
+    await flushPromises()
+
+    expect(wrapper.vm.sortBy).toBe('name')
+    expect(wrapper.vm.sortDir).toBe('asc')
+    expect(wrapper.vm.page).toBe(1)
+    expect(listLocations).toHaveBeenCalledWith(
+      zone.id,
+      expect.objectContaining({ page: 1, sortBy: 'name', sortDir: 'asc' })
+    )
+  })
+
+  it('re-clicking the already-active sort column flips direction', async () => {
+    const wrapper = mount(LocationView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    await selectWarehouseAndZone(wrapper)
+
+    wrapper.vm.toggleSort('code')
+    await flushPromises()
+
+    expect(wrapper.vm.sortBy).toBe('code')
+    expect(wrapper.vm.sortDir).toBe('desc')
+  })
+
+  it('changing rows-per-page resets to page 1 and refetches with the new limit', async () => {
+    listLocations.mockResolvedValue(page([location], { total_pages: 5 }))
+
+    const wrapper = mount(LocationView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    await selectWarehouseAndZone(wrapper)
+
+    wrapper.vm.page = 4
+    listLocations.mockClear()
+
+    wrapper.vm.limit = 50
+    await flushPromises()
+
+    expect(wrapper.vm.page).toBe(1)
+    expect(listLocations).toHaveBeenCalledWith(zone.id, expect.objectContaining({ page: 1, limit: 50 }))
+  })
+
+  it('switching the selected zone resets to page 1', async () => {
+    const wrapper = mount(LocationView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    await selectWarehouseAndZone(wrapper)
+
+    wrapper.vm.page = 3
+    listLocations.mockClear()
+
+    const zoneB = { id: '4', code: 'Z2', name: 'Zone B' }
+    listZones.mockResolvedValue(page([zone, zoneB]))
+    wrapper.vm.selectedZoneId = zoneB.id
+    await flushPromises()
+
+    expect(wrapper.vm.page).toBe(1)
+    expect(listLocations).toHaveBeenCalledWith(zoneB.id, expect.objectContaining({ page: 1 }))
+  })
+
+  it('displays the correct total/result-count text from the response meta', async () => {
+    listLocations.mockResolvedValue(page([location], { page: 1, limit: 25, total: 60, total_pages: 3 }))
+
+    const wrapper = mount(LocationView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    await selectWarehouseAndZone(wrapper)
+
+    expect(wrapper.vm.total).toBe(60)
+    expect(wrapper.vm.totalPages).toBe(3)
+    expect(wrapper.text()).toContain('60')
+  })
+
+  it('shows the empty state and no pagination footer when the result set is empty', async () => {
+    listLocations.mockResolvedValue(page([]))
+
+    const wrapper = mount(LocationView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    await selectWarehouseAndZone(wrapper)
+
+    expect(wrapper.text()).toContain('locationMaster.empty')
+    expect(wrapper.findComponent({ name: 'PaginationFooter' }).exists()).toBe(false)
+  })
+
+  it('renders rows in the exact order the API returns them, proving sorting is server-side only (no client-side re-sort)', async () => {
+    const locationB = { ...location, id: '11', code: 'Z-99-99', name: 'Zebra Bin' }
+    // locationB ("Z-99-99") is returned before location ("A-01-01") —
+    // alphabetically backwards — to prove the component renders res.data
+    // as-is rather than re-sorting it locally.
+    listLocations.mockResolvedValue(page([locationB, location]))
+
+    const wrapper = mount(LocationView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    await selectWarehouseAndZone(wrapper)
+
+    expect(wrapper.vm.locations.map((l) => l.id)).toEqual(['11', '10'])
+    const codeCells = wrapper.findAll('td.font-semibold')
+    expect(codeCells[0].text()).toBe('Z-99-99')
+    expect(codeCells[1].text()).toBe('A-01-01')
   })
 })

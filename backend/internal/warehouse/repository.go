@@ -3,6 +3,7 @@ package warehouse
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -13,13 +14,20 @@ var ErrNotFound = errors.New("warehouse: not found")
 var ErrDuplicate = errors.New("warehouse: code already exists")
 
 // ListFilter narrows GET /api/v1/warehouses to what the Warehouse Setup
-// screen's search box and type/status filters actually send.
+// screen's search box, type/status filters, pagination, and sortable
+// column headers actually send. SortBy/SortDir arrive here already
+// validated by Service.List against allowedSortColumns — sortColumns
+// below is a second, independent allowlist (defense in depth, not the
+// primary check) so this method can never build an ORDER BY clause from
+// an unvalidated string even if a future caller skips Service.
 type ListFilter struct {
-	Search string // matched against code, name, address (LIKE)
-	Type   string
-	Status Status
-	Page   int
-	Limit  int
+	Search  string // matched against code, name, address (LIKE)
+	Type    string
+	Status  Status
+	Page    int
+	Limit   int
+	SortBy  string // one of sortColumns' keys; falls back to "code" if not
+	SortDir string // "ASC" or "DESC"; falls back to "ASC" otherwise
 }
 
 const countSelect = `warehouses.*,
@@ -27,6 +35,20 @@ const countSelect = `warehouses.*,
 	(SELECT COUNT(*) FROM locations
 		JOIN zones ON locations.zone_id = zones.id
 		WHERE zones.warehouse_id = warehouses.id) AS location_count`
+
+// sortColumns maps List's logical SortBy key to the actual column name
+// to order by — every key/value pair here is a literal, never built
+// from request input, so interpolating the value into the Order()
+// string below can never become a SQL-injection vector. zone_count,
+// location_count, and the not-yet-computable utilization are
+// deliberately excluded: they are computed subquery columns, not real
+// warehouse columns, and sorting by them is out of scope for this pass.
+var sortColumns = map[string]string{
+	"code":   "code",
+	"name":   "name",
+	"type":   "type",
+	"status": "status",
+}
 
 // Repository is a thin GORM wrapper — business rules (uniqueness
 // messaging, referential-safety checks) live in Service.
@@ -136,9 +158,25 @@ func (r *Repository) List(ctx context.Context, filter ListFilter) ([]WithCounts,
 		return nil, 0, err
 	}
 
+	column, ok := sortColumns[filter.SortBy]
+	if !ok {
+		column = sortColumns["code"]
+	}
+	dir := "ASC"
+	if filter.SortDir == "DESC" {
+		dir = "DESC"
+	}
+	// ", id ASC" is a deterministic tie-breaker: code/name/type/status can
+	// repeat (status especially — only two values), and without a stable
+	// secondary key SQL Server is free to return tied rows in a different
+	// order on every call, which would make pagination (page 2 silently
+	// re-showing or skipping a row page 1 already showed) and the
+	// frontend's sort-indicator UX both flaky.
+	order := fmt.Sprintf("%s %s, id ASC", column, dir)
+
 	var warehouses []WithCounts
 	offset := (filter.Page - 1) * filter.Limit
-	if err := base.Select(countSelect).Order("name ASC").Offset(offset).Limit(filter.Limit).Find(&warehouses).Error; err != nil {
+	if err := base.Select(countSelect).Order(order).Offset(offset).Limit(filter.Limit).Find(&warehouses).Error; err != nil {
 		return nil, 0, err
 	}
 

@@ -45,10 +45,10 @@
     >
       <template #head>
         <tr>
-          <th class="table-th">{{ $t('platformAdmin.tenants.table.name') }}</th>
-          <th class="table-th">{{ $t('platformAdmin.tenants.table.slug') }}</th>
-          <th class="table-th">{{ $t('platformAdmin.tenants.table.status') }}</th>
-          <th class="table-th">{{ $t('platformAdmin.tenants.table.createdAt') }}</th>
+          <SortableTh column="name" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">{{ $t('platformAdmin.tenants.table.name') }}</SortableTh>
+          <SortableTh column="slug" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">{{ $t('platformAdmin.tenants.table.slug') }}</SortableTh>
+          <SortableTh column="status" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">{{ $t('platformAdmin.tenants.table.status') }}</SortableTh>
+          <SortableTh column="createdAt" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">{{ $t('platformAdmin.tenants.table.createdAt') }}</SortableTh>
           <th class="table-th text-right">{{ $t('platformAdmin.tenants.table.action') }}</th>
         </tr>
       </template>
@@ -74,30 +74,15 @@
       </tr>
 
       <template v-if="!loading && tenants.length > 0" #footer>
-        <div class="flex items-center justify-between px-5 py-4 text-sm text-slate-500">
-          <span>
-            {{ $t('common.pagination.showing') }} {{ rangeStart }} {{ $t('common.pagination.to') }} {{ rangeEnd }}
-            {{ $t('common.pagination.of') }} {{ total }} {{ $t('common.pagination.results') }}
-          </span>
-
-          <div class="flex items-center gap-3">
-            <button
-              @click="page > 1 && goToPage(page - 1)"
-              :disabled="page <= 1"
-              class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold disabled:opacity-50"
-            >
-              {{ $t('common.pagination.previous') }}
-            </button>
-            <span>{{ $t('common.pagination.page') }} {{ page }} {{ $t('common.pagination.of') }} {{ totalPages }}</span>
-            <button
-              @click="page < totalPages && goToPage(page + 1)"
-              :disabled="page >= totalPages"
-              class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold disabled:opacity-50"
-            >
-              {{ $t('common.pagination.next') }}
-            </button>
-          </div>
-        </div>
+        <PaginationFooter
+          :page="page"
+          :limit="limit"
+          :total="total"
+          :total-pages="totalPages"
+          :page-size-options="pageSizeOptions"
+          @update:page="goToPage"
+          @update:limit="limit = $event"
+        />
       </template>
     </DataTable>
 
@@ -125,14 +110,18 @@ import PageHeader from '../../components/ui/PageHeader.vue'
 import FilterBar from '../../components/ui/FilterBar.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
+import SortableTh from '../../components/ui/SortableTh.vue'
+import PaginationFooter from '../../components/ui/PaginationFooter.vue'
+import listPagination from '../../mixins/listPagination'
 
 let searchDebounce = null
-const PAGE_LIMIT = 20
 
 export default {
   name: 'TenantManagementView',
 
-  components: { TenantFormDrawer, TenantStatusModal, PageHeader, FilterBar, DataTable, StatusBadge },
+  mixins: [listPagination],
+
+  components: { TenantFormDrawer, TenantStatusModal, PageHeader, FilterBar, DataTable, StatusBadge, SortableTh, PaginationFooter },
 
   data() {
     return {
@@ -141,34 +130,22 @@ export default {
       listError: '',
       tenants: [],
       filters: { search: '', status: '' },
-      page: 1,
-      total: 0,
-      totalPages: 1,
+      sortBy: 'name',
+      sortDir: 'asc',
       showForm: false,
       editingTenant: null,
       statusTenant: null
     }
   },
 
-  computed: {
-    rangeStart() {
-      return this.total === 0 ? 0 : (this.page - 1) * PAGE_LIMIT + 1
-    },
-    rangeEnd() {
-      return Math.min(this.page * PAGE_LIMIT, this.total)
-    }
-  },
-
   watch: {
     'filters.status'() {
-      this.page = 1
-      this.fetchTenants()
+      this.resetToFirstPage()
     },
     'filters.search'() {
       clearTimeout(searchDebounce)
       searchDebounce = setTimeout(() => {
-        this.page = 1
-        this.fetchTenants()
+        this.resetToFirstPage()
       }, 300)
     }
   },
@@ -178,15 +155,21 @@ export default {
   },
 
   methods: {
+    fetchList() {
+      return this.fetchTenants()
+    },
+
     async fetchTenants() {
       this.loading = true
       this.listError = ''
       try {
         const res = await listTenants({
           page: this.page,
-          limit: PAGE_LIMIT,
+          limit: this.limit,
           search: this.filters.search,
-          status: this.filters.status
+          status: this.filters.status,
+          sortBy: this.sortBy,
+          sortDir: this.sortDir
         })
         this.tenants = res.data
         this.total = res.meta.total
@@ -196,11 +179,6 @@ export default {
       } finally {
         this.loading = false
       }
-    },
-
-    goToPage(page) {
-      this.page = page
-      this.fetchTenants()
     },
 
     clearFilter() {

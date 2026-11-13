@@ -110,10 +110,22 @@ func (r *Repository) ActiveMembership(ctx context.Context, userID, tenantID int6
 // the same ListFilter/pagination shape warehouse.Repository.List and
 // product.Repository.List already use.
 type ListFilter struct {
-	Search string // matched against slug, name (LIKE)
-	Status string
-	Page   int
-	Limit  int
+	Search  string // matched against slug, name (LIKE)
+	Status  string
+	Page    int
+	Limit   int
+	SortBy  string // one of sortColumns' keys; falls back to "name" if not
+	SortDir string // "ASC" or "DESC"; falls back to "ASC" otherwise
+}
+
+// sortColumns maps List's logical SortBy key to the actual column name
+// to order by — a literal allowlist, never built from request input,
+// mirroring internal/productcategory's repository.go.
+var sortColumns = map[string]string{
+	"name":      "name",
+	"slug":      "slug",
+	"status":    "status",
+	"createdAt": "created_at",
 }
 
 // FindByID returns tenantID's row, or ErrNotFound. Deliberately not
@@ -152,9 +164,23 @@ func (r *Repository) List(ctx context.Context, filter ListFilter) ([]Tenant, int
 		return nil, 0, err
 	}
 
+	column, ok := sortColumns[filter.SortBy]
+	if !ok {
+		column = sortColumns["name"]
+	}
+	dir := "ASC"
+	if filter.SortDir == "DESC" {
+		dir = "DESC"
+	}
+	// ", id ASC" is a deterministic tie-breaker: name/slug/status/
+	// created_at can repeat or (for created_at) collide at
+	// millisecond-granularity, which would otherwise make page N's
+	// exact row order unstable across requests.
+	order := column + " " + dir + ", id ASC"
+
 	var tenants []Tenant
 	offset := (filter.Page - 1) * filter.Limit
-	if err := base.Order("name ASC").Offset(offset).Limit(filter.Limit).Find(&tenants).Error; err != nil {
+	if err := base.Order(order).Offset(offset).Limit(filter.Limit).Find(&tenants).Error; err != nil {
 		return nil, 0, err
 	}
 

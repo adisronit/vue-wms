@@ -3,6 +3,7 @@ package location
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"wms-backend/internal/zone"
 )
@@ -27,6 +28,40 @@ var ErrZoneNotFound = errors.New("location: zone not found")
 // phase, unlike internal/warehouse/internal/zone/internal/productcategory's
 // own child-count checks).
 var ErrHasStock = errors.New("location: cannot delete — stock still exists in this location")
+
+// ErrInvalidSort is returned when sort_by/sort_dir is present but not
+// one of the values the Location Master screen's sortable column
+// headers can actually send — a 400, not a silent fallback to the
+// default sort, so a frontend bug (or a hand-crafted request) surfaces
+// immediately instead of quietly returning results in the wrong order.
+// Mirrors internal/productcategory.ErrInvalidSort exactly.
+var ErrInvalidSort = errors.New("location: invalid sort_by or sort_dir")
+
+// defaultSortBy/defaultSortDir match the Location Master screen's
+// default view and this package's own pre-existing fixed "code ASC"
+// order, so an omitted sort_by/sort_dir changes nothing about today's
+// behavior.
+const (
+	defaultSortBy  = "code"
+	defaultSortDir = "ASC"
+)
+
+// allowedSortColumns is the sort-column allowlist GET
+// /api/v1/locations' sort_by validates against — the same set
+// repository.go's sortColumns maps to real column names. "position"
+// (aisle/rack/bin) is deliberately excluded: it's a composite display
+// value assembled client-side from three separate columns, not a
+// single real column the database can ORDER BY. Kept here, not just in
+// Repository, so an invalid value is rejected with ErrInvalidSort
+// before Service.List does anything else, rather than silently falling
+// back deep in the Repository call.
+var allowedSortColumns = map[string]bool{
+	"code":     true,
+	"name":     true,
+	"type":     true,
+	"capacity": true,
+	"status":   true,
+}
 
 // zoneChecker is the narrow slice of *zone.Repository this package
 // needs: confirming zone_id exists (and, per Location Master
@@ -72,8 +107,25 @@ func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) (
 		limit = 500
 	}
 
+	sortBy := defaultSortBy
+	if raw := strings.ToLower(strings.TrimSpace(params.SortBy)); raw != "" {
+		if !allowedSortColumns[raw] {
+			return nil, 0, ErrInvalidSort
+		}
+		sortBy = raw
+	}
+
+	sortDir := defaultSortDir
+	if raw := strings.ToUpper(strings.TrimSpace(params.SortDir)); raw != "" {
+		if raw != "ASC" && raw != "DESC" {
+			return nil, 0, ErrInvalidSort
+		}
+		sortDir = raw
+	}
+
 	locations, total, err := s.repo.List(ctx, tenantID, ListFilter{
-		ZoneID: params.ZoneID, Search: params.Search, Status: params.Status, Page: page, Limit: limit,
+		ZoneID: params.ZoneID, Search: params.Search, Status: params.Status,
+		Page: page, Limit: limit, SortBy: sortBy, SortDir: sortDir,
 	})
 	if err != nil {
 		return nil, 0, err

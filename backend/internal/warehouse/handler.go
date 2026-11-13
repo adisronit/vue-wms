@@ -38,29 +38,38 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
 //	@Tags			Warehouses
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page	query		int		false	"Page number"			default(1)
-//	@Param			limit	query		int		false	"Page size (max 100)"	default(20)
-//	@Param			search	query		string	false	"Matches code, name, or address"
-//	@Param			type	query		string	false	"Distribution Center, Factory Warehouse, or Transit Warehouse"
-//	@Param			status	query		string	false	"ACTIVE or INACTIVE"
-//	@Success		200		{object}	apihttp.ListResponse{data=[]Response}
-//	@Failure		401		{object}	apihttp.ErrorResponse
-//	@Failure		403		{object}	apihttp.ErrorResponse
+//	@Param			page		query		int		false	"Page number"			default(1)
+//	@Param			limit		query		int		false	"Page size (max 100)"	default(25)
+//	@Param			search		query		string	false	"Matches code, name, or address"
+//	@Param			type		query		string	false	"Distribution Center, Factory Warehouse, or Transit Warehouse"
+//	@Param			status		query		string	false	"ACTIVE or INACTIVE"
+//	@Param			sort_by		query		string	false	"code, name, type, or status"	default(code)
+//	@Param			sort_dir	query		string	false	"asc or desc"					default(asc)
+//	@Success		200			{object}	apihttp.ListResponse{data=[]Response}
+//	@Failure		400			{object}	apihttp.ErrorResponse	"invalid sort_by/sort_dir"
+//	@Failure		401			{object}	apihttp.ErrorResponse
+//	@Failure		403			{object}	apihttp.ErrorResponse
 //	@Router			/warehouses [get]
 func (h *Handler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.Query("page"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
 
 	params := ListParams{
-		Search: c.Query("search"),
-		Type:   c.Query("type"),
-		Status: Status(c.Query("status")),
-		Page:   page,
-		Limit:  limit,
+		Search:  c.Query("search"),
+		Type:    c.Query("type"),
+		Status:  Status(c.Query("status")),
+		Page:    page,
+		Limit:   limit,
+		SortBy:  c.Query("sort_by"),
+		SortDir: c.Query("sort_dir"),
 	}
 
 	responses, total, err := h.service.List(c.Request.Context(), params)
 	if err != nil {
+		if errors.Is(err, ErrInvalidSort) {
+			apihttp.Fail(c, http.StatusBadRequest, "sort_by must be code, name, type, or status; sort_dir must be asc or desc", "INVALID_SORT")
+			return
+		}
 		apihttp.Fail(c, http.StatusInternalServerError, "failed to list warehouses", "INTERNAL_ERROR")
 		return
 	}
@@ -70,7 +79,7 @@ func (h *Handler) List(c *gin.Context) {
 		effectivePage = 1
 	}
 	if effectiveLimit < 1 || effectiveLimit > 100 {
-		effectiveLimit = 20
+		effectiveLimit = defaultLimit
 	}
 
 	totalPages := int((total + int64(effectiveLimit) - 1) / int64(effectiveLimit))

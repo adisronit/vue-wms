@@ -18,7 +18,7 @@ function page(total, rows) {
   return {
     success: true,
     data: rows,
-    meta: { page: 1, limit: 20, total, total_pages: Math.max(1, Math.ceil(total / 20)) },
+    meta: { page: 1, limit: 25, total, total_pages: Math.max(1, Math.ceil(total / 25)) },
   }
 }
 
@@ -45,7 +45,7 @@ describe('TenantUserList', () => {
     const wrapper = mount(TenantUserList, { props: { tenantId: '1' }, global: { mocks: globalMocks } })
     await flushPromises()
 
-    expect(listTenantUsers).toHaveBeenCalledWith('1', expect.objectContaining({ page: 1, limit: 20 }))
+    expect(listTenantUsers).toHaveBeenCalledWith('1', expect.objectContaining({ page: 1, limit: 25, sortBy: 'name', sortDir: 'asc' }))
     expect(wrapper.text()).toContain('Jane Doe')
     expect(wrapper.text()).toContain('jane@example.com')
   })
@@ -141,5 +141,35 @@ describe('TenantUserList', () => {
     wrapper.vm.onUpdated()
     await flushPromises()
     expect(listTenantUsers).toHaveBeenCalledTimes(2)
+  })
+
+  it('clicking a sortable header toggles sort and resets to page 1', async () => {
+    listTenantUsers.mockResolvedValue(page(0, []))
+    const wrapper = mount(TenantUserList, { props: { tenantId: '1' }, global: { mocks: globalMocks } })
+    await flushPromises()
+    wrapper.vm.page = 3
+    listTenantUsers.mockClear()
+
+    wrapper.vm.toggleSort('joinedAt')
+    await flushPromises()
+
+    expect(wrapper.vm.sortBy).toBe('joinedAt')
+    expect(wrapper.vm.sortDir).toBe('asc')
+    expect(wrapper.vm.page).toBe(1)
+    expect(listTenantUsers).toHaveBeenCalledWith('1', expect.objectContaining({ sortBy: 'joinedAt', page: 1 }))
+  })
+
+  it('changing rows-per-page resets to page 1 and refetches with the new limit', async () => {
+    listTenantUsers.mockResolvedValue(page(0, []))
+    const wrapper = mount(TenantUserList, { props: { tenantId: '1' }, global: { mocks: globalMocks } })
+    await flushPromises()
+    wrapper.vm.page = 2
+    listTenantUsers.mockClear()
+
+    wrapper.vm.limit = 50
+    await flushPromises()
+
+    expect(wrapper.vm.page).toBe(1)
+    expect(listTenantUsers).toHaveBeenCalledWith('1', expect.objectContaining({ limit: 50, page: 1 }))
   })
 })

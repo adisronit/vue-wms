@@ -47,13 +47,16 @@ type UpdateRequest struct {
 } //	@name	UpdateWarehouseRequest
 
 // ListParams narrows GET /api/v1/warehouses to the Warehouse Setup
-// screen's actual search box plus type/status filters, with pagination.
+// screen's actual search box plus type/status filters, with pagination
+// and sortable column headers.
 type ListParams struct {
-	Search string
-	Type   string
-	Status Status
-	Page   int
-	Limit  int
+	Search  string
+	Type    string
+	Status  Status
+	Page    int
+	Limit   int
+	SortBy  string
+	SortDir string
 }
 
 func toResponse(w WithCounts) Response {

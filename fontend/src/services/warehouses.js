@@ -5,6 +5,11 @@ import { apiGet, apiPost, apiPut, apiDelete } from './api'
 // locations only ever appear as tabs inside an open warehouse's
 // drawer) — mirroring the backend's own tightly-coupled hierarchy.
 
+// listWarehouses mirrors the Warehouse Setup screen's search box plus
+// type/status filters, pagination, and sorting. sortBy/sortDir are
+// passed through as-is; the backend is the sole enforcer of the
+// sort-column allowlist (400 INVALID_SORT on an unrecognized value)
+// rather than this layer silently coercing a bad value to the default.
 export function listWarehouses(params = {}) {
   const query = new URLSearchParams()
   if (params.page) query.set('page', params.page)
@@ -12,6 +17,8 @@ export function listWarehouses(params = {}) {
   if (params.search) query.set('search', params.search)
   if (params.type) query.set('type', params.type)
   if (params.status) query.set('status', params.status)
+  if (params.sortBy) query.set('sort_by', params.sortBy)
+  if (params.sortDir) query.set('sort_dir', params.sortDir)
 
   const qs = query.toString()
   return apiGet(`/warehouses${qs ? `?${qs}` : ''}`)
@@ -50,10 +57,14 @@ export function deleteZone(id) {
 }
 
 // listLocations always requires zoneId (the backend's own contract) —
-// params is optional and additive (search/status/page/limit), added for
-// the standalone Location Management screen; existing call sites that
-// only ever passed zoneId (WarehouseView.vue's Location Structure tab)
-// are unaffected.
+// params is optional and additive (search/status/page/limit/sortBy/
+// sortDir), added for the standalone Location Management screen;
+// existing call sites that only ever passed zoneId (WarehouseView.vue's
+// Location Structure tab) are unaffected. sortBy/sortDir are passed
+// through as-is; the backend is the sole enforcer of the sort-column
+// allowlist (400 INVALID_SORT on an unrecognized value) rather than
+// this layer silently coercing a bad value to the default — mirrors
+// listProductCategories' own sortBy/sortDir passthrough.
 export function listLocations(zoneId, params = {}) {
   const query = new URLSearchParams()
   query.set('zone_id', zoneId)
@@ -61,6 +72,8 @@ export function listLocations(zoneId, params = {}) {
   if (params.status) query.set('status', params.status)
   if (params.page) query.set('page', params.page)
   if (params.limit) query.set('limit', params.limit)
+  if (params.sortBy) query.set('sort_by', params.sortBy)
+  if (params.sortDir) query.set('sort_dir', params.sortDir)
 
   return apiGet(`/locations?${query.toString()}`)
 }

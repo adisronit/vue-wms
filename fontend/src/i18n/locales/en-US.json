@@ -68,8 +68,10 @@
       "to": "to",
       "results": "results",
       "noData": "No data found",
+      "first": "First",
       "previous": "Previous",
       "next": "Next",
+      "last": "Last",
       "rowsPerPage": "Rows per page"
     },
     "messages": {

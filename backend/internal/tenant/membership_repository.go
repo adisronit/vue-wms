@@ -65,6 +65,21 @@ type MembershipListFilter struct {
 	Status   string
 	Page     int
 	Limit    int
+	SortBy   string // one of membershipSortColumns' keys; falls back to "name" if not
+	SortDir  string // "ASC" or "DESC"; falls back to "ASC" otherwise
+}
+
+// membershipSortColumns maps ListMemberships' logical SortBy key to a
+// fully table-qualified column name — required because this query joins
+// tenant_users/users/roles, and "status"/"id" exist on more than one of
+// those tables (an unqualified ORDER BY would be ambiguous to SQL
+// Server, not just wrong). A literal allowlist, never built from
+// request input, mirroring internal/productcategory's repository.go.
+var membershipSortColumns = map[string]string{
+	"name":      "users.full_name",
+	"role":      "roles.name",
+	"status":    "tenant_users.status",
+	"joinedAt":  "tenant_users.joined_at",
 }
 
 // membershipRowQuery is the shared join behind ListMemberships and
@@ -111,10 +126,22 @@ func (r *Repository) ListMemberships(ctx context.Context, tenantID int64, filter
 		return nil, 0, err
 	}
 
+	column, ok := membershipSortColumns[filter.SortBy]
+	if !ok {
+		column = membershipSortColumns["name"]
+	}
+	dir := "ASC"
+	if filter.SortDir == "DESC" {
+		dir = "DESC"
+	}
+	// "tenant_users.id ASC" (qualified for the same ambiguity reason as
+	// above) is a deterministic tie-breaker.
+	order := column + " " + dir + ", tenant_users.id ASC"
+
 	var rows []MembershipRow
 	offset := (filter.Page - 1) * filter.Limit
 	err := base.Select(membershipRowSelect).
-		Order("users.full_name ASC").
+		Order(order).
 		Offset(offset).Limit(filter.Limit).
 		Scan(&rows).Error
 	if err != nil {

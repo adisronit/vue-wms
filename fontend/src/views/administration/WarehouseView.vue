@@ -16,7 +16,7 @@
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
       <div class="summary-card">
         <p class="summary-label">{{ $t('warehouseSetup.summary.totalWarehouses') }}</p>
-        <h2 class="summary-value">{{ warehouses.length }}</h2>
+        <h2 class="summary-value">{{ total }}</h2>
       </div>
 
       <div class="summary-card">
@@ -80,14 +80,22 @@
     >
       <template #head>
         <tr>
-          <th class="table-th">{{ $t('warehouseSetup.table.code') }}</th>
-          <th class="table-th">{{ $t('warehouseSetup.table.name') }}</th>
-          <th class="table-th">{{ $t('warehouseSetup.table.type') }}</th>
+          <SortableTh column="code" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">
+            {{ $t('warehouseSetup.table.code') }}
+          </SortableTh>
+          <SortableTh column="name" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">
+            {{ $t('warehouseSetup.table.name') }}
+          </SortableTh>
+          <SortableTh column="type" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">
+            {{ $t('warehouseSetup.table.type') }}
+          </SortableTh>
           <th class="table-th">{{ $t('warehouseSetup.table.address') }}</th>
           <th class="table-th">{{ $t('warehouseSetup.table.zones') }}</th>
           <th class="table-th">{{ $t('warehouseSetup.table.locations') }}</th>
           <th class="table-th">{{ $t('warehouseSetup.table.utilization') }}</th>
-          <th class="table-th">{{ $t('warehouseSetup.table.status') }}</th>
+          <SortableTh column="status" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">
+            {{ $t('warehouseSetup.table.status') }}
+          </SortableTh>
           <th class="table-th text-right">{{ $t('warehouseSetup.table.action') }}</th>
         </tr>
       </template>
@@ -150,6 +158,18 @@
           </button>
         </td>
       </tr>
+
+      <template v-if="!loading && warehouses.length > 0" #footer>
+        <PaginationFooter
+          :page="page"
+          :limit="limit"
+          :total="total"
+          :total-pages="totalPages"
+          :page-size-options="pageSizeOptions"
+          @update:page="goToPage"
+          @update:limit="limit = $event"
+        />
+      </template>
     </DataTable>
 
     <!-- Warehouse Drawer -->
@@ -421,6 +441,9 @@ import PageHeader from '../../components/ui/PageHeader.vue'
 import FilterBar from '../../components/ui/FilterBar.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
+import SortableTh from '../../components/ui/SortableTh.vue'
+import PaginationFooter from '../../components/ui/PaginationFooter.vue'
+import listPagination from '../../mixins/listPagination'
 
 let searchDebounce = null
 let zoneTempCounter = 0
@@ -428,7 +451,9 @@ let zoneTempCounter = 0
 export default {
   name: 'WarehouseView',
 
-  components: { PageHeader, FilterBar, DataTable, StatusBadge },
+  components: { PageHeader, FilterBar, DataTable, StatusBadge, SortableTh, PaginationFooter },
+
+  mixins: [listPagination],
 
   data() {
     return {
@@ -446,6 +471,9 @@ export default {
         type: '',
         status: ''
       },
+
+      sortBy: 'code',
+      sortDir: 'asc',
 
       tabs: [
         { key: 'INFO', labelKey: 'warehouseSetup.tabs.info' },
@@ -474,14 +502,14 @@ export default {
 
   watch: {
     'filters.type'() {
-      this.fetchWarehouses()
+      this.resetToFirstPage()
     },
     'filters.status'() {
-      this.fetchWarehouses()
+      this.resetToFirstPage()
     },
     'filters.keyword'() {
       clearTimeout(searchDebounce)
-      searchDebounce = setTimeout(() => this.fetchWarehouses(), 300)
+      searchDebounce = setTimeout(() => this.resetToFirstPage(), 300)
     },
     activeTab(tab) {
       if (!this.selectedWarehouse?.id) return
@@ -504,6 +532,15 @@ export default {
   },
 
   methods: {
+    // fetchList() is the listPagination mixin's required hook —
+    // goToPage/resetToFirstPage/the limit watcher all call it. Kept as
+    // a thin alias over fetchWarehouses() (the pre-existing public name
+    // other methods here already call directly) rather than renaming
+    // every call site.
+    fetchList() {
+      return this.fetchWarehouses()
+    },
+
     async fetchWarehouses() {
       this.loading = true
       this.listError = ''
@@ -512,9 +549,14 @@ export default {
           search: this.filters.keyword,
           type: this.filters.type,
           status: this.filters.status,
-          limit: 100
+          page: this.page,
+          limit: this.limit,
+          sortBy: this.sortBy,
+          sortDir: this.sortDir
         })
         this.warehouses = res.data
+        this.total = res.meta.total
+        this.totalPages = res.meta.total_pages
       } catch (err) {
         this.listError = err.message || this.$t('warehouseSetup.messages.loadFailed')
       } finally {

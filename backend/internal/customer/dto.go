@@ -45,12 +45,17 @@ type UpdateRequest struct {
 } //	@name	UpdateCustomerRequest
 
 // ListParams narrows GET /api/v1/customers to the Customers screen's
-// search box and status filter, with pagination.
+// search box and status filter, with pagination and sorting. SortBy/
+// SortDir are the raw query values — Service.List is what validates
+// them against allowedSortColumns and defaults them (code/ASC) before
+// Repository ever sees them.
 type ListParams struct {
-	Search string
-	Status Status
-	Page   int
-	Limit  int
+	Search  string
+	Status  Status
+	Page    int
+	Limit   int
+	SortBy  string
+	SortDir string
 }
 
 func toResponse(c Customer) Response {

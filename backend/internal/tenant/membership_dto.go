@@ -81,6 +81,8 @@ type MembershipListParams struct {
 	Status   string
 	Page     int
 	Limit    int
+	SortBy   string
+	SortDir  string
 }
 
 func toMembershipResponse(row MembershipRow) MembershipResponse {
