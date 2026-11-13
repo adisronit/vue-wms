@@ -103,6 +103,9 @@
     "sectionMasterData": "基础数据",
     "warehouse": "仓库设置",
     "productMaster": "产品主数据",
+    "productCategories": "产品类别",
+    "customers": "客户",
+    "suppliers": "供应商",
     "logout": "退出登录",
     "sectionPlatformAdmin": "平台管理",
     "platformTenants": "租户"
@@ -1156,7 +1159,8 @@
       "expiry": "有效期",
       "defaultZone": "默认区域",
       "status": "状态",
-      "action": "操作"
+      "action": "操作",
+      "productCategory": "产品类别"
     },
     "loadingProducts": "正在加载产品...",
     "noProducts": "未找到产品。",
@@ -1180,7 +1184,9 @@
       "status": "状态",
       "barcode": "条码",
       "barcodePlaceholder": "主条码（选填）",
-      "description": "描述"
+      "description": "描述",
+      "productCategory": "产品类别",
+      "noProductCategory": "无产品类别"
     },
     "barcodeTab": {
       "title": "条码映射",
@@ -1228,6 +1234,128 @@
       "nameRequired": "请输入产品名称",
       "saveFailed": "保存产品失败",
       "loadFailed": "加载产品失败"
+    }
+  },
+  "productCategory": {
+    "title": "产品类别",
+    "subtitle": "管理用于对产品分类的类别层级结构",
+    "newButton": "+ 新建类别",
+    "filters": {
+      "searchPlaceholder": "搜索编码或名称...",
+      "allParents": "全部上级类别",
+      "allStatus": "全部状态"
+    },
+    "table": {
+      "code": "编码",
+      "name": "名称",
+      "parent": "上级类别",
+      "description": "描述",
+      "status": "状态",
+      "action": "操作"
+    },
+    "noParentLabel": "—",
+    "loading": "正在加载类别...",
+    "empty": "未找到类别。",
+    "drawer": {
+      "detailTitle": "类别详情",
+      "newTitle": "新建类别",
+      "subtitle": "类别编码、名称、层级关系与状态"
+    },
+    "fields": {
+      "code": "编码",
+      "name": "名称",
+      "parent": "上级类别",
+      "noParentOption": "无上级类别（顶级）",
+      "description": "描述",
+      "status": "状态"
+    },
+    "deleteTitle": "删除类别",
+    "messages": {
+      "loadFailed": "加载类别失败",
+      "saveFailed": "保存类别失败",
+      "deleteFailed": "删除类别失败"
+    }
+  },
+  "customers": {
+    "title": "客户",
+    "subtitle": "管理订单和发货流程中使用的客户主数据",
+    "newButton": "+ 新建客户",
+    "filters": {
+      "searchPlaceholder": "搜索编码、公司名称、税号...",
+      "allStatus": "全部状态"
+    },
+    "table": {
+      "code": "编码",
+      "companyName": "公司名称",
+      "taxId": "税号",
+      "contactPerson": "联系人",
+      "status": "状态",
+      "action": "操作"
+    },
+    "loading": "正在加载客户...",
+    "empty": "未找到客户。",
+    "drawer": {
+      "detailTitle": "客户详情",
+      "newTitle": "新建客户",
+      "subtitle": "客户编码、联系方式与状态"
+    },
+    "fields": {
+      "code": "编码",
+      "companyName": "公司名称",
+      "taxId": "税号",
+      "contactPerson": "联系人",
+      "contactPhone": "联系电话",
+      "address": "地址",
+      "email": "电子邮箱",
+      "phone": "电话",
+      "status": "状态"
+    },
+    "deleteTitle": "删除客户",
+    "messages": {
+      "loadFailed": "加载客户失败",
+      "saveFailed": "保存客户失败",
+      "deleteFailed": "删除客户失败"
+    }
+  },
+  "suppliers": {
+    "title": "供应商",
+    "subtitle": "管理采购和收货流程中使用的供应商主数据",
+    "newButton": "+ 新建供应商",
+    "filters": {
+      "searchPlaceholder": "搜索编码、公司名称、税号...",
+      "allStatus": "全部状态"
+    },
+    "table": {
+      "code": "编码",
+      "companyName": "公司名称",
+      "taxId": "税号",
+      "contactPerson": "联系人",
+      "status": "状态",
+      "action": "操作"
+    },
+    "loading": "正在加载供应商...",
+    "empty": "未找到供应商。",
+    "drawer": {
+      "detailTitle": "供应商详情",
+      "newTitle": "新建供应商",
+      "subtitle": "供应商编码、联系方式与状态"
+    },
+    "fields": {
+      "code": "编码",
+      "companyName": "公司名称",
+      "taxId": "税号",
+      "contactPerson": "联系人",
+      "contactPhone": "联系电话",
+      "address": "地址",
+      "email": "电子邮箱",
+      "phone": "电话",
+      "status": "状态"
+    },
+    "deleteTitle": "删除供应商",
+    "messages": {
+      "loadFailed": "加载供应商失败",
+      "saveFailed": "保存供应商失败",
+      "deleteFailed": "删除供应商失败"
     }
   },
   "stockInquiry": {

@@ -9,6 +9,7 @@ type Response struct {
 	Name           string    `json:"name" example:"Barcode Label Roll"`
 	Description    string    `json:"description"`
 	Category       Category  `json:"category" example:"LABEL"`
+	CategoryID     *int64    `json:"category_id,string" example:"null"`
 	BaseUOM        UOM       `json:"base_uom" example:"ROLL"`
 	PackSize       int       `json:"pack_size" example:"1"`
 	Barcode        *string   `json:"barcode"`
@@ -29,6 +30,7 @@ type CreateRequest struct {
 	Name           string   `json:"name" binding:"required" example:"Shrink Wrap Roll"`
 	Description    string   `json:"description" example:"Industrial shrink wrap, 500mm"`
 	Category       Category `json:"category" binding:"required" example:"PACKAGING"`
+	CategoryID     *int64   `json:"category_id,string" example:"null"`
 	BaseUOM        UOM      `json:"base_uom" binding:"required" example:"ROLL"`
 	PackSize       int      `json:"pack_size" example:"1"`
 	Barcode        *string  `json:"barcode" example:"885000001234"`
@@ -47,6 +49,7 @@ type UpdateRequest struct {
 	Name           string   `json:"name" binding:"required" example:"Shrink Wrap Roll"`
 	Description    string   `json:"description" example:"Industrial shrink wrap, 500mm"`
 	Category       Category `json:"category" binding:"required" example:"PACKAGING"`
+	CategoryID     *int64   `json:"category_id,string" example:"null"`
 	BaseUOM        UOM      `json:"base_uom" binding:"required" example:"ROLL"`
 	PackSize       int      `json:"pack_size" example:"1"`
 	Barcode        *string  `json:"barcode" example:"885000001234"`
@@ -74,7 +77,7 @@ type ListParams struct {
 func toResponse(p Product) Response {
 	return Response{
 		ID: p.ID, SKU: p.SKU, Name: p.Name, Description: p.Description,
-		Category: p.Category, BaseUOM: p.BaseUOM, PackSize: p.PackSize, Barcode: p.Barcode,
+		Category: p.Category, CategoryID: p.CategoryID, BaseUOM: p.BaseUOM, PackSize: p.PackSize, Barcode: p.Barcode,
 		LotRequired: p.LotRequired, SerialRequired: p.SerialRequired, ExpiryRequired: p.ExpiryRequired,
 		DefaultZone: p.DefaultZone, MinStock: p.MinStock, MaxStock: p.MaxStock, Status: p.Status,
 		CreatedAt: p.CreatedAt, UpdatedAt: p.UpdatedAt,

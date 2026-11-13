@@ -65,6 +65,15 @@ var Modules = []ModuleDef{
 	// membership is only ever status-changed (ACTIVE/DISABLED), never
 	// deleted.
 	{Code: "tenant_users", Name: "Tenant User Management", Actions: []string{"view", "create", "update", "suspend"}},
+	// Master Data Expansion: product_category/customer/supplier are
+	// admin-level master data, the same "view/create/update/delete"
+	// shape warehouse/product already use — not given to the
+	// operational staff roles (RECEIVING/QC/PUTAWAY/PICKING/SHIPPING)
+	// below, matching warehouse's own precedent of restricting Setup
+	// screens to ADMIN/WAREHOUSE_MANAGER only.
+	{Code: "product_category", Name: "Product Categories", Actions: []string{"view", "create", "update", "delete"}},
+	{Code: "customer", Name: "Customers", Actions: []string{"view", "create", "update", "delete"}},
+	{Code: "supplier", Name: "Suppliers", Actions: []string{"view", "create", "update", "delete"}},
 }
 
 var actionLabels = map[string]string{

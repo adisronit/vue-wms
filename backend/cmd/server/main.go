@@ -39,8 +39,10 @@ import (
 	apihttp "wms-backend/internal/platform/http"
 	"wms-backend/internal/platform/logging"
 	"wms-backend/internal/platform/middleware"
+	"wms-backend/internal/customer"
 	"wms-backend/internal/platformadmin"
 	"wms-backend/internal/product"
+	"wms-backend/internal/productcategory"
 	"wms-backend/internal/putaway"
 	"wms-backend/internal/receiving"
 	"wms-backend/internal/replenishment"
@@ -49,6 +51,7 @@ import (
 	"wms-backend/internal/shipping"
 	"wms-backend/internal/stockadjustment"
 	"wms-backend/internal/stockcount"
+	"wms-backend/internal/supplier"
 	"wms-backend/internal/tenant"
 	"wms-backend/internal/user"
 	"wms-backend/internal/warehouse"
@@ -182,9 +185,33 @@ func main() {
 	locationService := location.NewService(locationRepo, zoneRepo)
 	location.NewHandler(locationService).Register(v1, cfg.JWTSecret)
 
+	// Master Data Expansion: Product Category, Customer, Supplier.
+	// Registered ahead of product below because productService.Create/
+	// Update need a categoryChecker (productcategory's Exists) to
+	// validate an optional category_id — see
+	// internal/product/service.go's categoryChecker doc. Each handler's
+	// Register uses the RequireJWT -> RequireTenantContext ->
+	// RequirePermission chain (membershipChecker/cacheTTL are the same
+	// tenantService/cfg.TenantMembershipCacheTTL the Tenant Admin
+	// membership API above already uses), unlike product/warehouse's
+	// RequireJWT-only chain — see internal/productcategory/handler.go's
+	// doc for why these new modules are held to the stricter standard.
+	productCategoryRepo := productcategory.NewRepository(dbManager.DB())
+
 	productRepo := product.NewRepository(dbManager.DB())
-	productService := product.NewService(productRepo)
+	productService := product.NewService(productRepo, productCategoryRepo)
 	product.NewHandler(productService).Register(v1, cfg.JWTSecret)
+
+	productCategoryService := productcategory.NewService(productCategoryRepo, productRepo)
+	productcategory.NewHandler(productCategoryService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	customerRepo := customer.NewRepository(dbManager.DB())
+	customerService := customer.NewService(customerRepo)
+	customer.NewHandler(customerService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	supplierRepo := supplier.NewRepository(dbManager.DB())
+	supplierService := supplier.NewService(supplierRepo)
+	supplier.NewHandler(supplierService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	inventoryRepo := inventory.NewRepository(dbManager.DB())
 	inventoryService := inventory.NewService(inventoryRepo)

@@ -103,6 +103,9 @@
     "sectionMasterData": "Master Data",
     "warehouse": "Warehouse Setup",
     "productMaster": "Product Master",
+    "productCategories": "Product Categories",
+    "customers": "Customers",
+    "suppliers": "Suppliers",
     "logout": "Logout",
     "sectionPlatformAdmin": "Platform Administration",
     "platformTenants": "Tenants"
@@ -1156,7 +1159,8 @@
       "expiry": "Expiry",
       "defaultZone": "Default Zone",
       "status": "Status",
-      "action": "Action"
+      "action": "Action",
+      "productCategory": "Product Category"
     },
     "loadingProducts": "Loading products...",
     "noProducts": "No products found.",
@@ -1180,7 +1184,9 @@
       "status": "Status",
       "barcode": "Barcode",
       "barcodePlaceholder": "Primary barcode (optional)",
-      "description": "Description"
+      "description": "Description",
+      "productCategory": "Product Category",
+      "noProductCategory": "No Product Category"
     },
     "barcodeTab": {
       "title": "Barcode Mapping",
@@ -1228,6 +1234,128 @@
       "nameRequired": "Product Name is required",
       "saveFailed": "Failed to save product",
       "loadFailed": "Failed to load products"
+    }
+  },
+  "productCategory": {
+    "title": "Product Categories",
+    "subtitle": "Manage the category hierarchy used to classify products",
+    "newButton": "+ New Category",
+    "filters": {
+      "searchPlaceholder": "Search code or name...",
+      "allParents": "All Parents",
+      "allStatus": "All Status"
+    },
+    "table": {
+      "code": "Code",
+      "name": "Name",
+      "parent": "Parent",
+      "description": "Description",
+      "status": "Status",
+      "action": "Action"
+    },
+    "noParentLabel": "—",
+    "loading": "Loading categories...",
+    "empty": "No categories found.",
+    "drawer": {
+      "detailTitle": "Category Detail",
+      "newTitle": "New Category",
+      "subtitle": "Category code, name, hierarchy and status"
+    },
+    "fields": {
+      "code": "Code",
+      "name": "Name",
+      "parent": "Parent Category",
+      "noParentOption": "No Parent (Top Level)",
+      "description": "Description",
+      "status": "Status"
+    },
+    "deleteTitle": "Delete Category",
+    "messages": {
+      "loadFailed": "Failed to load categories",
+      "saveFailed": "Failed to save category",
+      "deleteFailed": "Failed to delete category"
+    }
+  },
+  "customers": {
+    "title": "Customers",
+    "subtitle": "Manage customer master data used across orders and shipping",
+    "newButton": "+ New Customer",
+    "filters": {
+      "searchPlaceholder": "Search code, company name, tax ID...",
+      "allStatus": "All Status"
+    },
+    "table": {
+      "code": "Code",
+      "companyName": "Company Name",
+      "taxId": "Tax ID",
+      "contactPerson": "Contact Person",
+      "status": "Status",
+      "action": "Action"
+    },
+    "loading": "Loading customers...",
+    "empty": "No customers found.",
+    "drawer": {
+      "detailTitle": "Customer Detail",
+      "newTitle": "New Customer",
+      "subtitle": "Customer code, contact information and status"
+    },
+    "fields": {
+      "code": "Code",
+      "companyName": "Company Name",
+      "taxId": "Tax ID",
+      "contactPerson": "Contact Person",
+      "contactPhone": "Contact Phone",
+      "address": "Address",
+      "email": "Email",
+      "phone": "Phone",
+      "status": "Status"
+    },
+    "deleteTitle": "Delete Customer",
+    "messages": {
+      "loadFailed": "Failed to load customers",
+      "saveFailed": "Failed to save customer",
+      "deleteFailed": "Failed to delete customer"
+    }
+  },
+  "suppliers": {
+    "title": "Suppliers",
+    "subtitle": "Manage supplier master data used across purchasing and receiving",
+    "newButton": "+ New Supplier",
+    "filters": {
+      "searchPlaceholder": "Search code, company name, tax ID...",
+      "allStatus": "All Status"
+    },
+    "table": {
+      "code": "Code",
+      "companyName": "Company Name",
+      "taxId": "Tax ID",
+      "contactPerson": "Contact Person",
+      "status": "Status",
+      "action": "Action"
+    },
+    "loading": "Loading suppliers...",
+    "empty": "No suppliers found.",
+    "drawer": {
+      "detailTitle": "Supplier Detail",
+      "newTitle": "New Supplier",
+      "subtitle": "Supplier code, contact information and status"
+    },
+    "fields": {
+      "code": "Code",
+      "companyName": "Company Name",
+      "taxId": "Tax ID",
+      "contactPerson": "Contact Person",
+      "contactPhone": "Contact Phone",
+      "address": "Address",
+      "email": "Email",
+      "phone": "Phone",
+      "status": "Status"
+    },
+    "deleteTitle": "Delete Supplier",
+    "messages": {
+      "loadFailed": "Failed to load suppliers",
+      "saveFailed": "Failed to save supplier",
+      "deleteFailed": "Failed to delete supplier"
     }
   },
   "stockInquiry": {

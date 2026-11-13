@@ -5,6 +5,9 @@
       :can-view-roles="canViewRoles"
       :can-view-warehouses="canViewWarehouses"
       :can-view-products="canViewProducts"
+      :can-view-product-categories="canViewProductCategories"
+      :can-view-customers="canViewCustomers"
+      :can-view-suppliers="canViewSuppliers"
       :can-view-replenishment="canViewReplenishment"
       :can-view-platform-admin="canViewPlatformAdmin"
       @logout="logout"
@@ -132,6 +135,15 @@ export default {
     },
     canViewProducts() {
       return hasPermission('product.view')
+    },
+    canViewProductCategories() {
+      return hasPermission('product_category.view')
+    },
+    canViewCustomers() {
+      return hasPermission('customer.view')
+    },
+    canViewSuppliers() {
+      return hasPermission('supplier.view')
     },
     canViewReplenishment() {
       return hasPermission('replenishment.view')
