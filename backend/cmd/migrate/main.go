@@ -293,7 +293,17 @@ func runMigrationFile(ctx context.Context, db *sql.DB, f migrationFile) error {
 // can be run again safely — e.g. after a fresh `docker compose up` where
 // the volume already has data from a previous run.
 func seed(ctx context.Context, db *sql.DB, logger *slog.Logger, cfg *config.Config) error {
-	roleIDs, err := seedRoles(ctx, db, logger)
+	// Deployment Readiness fix: resolved FIRST (rather than lazily inside
+	// seedDefaultTenantMembership, which used to create it last) so
+	// seedRoles below has an explicit, unambiguous tenant_id to scope
+	// every role lookup/insert to — see seedRoles' own doc for the bug
+	// this closes.
+	defaultTenantID, err := ensureDefaultTenant(ctx, db, logger)
+	if err != nil {
+		return fmt.Errorf("seed default tenant: %w", err)
+	}
+
+	roleIDs, err := seedRoles(ctx, db, logger, defaultTenantID)
 	if err != nil {
 		return fmt.Errorf("seed roles: %w", err)
 	}
@@ -328,20 +338,33 @@ func seed(ctx context.Context, db *sql.DB, logger *slog.Logger, cfg *config.Conf
 		return fmt.Errorf("backfill tenant role catalogs: %w", err)
 	}
 
+	// Deployment Readiness fix: backfillTenantRoleCatalogs above only
+	// ever touches a tenant with literally ZERO roles — it closes the
+	// "tenant never got a role catalog at all" gap, not the "tenant has
+	// a role catalog, but internal/rbac.catalog.go gained a new module
+	// since that catalog was seeded" gap (e.g. Master Data Expansion's
+	// product_category/customer/supplier). Nothing before this line
+	// revisits an already-populated tenant's roles at all. See this
+	// function's own doc for the full explanation; strictly additive and
+	// idempotent, like every seed step above.
+	if err := grantCatalogPermissionsToAllTenants(ctx, db, logger, permissionIDs); err != nil {
+		return fmt.Errorf("grant catalog permissions to all tenants: %w", err)
+	}
+
 	adminUserID, err := seedAdminUser(ctx, db, logger, roleIDs)
 	if err != nil {
 		return fmt.Errorf("seed admin user: %w", err)
 	}
 
-	// Phase 29B: give the seeded dev admin an ACTIVE membership in a
-	// bootstrap tenant, so RequireTenantContext's fail-closed check (no
-	// handler ever runs without a verified active tenant membership) has
-	// something to succeed against in a fresh dev/CI environment.
-	// adminUserID is 0 when SEED_ADMIN_USERNAME/PASSWORD were not set —
-	// seedAdminUser already warned about that, so this step is skipped
-	// the same way, silently.
+	// Phase 29B: give the seeded dev admin an ACTIVE membership in the
+	// bootstrap tenant resolved above, so RequireTenantContext's
+	// fail-closed check (no handler ever runs without a verified active
+	// tenant membership) has something to succeed against in a fresh
+	// dev/CI environment. adminUserID is 0 when SEED_ADMIN_USERNAME/
+	// PASSWORD were not set — seedAdminUser already warned about that,
+	// so this step is skipped the same way, silently.
 	if adminUserID != 0 {
-		if err := seedDefaultTenantMembership(ctx, db, logger, adminUserID, roleIDs["ADMIN"]); err != nil {
+		if err := seedDefaultTenantMembership(ctx, db, logger, defaultTenantID, adminUserID, roleIDs["ADMIN"]); err != nil {
 			return fmt.Errorf("seed default tenant membership: %w", err)
 		}
 	}
@@ -349,22 +372,69 @@ func seed(ctx context.Context, db *sql.DB, logger *slog.Logger, cfg *config.Conf
 	return nil
 }
 
-func seedRoles(ctx context.Context, db *sql.DB, logger *slog.Logger) (map[string]int64, error) {
+// ensureDefaultTenant resolves the bootstrap/default tenant's id (slug
+// "default"), creating it only if it somehow doesn't exist yet — in
+// normal operation migrations/0046 already creates this row (forced to
+// id = 1) strictly before `cmd/migrate seed` ever runs, so the INSERT
+// branch below is a defensive fallback, not the expected path. Moved
+// here, ahead of every other seed step, specifically so seedRoles has
+// an explicit, unambiguous tenant_id to scope its role lookups/inserts
+// to, rather than relying on roles.tenant_id's DEFAULT(1) constraint
+// implicitly doing the right thing.
+func ensureDefaultTenant(ctx context.Context, db *sql.DB, logger *slog.Logger) (int64, error) {
+	const slug = "default"
+
+	var tenantID int64
+	err := db.QueryRowContext(ctx, "SELECT id FROM tenants WHERE slug = @p1", slug).Scan(&tenantID)
+	switch {
+	case err == sql.ErrNoRows:
+		err = db.QueryRowContext(ctx,
+			`INSERT INTO tenants (slug, name, status) OUTPUT INSERTED.id VALUES (@p1, @p2, 'ACTIVE')`,
+			slug, "Default Tenant",
+		).Scan(&tenantID)
+		if err != nil {
+			return 0, err
+		}
+		logger.Info("default tenant seeded", slog.String("slug", slug))
+		return tenantID, nil
+	case err != nil:
+		return 0, err
+	}
+
+	return tenantID, nil
+}
+
+// seedRoles seeds rbac.RoleCatalog's 7 roles for tenantID specifically —
+// deliberately the ONE bootstrap/default tenant (ensureDefaultTenant's
+// id), not "whichever tenant happens to own the first row matching this
+// code." Before this fix, the lookup below had no tenant_id filter at
+// all (`WHERE code = @p1`): that was safe only as long as roles.code was
+// globally unique, which migrations 0043-0047 ended when they rescoped
+// it to UQ_roles_tenant_code (tenant_id, code) — once more than one
+// tenant exists with its own "ADMIN"/"WAREHOUSE_MANAGER"/... role (the
+// normal state of any real multi-tenant deployment), an unscoped SELECT
+// matches an arbitrary one of them with no ORDER BY to make that
+// deterministic, silently handing seedRolePermissions/seedAdminUser/
+// seedDefaultTenantMembership below the wrong tenant's role id. Scoping
+// every lookup and insert to tenantID closes that gap; every OTHER
+// tenant's own role catalog is grantCatalogPermissionsToAllTenants'
+// responsibility below, never this function's.
+func seedRoles(ctx context.Context, db sqlExecutor, logger *slog.Logger, tenantID int64) (map[string]int64, error) {
 	ids := map[string]int64{}
 
 	for _, r := range rbac.RoleCatalog {
 		var id int64
-		err := db.QueryRowContext(ctx, "SELECT id FROM roles WHERE code = @p1", r.Code).Scan(&id)
+		err := db.QueryRowContext(ctx, "SELECT id FROM roles WHERE tenant_id = @p1 AND code = @p2", tenantID, r.Code).Scan(&id)
 		switch {
 		case err == sql.ErrNoRows:
 			err = db.QueryRowContext(ctx,
-				`INSERT INTO roles (code, name, description) OUTPUT INSERTED.id VALUES (@p1, @p2, @p3)`,
-				r.Code, r.Name, r.Description,
+				`INSERT INTO roles (tenant_id, code, name, description, is_active) OUTPUT INSERTED.id VALUES (@p1, @p2, @p3, @p4, 1)`,
+				tenantID, r.Code, r.Name, r.Description,
 			).Scan(&id)
 			if err != nil {
 				return nil, err
 			}
-			logger.Info("role seeded", slog.String("code", r.Code))
+			logger.Info("role seeded", slog.String("code", r.Code), slog.Int64("tenant_id", tenantID))
 		case err != nil:
 			return nil, err
 		}
@@ -554,6 +624,100 @@ func backfillTenantRoleCatalogs(ctx context.Context, db sqlExecutor, logger *slo
 	return nil
 }
 
+// grantCatalogPermissionsToAllTenants is the multi-tenant counterpart to
+// seedRolePermissions (which only ever grants the bootstrap/default
+// tenant's roles — see seedRoles' own doc for why that scoping is
+// correct for THAT function) and to backfillTenantRoleCatalogs (which
+// only ever touches a tenant with literally zero roles). Every tenant
+// provisioned via internal/tenant.Repository.CreateWithAudit (or
+// backfillTenantRoleCatalogs above) already has its own copy of every
+// rbac.RoleCatalog role — but when a NEW permission module is added to
+// rbac.Modules after those tenants were created (e.g. Master Data
+// Expansion's product_category/customer/supplier), nothing before this
+// function ever revisits an EXISTING, already-populated tenant's role
+// catalog to grant it the newly-added permissions, which is exactly the
+// multi-tenant RBAC seed drift this closes.
+//
+// For every role row in the whole roles table, across every tenant: if
+// its code matches a known rbac.RoleDefaultGrants entry, grant every
+// permission in that entry missing from role_permissions. Strictly
+// additive (only ever INSERTs a missing grant; never touches an
+// existing one, never revokes anything a human may have since changed)
+// and idempotent (a missing-row check backs every insert, so re-running
+// this on every `docker compose up`, same as every other seed step, is
+// always safe). A role whose code has no matching catalog entry — a
+// hand-rolled custom role, e.g. this file's own test fixture
+// "CUSTOM_ONLY" — is left completely untouched, the same guarantee
+// backfillTenantRoleCatalogs' own test already proves for role
+// *creation*; this is that same guarantee for grant *maintenance*.
+func grantCatalogPermissionsToAllTenants(ctx context.Context, db sqlExecutor, logger *slog.Logger, permissionIDs map[string]int64) error {
+	rows, err := db.QueryContext(ctx, "SELECT id, tenant_id, code FROM roles")
+	if err != nil {
+		return err
+	}
+
+	type roleRow struct {
+		id, tenantID int64
+		code         string
+	}
+	var allRoles []roleRow
+	for rows.Next() {
+		var r roleRow
+		if err := rows.Scan(&r.id, &r.tenantID, &r.code); err != nil {
+			rows.Close()
+			return err
+		}
+		allRoles = append(allRoles, r)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	rows.Close()
+
+	newCount := 0
+	for _, r := range allRoles {
+		codes, ok := rbac.RoleDefaultGrants[r.code]
+		if !ok {
+			continue // a hand-rolled custom role with no catalog default — leave it alone
+		}
+
+		for _, code := range codes {
+			permissionID, ok := permissionIDs[code]
+			if !ok {
+				// Same drift tolerance seedRolePermissions/
+				// backfillTenantRoleCatalogs already use: only
+				// triggers if the catalog and RoleDefaultGrants have
+				// themselves drifted apart, which seedPermissions
+				// earlier in this same seed() call already guards.
+				continue
+			}
+
+			var exists int
+			err := db.QueryRowContext(ctx,
+				"SELECT 1 FROM role_permissions WHERE role_id = @p1 AND permission_id = @p2",
+				r.id, permissionID,
+			).Scan(&exists)
+			switch {
+			case err == sql.ErrNoRows:
+				if _, err := db.ExecContext(ctx,
+					"INSERT INTO role_permissions (role_id, permission_id) VALUES (@p1, @p2)",
+					r.id, permissionID,
+				); err != nil {
+					return fmt.Errorf("grant tenant %d role %s permission %s: %w", r.tenantID, r.code, code, err)
+				}
+				logger.Info("tenant role_permission granted",
+					slog.Int64("tenant_id", r.tenantID), slog.String("role", r.code), slog.String("permission", code))
+				newCount++
+			case err != nil:
+				return err
+			}
+		}
+	}
+
+	logger.Info("tenant role_permissions grant sweep complete", slog.Int("newly_granted", newCount))
+	return nil
+}
+
 // seedAdminUser creates exactly one development admin user, from
 // SEED_ADMIN_USERNAME/SEED_ADMIN_PASSWORD — never a hardcoded password.
 // Both variables are required; seeding is skipped (not defaulted) when
@@ -604,11 +768,13 @@ func seedAdminUser(ctx context.Context, db *sql.DB, logger *slog.Logger, roleIDs
 	return newID, nil
 }
 
-// seedDefaultTenantMembership is Phase 29B's minimal bootstrap: it creates
-// exactly one tenant (slug "default") and grants adminUserID an ACTIVE
-// membership in it with adminRoleID, so RequireTenantContext's fail-closed
+// seedDefaultTenantMembership is Phase 29B's minimal bootstrap: it
+// grants adminUserID an ACTIVE membership in tenantID (ensureDefaultTenant's
+// resolved id) with adminRoleID, so RequireTenantContext's fail-closed
 // check and auth.Service.Login's DefaultMembership resolution have
-// something to succeed against in a fresh dev/CI environment.
+// something to succeed against in a fresh dev/CI environment. Creating
+// the tenant itself moved to ensureDefaultTenant (Deployment Readiness
+// fix) — this function only ever creates the membership row now.
 //
 // This is deliberately NOT the Phase 29 production backfill: migrating
 // every pre-existing user onto a tenant_id is a database-schema-change
@@ -616,27 +782,9 @@ func seedAdminUser(ctx context.Context, db *sql.DB, logger *slog.Logger, roleIDs
 // §2, migrations 0043+) and out of this auth-focused phase's scope — only
 // the one admin user this same seed command already creates is granted
 // a membership here, nothing else in the users table is touched.
-func seedDefaultTenantMembership(ctx context.Context, db *sql.DB, logger *slog.Logger, adminUserID, adminRoleID int64) error {
-	const slug = "default"
-
-	var tenantID int64
-	err := db.QueryRowContext(ctx, "SELECT id FROM tenants WHERE slug = @p1", slug).Scan(&tenantID)
-	switch {
-	case err == sql.ErrNoRows:
-		err = db.QueryRowContext(ctx,
-			`INSERT INTO tenants (slug, name, status) OUTPUT INSERTED.id VALUES (@p1, @p2, 'ACTIVE')`,
-			slug, "Default Tenant",
-		).Scan(&tenantID)
-		if err != nil {
-			return err
-		}
-		logger.Info("default tenant seeded", slog.String("slug", slug))
-	case err != nil:
-		return err
-	}
-
+func seedDefaultTenantMembership(ctx context.Context, db *sql.DB, logger *slog.Logger, tenantID, adminUserID, adminRoleID int64) error {
 	var exists int
-	err = db.QueryRowContext(ctx,
+	err := db.QueryRowContext(ctx,
 		"SELECT 1 FROM tenant_users WHERE tenant_id = @p1 AND user_id = @p2", tenantID, adminUserID,
 	).Scan(&exists)
 	switch {
