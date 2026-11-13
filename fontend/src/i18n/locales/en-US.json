@@ -634,7 +634,8 @@
       "remarkRequiredForIssue": "A remark is required to report an issue",
       "issueReported": "Putaway issue has been reported",
       "putawayConfirmed": "Putaway confirmed successfully",
-      "taskCancelled": "Putaway task cancelled"
+      "taskCancelled": "Putaway task cancelled",
+      "confirmCancelTask": "This putaway task will be cancelled and cannot be resumed. Continue?"
     }
   },
   "newQualityCheck": {

@@ -1,14 +1,7 @@
 <template>
   <div class="space-y-6">
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">{{ $t('putaway.title') }}</h1>
-        <p class="text-slate-500">
-          {{ $t('putaway.subtitle') }}
-        </p>
-      </div>
-
-      <div class="flex gap-3">
+    <PageHeader :title="$t('putaway.title')" :subtitle="$t('putaway.subtitle')">
+      <template #actions>
         <button
           @click="exportCsv"
           :disabled="exporting"
@@ -24,8 +17,8 @@
         >
           {{ $t('putaway.newButton') }}
         </button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
       <div class="summary-card">
@@ -53,121 +46,91 @@
       {{ loadError }}
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-5">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <input
-          v-model="filters.keyword"
-          type="text"
-          :placeholder="$t('putaway.filters.searchPlaceholder')"
-          class="input"
-        />
+    <FilterBar>
+      <input
+        v-model="filters.keyword"
+        type="text"
+        :placeholder="$t('putaway.filters.searchPlaceholder')"
+        class="input"
+      />
 
-        <select v-model="filters.status" class="input">
-          <option value="">{{ $t('putaway.filters.allStatus') }}</option>
-          <option value="PENDING">{{ $t('common.status.pending') }}</option>
-          <option value="PARTIALLY_COMPLETED">{{ $t('common.status.inProgress') }}</option>
-          <option value="COMPLETED">{{ $t('common.status.completed') }}</option>
-          <option value="ISSUE">{{ $t('putaway.statusLabels.issue') }}</option>
-        </select>
+      <select v-model="filters.status" class="input">
+        <option value="">{{ $t('putaway.filters.allStatus') }}</option>
+        <option value="PENDING">{{ $t('common.status.pending') }}</option>
+        <option value="PARTIALLY_COMPLETED">{{ $t('common.status.inProgress') }}</option>
+        <option value="COMPLETED">{{ $t('common.status.completed') }}</option>
+        <option value="ISSUE">{{ $t('putaway.statusLabels.issue') }}</option>
+      </select>
 
-        <select v-model="filters.zoneId" class="input">
-          <option value="">{{ $t('putaway.filters.allZones') }}</option>
-          <option v-for="z in zones" :key="z.id" :value="z.id">{{ z.code }}</option>
-        </select>
+      <select v-model="filters.zoneId" class="input">
+        <option value="">{{ $t('putaway.filters.allZones') }}</option>
+        <option v-for="z in zones" :key="z.id" :value="z.id">{{ z.code }}</option>
+      </select>
 
-        <button
-          @click="clearFilter"
-          class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
-        >
-          {{ $t('common.buttons.clearFilter') }}
-        </button>
-      </div>
-    </div>
+      <button
+        @click="clearFilter"
+        class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
+      >
+        {{ $t('common.buttons.clearFilter') }}
+      </button>
+    </FilterBar>
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="w-full overflow-x-auto">
-        <table class="min-w-[1150px] w-full text-sm">
-          <thead class="bg-slate-50 text-slate-500">
-            <tr>
-              <th class="table-th">{{ $t('putaway.table.taskNo') }}</th>
-              <th class="table-th">{{ $t('putaway.table.receivingNo') }}</th>
-              <th class="table-th">{{ $t('putaway.table.sku') }}</th>
-              <th class="table-th">{{ $t('putaway.table.product') }}</th>
-              <th class="table-th">{{ $t('putaway.table.qty') }}</th>
-              <th class="table-th">{{ $t('putaway.table.fromLocation') }}</th>
-              <th class="table-th">{{ $t('putaway.table.suggestedBin') }}</th>
-              <th class="table-th">{{ $t('putaway.table.actualBin') }}</th>
-              <th class="table-th">{{ $t('common.labels.status') }}</th>
-              <th class="table-th text-right">{{ $t('putaway.table.action') }}</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr v-if="loading">
-              <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('putaway.loadingTasks') }}</td>
-            </tr>
-
-            <tr v-else-if="putawayList.length === 0">
-              <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('putaway.noTasks') }}</td>
-            </tr>
-
-            <template v-else>
-            <tr
-              v-for="item in putawayList"
-              :key="item.id"
-              class="border-t hover:bg-orange-50"
-            >
-              <td class="table-td font-semibold text-slate-800">
-                {{ item.taskNo }}
-              </td>
-              <td class="table-td">{{ item.receivingNo }}</td>
-              <td class="table-td">{{ item.sku }}</td>
-              <td class="table-td">{{ item.productName }}</td>
-              <td class="table-td">{{ item.qty }}</td>
-              <td class="table-td">{{ item.fromLocation }}</td>
-              <td class="table-td">{{ item.suggestedBin }}</td>
-              <td class="table-td">{{ item.actualBin || '-' }}</td>
-              <td class="table-td">
-                <span :class="getStatusClass(item.status)">
-                  {{ statusText(item.status) }}
-                </span>
-              </td>
-              <td class="table-td text-right">
-                <button
-                  @click="openPutaway(item)"
-                  class="text-orange-600 hover:text-orange-700 font-semibold"
-                >
-                  {{ $t('putaway.table.putawayAction') }}
-                </button>
-              </td>
-            </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div
-      v-if="selectedPutaway"
-      class="fixed inset-0 bg-black/40 flex justify-end z-50"
+    <DataTable
+      :loading="loading"
+      :is-empty="putawayList.length === 0"
+      :loading-text="$t('putaway.loadingTasks')"
+      :empty-text="$t('putaway.noTasks')"
+      :colspan="10"
+      min-width="1150px"
     >
+      <template #head>
+        <tr>
+          <th class="table-th">{{ $t('putaway.table.taskNo') }}</th>
+          <th class="table-th">{{ $t('putaway.table.receivingNo') }}</th>
+          <th class="table-th">{{ $t('putaway.table.sku') }}</th>
+          <th class="table-th">{{ $t('putaway.table.product') }}</th>
+          <th class="table-th text-right">{{ $t('putaway.table.qty') }}</th>
+          <th class="table-th">{{ $t('putaway.table.fromLocation') }}</th>
+          <th class="table-th">{{ $t('putaway.table.suggestedBin') }}</th>
+          <th class="table-th">{{ $t('putaway.table.actualBin') }}</th>
+          <th class="table-th">{{ $t('common.labels.status') }}</th>
+          <th class="table-th text-right">{{ $t('putaway.table.action') }}</th>
+        </tr>
+      </template>
+
+      <tr
+        v-for="item in putawayList"
+        :key="item.id"
+        class="border-t hover:bg-orange-50"
+      >
+        <td class="table-td font-semibold text-slate-800">{{ item.taskNo }}</td>
+        <td class="table-td">{{ item.receivingNo }}</td>
+        <td class="table-td">{{ item.sku }}</td>
+        <td class="table-td">{{ item.productName }}</td>
+        <td class="table-td text-right">{{ item.qty }}</td>
+        <td class="table-td">{{ item.fromLocation }}</td>
+        <td class="table-td">{{ item.suggestedBin }}</td>
+        <td class="table-td">{{ item.actualBin || '-' }}</td>
+        <td class="table-td">
+          <StatusBadge :tone="statusTone(item.status)">{{ statusText(item.status) }}</StatusBadge>
+        </td>
+        <td class="table-td text-right">
+          <button @click="openPutaway(item)" class="text-orange-600 hover:text-orange-700 font-semibold">
+            {{ $t('putaway.table.putawayAction') }}
+          </button>
+        </td>
+      </tr>
+    </DataTable>
+
+    <div v-if="selectedPutaway" class="fixed inset-0 bg-black/40 flex justify-end z-50">
       <div class="w-full max-w-2xl bg-white h-full p-6 overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
           <div>
-            <h2 class="text-xl font-bold text-slate-800">
-              {{ $t('putaway.drawer.title') }}
-            </h2>
-            <p class="text-slate-500">
-              {{ selectedPutaway.taskNo }} / {{ selectedPutaway.sku }}
-            </p>
+            <h2 class="text-xl font-bold text-slate-800">{{ $t('putaway.drawer.title') }}</h2>
+            <p class="text-slate-500">{{ selectedPutaway.taskNo }} / {{ selectedPutaway.sku }}</p>
           </div>
 
-          <button
-            @click="selectedPutaway = null"
-            class="text-slate-500 hover:text-red-600 text-xl"
-          >
-            ✕
-          </button>
+          <button @click="selectedPutaway = null" class="text-slate-500 hover:text-red-600 text-xl">✕</button>
         </div>
 
         <div class="bg-slate-50 rounded-2xl p-5 mb-6">
@@ -179,7 +142,7 @@
 
             <div>
               <p class="detail-label">{{ $t('putaway.drawer.quantity') }}</p>
-              <p class="detail-value">{{ selectedPutaway.qty }}</p>
+              <p class="detail-value tabular-nums">{{ selectedPutaway.qty }}</p>
             </div>
 
             <div>
@@ -189,9 +152,7 @@
 
             <div>
               <p class="detail-label">{{ $t('putaway.table.suggestedBin') }}</p>
-              <p class="detail-value text-orange-600">
-                {{ selectedPutaway.suggestedBin }}
-              </p>
+              <p class="detail-value text-orange-600">{{ selectedPutaway.suggestedBin }}</p>
             </div>
           </div>
         </div>
@@ -232,42 +193,22 @@
           <div v-if="canConfirm" class="space-y-4">
             <div>
               <label class="label">{{ $t('putaway.drawer.scanSkuBarcode') }}</label>
-              <input
-                v-model="putawayForm.barcode"
-                type="text"
-                class="input"
-                :placeholder="$t('putaway.drawer.scanSkuPlaceholder')"
-              />
+              <input v-model="putawayForm.barcode" type="text" class="input" :placeholder="$t('putaway.drawer.scanSkuPlaceholder')" />
             </div>
 
             <div>
               <label class="label">{{ $t('putaway.drawer.actualBinLocation') }}</label>
-              <input
-                v-model="putawayForm.actualBin"
-                type="text"
-                class="input"
-                :placeholder="$t('putaway.drawer.actualBinPlaceholder')"
-              />
+              <input v-model="putawayForm.actualBin" type="text" class="input" :placeholder="$t('putaway.drawer.actualBinPlaceholder')" />
             </div>
 
             <div>
               <label class="label">{{ $t('putaway.drawer.putawayQty') }}</label>
-              <input
-                v-model="putawayForm.qty"
-                type="number"
-                class="input"
-                :placeholder="$t('putaway.drawer.putawayQtyPlaceholder')"
-              />
+              <input v-model="putawayForm.qty" type="number" class="input" :placeholder="$t('putaway.drawer.putawayQtyPlaceholder')" />
             </div>
 
             <div>
               <label class="label">{{ $t('common.labels.remark') }}</label>
-              <textarea
-                v-model="putawayForm.remark"
-                rows="4"
-                class="input"
-                :placeholder="$t('putaway.drawer.remarkPlaceholder')"
-              ></textarea>
+              <textarea v-model="putawayForm.remark" rows="4" class="input" :placeholder="$t('putaway.drawer.remarkPlaceholder')"></textarea>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-4">
@@ -293,14 +234,9 @@
           </p>
 
           <div v-if="canCancelPutaway" class="mt-6 pt-6 border-t border-slate-200">
-            <input
-              v-model="cancelRemark"
-              type="text"
-              class="input mb-3"
-              :placeholder="$t('putaway.drawer.cancelRemarkPlaceholder')"
-            />
+            <input v-model="cancelRemark" type="text" class="input mb-3" :placeholder="$t('putaway.drawer.cancelRemarkPlaceholder')" />
             <button
-              @click="cancelDrawerTask"
+              @click="showCancelConfirm = true"
               :disabled="submitting"
               class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
             >
@@ -310,6 +246,19 @@
         </template>
       </div>
     </div>
+
+    <ConfirmDialog
+      :open="showCancelConfirm"
+      :title="$t('putaway.drawer.cancelButton')"
+      :message="$t('putaway.messages.confirmCancelTask')"
+      :confirm-label="$t('putaway.drawer.cancelButton')"
+      :cancel-label="$t('common.buttons.cancel')"
+      :loading-label="$t('common.buttons.submitting')"
+      danger
+      :loading="submitting"
+      @cancel="showCancelConfirm = false"
+      @confirm="cancelDrawerTask"
+    />
   </div>
 </template>
 
@@ -317,6 +266,12 @@
 import { listPutaway, getPutawayTask, confirmPutawayTask, cancelPutawayTask, newIdempotencyKey, exportPutaway } from '../../services/putaway'
 import { listWarehouses, listZones, listLocations } from '../../services/warehouses'
 import { hasPermission } from '../../services/auth'
+import { showToast } from '../../services/toast'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FilterBar from '../../components/ui/FilterBar.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
+import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
 import i18n from '../../i18n'
 
 const { t } = i18n.global
@@ -333,6 +288,13 @@ function statusText(status) {
     case 'ISSUE': return t('putaway.statusLabels.issue')
     default: return status
   }
+}
+
+function statusTone(status) {
+  if (status === 'PARTIALLY_COMPLETED') return 'orange'
+  if (status === 'COMPLETED') return 'green'
+  if (status === 'ISSUE') return 'red'
+  return 'gray'
 }
 
 // Real backend field names mapped onto the mock's existing display
@@ -359,6 +321,8 @@ function mapPutawayRow(r) {
 export default {
   name: 'PutawayView',
 
+  components: { PageHeader, FilterBar, DataTable, StatusBadge, ConfirmDialog },
+
   data() {
     return {
       loading: false,
@@ -374,6 +338,7 @@ export default {
       drawerLocations: [],
       submitting: false,
       cancelRemark: '',
+      showCancelConfirm: false,
 
       filters: {
         keyword: '',
@@ -465,6 +430,7 @@ export default {
 
   methods: {
     statusText,
+    statusTone,
 
     async fetchPutaway() {
       this.loading = true
@@ -620,7 +586,10 @@ export default {
           idempotency_key: newIdempotencyKey(),
           items: [confirmItem]
         })
-        alert(confirmItem.action === 'ISSUE' ? this.$t('putaway.messages.issueReported') : this.$t('putaway.messages.putawayConfirmed'))
+        showToast(
+          confirmItem.action === 'ISSUE' ? this.$t('putaway.messages.issueReported') : this.$t('putaway.messages.putawayConfirmed'),
+          'success'
+        )
         this.selectedPutaway = null
         await this.fetchPutaway()
         await this.fetchSummary()
@@ -638,22 +607,17 @@ export default {
         await cancelPutawayTask(this.drawerTaskId, {
           remark: this.cancelRemark || undefined
         })
-        alert(this.$t('putaway.messages.taskCancelled'))
+        this.showCancelConfirm = false
+        showToast(this.$t('putaway.messages.taskCancelled'), 'success')
         this.selectedPutaway = null
         await this.fetchPutaway()
         await this.fetchSummary()
       } catch (err) {
         this.drawerError = err.message
+        this.showCancelConfirm = false
       } finally {
         this.submitting = false
       }
-    },
-
-    getStatusClass(status) {
-      if (status === 'PARTIALLY_COMPLETED') return 'badge-orange'
-      if (status === 'COMPLETED') return 'badge-green'
-      if (status === 'ISSUE') return 'badge-red'
-      return 'badge-gray'
     },
 
     formatDateTime(isoString) {
@@ -728,41 +692,5 @@ export default {
   color: #0f172a;
   font-weight: 700;
   margin-top: 4px;
-}
-
-.badge-gray {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-orange {
-  background: #ffedd5;
-  color: #ea580c;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-green {
-  background: #dcfce7;
-  color: #16a34a;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-red {
-  background: #fee2e2;
-  color: #dc2626;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
 }
 </style>

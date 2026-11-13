@@ -634,7 +634,8 @@
       "remarkRequiredForIssue": "报告异常需要填写备注",
       "issueReported": "上架异常已报告",
       "putawayConfirmed": "上架确认成功",
-      "taskCancelled": "上架任务已取消"
+      "taskCancelled": "上架任务已取消",
+      "confirmCancelTask": "此上架任务将被取消且无法恢复，是否继续？"
     }
   },
   "newQualityCheck": {
