@@ -1,23 +1,15 @@
 <template>
   <div class="space-y-6">
-    <!-- Page Header -->
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">
-          {{ $t('qualityCheck.title') }}
-        </h1>
-        <p class="text-slate-500">
-          {{ $t('qualityCheck.subtitle') }}
-        </p>
-      </div>
-
-      <button
-        @click="$router.push('/inbound/quality-check/new')"
-        class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
-      >
-        {{ $t('qualityCheck.newButton') }}
-      </button>
-    </div>
+    <PageHeader :title="$t('qualityCheck.title')" :subtitle="$t('qualityCheck.subtitle')">
+      <template #actions>
+        <button
+          @click="$router.push('/inbound/quality-check/new')"
+          class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
+        >
+          {{ $t('qualityCheck.newButton') }}
+        </button>
+      </template>
+    </PageHeader>
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
@@ -42,141 +34,97 @@
       </div>
     </div>
 
-    <!-- Filter -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-5">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <input
-          v-model="filters.keyword"
-          type="text"
-          :placeholder="$t('qualityCheck.filters.searchPlaceholder')"
-          class="input"
-        />
+    <FilterBar>
+      <input
+        v-model="filters.keyword"
+        type="text"
+        :placeholder="$t('qualityCheck.filters.searchPlaceholder')"
+        class="input"
+      />
 
-        <select v-model="filters.status" class="input">
-          <option value="">{{ $t('qualityCheck.filters.allStatus') }}</option>
-          <option value="PENDING">{{ $t('common.status.pending') }}</option>
-          <option value="IN_PROGRESS">{{ $t('common.status.inProgress') }}</option>
-          <option value="PASSED">{{ $t('qualityCheck.summary.passed') }}</option>
-          <option value="REJECTED">{{ $t('qualityCheck.summary.rejected') }}</option>
-        </select>
+      <select v-model="filters.status" class="input">
+        <option value="">{{ $t('qualityCheck.filters.allStatus') }}</option>
+        <option value="PENDING">{{ $t('common.status.pending') }}</option>
+        <option value="IN_PROGRESS">{{ $t('common.status.inProgress') }}</option>
+        <option value="PASSED">{{ $t('qualityCheck.summary.passed') }}</option>
+        <option value="REJECTED">{{ $t('qualityCheck.summary.rejected') }}</option>
+      </select>
 
-        <select v-model="filters.result" class="input">
-          <option value="">{{ $t('qualityCheck.filters.allResult') }}</option>
-          <option value="PASS">{{ $t('qualityCheck.results.pass') }}</option>
-          <option value="FAIL">{{ $t('qualityCheck.results.fail') }}</option>
-          <option value="HOLD">{{ $t('qualityCheck.results.hold') }}</option>
-        </select>
+      <select v-model="filters.result" class="input">
+        <option value="">{{ $t('qualityCheck.filters.allResult') }}</option>
+        <option value="PASS">{{ $t('qualityCheck.results.pass') }}</option>
+        <option value="FAIL">{{ $t('qualityCheck.results.fail') }}</option>
+        <option value="HOLD">{{ $t('qualityCheck.results.hold') }}</option>
+      </select>
 
-        <button
-          @click="clearFilter"
-          class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
-        >
-          {{ $t('common.buttons.clearFilter') }}
-        </button>
-      </div>
-    </div>
+      <button
+        @click="clearFilter"
+        class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
+      >
+        {{ $t('common.buttons.clearFilter') }}
+      </button>
+    </FilterBar>
 
-    <!-- QC Table -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="w-full overflow-x-auto">
-        <table class="min-w-[1100px] w-full text-sm">
-          <thead class="bg-slate-50 text-slate-500">
-            <tr>
-              <th class="table-th">{{ $t('qualityCheck.table.qcNo') }}</th>
-              <th class="table-th">{{ $t('qualityCheck.table.poNo') }}</th>
-              <th class="table-th">{{ $t('qualityCheck.table.sku') }}</th>
-              <th class="table-th">{{ $t('qualityCheck.table.productName') }}</th>
-              <th class="table-th">{{ $t('qualityCheck.table.receivedQty') }}</th>
-              <th class="table-th">{{ $t('qualityCheck.table.sampleQty') }}</th>
-              <th class="table-th">{{ $t('qualityCheck.table.defectQty') }}</th>
-              <th class="table-th">{{ $t('qualityCheck.table.result') }}</th>
-              <th class="table-th">{{ $t('common.labels.status') }}</th>
-              <th class="table-th text-right">{{ $t('qualityCheck.table.action') }}</th>
-            </tr>
-          </thead>
+    <DataTable
+      :is-empty="filteredQcList.length === 0"
+      :empty-text="$t('common.pagination.noData')"
+      :colspan="10"
+      min-width="1100px"
+    >
+      <template #head>
+        <tr>
+          <th class="table-th">{{ $t('qualityCheck.table.qcNo') }}</th>
+          <th class="table-th">{{ $t('qualityCheck.table.poNo') }}</th>
+          <th class="table-th">{{ $t('qualityCheck.table.sku') }}</th>
+          <th class="table-th">{{ $t('qualityCheck.table.productName') }}</th>
+          <th class="table-th text-right">{{ $t('qualityCheck.table.receivedQty') }}</th>
+          <th class="table-th text-right">{{ $t('qualityCheck.table.sampleQty') }}</th>
+          <th class="table-th text-right">{{ $t('qualityCheck.table.defectQty') }}</th>
+          <th class="table-th">{{ $t('qualityCheck.table.result') }}</th>
+          <th class="table-th">{{ $t('common.labels.status') }}</th>
+          <th class="table-th text-right">{{ $t('qualityCheck.table.action') }}</th>
+        </tr>
+      </template>
 
-          <tbody>
-            <tr
-              v-for="item in filteredQcList"
-              :key="item.id"
-              class="border-t hover:bg-orange-50"
-            >
-              <td class="table-td font-semibold text-slate-800">
-                {{ item.qcNo }}
-              </td>
+      <tr
+        v-for="item in filteredQcList"
+        :key="item.id"
+        class="border-t hover:bg-orange-50"
+      >
+        <td class="table-td font-semibold text-slate-800">{{ item.qcNo }}</td>
+        <td class="table-td">{{ item.poNo }}</td>
+        <td class="table-td">{{ item.sku }}</td>
+        <td class="table-td">{{ item.productName }}</td>
+        <td class="table-td text-right">{{ item.receivedQty }}</td>
+        <td class="table-td text-right">{{ item.sampleQty }}</td>
+        <td class="table-td text-right">{{ item.defectQty }}</td>
 
-              <td class="table-td">
-                {{ item.poNo }}
-              </td>
+        <td class="table-td">
+          <StatusBadge :tone="resultTone(item.result)">{{ resultLabel(item.result) }}</StatusBadge>
+        </td>
 
-              <td class="table-td">
-                {{ item.sku }}
-              </td>
+        <td class="table-td">
+          <StatusBadge :tone="statusTone(item.status)">{{ statusLabel(item.status) }}</StatusBadge>
+        </td>
 
-              <td class="table-td">
-                {{ item.productName }}
-              </td>
-
-              <td class="table-td">
-                {{ item.receivedQty }}
-              </td>
-
-              <td class="table-td">
-                {{ item.sampleQty }}
-              </td>
-
-              <td class="table-td">
-                {{ item.defectQty }}
-              </td>
-
-              <td class="table-td">
-                <span :class="getResultClass(item.result)">
-                  {{ resultLabel(item.result) }}
-                </span>
-              </td>
-
-              <td class="table-td">
-                <span :class="getStatusClass(item.status)">
-                  {{ statusLabel(item.status) }}
-                </span>
-              </td>
-
-              <td class="table-td text-right">
-                <button
-                  @click="openQc(item)"
-                  class="text-orange-600 hover:text-orange-700 font-semibold"
-                >
-                  {{ $t('qualityCheck.table.inspect') }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+        <td class="table-td text-right">
+          <button @click="openQc(item)" class="text-orange-600 hover:text-orange-700 font-semibold">
+            {{ $t('qualityCheck.table.inspect') }}
+          </button>
+        </td>
+      </tr>
+    </DataTable>
 
     <!-- QC Drawer -->
-    <div
-      v-if="selectedQc"
-      class="fixed inset-0 bg-black/40 flex justify-end z-50"
-    >
+    <div v-if="selectedQc" class="fixed inset-0 bg-black/40 flex justify-end z-50">
       <div class="w-full max-w-2xl bg-white h-full p-6 overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
           <div>
-            <h2 class="text-xl font-bold text-slate-800">
-              {{ $t('qualityCheck.drawer.title') }}
-            </h2>
-            <p class="text-slate-500">
-              {{ selectedQc.qcNo }} / {{ selectedQc.sku }}
-            </p>
+            <h2 class="text-xl font-bold text-slate-800">{{ $t('qualityCheck.drawer.title') }}</h2>
+            <p class="text-slate-500">{{ selectedQc.qcNo }} / {{ selectedQc.sku }}</p>
           </div>
 
-          <button
-            @click="selectedQc = null"
-            class="text-slate-500 hover:text-red-600 text-xl"
-          >
-            ✕
-          </button>
+          <button @click="selectedQc = null" class="text-slate-500 hover:text-red-600 text-xl">✕</button>
         </div>
 
         <!-- Item Info -->
@@ -194,7 +142,7 @@
 
             <div>
               <p class="detail-label">{{ $t('qualityCheck.table.receivedQty') }}</p>
-              <p class="detail-value">{{ selectedQc.receivedQty }}</p>
+              <p class="detail-value tabular-nums">{{ selectedQc.receivedQty }}</p>
             </div>
 
             <div>
@@ -208,22 +156,12 @@
         <div class="space-y-4">
           <div>
             <label class="label">{{ $t('qualityCheck.table.sampleQty') }}</label>
-            <input
-              v-model="qcForm.sampleQty"
-              type="number"
-              class="input"
-              :placeholder="$t('qualityCheck.drawer.sampleQtyPlaceholder')"
-            />
+            <input v-model="qcForm.sampleQty" type="number" class="input" :placeholder="$t('qualityCheck.drawer.sampleQtyPlaceholder')" />
           </div>
 
           <div>
             <label class="label">{{ $t('qualityCheck.table.defectQty') }}</label>
-            <input
-              v-model="qcForm.defectQty"
-              type="number"
-              class="input"
-              :placeholder="$t('qualityCheck.drawer.defectQtyPlaceholder')"
-            />
+            <input v-model="qcForm.defectQty" type="number" class="input" :placeholder="$t('qualityCheck.drawer.defectQtyPlaceholder')" />
           </div>
 
           <div>
@@ -250,33 +188,23 @@
 
           <div>
             <label class="label">{{ $t('common.labels.remark') }}</label>
-            <textarea
-              v-model="qcForm.remark"
-              rows="4"
-              class="input"
-              :placeholder="$t('qualityCheck.drawer.remarkPlaceholder')"
-            ></textarea>
+            <textarea v-model="qcForm.remark" rows="4" class="input" :placeholder="$t('qualityCheck.drawer.remarkPlaceholder')"></textarea>
+          </div>
+
+          <div v-if="formError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
+            {{ formError }}
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-4">
-            <button
-              @click="submitQc('PASS')"
-              class="bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold"
-            >
+            <button @click="submitQc('PASS')" class="bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold">
               {{ $t('qualityCheck.drawer.pass') }}
             </button>
 
-            <button
-              @click="submitQc('HOLD')"
-              class="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold"
-            >
+            <button @click="submitQc('HOLD')" class="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold">
               {{ $t('qualityCheck.drawer.hold') }}
             </button>
 
-            <button
-              @click="submitQc('FAIL')"
-              class="bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold"
-            >
+            <button @click="submitQc('FAIL')" class="bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold">
               {{ $t('qualityCheck.drawer.reject') }}
             </button>
           </div>
@@ -287,6 +215,11 @@
 </template>
 
 <script>
+import { showToast } from '../../services/toast'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FilterBar from '../../components/ui/FilterBar.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 import i18n from '../../i18n'
 
 const { t } = i18n.global
@@ -299,6 +232,13 @@ function resultLabel(result) {
     case 'WAITING': return t('qualityCheck.results.waiting')
     default: return result
   }
+}
+
+function resultTone(result) {
+  if (result === 'PASS') return 'green'
+  if (result === 'FAIL') return 'red'
+  if (result === 'HOLD') return 'blue'
+  return 'gray'
 }
 
 // Called from the template (methods.statusLabel below), not cached
@@ -314,12 +254,22 @@ function statusLabel(status) {
   }
 }
 
+function statusTone(status) {
+  if (status === 'IN_PROGRESS') return 'orange'
+  if (status === 'PASSED') return 'green'
+  if (status === 'REJECTED') return 'red'
+  return 'gray'
+}
+
 export default {
   name: 'QualityCheckView',
+
+  components: { PageHeader, FilterBar, DataTable, StatusBadge },
 
   data() {
     return {
       selectedQc: null,
+      formError: '',
 
       filters: {
         keyword: '',
@@ -335,6 +285,16 @@ export default {
         remark: ''
       },
 
+      // Phase 1 scope note: there is no quality_check backend module in
+      // this codebase yet (only the permission catalog entries exist —
+      // see internal/rbac/catalog.go's quality_check.* codes with no
+      // matching internal/qualitycheck package). This screen's data has
+      // always been local-only; this redesign restyles the markup
+      // without inventing an API integration that does not exist, per
+      // CLAUDE.md's "Do not invent missing functions or use mock data
+      // in production" — the correct response to that rule here is to
+      // leave the known-mock data exactly as it already was, not to
+      // fabricate a fake backend call.
       qcList: [
         {
           id: 1,
@@ -416,10 +376,13 @@ export default {
 
   methods: {
     resultLabel,
+    resultTone,
     statusLabel,
+    statusTone,
 
     openQc(item) {
       this.selectedQc = item
+      this.formError = ''
 
       this.qcForm.sampleQty = item.sampleQty
       this.qcForm.defectQty = item.defectQty
@@ -436,34 +399,20 @@ export default {
 
     submitQc(result) {
       this.qcForm.result = result
+      this.formError = ''
 
       if (!this.qcForm.sampleQty) {
-        alert(this.$t('qualityCheck.messages.sampleQtyRequired'))
+        this.formError = this.$t('qualityCheck.messages.sampleQtyRequired')
         return
       }
 
       if (result === 'FAIL' && !this.qcForm.defectReason) {
-        alert(this.$t('qualityCheck.messages.defectReasonRequired'))
+        this.formError = this.$t('qualityCheck.messages.defectReasonRequired')
         return
       }
 
-      alert(this.$t('qualityCheck.messages.qcSaved', { result: resultLabel(result) }))
+      showToast(this.$t('qualityCheck.messages.qcSaved', { result: resultLabel(result) }), 'success')
       this.selectedQc = null
-    },
-
-    getResultClass(result) {
-      if (result === 'PASS') return 'badge-green'
-      if (result === 'FAIL') return 'badge-red'
-      if (result === 'HOLD') return 'badge-blue'
-      return 'badge-gray'
-    },
-
-    getStatusClass(status) {
-      if (status === 'PENDING') return 'badge-gray'
-      if (status === 'IN_PROGRESS') return 'badge-orange'
-      if (status === 'PASSED') return 'badge-green'
-      if (status === 'REJECTED') return 'badge-red'
-      return 'badge-gray'
     }
   }
 }
@@ -533,50 +482,5 @@ export default {
   color: #0f172a;
   font-weight: 700;
   margin-top: 4px;
-}
-
-.badge-gray {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-orange {
-  background: #ffedd5;
-  color: #ea580c;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-blue {
-  background: #dbeafe;
-  color: #2563eb;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-green {
-  background: #dcfce7;
-  color: #16a34a;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-red {
-  background: #fee2e2;
-  color: #dc2626;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
 }
 </style>

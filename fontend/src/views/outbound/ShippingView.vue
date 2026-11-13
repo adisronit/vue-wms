@@ -1,14 +1,7 @@
 <template>
   <div class="space-y-6">
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">{{ $t('shipping.title') }}</h1>
-        <p class="text-slate-500">
-          {{ $t('shipping.subtitle') }}
-        </p>
-      </div>
-
-      <div class="flex gap-3">
+    <PageHeader :title="$t('shipping.title')" :subtitle="$t('shipping.subtitle')">
+      <template #actions>
         <button
           @click="exportCsv"
           :disabled="exporting"
@@ -24,8 +17,8 @@
         >
           {{ $t('shipping.newShipmentButton') }}
         </button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
       <div class="summary-card">
@@ -53,116 +46,93 @@
       {{ loadError }}
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-5">
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <input
-          v-model="filters.keyword"
-          type="text"
-          :placeholder="$t('shipping.filters.searchPlaceholder')"
-          class="input"
-        />
+    <FilterBar :cols="5">
+      <input
+        v-model="filters.keyword"
+        type="text"
+        :placeholder="$t('shipping.filters.searchPlaceholder')"
+        class="input"
+      />
 
-        <select v-model="filters.status" class="input">
-          <option value="">{{ $t('shipping.filters.allStatus') }}</option>
-          <option value="READY">{{ $t('shipping.filters.statusReady') }}</option>
-          <option value="DISPATCHED">{{ $t('shipping.filters.statusDispatched') }}</option>
-          <option value="IN_TRANSIT">{{ $t('shipping.filters.statusInTransit') }}</option>
-          <option value="DELIVERED">{{ $t('shipping.filters.statusDelivered') }}</option>
-          <option value="ISSUE">{{ $t('shipping.filters.statusIssue') }}</option>
-          <option value="CANCELLED">{{ $t('common.status.cancelled') }}</option>
-        </select>
+      <select v-model="filters.status" class="input">
+        <option value="">{{ $t('shipping.filters.allStatus') }}</option>
+        <option value="READY">{{ $t('shipping.filters.statusReady') }}</option>
+        <option value="DISPATCHED">{{ $t('shipping.filters.statusDispatched') }}</option>
+        <option value="IN_TRANSIT">{{ $t('shipping.filters.statusInTransit') }}</option>
+        <option value="DELIVERED">{{ $t('shipping.filters.statusDelivered') }}</option>
+        <option value="ISSUE">{{ $t('shipping.filters.statusIssue') }}</option>
+        <option value="CANCELLED">{{ $t('common.status.cancelled') }}</option>
+      </select>
 
-        <!-- Carrier option labels (DHL, Kerry Express, Flash Express) are
-             real-world carrier brand names / business data, left
-             untranslated per "preserve original business values". -->
-        <select v-model="filters.carrier" class="input">
-          <option value="">{{ $t('shipping.filters.allCarriers') }}</option>
-          <option value="DHL">DHL</option>
-          <option value="KERRY">Kerry Express</option>
-          <option value="FLASH">Flash Express</option>
-          <option value="INTERNAL">Internal Truck</option>
-        </select>
+      <!-- Carrier option labels (DHL, Kerry Express, Flash Express) are
+           real-world carrier brand names / business data, left
+           untranslated per "preserve original business values". -->
+      <select v-model="filters.carrier" class="input">
+        <option value="">{{ $t('shipping.filters.allCarriers') }}</option>
+        <option value="DHL">DHL</option>
+        <option value="KERRY">Kerry Express</option>
+        <option value="FLASH">Flash Express</option>
+        <option value="INTERNAL">Internal Truck</option>
+      </select>
 
-        <input
-          v-model="filters.date"
-          type="date"
-          class="input"
-        />
+      <input v-model="filters.date" type="date" class="input" />
 
-        <button
-          @click="clearFilter"
-          class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
-        >
-          {{ $t('common.buttons.clearFilter') }}
-        </button>
-      </div>
-    </div>
+      <button
+        @click="clearFilter"
+        class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
+      >
+        {{ $t('common.buttons.clearFilter') }}
+      </button>
+    </FilterBar>
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="w-full overflow-x-auto">
-        <table class="min-w-[1250px] w-full text-sm">
-          <thead class="bg-slate-50 text-slate-500">
-            <tr>
-              <th class="table-th">{{ $t('shipping.table.shipmentNo') }}</th>
-              <th class="table-th">{{ $t('shipping.table.orderNo') }}</th>
-              <th class="table-th">{{ $t('shipping.table.customer') }}</th>
-              <th class="table-th">{{ $t('shipping.table.carrier') }}</th>
-              <th class="table-th">{{ $t('shipping.table.trackingNo') }}</th>
-              <th class="table-th">{{ $t('shipping.table.packages') }}</th>
-              <th class="table-th">{{ $t('shipping.table.weight') }}</th>
-              <th class="table-th">{{ $t('shipping.table.shipDate') }}</th>
-              <th class="table-th">{{ $t('shipping.table.status') }}</th>
-              <th class="table-th text-right">{{ $t('shipping.table.action') }}</th>
-            </tr>
-          </thead>
+    <DataTable
+      :loading="loading"
+      :is-empty="shippingList.length === 0"
+      :loading-text="$t('shipping.loadingShipments')"
+      :empty-text="$t('shipping.noShipments')"
+      :colspan="10"
+      min-width="1250px"
+    >
+      <template #head>
+        <tr>
+          <th class="table-th">{{ $t('shipping.table.shipmentNo') }}</th>
+          <th class="table-th">{{ $t('shipping.table.orderNo') }}</th>
+          <th class="table-th">{{ $t('shipping.table.customer') }}</th>
+          <th class="table-th">{{ $t('shipping.table.carrier') }}</th>
+          <th class="table-th">{{ $t('shipping.table.trackingNo') }}</th>
+          <th class="table-th text-right">{{ $t('shipping.table.packages') }}</th>
+          <th class="table-th text-right">{{ $t('shipping.table.weight') }}</th>
+          <th class="table-th">{{ $t('shipping.table.shipDate') }}</th>
+          <th class="table-th">{{ $t('shipping.table.status') }}</th>
+          <th class="table-th text-right">{{ $t('shipping.table.action') }}</th>
+        </tr>
+      </template>
 
-          <tbody>
-            <tr v-if="loading">
-              <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('shipping.loadingShipments') }}</td>
-            </tr>
+      <tr
+        v-for="item in shippingList"
+        :key="item.id"
+        class="border-t hover:bg-orange-50"
+      >
+        <td class="table-td font-semibold text-slate-800">{{ item.shipmentNo }}</td>
+        <td class="table-td">{{ item.orderNo }}</td>
+        <td class="table-td">{{ item.customer }}</td>
+        <td class="table-td">{{ item.carrier || '-' }}</td>
+        <td class="table-td">{{ item.trackingNo || '-' }}</td>
+        <td class="table-td text-right">{{ item.packages }}</td>
+        <td class="table-td text-right">{{ item.weight != null ? item.weight + ' kg' : '-' }}</td>
+        <td class="table-td">{{ item.shipDate || '-' }}</td>
 
-            <tr v-else-if="shippingList.length === 0">
-              <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('shipping.noShipments') }}</td>
-            </tr>
+        <td class="table-td">
+          <StatusBadge :tone="statusTone(item.status)">{{ statusText(item.status) }}</StatusBadge>
+        </td>
 
-            <template v-else>
-            <tr
-              v-for="item in shippingList"
-              :key="item.id"
-              class="border-t hover:bg-orange-50"
-            >
-              <td class="table-td font-semibold text-slate-800">
-                {{ item.shipmentNo }}
-              </td>
-
-              <td class="table-td">{{ item.orderNo }}</td>
-              <td class="table-td">{{ item.customer }}</td>
-              <td class="table-td">{{ item.carrier || '-' }}</td>
-              <td class="table-td">{{ item.trackingNo || '-' }}</td>
-              <td class="table-td">{{ item.packages }}</td>
-              <td class="table-td">{{ item.weight != null ? item.weight + ' kg' : '-' }}</td>
-              <td class="table-td">{{ item.shipDate || '-' }}</td>
-
-              <td class="table-td">
-                <span :class="getStatusClass(item.status)">
-                  {{ statusText(item.status) }}
-                </span>
-              </td>
-
-              <td class="table-td text-right">
-                <button
-                  @click="openShipping(item)"
-                  class="text-orange-600 hover:text-orange-700 font-semibold"
-                >
-                  {{ $t('shipping.table.manage') }}
-                </button>
-              </td>
-            </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
-    </div>
+        <td class="table-td text-right">
+          <button @click="openShipping(item)" class="text-orange-600 hover:text-orange-700 font-semibold">
+            {{ $t('shipping.table.manage') }}
+          </button>
+        </td>
+      </tr>
+    </DataTable>
 
     <div
       v-if="selectedShipping"
@@ -411,7 +381,7 @@
             :placeholder="$t('shipping.drawer.cancelRemarkPlaceholder')"
           />
           <button
-            @click="cancelSelectedShipment"
+            @click="showCancelConfirm = true"
             :disabled="submitting"
             class="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-semibold disabled:opacity-60"
           >
@@ -420,12 +390,31 @@
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      :open="showCancelConfirm"
+      :title="$t('shipping.drawer.cancelShipment')"
+      :message="$t('shipping.messages.confirmCancelShipment')"
+      :confirm-label="$t('shipping.drawer.cancelShipment')"
+      :cancel-label="$t('common.buttons.cancel')"
+      :loading-label="$t('common.buttons.submitting')"
+      danger
+      :loading="submitting"
+      @cancel="showCancelConfirm = false"
+      @confirm="cancelSelectedShipment"
+    />
   </div>
 </template>
 
 <script>
 import { listShipments, getShipment, listShippableSources, createShipment, updateShipment, confirmShipment, cancelShipment, newIdempotencyKey, exportShipments } from '../../services/shipping'
 import { hasPermission } from '../../services/auth'
+import { showToast } from '../../services/toast'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FilterBar from '../../components/ui/FilterBar.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
+import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
 import i18n from '../../i18n'
 
 let searchDebounce = null
@@ -487,8 +476,11 @@ function emptyForm() {
 export default {
   name: 'ShippingView',
 
+  components: { PageHeader, FilterBar, DataTable, StatusBadge, ConfirmDialog },
+
   data() {
     return {
+      showCancelConfirm: false,
       loading: false,
       loadError: '',
       exporting: false,
@@ -682,7 +674,7 @@ export default {
           address: this.form.address || null,
           remark: this.form.remark || null
         })
-        alert(this.$t('shipping.messages.shipmentCreated'))
+        showToast(this.$t('shipping.messages.shipmentCreated'), 'success')
         this.closeDrawer()
         await this.fetchShipments()
         await this.fetchSummary()
@@ -739,10 +731,11 @@ export default {
         if (remark) payload.remark = remark
 
         await confirmShipment(this.selectedShipping.id, payload)
-        alert(
+        showToast(
           action === 'DISPATCH' ? this.$t('shipping.messages.dispatchedSuccess') :
           action === 'DELIVER' ? this.$t('shipping.messages.deliveredSuccess') :
-          this.$t('shipping.messages.issueReported')
+          this.$t('shipping.messages.issueReported'),
+          'success'
         )
         await this.openShipping({ id: this.selectedShipping.id })
         await this.fetchShipments()
@@ -761,12 +754,14 @@ export default {
         await cancelShipment(this.selectedShipping.id, {
           remark: this.cancelRemark || undefined
         })
-        alert(this.$t('shipping.messages.shipmentCancelled'))
+        this.showCancelConfirm = false
+        showToast(this.$t('shipping.messages.shipmentCancelled'), 'success')
         this.closeDrawer()
         await this.fetchShipments()
         await this.fetchSummary()
       } catch (err) {
         this.drawerError = err.message
+        this.showCancelConfirm = false
       } finally {
         this.submitting = false
       }
@@ -777,14 +772,13 @@ export default {
       return this.$d(new Date(isoString), 'long')
     },
 
-    getStatusClass(status) {
-      if (status === 'READY') return 'badge-gray'
-      if (status === 'DISPATCHED') return 'badge-blue'
-      if (status === 'IN_TRANSIT') return 'badge-blue'
-      if (status === 'DELIVERED') return 'badge-green'
-      if (status === 'ISSUE') return 'badge-red'
-      if (status === 'CANCELLED') return 'badge-red'
-      return 'badge-gray'
+    statusTone(status) {
+      if (status === 'DISPATCHED') return 'blue'
+      if (status === 'IN_TRANSIT') return 'blue'
+      if (status === 'DELIVERED') return 'green'
+      if (status === 'ISSUE') return 'red'
+      if (status === 'CANCELLED') return 'red'
+      return 'gray'
     }
   }
 }

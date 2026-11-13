@@ -1,112 +1,105 @@
 <template>
   <div class="space-y-6">
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">{{ $t('platformAdmin.tenants.title') }}</h1>
-        <p class="text-slate-500">{{ $t('platformAdmin.tenants.subtitle') }}</p>
-      </div>
-
-      <button
-        @click="openCreate"
-        class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
-      >
-        {{ $t('platformAdmin.tenants.addButton') }}
-      </button>
-    </div>
-
-    <div class="bg-white rounded-2xl border border-slate-200 p-5">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <input
-          v-model="filters.search"
-          type="text"
-          :placeholder="$t('platformAdmin.tenants.filters.searchPlaceholder')"
-          class="input"
-        />
-
-        <select v-model="filters.status" class="input">
-          <option value="">{{ $t('platformAdmin.tenants.filters.allStatus') }}</option>
-          <option v-for="code in TENANT_STATUSES" :key="code" :value="code">
-            {{ $t('platformAdmin.status.' + code.toLowerCase()) }}
-          </option>
-        </select>
-
-        <button @click="clearFilter" class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold">
-          {{ $t('common.buttons.clearFilter') }}
+    <PageHeader :title="$t('platformAdmin.tenants.title')" :subtitle="$t('platformAdmin.tenants.subtitle')">
+      <template #actions>
+        <button
+          @click="openCreate"
+          class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
+        >
+          {{ $t('platformAdmin.tenants.addButton') }}
         </button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
+
+    <FilterBar :cols="3">
+      <input
+        v-model="filters.search"
+        type="text"
+        :placeholder="$t('platformAdmin.tenants.filters.searchPlaceholder')"
+        class="input"
+      />
+
+      <select v-model="filters.status" class="input">
+        <option value="">{{ $t('platformAdmin.tenants.filters.allStatus') }}</option>
+        <option v-for="code in TENANT_STATUSES" :key="code" :value="code">
+          {{ $t('platformAdmin.status.' + code.toLowerCase()) }}
+        </option>
+      </select>
+
+      <button @click="clearFilter" class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold">
+        {{ $t('common.buttons.clearFilter') }}
+      </button>
+    </FilterBar>
 
     <div v-if="listError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
       {{ listError }}
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="w-full overflow-x-auto">
-        <table class="min-w-[800px] w-full text-sm">
-          <thead class="bg-slate-50 text-slate-500">
-            <tr>
-              <th class="table-th">{{ $t('platformAdmin.tenants.table.name') }}</th>
-              <th class="table-th">{{ $t('platformAdmin.tenants.table.slug') }}</th>
-              <th class="table-th">{{ $t('platformAdmin.tenants.table.status') }}</th>
-              <th class="table-th">{{ $t('platformAdmin.tenants.table.createdAt') }}</th>
-              <th class="table-th text-right">{{ $t('platformAdmin.tenants.table.action') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="loading">
-              <td colspan="5" class="text-center py-10 text-slate-400">{{ $t('platformAdmin.tenants.table.loading') }}</td>
-            </tr>
-            <tr v-else-if="tenants.length === 0">
-              <td colspan="5" class="text-center py-10 text-slate-400">{{ $t('platformAdmin.tenants.table.noData') }}</td>
-            </tr>
-            <tr v-for="t in tenants" :key="t.id" class="border-t hover:bg-orange-50">
-              <td class="table-td font-semibold text-slate-800">{{ t.name }}</td>
-              <td class="table-td">{{ t.slug }}</td>
-              <td class="table-td">
-                <span :class="statusClass(t.status)">{{ $t('platformAdmin.status.' + t.status.toLowerCase()) }}</span>
-              </td>
-              <td class="table-td">{{ $d(new Date(t.created_at), 'short') }}</td>
-              <td class="table-td text-right space-x-3 whitespace-nowrap">
-                <router-link :to="`/platform/tenants/${t.id}`" class="text-orange-600 hover:text-orange-700 font-semibold">
-                  {{ $t('platformAdmin.tenants.table.view') }}
-                </router-link>
-                <button @click="openEdit(t)" class="text-slate-600 hover:text-slate-800 font-semibold">
-                  {{ $t('platformAdmin.tenants.table.edit') }}
-                </button>
-                <button @click="openStatus(t)" class="text-slate-600 hover:text-slate-800 font-semibold">
-                  {{ $t('platformAdmin.tenants.table.changeStatus') }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <DataTable
+      :loading="loading"
+      :is-empty="tenants.length === 0"
+      :loading-text="$t('platformAdmin.tenants.table.loading')"
+      :empty-text="$t('platformAdmin.tenants.table.noData')"
+      :colspan="5"
+      min-width="800px"
+    >
+      <template #head>
+        <tr>
+          <th class="table-th">{{ $t('platformAdmin.tenants.table.name') }}</th>
+          <th class="table-th">{{ $t('platformAdmin.tenants.table.slug') }}</th>
+          <th class="table-th">{{ $t('platformAdmin.tenants.table.status') }}</th>
+          <th class="table-th">{{ $t('platformAdmin.tenants.table.createdAt') }}</th>
+          <th class="table-th text-right">{{ $t('platformAdmin.tenants.table.action') }}</th>
+        </tr>
+      </template>
 
-      <div v-if="!loading && tenants.length > 0" class="flex items-center justify-between px-5 py-4 border-t border-slate-200 text-sm text-slate-500">
-        <span>
-          {{ $t('common.pagination.showing') }} {{ rangeStart }} {{ $t('common.pagination.to') }} {{ rangeEnd }}
-          {{ $t('common.pagination.of') }} {{ total }} {{ $t('common.pagination.results') }}
-        </span>
+      <tr v-for="t in tenants" :key="t.id" class="border-t hover:bg-orange-50">
+        <td class="table-td font-semibold text-slate-800">{{ t.name }}</td>
+        <td class="table-td">{{ t.slug }}</td>
+        <td class="table-td">
+          <StatusBadge :tone="statusTone(t.status)">{{ $t('platformAdmin.status.' + t.status.toLowerCase()) }}</StatusBadge>
+        </td>
+        <td class="table-td">{{ $d(new Date(t.created_at), 'short') }}</td>
+        <td class="table-td text-right space-x-3 whitespace-nowrap">
+          <router-link :to="`/platform/tenants/${t.id}`" class="text-orange-600 hover:text-orange-700 font-semibold">
+            {{ $t('platformAdmin.tenants.table.view') }}
+          </router-link>
+          <button @click="openEdit(t)" class="text-slate-600 hover:text-slate-800 font-semibold">
+            {{ $t('platformAdmin.tenants.table.edit') }}
+          </button>
+          <button @click="openStatus(t)" class="text-slate-600 hover:text-slate-800 font-semibold">
+            {{ $t('platformAdmin.tenants.table.changeStatus') }}
+          </button>
+        </td>
+      </tr>
 
-        <div class="flex items-center gap-3">
-          <button
-            @click="page > 1 && goToPage(page - 1)"
-            :disabled="page <= 1"
-            class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold disabled:opacity-50"
-          >
-            {{ $t('common.pagination.previous') }}
-          </button>
-          <span>{{ $t('common.pagination.page') }} {{ page }} {{ $t('common.pagination.of') }} {{ totalPages }}</span>
-          <button
-            @click="page < totalPages && goToPage(page + 1)"
-            :disabled="page >= totalPages"
-            class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold disabled:opacity-50"
-          >
-            {{ $t('common.pagination.next') }}
-          </button>
+      <template v-if="!loading && tenants.length > 0" #footer>
+        <div class="flex items-center justify-between px-5 py-4 text-sm text-slate-500">
+          <span>
+            {{ $t('common.pagination.showing') }} {{ rangeStart }} {{ $t('common.pagination.to') }} {{ rangeEnd }}
+            {{ $t('common.pagination.of') }} {{ total }} {{ $t('common.pagination.results') }}
+          </span>
+
+          <div class="flex items-center gap-3">
+            <button
+              @click="page > 1 && goToPage(page - 1)"
+              :disabled="page <= 1"
+              class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold disabled:opacity-50"
+            >
+              {{ $t('common.pagination.previous') }}
+            </button>
+            <span>{{ $t('common.pagination.page') }} {{ page }} {{ $t('common.pagination.of') }} {{ totalPages }}</span>
+            <button
+              @click="page < totalPages && goToPage(page + 1)"
+              :disabled="page >= totalPages"
+              class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold disabled:opacity-50"
+            >
+              {{ $t('common.pagination.next') }}
+            </button>
+          </div>
         </div>
-      </div>
-    </div>
+      </template>
+    </DataTable>
 
     <TenantFormDrawer
       v-if="showForm"
@@ -128,6 +121,10 @@
 import { listTenants, TENANT_STATUSES } from '../../services/platformTenants'
 import TenantFormDrawer from './TenantFormDrawer.vue'
 import TenantStatusModal from './TenantStatusModal.vue'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FilterBar from '../../components/ui/FilterBar.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 
 let searchDebounce = null
 const PAGE_LIMIT = 20
@@ -135,7 +132,7 @@ const PAGE_LIMIT = 20
 export default {
   name: 'TenantManagementView',
 
-  components: { TenantFormDrawer, TenantStatusModal },
+  components: { TenantFormDrawer, TenantStatusModal, PageHeader, FilterBar, DataTable, StatusBadge },
 
   data() {
     return {
@@ -243,12 +240,11 @@ export default {
       this.fetchTenants()
     },
 
-    statusClass(status) {
-      if (status === 'ACTIVE') return 'badge-green'
-      if (status === 'TRIAL') return 'badge-orange'
-      if (status === 'SUSPENDED') return 'badge-gray'
-      if (status === 'CANCELLED') return 'badge-red'
-      return 'badge-gray'
+    statusTone(status) {
+      if (status === 'ACTIVE') return 'green'
+      if (status === 'TRIAL') return 'orange'
+      if (status === 'CANCELLED') return 'red'
+      return 'gray'
     }
   }
 }

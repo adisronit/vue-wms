@@ -100,6 +100,7 @@
     "sectionAdministration": "系统管理",
     "userManagement": "用户管理",
     "roles": "角色与权限",
+    "sectionMasterData": "基础数据",
     "warehouse": "仓库设置",
     "productMaster": "产品主数据",
     "logout": "退出登录",
@@ -235,7 +236,8 @@
       "enterReceiveQty": "请至少输入一项收货数量以确认收货",
       "locationRequired": "每条已确认的明细行都必须有货位",
       "receivingConfirmed": "收货确认成功",
-      "receiptCancelled": "收货单已取消"
+      "receiptCancelled": "收货单已取消",
+      "confirmCancelReceipt": "此收货单将被取消且无法恢复，是否继续？"
     }
   },
   "newReceiving": {
@@ -502,7 +504,8 @@
       "dispatchedSuccess": "发货成功",
       "deliveredSuccess": "已标记为送达",
       "issueReported": "已报告发货异常",
-      "shipmentCancelled": "发货单已取消"
+      "shipmentCancelled": "发货单已取消",
+      "confirmCancelShipment": "此发货单将被取消且无法恢复，是否继续？"
     }
   },
   "qualityCheck": {
@@ -632,7 +635,8 @@
       "remarkRequiredForIssue": "报告异常需要填写备注",
       "issueReported": "上架异常已报告",
       "putawayConfirmed": "上架确认成功",
-      "taskCancelled": "上架任务已取消"
+      "taskCancelled": "上架任务已取消",
+      "confirmCancelTask": "此上架任务将被取消且无法恢复，是否继续？"
     }
   },
   "newQualityCheck": {

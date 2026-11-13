@@ -1,14 +1,7 @@
 <template>
   <div class="space-y-6">
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">{{ $t('orders.title') }}</h1>
-        <p class="text-slate-500">
-          {{ $t('orders.subtitle') }}
-        </p>
-      </div>
-
-      <div class="flex gap-3">
+    <PageHeader :title="$t('orders.title')" :subtitle="$t('orders.subtitle')">
+      <template #actions>
         <button
           v-if="canCreate"
           @click="openNewOrder"
@@ -16,77 +9,69 @@
         >
           {{ $t('orders.newButton') }}
         </button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <div v-if="loadError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
       {{ loadError }}
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-5">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <input v-model="filters.search" type="text" :placeholder="$t('orders.filters.searchPlaceholder')" class="input" />
+    <FilterBar>
+      <input v-model="filters.search" type="text" :placeholder="$t('orders.filters.searchPlaceholder')" class="input" />
 
-        <select v-model="filters.status" class="input">
-          <option value="">{{ $t('orders.filters.allStatus') }}</option>
-          <option value="PENDING">{{ $t('common.status.pending') }}</option>
-          <option value="PICKING">{{ $t('nav.picking') }}</option>
-          <option value="CANCELLED">{{ $t('common.status.cancelled') }}</option>
-        </select>
+      <select v-model="filters.status" class="input">
+        <option value="">{{ $t('orders.filters.allStatus') }}</option>
+        <option value="PENDING">{{ $t('common.status.pending') }}</option>
+        <option value="PICKING">{{ $t('nav.picking') }}</option>
+        <option value="CANCELLED">{{ $t('common.status.cancelled') }}</option>
+      </select>
 
-        <select v-model="filters.warehouseId" class="input">
-          <option value="">{{ $t('orders.filters.allWarehouses') }}</option>
-          <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }}</option>
-        </select>
+      <select v-model="filters.warehouseId" class="input">
+        <option value="">{{ $t('orders.filters.allWarehouses') }}</option>
+        <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }}</option>
+      </select>
 
-        <button @click="clearFilter" class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold">
-          {{ $t('common.buttons.clearFilter') }}
-        </button>
-      </div>
-    </div>
+      <button @click="clearFilter" class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold">
+        {{ $t('common.buttons.clearFilter') }}
+      </button>
+    </FilterBar>
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="w-full overflow-x-auto">
-        <table class="min-w-[1000px] w-full text-sm">
-          <thead class="bg-slate-50 text-slate-500">
-            <tr>
-              <th class="table-th">{{ $t('orders.table.orderNo') }}</th>
-              <th class="table-th">{{ $t('orders.table.externalRef') }}</th>
-              <th class="table-th">{{ $t('orders.table.customer') }}</th>
-              <th class="table-th">{{ $t('common.labels.warehouse') }}</th>
-              <th class="table-th">{{ $t('orders.table.items') }}</th>
-              <th class="table-th">{{ $t('common.labels.status') }}</th>
-              <th class="table-th">{{ $t('orders.table.fulfillment') }}</th>
-              <th class="table-th">{{ $t('orders.table.createdAt') }}</th>
-              <th class="table-th text-right">{{ $t('orders.table.action') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="loading">
-              <td colspan="9" class="text-center py-10 text-slate-400">{{ $t('orders.loadingOrders') }}</td>
-            </tr>
-            <tr v-else-if="orderList.length === 0">
-              <td colspan="9" class="text-center py-10 text-slate-400">{{ $t('orders.noOrders') }}</td>
-            </tr>
-            <template v-else>
-              <tr v-for="o in orderList" :key="o.id" class="border-t hover:bg-orange-50">
-                <td class="table-td font-semibold text-slate-800">{{ o.order_no }}</td>
-                <td class="table-td">{{ o.external_reference || '—' }}</td>
-                <td class="table-td">{{ o.customer || '—' }}</td>
-                <td class="table-td">{{ o.warehouse_code }}</td>
-                <td class="table-td">{{ o.item_count }}</td>
-                <td class="table-td"><span :class="statusBadgeClass(o.status)">{{ statusLabel(o.status) }}</span></td>
-                <td class="table-td"><span :class="statusBadgeClass(o.fulfillment_status)">{{ statusLabel(o.fulfillment_status) }}</span></td>
-                <td class="table-td">{{ formatDate(o.created_at) }}</td>
-                <td class="table-td text-right">
-                  <button @click="openDetail(o.id)" class="text-orange-600 hover:underline font-semibold">{{ $t('common.buttons.view') }}</button>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <DataTable
+      :loading="loading"
+      :is-empty="orderList.length === 0"
+      :loading-text="$t('orders.loadingOrders')"
+      :empty-text="$t('orders.noOrders')"
+      :colspan="9"
+      min-width="1000px"
+    >
+      <template #head>
+        <tr>
+          <th class="table-th">{{ $t('orders.table.orderNo') }}</th>
+          <th class="table-th">{{ $t('orders.table.externalRef') }}</th>
+          <th class="table-th">{{ $t('orders.table.customer') }}</th>
+          <th class="table-th">{{ $t('common.labels.warehouse') }}</th>
+          <th class="table-th text-right">{{ $t('orders.table.items') }}</th>
+          <th class="table-th">{{ $t('common.labels.status') }}</th>
+          <th class="table-th">{{ $t('orders.table.fulfillment') }}</th>
+          <th class="table-th">{{ $t('orders.table.createdAt') }}</th>
+          <th class="table-th text-right">{{ $t('orders.table.action') }}</th>
+        </tr>
+      </template>
+
+      <tr v-for="o in orderList" :key="o.id" class="border-t hover:bg-orange-50">
+        <td class="table-td font-semibold text-slate-800">{{ o.order_no }}</td>
+        <td class="table-td">{{ o.external_reference || '—' }}</td>
+        <td class="table-td">{{ o.customer || '—' }}</td>
+        <td class="table-td">{{ o.warehouse_code }}</td>
+        <td class="table-td text-right">{{ o.item_count }}</td>
+        <td class="table-td"><StatusBadge :tone="statusTone(o.status)">{{ statusLabel(o.status) }}</StatusBadge></td>
+        <td class="table-td"><StatusBadge :tone="statusTone(o.fulfillment_status)">{{ statusLabel(o.fulfillment_status) }}</StatusBadge></td>
+        <td class="table-td">{{ formatDate(o.created_at) }}</td>
+        <td class="table-td text-right">
+          <button @click="openDetail(o.id)" class="text-orange-600 hover:underline font-semibold">{{ $t('common.buttons.view') }}</button>
+        </td>
+      </tr>
+    </DataTable>
 
     <!-- New/Edit Order panel -->
     <div v-if="showForm" class="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
@@ -165,8 +150,8 @@
         <p v-if="detailError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">{{ detailError }}</p>
 
         <div class="space-y-2 text-sm">
-          <p><span class="text-slate-500">{{ $t('orders.detail.statusLabel') }}:</span> <span :class="statusBadgeClass(selectedOrder.status)">{{ statusLabel(selectedOrder.status) }}</span></p>
-          <p><span class="text-slate-500">{{ $t('orders.detail.fulfillmentLabel') }}:</span> <span :class="statusBadgeClass(selectedOrder.fulfillment_status)">{{ statusLabel(selectedOrder.fulfillment_status) }}</span></p>
+          <p><span class="text-slate-500">{{ $t('orders.detail.statusLabel') }}:</span> <StatusBadge :tone="statusTone(selectedOrder.status)">{{ statusLabel(selectedOrder.status) }}</StatusBadge></p>
+          <p><span class="text-slate-500">{{ $t('orders.detail.fulfillmentLabel') }}:</span> <StatusBadge :tone="statusTone(selectedOrder.fulfillment_status)">{{ statusLabel(selectedOrder.fulfillment_status) }}</StatusBadge></p>
           <p><span class="text-slate-500">{{ $t('orders.detail.customerLabel') }}:</span> {{ selectedOrder.customer || '—' }}</p>
           <p><span class="text-slate-500">{{ $t('orders.detail.externalRefLabel') }}:</span> {{ selectedOrder.external_reference || '—' }}</p>
           <p><span class="text-slate-500">{{ $t('orders.detail.warehouseLabel') }}:</span> {{ selectedOrder.warehouse_code }}</p>
@@ -269,9 +254,14 @@ import {
 import { listWarehouses, listZones, listLocations } from '../../services/warehouses'
 import { listProducts } from '../../services/products'
 import { hasPermission } from '../../services/auth'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FilterBar from '../../components/ui/FilterBar.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 
 export default {
   name: 'OrderPage',
+  components: { PageHeader, FilterBar, DataTable, StatusBadge },
   data() {
     return {
       loading: false,
@@ -342,11 +332,11 @@ export default {
       return this.$d(new Date(value), 'long')
     },
 
-    statusBadgeClass(status) {
-      if (status === 'DELIVERED' || status === 'PICKED' || status === 'COMPLETED') return 'badge-green'
-      if (status === 'PICKING' || status === 'SHIPPING') return 'badge-orange'
-      if (status === 'SHIP_ISSUE' || status === 'PICKING_CANCELLED' || status === 'CANCELLED') return 'badge-gray'
-      return 'badge-gray'
+    statusTone(status) {
+      if (status === 'DELIVERED' || status === 'PICKED' || status === 'COMPLETED') return 'green'
+      if (status === 'PICKING' || status === 'SHIPPING') return 'orange'
+      if (status === 'SHIP_ISSUE') return 'red'
+      return 'gray'
     },
 
     // Covers both order.status (PENDING/PICKING/CANCELLED) and the
