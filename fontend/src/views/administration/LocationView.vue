@@ -75,12 +75,25 @@
       >
         <template #head>
           <tr>
-            <th class="table-th">{{ $t('locationMaster.table.code') }}</th>
-            <th class="table-th">{{ $t('locationMaster.table.name') }}</th>
+            <SortableTh column="code" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">
+              {{ $t('locationMaster.table.code') }}
+            </SortableTh>
+            <SortableTh column="name" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">
+              {{ $t('locationMaster.table.name') }}
+            </SortableTh>
+            <!-- position (aisle/rack/bin) is a composite display value
+                 assembled client-side from three columns, not a single
+                 real column the backend can ORDER BY — not sortable. -->
             <th class="table-th">{{ $t('locationMaster.table.position') }}</th>
-            <th class="table-th">{{ $t('locationMaster.table.type') }}</th>
-            <th class="table-th">{{ $t('locationMaster.table.capacity') }}</th>
-            <th class="table-th">{{ $t('locationMaster.table.status') }}</th>
+            <SortableTh column="type" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">
+              {{ $t('locationMaster.table.type') }}
+            </SortableTh>
+            <SortableTh column="capacity" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">
+              {{ $t('locationMaster.table.capacity') }}
+            </SortableTh>
+            <SortableTh column="status" :sort-by="sortBy" :sort-dir="sortDir" @sort="toggleSort">
+              {{ $t('locationMaster.table.status') }}
+            </SortableTh>
             <th class="table-th text-right">{{ $t('locationMaster.table.action') }}</th>
           </tr>
         </template>
@@ -111,6 +124,18 @@
             </button>
           </td>
         </tr>
+
+        <template v-if="!loading && locations.length > 0" #footer>
+          <PaginationFooter
+            :page="page"
+            :limit="limit"
+            :total="total"
+            :total-pages="totalPages"
+            :page-size-options="pageSizeOptions"
+            @update:page="goToPage"
+            @update:limit="limit = $event"
+          />
+        </template>
       </DataTable>
     </template>
 
@@ -259,6 +284,9 @@ import DataTable from '../../components/ui/DataTable.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import FormSection from '../../components/ui/FormSection.vue'
 import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
+import SortableTh from '../../components/ui/SortableTh.vue'
+import PaginationFooter from '../../components/ui/PaginationFooter.vue'
+import listPagination from '../../mixins/listPagination'
 
 let searchDebounce = null
 
@@ -280,7 +308,9 @@ const TYPE_LABEL_KEYS = {
 export default {
   name: 'LocationView',
 
-  components: { PageHeader, FilterBar, DataTable, StatusBadge, FormSection, ConfirmDialog },
+  components: { PageHeader, FilterBar, DataTable, StatusBadge, FormSection, ConfirmDialog, SortableTh, PaginationFooter },
+
+  mixins: [listPagination],
 
   data() {
     return {
@@ -301,7 +331,9 @@ export default {
       filters: {
         keyword: '',
         status: ''
-      }
+      },
+      sortBy: 'code',
+      sortDir: 'asc'
     }
   },
 
@@ -326,15 +358,15 @@ export default {
     },
     selectedZoneId() {
       this.locations = []
-      if (this.selectedZoneId) this.fetchLocations()
+      if (this.selectedZoneId) this.resetToFirstPage()
     },
     'filters.status'() {
-      if (this.selectedZoneId) this.fetchLocations()
+      if (this.selectedZoneId) this.resetToFirstPage()
     },
     'filters.keyword'() {
       clearTimeout(searchDebounce)
       searchDebounce = setTimeout(() => {
-        if (this.selectedZoneId) this.fetchLocations()
+        if (this.selectedZoneId) this.resetToFirstPage()
       }, 300)
     }
   },
@@ -382,14 +414,27 @@ export default {
         const res = await listLocations(this.selectedZoneId, {
           search: this.filters.keyword,
           status: this.filters.status,
-          limit: 500
+          page: this.page,
+          limit: this.limit,
+          sortBy: this.sortBy,
+          sortDir: this.sortDir
         })
         this.locations = res.data
+        this.total = res.meta.total
+        this.totalPages = res.meta.total_pages
       } catch (err) {
         this.listError = err.message || this.$t('locationMaster.messages.loadFailed')
       } finally {
         this.loading = false
       }
+    },
+
+    // listPagination's goToPage/resetToFirstPage/toggleSort all call
+    // this.fetchList() — kept as a thin alias rather than renaming every
+    // existing fetchLocations() call site (openLocation/saveLocation/
+    // confirmDelete etc. all still call fetchLocations() directly by name).
+    fetchList() {
+      return this.fetchLocations()
     },
 
     openLocation(location) {

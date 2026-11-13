@@ -25,8 +25,12 @@ const globalMocks = {
   $d: (v) => String(v)
 }
 
-function page(rows) {
-  return { success: true, data: rows, meta: { page: 1, limit: 100, total: rows.length, total_pages: 1 } }
+function page(rows, meta = {}) {
+  return {
+    success: true,
+    data: rows,
+    meta: { page: 1, limit: 25, total: rows.length, total_pages: 1, ...meta }
+  }
 }
 
 const supplier = {
@@ -117,5 +121,121 @@ describe('SupplierView', () => {
     await flushPromises()
 
     expect(wrapper.vm.formError).toBe('Supplier code already exists')
+  })
+
+  it('fetches with the default sort (code ASC) and default page size (25) on mount', async () => {
+    listSuppliers.mockResolvedValue(page([supplier]))
+
+    mount(SupplierView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    expect(listSuppliers).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 1, limit: 25, sortBy: 'code', sortDir: 'asc' })
+    )
+  })
+
+  it('clicking a sortable column header sorts ascending, then descending on a second click, resetting to page 1', async () => {
+    listSuppliers.mockResolvedValue(page([supplier]))
+
+    const wrapper = mount(SupplierView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    wrapper.vm.page = 3
+    listSuppliers.mockClear()
+
+    const companyNameHeader = wrapper.findAll('th.sortable')[1]
+    await companyNameHeader.trigger('click')
+    await flushPromises()
+
+    expect(listSuppliers).toHaveBeenCalledWith(
+      expect.objectContaining({ sortBy: 'companyName', sortDir: 'asc', page: 1 })
+    )
+
+    listSuppliers.mockClear()
+    await companyNameHeader.trigger('click')
+    await flushPromises()
+
+    expect(listSuppliers).toHaveBeenCalledWith(
+      expect.objectContaining({ sortBy: 'companyName', sortDir: 'desc', page: 1 })
+    )
+  })
+
+  it('switching to a different sortable column always starts it at ascending', async () => {
+    listSuppliers.mockResolvedValue(page([supplier]))
+
+    const wrapper = mount(SupplierView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    wrapper.vm.sortBy = 'companyName'
+    wrapper.vm.sortDir = 'desc'
+    listSuppliers.mockClear()
+
+    wrapper.vm.toggleSort('status')
+    await flushPromises()
+
+    expect(wrapper.vm.sortDir).toBe('asc')
+    expect(listSuppliers).toHaveBeenCalledWith(
+      expect.objectContaining({ sortBy: 'status', sortDir: 'asc', page: 1 })
+    )
+  })
+
+  it('changing rows-per-page resets to page 1 and refetches with the new limit', async () => {
+    listSuppliers.mockResolvedValue(page([supplier]))
+
+    const wrapper = mount(SupplierView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    wrapper.vm.page = 2
+    listSuppliers.mockClear()
+
+    const select = wrapper.find('select.rows-per-page')
+    await select.setValue('50')
+    await flushPromises()
+
+    expect(listSuppliers).toHaveBeenCalledWith(expect.objectContaining({ limit: 50, page: 1 }))
+  })
+
+  it('displays the correct total/page count from the response meta, and pagination next/previous respect the boundary disabled state', async () => {
+    listSuppliers.mockResolvedValue(page([supplier], { page: 1, limit: 25, total: 60, total_pages: 3 }))
+
+    const wrapper = mount(SupplierView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('60')
+    expect(wrapper.vm.total).toBe(60)
+    expect(wrapper.vm.totalPages).toBe(3)
+
+    const [prevButton, nextButton] = wrapper.findAll('button').filter(
+      (b) => b.text() === 'common.pagination.previous' || b.text() === 'common.pagination.next'
+    )
+    expect(prevButton.attributes('disabled')).toBeDefined()
+    expect(nextButton.attributes('disabled')).toBeUndefined()
+
+    listSuppliers.mockClear()
+    await nextButton.trigger('click')
+    await flushPromises()
+
+    expect(listSuppliers).toHaveBeenCalledWith(expect.objectContaining({ page: 2 }))
+  })
+
+  it('shows the empty-results state and no pagination footer when the list is empty', async () => {
+    listSuppliers.mockResolvedValue(page([], { total: 0, total_pages: 1 }))
+
+    const wrapper = mount(SupplierView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('suppliers.empty')
+    expect(wrapper.find('select.rows-per-page').exists()).toBe(false)
+  })
+
+  it('renders rows in the exact server-supplied order without any client-side re-sort', async () => {
+    // Deliberately out of alphabetical/code order — if the component
+    // ever re-sorted client-side, this would come back reordered.
+    const zebra = { ...supplier, id: '2', code: 'SUP-ZZZ', company_name: 'Zebra Co' }
+    const apple = { ...supplier, id: '3', code: 'SUP-AAA', company_name: 'Apple Co' }
+    listSuppliers.mockResolvedValue(page([zebra, apple]))
+
+    const wrapper = mount(SupplierView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    const codeCells = wrapper.findAll('td.font-semibold').map((td) => td.text())
+    expect(codeCells).toEqual(['SUP-ZZZ', 'SUP-AAA'])
   })
 })

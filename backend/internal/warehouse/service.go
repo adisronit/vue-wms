@@ -3,6 +3,7 @@ package warehouse
 import (
 	"context"
 	"errors"
+	"strings"
 )
 
 // ErrValidation carries a client-facing message for a 422 response.
@@ -16,6 +17,41 @@ func (e ErrValidation) Error() string { return e.Message }
 // zones — referential safety per CLAUDE.md's delete rules, surfaced as
 // 409 Conflict rather than a raw FK violation.
 var ErrHasZones = errors.New("warehouse: cannot delete — zones still exist")
+
+// ErrInvalidSort is returned when sort_by/sort_dir is present but not
+// one of the values the Warehouse Setup screen's sortable column
+// headers can actually send — a 400, not a silent fallback to the
+// default sort, so a frontend bug (or a hand-crafted request) surfaces
+// immediately instead of quietly returning results in the wrong order.
+var ErrInvalidSort = errors.New("warehouse: invalid sort_by or sort_dir")
+
+// defaultSortBy/defaultSortDir match the Warehouse Setup screen's
+// default view: code is the field users scan to find a row, so that is
+// what an omitted sort_by defaults to.
+const (
+	defaultSortBy  = "code"
+	defaultSortDir = "ASC"
+)
+
+// allowedSortColumns is the sort-column allowlist GET
+// /api/v1/warehouses' sort_by validates against — the same set
+// repository.go's sortColumns maps to real column names. Kept here, not
+// just in Repository, so an invalid value is rejected with ErrInvalidSort
+// before Service.List does anything else, rather than silently falling
+// back deep in the Repository call. zone_count/location_count/
+// utilization are deliberately excluded — see repository.go's
+// sortColumns doc.
+var allowedSortColumns = map[string]bool{
+	"code":   true,
+	"name":   true,
+	"type":   true,
+	"status": true,
+}
+
+// defaultLimit is the page size applied when the caller omits limit (or
+// sends one outside [1,100]) — matches the Warehouse Setup screen's own
+// default of 25 rows per page.
+const defaultLimit = 25
 
 // zoneCounter is the narrow slice of *zone.Repository this package
 // needs — just enough to refuse deleting a warehouse that still has
@@ -44,12 +80,28 @@ func (s *Service) List(ctx context.Context, params ListParams) ([]Response, int6
 		page = 1
 	}
 	if limit < 1 || limit > 100 {
-		limit = 20
+		limit = defaultLimit
+	}
+
+	sortBy := defaultSortBy
+	if raw := strings.ToLower(strings.TrimSpace(params.SortBy)); raw != "" {
+		if !allowedSortColumns[raw] {
+			return nil, 0, ErrInvalidSort
+		}
+		sortBy = raw
+	}
+
+	sortDir := defaultSortDir
+	if raw := strings.ToUpper(strings.TrimSpace(params.SortDir)); raw != "" {
+		if raw != "ASC" && raw != "DESC" {
+			return nil, 0, ErrInvalidSort
+		}
+		sortDir = raw
 	}
 
 	rows, total, err := s.repo.List(ctx, ListFilter{
 		Search: params.Search, Type: params.Type, Status: params.Status,
-		Page: page, Limit: limit,
+		Page: page, Limit: limit, SortBy: sortBy, SortDir: sortDir,
 	})
 	if err != nil {
 		return nil, 0, err

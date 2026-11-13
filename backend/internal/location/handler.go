@@ -51,15 +51,17 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChec
 //	@Tags			Locations
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			zone_id	query		int		true	"Zone ID"
-//	@Param			search	query		string	false	"Matches code or name"
-//	@Param			status	query		string	false	"ACTIVE or INACTIVE"
-//	@Param			page	query		int		false	"Page number"			default(1)
-//	@Param			limit	query		int		false	"Page size (max 500)"	default(500)
-//	@Success		200		{object}	apihttp.ListResponse{data=[]Response}
-//	@Failure		400		{object}	apihttp.ErrorResponse
-//	@Failure		401		{object}	apihttp.ErrorResponse
-//	@Failure		403		{object}	apihttp.ErrorResponse
+//	@Param			zone_id		query		int		true	"Zone ID"
+//	@Param			search		query		string	false	"Matches code or name"
+//	@Param			status		query		string	false	"ACTIVE or INACTIVE"
+//	@Param			page		query		int		false	"Page number"			default(1)
+//	@Param			limit		query		int		false	"Page size (max 500)"	default(500)
+//	@Param			sort_by		query		string	false	"code, name, type, capacity, or status"	default(code)
+//	@Param			sort_dir	query		string	false	"asc or desc"								default(asc)
+//	@Success		200			{object}	apihttp.ListResponse{data=[]Response}
+//	@Failure		400			{object}	apihttp.ErrorResponse	"invalid zone_id, sort_by, or sort_dir"
+//	@Failure		401			{object}	apihttp.ErrorResponse
+//	@Failure		403			{object}	apihttp.ErrorResponse
 //	@Router			/locations [get]
 func (h *Handler) List(c *gin.Context) {
 	tenantID, ok := middleware.EnforcedTenantID(c)
@@ -79,8 +81,13 @@ func (h *Handler) List(c *gin.Context) {
 
 	responses, total, err := h.service.List(c.Request.Context(), tenantID, ListParams{
 		ZoneID: zoneID, Search: c.Query("search"), Status: Status(c.Query("status")), Page: page, Limit: limit,
+		SortBy: c.Query("sort_by"), SortDir: c.Query("sort_dir"),
 	})
 	if err != nil {
+		if errors.Is(err, ErrInvalidSort) {
+			apihttp.Fail(c, http.StatusBadRequest, "sort_by must be code, name, type, capacity, or status; sort_dir must be asc or desc", "INVALID_SORT")
+			return
+		}
 		apihttp.Fail(c, http.StatusInternalServerError, "failed to list locations", "INTERNAL_ERROR")
 		return
 	}

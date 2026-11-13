@@ -46,12 +46,17 @@ type UpdateRequest struct {
 } //	@name	UpdateLocationRequest
 
 // ListParams narrows GET /api/v1/locations. zone_id is required.
+// SortBy/SortDir are the Location Master screen's sortable column
+// headers — validated against allowedSortColumns by Service.List before
+// ever reaching Repository.
 type ListParams struct {
-	ZoneID int64
-	Search string // matched against code, name (LIKE) — Location Master Management addition
-	Status Status
-	Page   int
-	Limit  int
+	ZoneID  int64
+	Search  string // matched against code, name (LIKE) — Location Master Management addition
+	Status  Status
+	Page    int
+	Limit   int
+	SortBy  string
+	SortDir string
 }
 
 func toResponse(l Location) Response {

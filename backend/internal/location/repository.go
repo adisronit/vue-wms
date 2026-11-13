@@ -3,6 +3,7 @@ package location
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -15,12 +16,34 @@ var ErrDuplicate = errors.New("location: code already exists in this zone")
 // ListFilter scopes GET /api/v1/locations to a zone (required — the
 // Location Structure tab and the standalone Location Management page
 // both always render locations grouped by an already-chosen zone).
+// SortBy/SortDir arrive here already validated by Service.List against
+// allowedSortColumns — sortColumns below is a second, independent
+// allowlist (defense in depth, not the primary check) so this method
+// can never build an ORDER BY clause from an unvalidated string even if
+// a future caller skips Service.
 type ListFilter struct {
-	ZoneID int64
-	Search string
-	Status Status
-	Page   int
-	Limit  int
+	ZoneID  int64
+	Search  string
+	Status  Status
+	Page    int
+	Limit   int
+	SortBy  string // one of sortColumns' keys; falls back to "code" if not
+	SortDir string // "ASC" or "DESC"; falls back to "ASC" otherwise
+}
+
+// sortColumns maps List's logical SortBy key to the actual column name
+// to order by — every key/value pair here is a literal, never built
+// from request input, so interpolating the value into the Order()
+// string below can never become a SQL-injection vector. "position"
+// (aisle/rack/bin) is deliberately excluded: it's a composite display
+// value the frontend assembles from three separate columns, not a
+// single real column this query can ORDER BY.
+var sortColumns = map[string]string{
+	"code":     "code",
+	"name":     "name",
+	"type":     "type",
+	"capacity": "capacity",
+	"status":   "status",
 }
 
 // Repository is a thin GORM wrapper — business rules live in Service.
@@ -163,9 +186,25 @@ func (r *Repository) List(ctx context.Context, tenantID int64, filter ListFilter
 		return nil, 0, err
 	}
 
+	column, ok := sortColumns[filter.SortBy]
+	if !ok {
+		column = sortColumns["code"]
+	}
+	dir := "ASC"
+	if filter.SortDir == "DESC" {
+		dir = "DESC"
+	}
+	// ", id ASC" is a deterministic tie-breaker: status especially has
+	// only two values, and without a stable secondary key SQL Server is
+	// free to return tied rows in a different order on every call, which
+	// would make pagination (page 2 silently re-showing or skipping a
+	// row page 1 already showed) and the frontend's sort-indicator UX
+	// both flaky.
+	order := fmt.Sprintf("%s %s, id ASC", column, dir)
+
 	var locations []Location
 	offset := (filter.Page - 1) * filter.Limit
-	if err := query.Order("code ASC").Offset(offset).Limit(filter.Limit).Find(&locations).Error; err != nil {
+	if err := query.Order(order).Offset(offset).Limit(filter.Limit).Find(&locations).Error; err != nil {
 		return nil, 0, err
 	}
 

@@ -3,6 +3,7 @@ package supplier
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -13,12 +14,30 @@ var ErrNotFound = errors.New("supplier: not found")
 var ErrDuplicateCode = errors.New("supplier: code already exists")
 
 // ListFilter narrows GET /api/v1/suppliers to what the Suppliers
-// screen's search box and status filter actually send.
+// screen's search box and status filter actually send. SortBy/SortDir
+// arrive here already validated by Service.List against
+// allowedSortColumns — sortColumns below is a second, independent
+// allowlist (defense in depth, not the primary check) so this method
+// can never build an ORDER BY clause from an unvalidated string even if
+// a future caller skips Service — see internal/productcategory's own
+// ListFilter doc for the original rationale.
 type ListFilter struct {
-	Search string // matched against code, company_name (LIKE)
-	Status Status
-	Page   int
-	Limit  int
+	Search  string // matched against code, company_name (LIKE)
+	Status  Status
+	Page    int
+	Limit   int
+	SortBy  string // one of sortColumns' keys; falls back to "code" if not
+	SortDir string // "ASC" or "DESC"; falls back to "ASC" otherwise
+}
+
+// sortColumns maps List's logical SortBy key to the actual column name
+// to order by — every key/value pair here is a literal, never built
+// from request input, so interpolating the value into the Order()
+// string below can never become a SQL-injection vector.
+var sortColumns = map[string]string{
+	"code":        "code",
+	"companyName": "company_name",
+	"status":      "status",
 }
 
 // Repository is a thin GORM wrapper — business rules (uniqueness
@@ -121,9 +140,25 @@ func (r *Repository) List(ctx context.Context, tenantID int64, filter ListFilter
 		return nil, 0, err
 	}
 
+	column, ok := sortColumns[filter.SortBy]
+	if !ok {
+		column = sortColumns["code"]
+	}
+	dir := "ASC"
+	if filter.SortDir == "DESC" {
+		dir = "DESC"
+	}
+	// ", id ASC" is a deterministic tie-breaker: company_name/status can
+	// repeat (status especially — only two values), and without a
+	// stable secondary key SQL Server is free to return tied rows in a
+	// different order on every call, which would make pagination (page
+	// 2 silently re-showing or skipping a row page 1 already showed)
+	// and the frontend's sort-indicator UX both flaky.
+	order := fmt.Sprintf("%s %s, id ASC", column, dir)
+
 	var suppliers []Supplier
 	offset := (filter.Page - 1) * filter.Limit
-	if err := query.Order("company_name ASC").Offset(offset).Limit(filter.Limit).Find(&suppliers).Error; err != nil {
+	if err := query.Order(order).Offset(offset).Limit(filter.Limit).Find(&suppliers).Error; err != nil {
 		return nil, 0, err
 	}
 
