@@ -102,7 +102,9 @@
     "roles": "สิทธิ์และบทบาท",
     "warehouse": "ตั้งค่าคลังสินค้า",
     "productMaster": "ข้อมูลสินค้าหลัก",
-    "logout": "ออกจากระบบ"
+    "logout": "ออกจากระบบ",
+    "sectionPlatformAdmin": "การบริหารแพลตฟอร์ม",
+    "platformTenants": "ผู้เช่า"
   },
   "layout": {
     "headerTitle": "ระบบจัดการคลังสินค้า",
@@ -1589,6 +1591,89 @@
       "loadRecommendationsFailed": "ไม่สามารถโหลดคำแนะนำได้",
       "loadDetailFailed": "ไม่สามารถโหลดรายละเอียดงานได้",
       "issueRemarkRequired": "กรุณากรอกหมายเหตุปัญหา"
+    }
+  },
+  "platformAdmin": {
+    "tenants": {
+      "title": "การจัดการผู้เช่า",
+      "subtitle": "จัดการผู้เช่า SaaS สถานะการเริ่มใช้งาน และวงจรชีวิตของผู้เช่า",
+      "addButton": "+ เพิ่มผู้เช่า",
+      "filters": {
+        "searchPlaceholder": "ค้นหาด้วยชื่อหรือ slug...",
+        "allStatus": "สถานะทั้งหมด"
+      },
+      "table": {
+        "name": "ชื่อผู้เช่า",
+        "slug": "Slug",
+        "status": "สถานะ",
+        "createdAt": "สร้างเมื่อ",
+        "action": "การดำเนินการ",
+        "loading": "กำลังโหลดผู้เช่า...",
+        "noData": "ไม่พบผู้เช่า",
+        "view": "ดู",
+        "edit": "แก้ไข",
+        "changeStatus": "สถานะ"
+      },
+      "messages": {
+        "loadFailed": "โหลดรายชื่อผู้เช่าไม่สำเร็จ"
+      }
+    },
+    "form": {
+      "newTitle": "เพิ่มผู้เช่า",
+      "editTitle": "แก้ไขผู้เช่า",
+      "subtitle": "ข้อมูลประจำตัวผู้เช่าที่ใช้ทั่วทั้งแพลตฟอร์ม",
+      "fields": {
+        "name": "ชื่อผู้เช่า",
+        "namePlaceholder": "เช่น Acme Logistics Co.",
+        "slug": "Slug",
+        "slugPlaceholder": "เช่น acme-logistics",
+        "slugHint": "ใช้ตัวอักษรพิมพ์เล็ก ตัวเลข และยัติภังค์เดี่ยวเท่านั้น",
+        "initialStatus": "สถานะเริ่มต้น"
+      },
+      "cancelButton": "ยกเลิก",
+      "saveButton": "บันทึก",
+      "saving": "กำลังบันทึก...",
+      "messages": {
+        "nameRequired": "กรุณากรอกชื่อผู้เช่า",
+        "slugRequired": "กรุณากรอก Slug",
+        "duplicateSlug": "Slug นี้ถูกใช้โดยผู้เช่ารายอื่นแล้ว",
+        "saveFailed": "บันทึกข้อมูลผู้เช่าไม่สำเร็จ"
+      }
+    },
+    "status": {
+      "trial": "ทดลองใช้",
+      "active": "ใช้งาน",
+      "suspended": "ถูกระงับ",
+      "cancelled": "ยกเลิกแล้ว",
+      "changeTitle": "เปลี่ยนสถานะผู้เช่า",
+      "currentStatus": "สถานะปัจจุบัน",
+      "newStatus": "สถานะใหม่",
+      "reasonLabel": "เหตุผล (ไม่บังคับ)",
+      "reasonPlaceholder": "เหตุใดจึงเปลี่ยนสถานะนี้?",
+      "cancelButton": "ยกเลิก",
+      "updateButton": "อัปเดตสถานะ",
+      "confirmButton": "ยืนยัน",
+      "updating": "กำลังอัปเดต...",
+      "confirmSuspendMessage": "การระงับผู้เช่านี้จะปิดกั้นผู้ใช้ไม่ให้เข้าระบบจนกว่าจะเปิดใช้งานอีกครั้ง ต้องการดำเนินการต่อหรือไม่?",
+      "confirmCancelMessage": "การยกเลิกผู้เช่านี้เป็นการเปลี่ยนแปลงวงจรชีวิตที่สำคัญและอาจย้อนกลับได้ยาก ต้องการดำเนินการต่อหรือไม่?",
+      "messages": {
+        "updateFailed": "อัปเดตสถานะผู้เช่าไม่สำเร็จ"
+      }
+    },
+    "detail": {
+      "backButton": "กลับไปหน้าผู้เช่า",
+      "editButton": "แก้ไข",
+      "changeStatusButton": "เปลี่ยนสถานะ",
+      "fields": {
+        "slug": "Slug",
+        "status": "สถานะ",
+        "createdAt": "สร้างเมื่อ",
+        "updatedAt": "อัปเดตล่าสุด",
+        "suspendedAt": "ระงับเมื่อ",
+        "cancelledAt": "ยกเลิกเมื่อ"
+      },
+      "notFound": "ไม่พบผู้เช่า",
+      "loadFailed": "โหลดข้อมูลผู้เช่าไม่สำเร็จ"
     }
   }
 }
