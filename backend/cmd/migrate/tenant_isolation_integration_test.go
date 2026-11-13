@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"wms-backend/internal/platform/logging"
+	"wms-backend/internal/rbac"
 )
 
 // Phase 29A integration tests — exercise the real tenant_id migrations
@@ -311,5 +312,103 @@ func TestPhase29a_BackfillLogicEnrollsExistingUserOnce(t *testing.T) {
 	}
 	if gotRoleID != roleID {
 		t.Errorf("expected backfilled role_id to carry the user's own existing role %d, got %d", roleID, gotRoleID)
+	}
+}
+
+// TestBackfillTenantRoleCatalogs_OnlyFillsTenantsWithZeroRoles is the
+// regression test for the bug this function exists to repair (tenant
+// "EWTA" created via the Platform Admin API before the backend
+// container running it had been rebuilt from the commit that added
+// per-tenant role seeding to CreateWithAudit — see internal/tenant/
+// repository.go's seedRoleCatalog and this file's own backfill
+// function doc). Proves both halves of the contract: a tenant with
+// zero roles gets the full rbac.RoleCatalog + rbac.RoleDefaultGrants,
+// and a tenant that already has even one role (whether from the normal
+// create path or a hand-customized catalog) is left completely
+// untouched — never topped up, never duplicated.
+func TestBackfillTenantRoleCatalogs_OnlyFillsTenantsWithZeroRoles(t *testing.T) {
+	db := connectTestDB(t)
+	ensureMigratedUp(t, db)
+	logger := logging.New("test", "migrate-test")
+
+	ctx := context.Background()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin tx: %v", err)
+	}
+	defer tx.Rollback()
+
+	permissionIDs := map[string]int64{}
+	rows, err := tx.QueryContext(ctx, "SELECT code, id FROM permissions")
+	if err != nil {
+		t.Fatalf("load permission catalog: %v", err)
+	}
+	for rows.Next() {
+		var code string
+		var id int64
+		if err := rows.Scan(&code, &id); err != nil {
+			rows.Close()
+			t.Fatalf("scan permission row: %v", err)
+		}
+		permissionIDs[code] = id
+	}
+	rows.Close()
+	if len(permissionIDs) == 0 {
+		t.Skip("skipping: permissions table is empty in this test database (run `wms-migrate seed` first)")
+	}
+
+	var emptyTenantID int64
+	if err := tx.QueryRowContext(ctx,
+		"INSERT INTO tenants (slug, name, status) OUTPUT INSERTED.id VALUES ('backfill-test-empty', 'Backfill Test (Empty)', 'ACTIVE')").
+		Scan(&emptyTenantID); err != nil {
+		t.Fatalf("insert zero-role tenant: %v", err)
+	}
+
+	var customTenantID int64
+	if err := tx.QueryRowContext(ctx,
+		"INSERT INTO tenants (slug, name, status) OUTPUT INSERTED.id VALUES ('backfill-test-custom', 'Backfill Test (Custom)', 'ACTIVE')").
+		Scan(&customTenantID); err != nil {
+		t.Fatalf("insert pre-populated tenant: %v", err)
+	}
+	if _, err := tx.ExecContext(ctx,
+		"INSERT INTO roles (tenant_id, code, name, description, is_active) VALUES (@p1, 'CUSTOM_ONLY', 'Custom Only', 'hand-rolled, not from rbac.RoleCatalog', 1)",
+		customTenantID); err != nil {
+		t.Fatalf("insert pre-existing custom role: %v", err)
+	}
+
+	run := func() {
+		if err := backfillTenantRoleCatalogs(ctx, tx, logger, permissionIDs); err != nil {
+			t.Fatalf("backfillTenantRoleCatalogs: %v", err)
+		}
+	}
+	run()
+	run() // idempotency: the empty tenant now has roles, so a second pass must skip it, not duplicate
+
+	var emptyTenantRoleCount int
+	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM roles WHERE tenant_id = @p1", emptyTenantID).Scan(&emptyTenantRoleCount); err != nil {
+		t.Fatalf("count backfilled roles: %v", err)
+	}
+	if emptyTenantRoleCount != len(rbac.RoleCatalog) {
+		t.Errorf("expected exactly %d backfilled roles (rbac.RoleCatalog, no duplicates across two runs), got %d", len(rbac.RoleCatalog), emptyTenantRoleCount)
+	}
+
+	var adminRoleID int64
+	var adminGrantCount int
+	if err := tx.QueryRowContext(ctx, "SELECT id FROM roles WHERE tenant_id = @p1 AND code = 'ADMIN'", emptyTenantID).Scan(&adminRoleID); err != nil {
+		t.Fatalf("find backfilled ADMIN role: %v", err)
+	}
+	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM role_permissions WHERE role_id = @p1", adminRoleID).Scan(&adminGrantCount); err != nil {
+		t.Fatalf("count ADMIN grants: %v", err)
+	}
+	if adminGrantCount != len(rbac.PermissionCatalog()) {
+		t.Errorf("expected backfilled ADMIN to carry every catalog permission (%d), got %d", len(rbac.PermissionCatalog()), adminGrantCount)
+	}
+
+	var customTenantRoleCount int
+	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM roles WHERE tenant_id = @p1", customTenantID).Scan(&customTenantRoleCount); err != nil {
+		t.Fatalf("count custom tenant roles: %v", err)
+	}
+	if customTenantRoleCount != 1 {
+		t.Errorf("expected the already-has-a-role tenant to stay at exactly 1 role (untouched), got %d", customTenantRoleCount)
 	}
 }

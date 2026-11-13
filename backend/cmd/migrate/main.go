@@ -307,6 +307,27 @@ func seed(ctx context.Context, db *sql.DB, logger *slog.Logger, cfg *config.Conf
 		return fmt.Errorf("seed role_permissions: %w", err)
 	}
 
+	// WMS-29E-fix: internal/tenant.Repository.CreateWithAudit seeds a new
+	// tenant's own role catalog (roles.tenant_id + UQ_roles_tenant_code,
+	// migrations/0043/0048) inside the Platform Admin API's create
+	// transaction — but only for a tenant created by a backend binary that
+	// already contains that code. Any tenant created against an older
+	// binary (or, as discovered for tenant "EWTA", created in the window
+	// between the fix merging to main and the running backend container
+	// actually being rebuilt from it) ends up with zero roles and can
+	// never be assigned a membership at all ("role_code does not match
+	// any role in this tenant" for every code, including a perfectly
+	// valid one). backfillTenantRoleCatalogs closes that gap for every
+	// *existing* tenant, the same idempotent, additive, re-run-safe shape
+	// seedRoles/seedPermissions/seedRolePermissions above already use —
+	// and, because this seed command already runs on every
+	// `docker compose up` (see docker-compose.yml's migrate service), it
+	// also means a future redeploy self-heals this class of gap instead
+	// of requiring a manual SQL repair each time.
+	if err := backfillTenantRoleCatalogs(ctx, db, logger, permissionIDs); err != nil {
+		return fmt.Errorf("backfill tenant role catalogs: %w", err)
+	}
+
 	adminUserID, err := seedAdminUser(ctx, db, logger, roleIDs)
 	if err != nil {
 		return fmt.Errorf("seed admin user: %w", err)
@@ -434,6 +455,102 @@ func seedRolePermissions(ctx context.Context, db *sql.DB, logger *slog.Logger, r
 	}
 
 	logger.Info("role_permissions seeded", slog.Int("newly_granted", newCount))
+	return nil
+}
+
+// sqlExecutor is the narrow slice of *sql.DB's API backfillTenantRoleCatalogs
+// needs — satisfied by *sql.DB itself (seed()'s real call) and by *sql.Tx
+// (TestBackfillTenantRoleCatalogs_OnlyFillsTenantsWithZeroRoles's own
+// roll-back-at-the-end fixture), so the same function body is exercised
+// by both without a single behavioral difference between test and
+// production.
+type sqlExecutor interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+// backfillTenantRoleCatalogs gives every EXISTING tenant with zero rows
+// in roles its own copy of rbac.RoleCatalog + rbac.RoleDefaultGrants —
+// see this function's call site in seed() for why such a tenant can
+// exist at all. A tenant is touched only when it has literally zero
+// roles; a tenant with any roles already (including a partially custom
+// catalog) is left completely alone, so this can never duplicate a row
+// or disturb a role/grant a human has since edited.
+func backfillTenantRoleCatalogs(ctx context.Context, db sqlExecutor, logger *slog.Logger, permissionIDs map[string]int64) error {
+	rows, err := db.QueryContext(ctx, "SELECT id FROM tenants ORDER BY id")
+	if err != nil {
+		return err
+	}
+	var tenantIDs []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		tenantIDs = append(tenantIDs, id)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	rows.Close()
+
+	backfilledTenants := 0
+	for _, tenantID := range tenantIDs {
+		var existingRoleCount int
+		if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM roles WHERE tenant_id = @p1", tenantID).Scan(&existingRoleCount); err != nil {
+			return err
+		}
+		if existingRoleCount > 0 {
+			continue
+		}
+
+		tenantRoleIDs := map[string]int64{}
+		for _, r := range rbac.RoleCatalog {
+			var id int64
+			err := db.QueryRowContext(ctx,
+				`INSERT INTO roles (tenant_id, code, name, description, is_active) OUTPUT INSERTED.id VALUES (@p1, @p2, @p3, @p4, 1)`,
+				tenantID, r.Code, r.Name, r.Description,
+			).Scan(&id)
+			if err != nil {
+				return fmt.Errorf("backfill tenant %d role %s: %w", tenantID, r.Code, err)
+			}
+			tenantRoleIDs[r.Code] = id
+			logger.Info("tenant role backfilled", slog.Int64("tenant_id", tenantID), slog.String("code", r.Code))
+		}
+
+		grantCount := 0
+		for roleCode, codes := range rbac.RoleDefaultGrants {
+			roleID, ok := tenantRoleIDs[roleCode]
+			if !ok {
+				return fmt.Errorf("backfill tenant %d: unknown role code %q", tenantID, roleCode)
+			}
+			for _, code := range codes {
+				permissionID, ok := permissionIDs[code]
+				if !ok {
+					// Same tolerance seedRolePermissions itself has: the
+					// global permission catalog is seeded earlier in this
+					// same seed() call, so this only triggers if the
+					// catalog and RoleDefaultGrants have drifted apart.
+					continue
+				}
+				if _, err := db.ExecContext(ctx,
+					"INSERT INTO role_permissions (role_id, permission_id) VALUES (@p1, @p2)",
+					roleID, permissionID,
+				); err != nil {
+					return fmt.Errorf("backfill tenant %d role %s grant %s: %w", tenantID, roleCode, code, err)
+				}
+				grantCount++
+			}
+		}
+
+		logger.Info("tenant role catalog backfilled",
+			slog.Int64("tenant_id", tenantID), slog.Int("roles_created", len(tenantRoleIDs)), slog.Int("grants_created", grantCount))
+		backfilledTenants++
+	}
+
+	logger.Info("tenant role catalog backfill complete", slog.Int("tenants_backfilled", backfilledTenants), slog.Int("tenants_scanned", len(tenantIDs)))
 	return nil
 }
 
