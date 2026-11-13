@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -24,8 +25,18 @@ func NewHandler(service *Service) *Handler {
 // Register mounts only what the Roles & Permissions screen actually
 // calls: no role create/delete endpoint exists because the frontend
 // itself never persists those actions today (see PROJECT_STATUS.md).
-func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
-	authed := rg.Group("", middleware.RequireJWT(jwtSecret))
+//
+// Gated by the RequireJWT -> RequireTenantContext -> RequirePermission
+// chain (CLAUDE.md's RBAC section), not the RequireJWT-only chain this
+// handler used before roles gained their own tenant_id — every method
+// below reads its tenant_id exclusively from middleware.EnforcedTenantID,
+// never from a path/query/body parameter, so GET /roles and friends can
+// no longer return or mutate another tenant's rows.
+func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChecker middleware.MembershipChecker, membershipCacheTTL time.Duration) {
+	authed := rg.Group("",
+		middleware.RequireJWT(jwtSecret),
+		middleware.RequireTenantContext(membershipChecker, membershipCacheTTL),
+	)
 
 	authed.GET("/roles", middleware.RequirePermission("roles.view"), h.ListRoles)
 	authed.GET("/permissions", middleware.RequirePermission("roles.view"), h.ListPermissions)
@@ -51,7 +62,13 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
 //	@Failure		403	{object}	apihttp.ErrorResponse
 //	@Router			/roles [get]
 func (h *Handler) ListRoles(c *gin.Context) {
-	roles, err := h.service.ListRoles(c.Request.Context())
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		apihttp.Fail(c, http.StatusUnauthorized, "missing tenant context", "UNAUTHORIZED")
+		return
+	}
+
+	roles, err := h.service.ListRoles(c.Request.Context(), tenantID)
 	if err != nil {
 		apihttp.Fail(c, http.StatusInternalServerError, "failed to list roles", "INTERNAL_ERROR")
 		return
@@ -104,13 +121,19 @@ func (h *Handler) ListPermissions(c *gin.Context) {
 //	@Failure		404	{object}	apihttp.ErrorResponse
 //	@Router			/roles/{id}/permissions [get]
 func (h *Handler) GetRolePermissions(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		apihttp.Fail(c, http.StatusUnauthorized, "missing tenant context", "UNAUTHORIZED")
+		return
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid role id", "INVALID_REQUEST")
 		return
 	}
 
-	r, codes, err := h.service.GetRolePermissions(c.Request.Context(), id)
+	r, codes, err := h.service.GetRolePermissions(c.Request.Context(), tenantID, id)
 	if err != nil {
 		writeRoleError(c, err)
 		return
@@ -137,6 +160,12 @@ func (h *Handler) GetRolePermissions(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse	"one or more permission_codes are not in the catalog"
 //	@Router			/roles/{id}/permissions [put]
 func (h *Handler) SetRolePermissions(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		apihttp.Fail(c, http.StatusUnauthorized, "missing tenant context", "UNAUTHORIZED")
+		return
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid role id", "INVALID_REQUEST")
@@ -150,13 +179,13 @@ func (h *Handler) SetRolePermissions(c *gin.Context) {
 	}
 
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
-	codes, err := h.service.SetRolePermissions(ctx, id, req.PermissionCodes)
+	codes, err := h.service.SetRolePermissions(ctx, tenantID, id, req.PermissionCodes)
 	if err != nil {
 		writeRoleError(c, err)
 		return
 	}
 
-	r, err := h.service.GetRole(c.Request.Context(), id)
+	r, err := h.service.GetRole(c.Request.Context(), tenantID, id)
 	if err != nil {
 		writeRoleError(c, err)
 		return
@@ -179,13 +208,19 @@ func (h *Handler) SetRolePermissions(c *gin.Context) {
 //	@Failure		404	{object}	apihttp.ErrorResponse
 //	@Router			/roles/{id}/warehouse-access [get]
 func (h *Handler) GetRoleWarehouseAccess(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		apihttp.Fail(c, http.StatusUnauthorized, "missing tenant context", "UNAUTHORIZED")
+		return
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid role id", "INVALID_REQUEST")
 		return
 	}
 
-	r, warehouses, err := h.service.GetRoleWarehouseAccess(c.Request.Context(), id)
+	r, warehouses, err := h.service.GetRoleWarehouseAccess(c.Request.Context(), tenantID, id)
 	if err != nil {
 		writeRoleError(c, err)
 		return
@@ -212,6 +247,12 @@ func (h *Handler) GetRoleWarehouseAccess(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse	"one or more warehouse_ids are not in the warehouse master"
 //	@Router			/roles/{id}/warehouse-access [put]
 func (h *Handler) SetRoleWarehouseAccess(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		apihttp.Fail(c, http.StatusUnauthorized, "missing tenant context", "UNAUTHORIZED")
+		return
+	}
+
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid role id", "INVALID_REQUEST")
@@ -227,13 +268,13 @@ func (h *Handler) SetRoleWarehouseAccess(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
-	warehouses, err := h.service.SetRoleWarehouseAccess(ctx, id, req.WarehouseIDs, userID)
+	warehouses, err := h.service.SetRoleWarehouseAccess(ctx, tenantID, id, req.WarehouseIDs, userID)
 	if err != nil {
 		writeRoleError(c, err)
 		return
 	}
 
-	r, err := h.service.GetRole(c.Request.Context(), id)
+	r, err := h.service.GetRole(c.Request.Context(), tenantID, id)
 	if err != nil {
 		writeRoleError(c, err)
 		return

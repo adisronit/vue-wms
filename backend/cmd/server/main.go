@@ -26,6 +26,7 @@ import (
 	"wms-backend/config"
 	_ "wms-backend/docs"
 	"wms-backend/internal/auth"
+	"wms-backend/internal/customer"
 	"wms-backend/internal/dashboard"
 	"wms-backend/internal/health"
 	"wms-backend/internal/inventory"
@@ -39,7 +40,6 @@ import (
 	apihttp "wms-backend/internal/platform/http"
 	"wms-backend/internal/platform/logging"
 	"wms-backend/internal/platform/middleware"
-	"wms-backend/internal/customer"
 	"wms-backend/internal/platformadmin"
 	"wms-backend/internal/product"
 	"wms-backend/internal/productcategory"
@@ -115,26 +115,28 @@ func main() {
 	// same narrow FindByID/FindByIDs lookups Warehouse Setup itself uses.
 	warehouseRepo := warehouse.NewRepository(dbManager.DB())
 
-	roleRepo := role.NewRepository(dbManager.DB())
-	roleService := role.NewService(roleRepo, warehouseRepo)
-	role.NewHandler(roleService).Register(v1, cfg.JWTSecret)
-
-	userRepo := user.NewRepository(dbManager.DB())
-	userService := user.NewService(userRepo, roleRepo, warehouseRepo)
-	user.NewHandler(userService).Register(v1, cfg.JWTSecret)
-
 	// tenantService resolves and re-verifies active tenant membership
 	// (Phase 29B) — used by auth for login/switch-tenant/me, and by
-	// RequireTenantContext below (WMS-29E is the first route owner to
-	// actually wire that middleware in ahead of its own handlers — until
-	// now it was "built, tested, not yet mounted anywhere", the same
-	// shape RequireJWT itself started in during Phase 1). tenantRepo is
-	// passed to NewService twice — once per capability interface
+	// RequireTenantContext below. Constructed ahead of roleRepo/role's own
+	// handler registration (moved up from its original position after
+	// user/auth wiring) because role.Handler.Register now needs it as its
+	// own membershipChecker — WMS-29E was the first route owner to wire
+	// RequireTenantContext in ahead of its own handlers; roles joined it
+	// once roles.tenant_id made GET /roles's IDOR exploitable. tenantRepo
+	// is passed to NewService twice — once per capability interface
 	// (membershipRepository, managementRepository) — because WMS-29's
 	// Platform Admin tenant-management API (registered below) reuses
 	// the same repository rather than duplicating it.
 	tenantRepo := tenant.NewRepository(dbManager.DB())
 	tenantService := tenant.NewService(tenantRepo, tenantRepo)
+
+	roleRepo := role.NewRepository(dbManager.DB())
+	roleService := role.NewService(roleRepo, warehouseRepo)
+	role.NewHandler(roleService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	userRepo := user.NewRepository(dbManager.DB())
+	userService := user.NewService(userRepo, roleRepo, warehouseRepo)
+	user.NewHandler(userService).Register(v1, cfg.JWTSecret)
 
 	// membershipService (WMS-29E) implements Tenant User & Membership
 	// Management's business rules, shared by both the Platform Admin and

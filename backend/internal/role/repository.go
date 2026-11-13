@@ -19,12 +19,25 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) ListRoles(ctx context.Context) ([]Role, error) {
+// ListRoles returns tenantID's own roles — the Roles & Permissions
+// screen's GET /roles, scoped so a tenant only ever sees its own 7-role
+// catalog, never every tenant's rows concatenated together.
+func (r *Repository) ListRoles(ctx context.Context, tenantID int64) ([]Role, error) {
 	var roles []Role
-	err := r.db.WithContext(ctx).Order("name ASC").Find(&roles).Error
+	err := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID).Order("name ASC").Find(&roles).Error
 	return roles, err
 }
 
+// FindRoleByID looks up id with NO tenant filter — kept only for
+// auth.Service/tenant.MembershipService's roleLookup/roleReader
+// interfaces, whose callers already resolve id from a tenant_users row
+// whose role_id is app-layer-guaranteed to belong to that membership's
+// own tenant (migrations/0042's header comment), and for the legacy,
+// platform-global /api/v1/users module (internal/user), which has no
+// tenant context to filter by at all. New tenant-facing code — like
+// this package's own Service — must use FindRoleByIDForTenant instead;
+// see that method's doc for why an :id path/query parameter can never
+// safely go through this one.
 func (r *Repository) FindRoleByID(ctx context.Context, id int64) (*Role, error) {
 	var role Role
 	err := r.db.WithContext(ctx).First(&role, "id = ?", id).Error
@@ -37,6 +50,34 @@ func (r *Repository) FindRoleByID(ctx context.Context, id int64) (*Role, error) 
 	return &role, nil
 }
 
+// FindRoleByIDForTenant returns id's row scoped to tenantID, or
+// ErrNotFound — never "found but belongs to another tenant" vs.
+// "doesn't exist at all", so a guessed ID can't be distinguished from a
+// nonexistent one (tenant-isolation-security.md §6). Every role.Service
+// method backing a user-supplied :id must go through this, not
+// FindRoleByID.
+func (r *Repository) FindRoleByIDForTenant(ctx context.Context, tenantID, id int64) (*Role, error) {
+	var role Role
+	err := r.db.WithContext(ctx).First(&role, "id = ? AND tenant_id = ?", id, tenantID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &role, nil
+}
+
+// FindRoleByCode looks up code alone, with NO tenant filter — since
+// UQ_roles_tenant_code (migrations/0048) means the same code now exists
+// once per tenant, this is ambiguous for any caller that doesn't already
+// know which tenant's row it wants, and will silently return whichever
+// tenant's row SQL Server happens to pick first. Kept only for the
+// legacy, platform-global /api/v1/users module (internal/user), which
+// has no tenant context to disambiguate with. New code needing a
+// tenant's own role by code must query tenant.Repository's
+// FindTenantRoleByCode(tenantID, code) instead — see that method's own
+// doc for why it, not this one, is the correct lookup.
 func (r *Repository) FindRoleByCode(ctx context.Context, code string) (*Role, error) {
 	var role Role
 	err := r.db.WithContext(ctx).First(&role, "code = ?", code).Error
@@ -80,8 +121,21 @@ func (r *Repository) RolePermissionCodes(ctx context.Context, roleID int64) ([]s
 // ReplaceRolePermissions atomically swaps roleID's full grant set for
 // permissionIDs — the Roles & Permissions screen's "Save Permissions"
 // button always submits the complete matrix state, not a delta.
-func (r *Repository) ReplaceRolePermissions(ctx context.Context, roleID int64, permissionIDs []int64) error {
+// tenantID is re-verified against roles.tenant_id inside the same
+// transaction as the delete+insert (defense in depth on top of
+// Service's own FindRoleByIDForTenant existence check, which runs
+// before this method is ever called) — returns ErrNotFound rather than
+// silently mutating another tenant's role if the two ever disagree.
+func (r *Repository) ReplaceRolePermissions(ctx context.Context, tenantID, roleID int64, permissionIDs []int64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var owned int64
+		if err := tx.Model(&Role{}).Where("id = ? AND tenant_id = ?", roleID, tenantID).Count(&owned).Error; err != nil {
+			return err
+		}
+		if owned == 0 {
+			return ErrNotFound
+		}
+
 		if err := tx.Where("role_id = ?", roleID).Delete(&RolePermission{}).Error; err != nil {
 			return err
 		}
@@ -99,16 +153,18 @@ func (r *Repository) ReplaceRolePermissions(ctx context.Context, roleID int64, p
 }
 
 // RoleWarehouseAccessIDs returns the warehouse_ids currently granted to
-// roleID — pure role_warehouse_access data, with no join into
-// warehouses itself (see Service.warehouseSummaries for the resolution
-// step, mirroring how RolePermissionCodes/ReplaceRolePermissions keep
-// package role's repository self-contained to its own tables).
-func (r *Repository) RoleWarehouseAccessIDs(ctx context.Context, roleID int64) ([]int64, error) {
+// roleID — joined against roles so a roleID belonging to another tenant
+// (it should never reach this method at all, given Service's own
+// FindRoleByIDForTenant check, but role_warehouse_access carries no
+// tenant_id of its own to filter by directly) resolves to an empty set
+// rather than another tenant's grants.
+func (r *Repository) RoleWarehouseAccessIDs(ctx context.Context, tenantID, roleID int64) ([]int64, error) {
 	var ids []int64
 	err := r.db.WithContext(ctx).Model(&RoleWarehouseAccess{}).
-		Where("role_id = ?", roleID).
-		Order("warehouse_id ASC").
-		Pluck("warehouse_id", &ids).Error
+		Joins("JOIN roles ON roles.id = role_warehouse_access.role_id").
+		Where("role_warehouse_access.role_id = ? AND roles.tenant_id = ?", roleID, tenantID).
+		Order("role_warehouse_access.warehouse_id ASC").
+		Pluck("role_warehouse_access.warehouse_id", &ids).Error
 	return ids, err
 }
 
@@ -117,8 +173,19 @@ func (r *Repository) RoleWarehouseAccessIDs(ctx context.Context, roleID int64) (
 // transaction shape as ReplaceRolePermissions, for the same reason: the
 // Warehouse Access panel always submits the complete desired set, not a
 // delta. createdBy is attributed to every grant row this call creates.
-func (r *Repository) ReplaceRoleWarehouseAccess(ctx context.Context, roleID int64, warehouseIDs []int64, createdBy *int64) error {
+// tenantID is re-verified against roles.tenant_id inside the same
+// transaction, mirroring ReplaceRolePermissions' own defense-in-depth
+// check.
+func (r *Repository) ReplaceRoleWarehouseAccess(ctx context.Context, tenantID, roleID int64, warehouseIDs []int64, createdBy *int64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var owned int64
+		if err := tx.Model(&Role{}).Where("id = ? AND tenant_id = ?", roleID, tenantID).Count(&owned).Error; err != nil {
+			return err
+		}
+		if owned == 0 {
+			return ErrNotFound
+		}
+
 		if err := tx.Where("role_id = ?", roleID).Delete(&RoleWarehouseAccess{}).Error; err != nil {
 			return err
 		}

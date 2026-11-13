@@ -94,16 +94,17 @@ func BuildTestRouter(db *gorm.DB, jwtSecret string) RouterDeps {
 	engine, v1 := apihttp.NewEngine(middleware.Recovery(slog.Default()))
 
 	warehouseRepo := warehouse.NewRepository(db)
+
+	tenantRepo := tenant.NewRepository(db)
+	tenantService := tenant.NewService(tenantRepo, tenantRepo)
+
 	roleRepo := role.NewRepository(db)
 	roleService := role.NewService(roleRepo, warehouseRepo)
-	role.NewHandler(roleService).Register(v1, jwtSecret)
+	role.NewHandler(roleService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)
 
 	userRepo := user.NewRepository(db)
 	userService := user.NewService(userRepo, roleRepo, warehouseRepo)
 	user.NewHandler(userService).Register(v1, jwtSecret)
-
-	tenantRepo := tenant.NewRepository(db)
-	tenantService := tenant.NewService(tenantRepo, tenantRepo)
 
 	authService := auth.NewService(userRepo, roleRepo, tenantService, jwtSecret, time.Hour)
 	auth.NewHandler(authService).Register(v1, jwtSecret)

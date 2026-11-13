@@ -37,12 +37,12 @@ func NewService(repo *Repository, warehouses warehouseLookup) *Service {
 	return &Service{repo: repo, warehouses: warehouses}
 }
 
-func (s *Service) ListRoles(ctx context.Context) ([]Role, error) {
-	return s.repo.ListRoles(ctx)
+func (s *Service) ListRoles(ctx context.Context, tenantID int64) ([]Role, error) {
+	return s.repo.ListRoles(ctx, tenantID)
 }
 
-func (s *Service) GetRole(ctx context.Context, id int64) (*Role, error) {
-	return s.repo.FindRoleByID(ctx, id)
+func (s *Service) GetRole(ctx context.Context, tenantID, id int64) (*Role, error) {
+	return s.repo.FindRoleByIDForTenant(ctx, tenantID, id)
 }
 
 func (s *Service) ListPermissions(ctx context.Context) ([]Permission, error) {
@@ -51,8 +51,8 @@ func (s *Service) ListPermissions(ctx context.Context) ([]Permission, error) {
 
 // GetRolePermissions returns the role plus the permission codes currently
 // granted to it.
-func (s *Service) GetRolePermissions(ctx context.Context, roleID int64) (*Role, []string, error) {
-	r, err := s.repo.FindRoleByID(ctx, roleID)
+func (s *Service) GetRolePermissions(ctx context.Context, tenantID, roleID int64) (*Role, []string, error) {
+	r, err := s.repo.FindRoleByIDForTenant(ctx, tenantID, roleID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -69,8 +69,8 @@ func (s *Service) GetRolePermissions(ctx context.Context, roleID int64) (*Role, 
 // codes, after confirming every code exists in the catalog. Returns
 // ErrNotFound if the role doesn't exist, ErrInvalidPermissionCodes if any
 // code is unrecognized.
-func (s *Service) SetRolePermissions(ctx context.Context, roleID int64, codes []string) ([]string, error) {
-	if _, err := s.repo.FindRoleByID(ctx, roleID); err != nil {
+func (s *Service) SetRolePermissions(ctx context.Context, tenantID, roleID int64, codes []string) ([]string, error) {
+	if _, err := s.repo.FindRoleByIDForTenant(ctx, tenantID, roleID); err != nil {
 		return nil, err
 	}
 
@@ -85,7 +85,7 @@ func (s *Service) SetRolePermissions(ctx context.Context, roleID int64, codes []
 
 	if len(codes) == 0 {
 		start := time.Now()
-		err := s.repo.ReplaceRolePermissions(ctx, roleID, nil)
+		err := s.repo.ReplaceRolePermissions(ctx, tenantID, roleID, nil)
 		dbctx.LogTransaction(ctx, "role.set_permissions", start, err)
 		if err != nil {
 			return nil, err
@@ -107,7 +107,7 @@ func (s *Service) SetRolePermissions(ctx context.Context, roleID int64, codes []
 	}
 
 	start := time.Now()
-	err = s.repo.ReplaceRolePermissions(ctx, roleID, ids)
+	err = s.repo.ReplaceRolePermissions(ctx, tenantID, roleID, ids)
 	dbctx.LogTransaction(ctx, "role.set_permissions", start, err)
 	if err != nil {
 		return nil, err
@@ -118,13 +118,13 @@ func (s *Service) SetRolePermissions(ctx context.Context, roleID int64, codes []
 
 // GetRoleWarehouseAccess returns the role plus the warehouses currently
 // granted to it (resolved to code/name for display).
-func (s *Service) GetRoleWarehouseAccess(ctx context.Context, roleID int64) (*Role, []WarehouseSummary, error) {
-	r, err := s.repo.FindRoleByID(ctx, roleID)
+func (s *Service) GetRoleWarehouseAccess(ctx context.Context, tenantID, roleID int64) (*Role, []WarehouseSummary, error) {
+	r, err := s.repo.FindRoleByIDForTenant(ctx, tenantID, roleID)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	summaries, err := s.warehouseSummaries(ctx, roleID)
+	summaries, err := s.warehouseSummaries(ctx, tenantID, roleID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -141,8 +141,8 @@ func (s *Service) GetRoleWarehouseAccess(ctx context.Context, roleID int64) (*Ro
 // package role's own doc on Admin/global access for how that case is
 // represented instead. createdBy is the acting user (from the JWT),
 // attributed to every grant row this call creates.
-func (s *Service) SetRoleWarehouseAccess(ctx context.Context, roleID int64, warehouseIDs []int64, createdBy int64) ([]WarehouseSummary, error) {
-	if _, err := s.repo.FindRoleByID(ctx, roleID); err != nil {
+func (s *Service) SetRoleWarehouseAccess(ctx context.Context, tenantID, roleID int64, warehouseIDs []int64, createdBy int64) ([]WarehouseSummary, error) {
+	if _, err := s.repo.FindRoleByIDForTenant(ctx, tenantID, roleID); err != nil {
 		return nil, err
 	}
 
@@ -165,21 +165,21 @@ func (s *Service) SetRoleWarehouseAccess(ctx context.Context, roleID int64, ware
 	}
 
 	start := time.Now()
-	err := s.repo.ReplaceRoleWarehouseAccess(ctx, roleID, ids, &createdBy)
+	err := s.repo.ReplaceRoleWarehouseAccess(ctx, tenantID, roleID, ids, &createdBy)
 	dbctx.LogTransaction(ctx, "role.set_warehouse_access", start, err)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.warehouseSummaries(ctx, roleID)
+	return s.warehouseSummaries(ctx, tenantID, roleID)
 }
 
 // warehouseSummaries resolves roleID's currently granted warehouse_ids
 // (role_warehouse_access) to their code/name for display, shared by
 // GetRoleWarehouseAccess and SetRoleWarehouseAccess so both return
 // identically-shaped, identically-ordered data.
-func (s *Service) warehouseSummaries(ctx context.Context, roleID int64) ([]WarehouseSummary, error) {
-	ids, err := s.repo.RoleWarehouseAccessIDs(ctx, roleID)
+func (s *Service) warehouseSummaries(ctx context.Context, tenantID, roleID int64) ([]WarehouseSummary, error) {
+	ids, err := s.repo.RoleWarehouseAccessIDs(ctx, tenantID, roleID)
 	if err != nil {
 		return nil, err
 	}
