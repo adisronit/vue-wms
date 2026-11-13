@@ -40,8 +40,19 @@
             </button>
           </div>
         </div>
+      </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-6 border-t border-slate-200">
+      <div class="bg-white rounded-2xl border border-slate-200 p-2 flex gap-2 w-fit">
+        <button @click="activeTab = 'overview'" :class="tabClass('overview')">
+          {{ $t('platformAdmin.detail.tabs.overview') }}
+        </button>
+        <button @click="activeTab = 'users'" :class="tabClass('users')">
+          {{ $t('platformAdmin.detail.tabs.users') }}
+        </button>
+      </div>
+
+      <div v-if="activeTab === 'overview'" class="bg-white rounded-2xl border border-slate-200 p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <p class="detail-label">{{ $t('platformAdmin.detail.fields.slug') }}</p>
             <p class="detail-value">{{ tenant.slug }}</p>
@@ -73,6 +84,8 @@
           </div>
         </div>
       </div>
+
+      <TenantUserList v-else-if="activeTab === 'users'" :tenant-id="tenant.id" />
     </template>
 
     <TenantFormDrawer
@@ -95,11 +108,12 @@
 import { getTenant } from '../../services/platformTenants'
 import TenantFormDrawer from './TenantFormDrawer.vue'
 import TenantStatusModal from './TenantStatusModal.vue'
+import TenantUserList from './TenantUserList.vue'
 
 export default {
   name: 'TenantDetailView',
 
-  components: { TenantFormDrawer, TenantStatusModal },
+  components: { TenantFormDrawer, TenantStatusModal, TenantUserList },
 
   data() {
     return {
@@ -107,7 +121,8 @@ export default {
       loading: false,
       loadError: '',
       showForm: false,
-      showStatus: false
+      showStatus: false,
+      activeTab: 'overview'
     }
   },
 
@@ -149,6 +164,12 @@ export default {
       if (status === 'SUSPENDED') return 'badge badge-gray'
       if (status === 'CANCELLED') return 'badge badge-red'
       return 'badge badge-gray'
+    },
+
+    tabClass(tab) {
+      return this.activeTab === tab
+        ? 'px-4 py-2 rounded-xl font-semibold text-sm bg-orange-600 text-white'
+        : 'px-4 py-2 rounded-xl font-semibold text-sm text-slate-600 hover:bg-slate-100'
     }
   }
 }

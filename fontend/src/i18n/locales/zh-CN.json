@@ -988,7 +988,8 @@
       "edit": "编辑",
       "delete": "删除",
       "approve": "批准",
-      "export": "导出"
+      "export": "导出",
+      "suspend": "暂停"
     },
     "modules": {
       "dashboard": "仪表盘",
@@ -1003,7 +1004,8 @@
       "users": "用户管理",
       "roles": "角色与权限",
       "warehouse": "仓库设置",
-      "product": "产品主数据"
+      "product": "产品主数据",
+      "tenantUsers": "租户用户管理"
     },
     "selectRolePrompt": "选择一个角色以配置权限",
     "permissionConfigLabel": "{code} 权限配置",
@@ -1673,7 +1675,109 @@
         "cancelledAt": "取消时间"
       },
       "notFound": "未找到该租户",
-      "loadFailed": "加载租户信息失败"
+      "loadFailed": "加载租户信息失败",
+      "tabs": {
+        "overview": "概览",
+        "users": "用户"
+      }
+    },
+    "tenantUsers": {
+      "title": "租户用户",
+      "subtitle": "管理此租户的成员、角色和成员状态。",
+      "addButton": "+ 添加用户",
+      "assignExistingButton": "指定现有用户",
+      "filters": {
+        "searchPlaceholder": "按姓名、用户名或邮箱搜索...",
+        "allRoles": "全部角色",
+        "allStatus": "全部状态"
+      },
+      "table": {
+        "user": "用户",
+        "role": "角色",
+        "status": "状态",
+        "joinedAt": "加入时间",
+        "action": "操作",
+        "loading": "正在加载用户...",
+        "noData": "未找到用户",
+        "changeRole": "变更角色",
+        "suspend": "暂停",
+        "reactivate": "重新启用"
+      },
+      "status": {
+        "invited": "已邀请",
+        "active": "已启用",
+        "disabled": "已停用"
+      },
+      "roles": {
+        "admin": "管理员",
+        "warehouseManager": "仓库经理",
+        "receiving": "收货人员",
+        "qc": "质检人员",
+        "putaway": "上架人员",
+        "picking": "拣货人员",
+        "shipping": "发货人员"
+      },
+      "form": {
+        "title": "添加用户",
+        "subtitle": "创建新账户并将其加入此租户。",
+        "fields": {
+          "fullName": "姓名",
+          "username": "用户名",
+          "email": "邮箱",
+          "password": "初始密码",
+          "passwordHint": "至少 8 个字符。请直接告知新用户——目前还没有邮件邀请功能。",
+          "role": "角色"
+        },
+        "saveButton": "创建用户",
+        "saving": "正在保存...",
+        "messages": {
+          "requiredFields": "姓名、用户名和邮箱均为必填项",
+          "passwordTooShort": "密码长度至少为 8 个字符",
+          "duplicateUser": "已存在使用该用户名或邮箱的用户",
+          "saveFailed": "保存失败"
+        }
+      },
+      "assignExisting": {
+        "title": "指定现有用户",
+        "description": "通过精确匹配用户名或邮箱，将一个已注册的用户（来自任意租户）关联到此租户。",
+        "identifierLabel": "用户名或邮箱",
+        "identifierPlaceholder": "例如 jane.doe 或 jane@example.com",
+        "assignButton": "指定",
+        "messages": {
+          "identifierRequired": "请输入用户名或邮箱",
+          "userNotFound": "未找到匹配该用户名或邮箱的用户",
+          "alreadyMember": "该用户已是此租户的成员"
+        }
+      },
+      "changeRole": {
+        "title": "变更角色",
+        "currentRole": "当前角色",
+        "newRole": "新角色",
+        "saveButton": "保存",
+        "messages": {
+          "lastAdmin": "无法变更此角色——这将导致该租户没有任何在用的管理员"
+        }
+      },
+      "changeStatus": {
+        "suspendTitle": "暂停成员资格",
+        "reactivateTitle": "重新启用成员资格",
+        "suspendDescription": "暂停此用户将立即阻止其访问该租户。",
+        "reactivateDescription": "重新启用将恢复此用户对该租户的访问权限。",
+        "reasonLabel": "原因（可选）",
+        "reasonPlaceholder": "此次成员状态变更的原因是什么？",
+        "continueButton": "继续",
+        "confirmSuspendMessage": "该用户将立即失去对此租户的访问权限。是否继续？",
+        "confirmSuspendButton": "暂停",
+        "reactivateButton": "重新启用",
+        "updating": "正在更新...",
+        "messages": {
+          "lastAdmin": "无法暂停此成员——这将导致该租户没有任何在用的管理员",
+          "updateFailed": "更新成员状态失败"
+        }
+      },
+      "messages": {
+        "loadFailed": "加载租户用户失败"
+      }
     }
   }
 }

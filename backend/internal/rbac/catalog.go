@@ -54,6 +54,17 @@ var Modules = []ModuleDef{
 	{Code: "roles", Name: "Roles & Permissions", Actions: []string{"view", "create", "update", "delete", "approve"}},
 	{Code: "warehouse", Name: "Warehouse Setup", Actions: []string{"view", "create", "update", "delete"}},
 	{Code: "product", Name: "Product Master", Actions: []string{"view", "create", "update", "delete"}},
+	// tenant_users (WMS-29E) gates the Tenant Admin membership-management
+	// API (/api/v1/admin/tenant-users/*) — deliberately separate from
+	// "users" above, which gates the legacy, not-yet-tenant-scoped global
+	// Users Management screen (/api/v1/users). "suspend" covers both
+	// directions of PATCH .../status (suspend and reactivate are the same
+	// request shape, just a different target status), the same one-
+	// permission-covers-the-whole-transition shape the Platform Admin
+	// tenant status API already uses. There is no "delete" action: a
+	// membership is only ever status-changed (ACTIVE/DISABLED), never
+	// deleted.
+	{Code: "tenant_users", Name: "Tenant User Management", Actions: []string{"view", "create", "update", "suspend"}},
 }
 
 var actionLabels = map[string]string{

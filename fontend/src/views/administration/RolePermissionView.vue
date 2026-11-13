@@ -257,7 +257,8 @@ import { listWarehouses } from '../../services/warehouses'
 // translated.
 const MODULE_ORDER = [
   'dashboard', 'receiving', 'quality_check', 'putaway', 'stock_inquiry',
-  'stock_adjustment', 'order', 'picking', 'shipping', 'users', 'roles', 'warehouse', 'product'
+  'stock_adjustment', 'order', 'picking', 'shipping', 'users', 'roles', 'warehouse', 'product',
+  'tenant_users'
 ]
 // Maps each module code to its rolePermission.modules.* key suffix.
 // Display names are looked up through this at render time (see the
@@ -276,10 +277,11 @@ const MODULE_NAME_KEYS = {
   users: 'users',
   roles: 'roles',
   warehouse: 'warehouse',
-  product: 'product'
+  product: 'product',
+  tenant_users: 'tenantUsers'
 }
-const ACTION_CODES = { View: 'view', Create: 'create', Edit: 'update', Delete: 'delete', Approve: 'approve', Export: 'export' }
-const ACTION_LABEL_KEYS = { View: 'view', Create: 'create', Edit: 'edit', Delete: 'delete', Approve: 'approve', Export: 'export' }
+const ACTION_CODES = { View: 'view', Create: 'create', Edit: 'update', Delete: 'delete', Approve: 'approve', Export: 'export', Suspend: 'suspend' }
+const ACTION_LABEL_KEYS = { View: 'view', Create: 'create', Edit: 'edit', Delete: 'delete', Approve: 'approve', Export: 'export', Suspend: 'suspend' }
 
 export default {
   name: 'RolePermissionView',
@@ -300,7 +302,7 @@ export default {
       warehousesLoading: false,
       warehousesError: '',
 
-      actions: ['View', 'Create', 'Edit', 'Delete', 'Approve', 'Export'],
+      actions: ['View', 'Create', 'Edit', 'Delete', 'Approve', 'Export', 'Suspend'],
       permissionModules: [],
       roles: [],
 

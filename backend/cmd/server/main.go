@@ -121,30 +121,44 @@ func main() {
 	user.NewHandler(userService).Register(v1, cfg.JWTSecret)
 
 	// tenantService resolves and re-verifies active tenant membership
-	// (Phase 29B) — used by auth for login/switch-tenant/me, and
-	// available for RequireTenantContext (internal/platform/middleware)
-	// once a route owner wires that middleware in ahead of its own
-	// handlers, the same "built, tested, not yet mounted anywhere" shape
-	// RequireJWT itself started in during Phase 1. tenantRepo is passed
-	// to NewService twice — once per capability interface
+	// (Phase 29B) — used by auth for login/switch-tenant/me, and by
+	// RequireTenantContext below (WMS-29E is the first route owner to
+	// actually wire that middleware in ahead of its own handlers — until
+	// now it was "built, tested, not yet mounted anywhere", the same
+	// shape RequireJWT itself started in during Phase 1). tenantRepo is
+	// passed to NewService twice — once per capability interface
 	// (membershipRepository, managementRepository) — because WMS-29's
 	// Platform Admin tenant-management API (registered below) reuses
 	// the same repository rather than duplicating it.
 	tenantRepo := tenant.NewRepository(dbManager.DB())
 	tenantService := tenant.NewService(tenantRepo, tenantRepo)
 
+	// membershipService (WMS-29E) implements Tenant User & Membership
+	// Management's business rules, shared by both the Platform Admin and
+	// Tenant Admin handlers below — see MembershipService's own doc for
+	// why one Service type serves both personas.
+	membershipService := tenant.NewMembershipService(tenantRepo, userRepo, roleRepo, tenantRepo)
+
 	authService := auth.NewService(userRepo, roleRepo, tenantService, cfg.JWTSecret, cfg.JWTExpiresIn)
 	auth.NewHandler(authService).Register(v1, cfg.JWTSecret)
 
-	// Platform Admin tenant-management API (WMS-29): deliberately
-	// authorized on platform_admins alone (middleware.RequirePlatformAdmin),
-	// never on tenant-level RBAC — see that middleware's own doc for why,
-	// and docs/proposals/wms-saas/tenant-isolation-security.md §2-3 for
-	// the design this follows ahead of a full separate
-	// PLATFORM_ADMIN session_type login flow (saas-module-roadmap.md's
-	// Phase 33, not yet built).
+	// Platform Admin tenant-management + tenant-membership-management API
+	// (WMS-29, WMS-29E): deliberately authorized on platform_admins alone
+	// (middleware.RequirePlatformAdmin), never on tenant-level RBAC — see
+	// that middleware's own doc for why, and docs/proposals/wms-saas/
+	// tenant-isolation-security.md §2-3 for the design this follows ahead
+	// of a full separate PLATFORM_ADMIN session_type login flow
+	// (saas-module-roadmap.md's Phase 33, not yet built).
 	platformAdminRepo := platformadmin.NewRepository(dbManager.DB())
-	tenant.NewHandler(tenantService).Register(v1, cfg.JWTSecret, platformAdminRepo, logger)
+	tenant.NewHandler(tenantService, membershipService).Register(v1, cfg.JWTSecret, platformAdminRepo, logger)
+
+	// Tenant Admin membership-management API (WMS-29E): the
+	// RequireJWT -> RequireTenantContext -> RequirePermission chain,
+	// scoped to the caller's own re-verified active tenant only — see
+	// TenantAdminHandler's own doc for why this is a separate route
+	// prefix/type from the Platform Admin handler above rather than the
+	// same routes with a looser check.
+	tenant.NewTenantAdminHandler(membershipService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Phase 29D: the one capability check the frontend needs to decide
 	// whether to show Platform Administration navigation at all — see
