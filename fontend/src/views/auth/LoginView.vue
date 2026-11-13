@@ -9,11 +9,11 @@
       <div
         class="hidden md:flex flex-col justify-center bg-slate-900 text-white p-12"
       >
-        <h1 class="text-5xl font-bold mb-6">
+        <h1 class="text-3xl font-bold mb-6">
           {{ $t('auth.login.brandTitle') }}
         </h1>
 
-        <h2 class="text-2xl font-semibold mb-4">
+        <h2 class="text-xl font-semibold mb-4">
           {{ $t('auth.login.brandSubtitle') }}
         </h2>
 
@@ -36,7 +36,7 @@
           </div>
 
           <h2
-            class="text-center text-3xl font-bold text-slate-800 mt-6"
+            class="text-center text-2xl font-bold text-slate-800 mt-6"
           >
             {{ $t('auth.login.signInTitle') }}
           </h2>

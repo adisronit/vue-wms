@@ -1,1 +1,136 @@
 @import "tailwindcss";
+@import "./assets/fonts.css";
+
+/* Enterprise / Industrial typography system (WMS-Typography phase).
+ * Centralizes every font-family/size/weight/line-height this app uses
+ * so future screens pull from one scale instead of re-typing magic
+ * numbers — the exact drift this phase's own audit found across ~24
+ * near-identical, copy-pasted <style scoped> blocks.
+ */
+@theme {
+  /* Multilingual stack: IBM Plex Sans wins for Latin text, falling
+   * through to IBM Plex Sans Thai for Thai script and Noto Sans SC for
+   * Simplified Chinese — see assets/fonts.css for why this ordering is
+   * what makes mixed-language strings render correctly. Remapping
+   * --font-sans here also updates Tailwind's own `font-sans` utility,
+   * not just the base html rule below, so any future `class="font-sans"`
+   * usage stays consistent with this same stack. ui-sans-serif/
+   * system-ui/sans-serif remain as the final fallback for any glyph
+   * none of the three webfonts cover.
+   */
+  --font-sans: 'IBM Plex Sans', 'IBM Plex Sans Thai', 'Noto Sans SC', ui-sans-serif, system-ui,
+    -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* Dense operational software reads calmer at 600, not 700 — this
+   * single override is what takes every existing `font-bold` utility
+   * class across the app (page titles, drawer/modal headers, etc.) from
+   * "oversized headings... aggressive" down to the Enterprise spec's
+   * 600 weight, with no per-component template edits required.
+   */
+  --font-weight-bold: 600;
+}
+
+:root {
+  /* Semantic type-scale tokens — the Enterprise typography spec's
+   * recommended sizes, named for what they're *for* rather than their
+   * raw px value, so a future screen reaches for --fs-label instead of
+   * guessing 13px. Component <style scoped> blocks that used to hardcode
+   * these exact numbers (see internal/*/views/**.vue) now reference the
+   * variables below instead.
+   */
+  --fs-body: 0.875rem;       /* 14px */
+  --fw-body: 400;
+  --lh-body: 1.55;
+
+  --fs-sidebar: 0.875rem;    /* 14px */
+  --fw-sidebar: 500;
+
+  --fs-table-body: 0.8125rem;  /* 13px */
+  --fw-table-body: 400;
+  --lh-table: 1.45;
+
+  --fs-table-header: 0.75rem;  /* 12px */
+  --fw-table-header: 600;
+
+  --fs-label: 0.8125rem;    /* 13px */
+  --fw-label: 500;
+
+  --fs-input: 0.875rem;     /* 14px */
+  --fw-input: 500;
+
+  --fs-title: 1.375rem;     /* 22px */
+  --fw-title: 600;
+  --lh-title: 1.3;
+
+  --fs-kpi: 1.75rem;        /* 28px */
+  --fw-kpi: 600;
+  --lh-kpi: 1.25;
+}
+
+@layer base {
+  /* Belt-and-suspenders: @theme's --font-sans already drives Tailwind
+   * preflight's own default font stack in v4, but setting it here too
+   * keeps the behavior explicit and version-upgrade-proof rather than
+   * depending on preflight internals.
+   */
+  html {
+    font-family: var(--font-sans);
+  }
+
+  body {
+    font-size: var(--fs-body);
+    font-weight: var(--fw-body);
+    line-height: var(--lh-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Baseline for any table that doesn't already carry an explicit
+   * Tailwind text-size utility — most of this app's tables use a
+   * `.table-th`/`.table-td` scoped class pair instead (now wired to the
+   * same --fs-table-header/--fs-table-body tokens directly), so this is
+   * a safety net for markup that uses bare <table>/<th>/<td>.
+   */
+  table {
+    font-size: var(--fs-table-body);
+    line-height: var(--lh-table);
+  }
+
+  th {
+    font-size: var(--fs-table-header);
+    font-weight: var(--fw-table-header);
+  }
+
+  label {
+    font-size: var(--fs-label);
+    font-weight: var(--fw-label);
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font-family: inherit;
+    font-size: var(--fs-input);
+    font-weight: var(--fw-input);
+  }
+
+  h1 {
+    font-size: var(--fs-title);
+    font-weight: var(--fw-title);
+    line-height: var(--lh-title);
+  }
+
+  /* Every data table in this app right-aligns its numeric columns
+   * (quantity, price, count — class="table-td text-right"); tabular
+   * numbers there keep stacked digits aligned vertically instead of
+   * drifting with each row's digit widths. Safe to apply broadly: a
+   * right-aligned action-link cell with no digits in it is simply
+   * unaffected (tabular-nums only changes how *digits* are drawn), so
+   * this needs no per-table opt-in.
+   */
+  .table-td.text-right,
+  td.text-right {
+    font-variant-numeric: tabular-nums;
+  }
+}

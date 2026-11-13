@@ -199,12 +199,12 @@ export default {
 }
 
 .lang-option-active {
-  font-weight: 700;
+  font-weight: 600;
   color: #ea580c;
 }
 
 .lang-option-check {
   color: #ea580c;
-  font-weight: 700;
+  font-weight: 600;
 }
 </style>

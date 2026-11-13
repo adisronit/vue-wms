@@ -1,0 +1,39 @@
+/* Enterprise typography — self-hosted font faces (WMS-Typography phase).
+ *
+ * Bundled from @fontsource (OFL-1.1 licensed, see each package's own
+ * LICENSE file under node_modules/@fontsource/<name>/LICENSE — never
+ * removed, only not committed to this repo since node_modules itself
+ * isn't). Vite resolves these bare-specifier @import statements at
+ * build time and inlines the referenced woff2/woff files into
+ * dist/assets with content-hashed names, so the running app serves
+ * fonts from its own origin — no Google Fonts CDN, no runtime network
+ * dependency on a third party.
+ *
+ * Only the three weights this app's type scale actually uses (400
+ * regular, 500 medium, 600 semibold) are imported — no 100/200/300/700/
+ * 800/900, and no italic styles, since nothing in this app sets
+ * font-style: italic. Each imported file already font-display: swap by
+ * default (Fontsource's own CSS) and already splits into per-script
+ * unicode-range @font-face rules, so the browser only ever fetches the
+ * specific subset a page actually renders (e.g. a Thai-only screen never
+ * downloads Noto Sans SC's Chinese subset).
+ *
+ * Family stack order matters: 'IBM Plex Sans' first so it wins for every
+ * Latin character, falling through to 'IBM Plex Sans Thai' for Thai
+ * script and 'Noto Sans SC' for Simplified Chinese — the standard CSS
+ * font-stack fallback mechanism, which is what makes mixed Thai/English/
+ * Chinese text in the same string render correctly with no extra script-
+ * detection logic needed anywhere in the app.
+ */
+
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+
+@import '@fontsource/ibm-plex-sans-thai/400.css';
+@import '@fontsource/ibm-plex-sans-thai/500.css';
+@import '@fontsource/ibm-plex-sans-thai/600.css';
+
+@import '@fontsource/noto-sans-sc/400.css';
+@import '@fontsource/noto-sans-sc/500.css';
+@import '@fontsource/noto-sans-sc/600.css';

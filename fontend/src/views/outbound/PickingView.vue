@@ -982,8 +982,8 @@ export default {
   display: block;
   margin-bottom: 8px;
   color: #334155;
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: var(--fw-label);
+  font-size: var(--fs-label);
 }
 
 .summary-card {
@@ -999,15 +999,17 @@ export default {
 }
 
 .summary-value {
-  font-size: 30px;
-  font-weight: 800;
+  font-size: var(--fs-kpi);
+  font-weight: var(--fw-kpi);
   color: #0f172a;
   margin-top: 8px;
+  font-variant-numeric: tabular-nums;
 }
 
 .table-th {
   padding: 14px 16px;
-  font-weight: 700;
+  font-weight: var(--fw-table-header);
+  font-size: var(--fs-table-header);
   white-space: nowrap;
 }
 

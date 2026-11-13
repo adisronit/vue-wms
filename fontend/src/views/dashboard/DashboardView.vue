@@ -179,10 +179,11 @@ export default {
 }
 
 .summary-value {
-  font-size: 32px;
-  font-weight: 800;
+  font-size: var(--fs-kpi);
+  font-weight: var(--fw-kpi);
   color: #0f172a;
   margin-top: 8px;
+  font-variant-numeric: tabular-nums;
 }
 
 .summary-note {
