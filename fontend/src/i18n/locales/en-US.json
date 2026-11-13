@@ -1675,7 +1675,109 @@
         "cancelledAt": "Cancelled At"
       },
       "notFound": "Tenant not found",
-      "loadFailed": "Failed to load tenant"
+      "loadFailed": "Failed to load tenant",
+      "tabs": {
+        "overview": "Overview",
+        "users": "Users"
+      }
+    },
+    "tenantUsers": {
+      "title": "Tenant Users",
+      "subtitle": "Manage who belongs to this tenant, their role, and membership status.",
+      "addButton": "+ Add User",
+      "assignExistingButton": "Assign Existing User",
+      "filters": {
+        "searchPlaceholder": "Search by name, username, or email...",
+        "allRoles": "All Roles",
+        "allStatus": "All Status"
+      },
+      "table": {
+        "user": "User",
+        "role": "Role",
+        "status": "Status",
+        "joinedAt": "Joined",
+        "action": "Action",
+        "loading": "Loading users...",
+        "noData": "No users found",
+        "changeRole": "Change Role",
+        "suspend": "Suspend",
+        "reactivate": "Reactivate"
+      },
+      "status": {
+        "invited": "Invited",
+        "active": "Active",
+        "disabled": "Disabled"
+      },
+      "roles": {
+        "admin": "Administrator",
+        "warehouseManager": "Warehouse Manager",
+        "receiving": "Receiving Staff",
+        "qc": "Quality Check Staff",
+        "putaway": "Putaway Staff",
+        "picking": "Picking Staff",
+        "shipping": "Shipping Staff"
+      },
+      "form": {
+        "title": "Add User",
+        "subtitle": "Creates a new account and adds it to this tenant.",
+        "fields": {
+          "fullName": "Full Name",
+          "username": "Username",
+          "email": "Email",
+          "password": "Initial Password",
+          "passwordHint": "At least 8 characters. Share this with the new user directly — there is no email invitation yet.",
+          "role": "Role"
+        },
+        "saveButton": "Create User",
+        "saving": "Saving...",
+        "messages": {
+          "requiredFields": "Full name, username, and email are required",
+          "passwordTooShort": "Password must be at least 8 characters",
+          "duplicateUser": "A user with this username or email already exists",
+          "saveFailed": "Failed to save"
+        }
+      },
+      "assignExisting": {
+        "title": "Assign Existing User",
+        "description": "Link an already-registered user (from any tenant) to this tenant by their exact username or email.",
+        "identifierLabel": "Username or Email",
+        "identifierPlaceholder": "e.g. jane.doe or jane@example.com",
+        "assignButton": "Assign",
+        "messages": {
+          "identifierRequired": "Username or email is required",
+          "userNotFound": "No user found with that username or email",
+          "alreadyMember": "This user already has a membership in this tenant"
+        }
+      },
+      "changeRole": {
+        "title": "Change Role",
+        "currentRole": "Current Role",
+        "newRole": "New Role",
+        "saveButton": "Save",
+        "messages": {
+          "lastAdmin": "Cannot change this role — it would leave the tenant with no active administrator"
+        }
+      },
+      "changeStatus": {
+        "suspendTitle": "Suspend Membership",
+        "reactivateTitle": "Reactivate Membership",
+        "suspendDescription": "Suspending this user will immediately block their access to this tenant.",
+        "reactivateDescription": "Reactivating this user will restore their access to this tenant.",
+        "reasonLabel": "Reason (optional)",
+        "reasonPlaceholder": "Why is this membership changing?",
+        "continueButton": "Continue",
+        "confirmSuspendMessage": "This user will lose access to this tenant immediately. Continue?",
+        "confirmSuspendButton": "Suspend",
+        "reactivateButton": "Reactivate",
+        "updating": "Updating...",
+        "messages": {
+          "lastAdmin": "Cannot suspend this membership — it would leave the tenant with no active administrator",
+          "updateFailed": "Failed to update membership status"
+        }
+      },
+      "messages": {
+        "loadFailed": "Failed to load tenant users"
+      }
     }
   }
 }
