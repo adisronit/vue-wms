@@ -1,28 +1,18 @@
 <template>
   <div class="space-y-6">
-    <!-- Page Header -->
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">{{ $t('newQualityCheck.title') }}</h1>
-        <p class="text-slate-500">
-          {{ $t('newQualityCheck.subtitle') }}
-        </p>
-      </div>
-
-      <button
-        @click="$router.push('/inbound/quality-check')"
-        class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold"
-      >
-        {{ $t('newQualityCheck.backButton') }}
-      </button>
-    </div>
+    <PageHeader :title="$t('newQualityCheck.title')" :subtitle="$t('newQualityCheck.subtitle')">
+      <template #actions>
+        <button
+          @click="$router.push('/inbound/quality-check')"
+          class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold"
+        >
+          {{ $t('newQualityCheck.backButton') }}
+        </button>
+      </template>
+    </PageHeader>
 
     <!-- QC Header -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-6">
-      <h2 class="text-lg font-bold text-slate-800 mb-5">
-        {{ $t('newQualityCheck.documentInfo') }}
-      </h2>
-
+    <FormSection :title="$t('newQualityCheck.documentInfo')">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label class="label">{{ $t('newQualityCheck.fields.receivingNo') }}</label>
@@ -88,52 +78,54 @@
           :placeholder="$t('newQualityCheck.fields.remarkPlaceholder')"
         ></textarea>
       </div>
-    </div>
+    </FormSection>
 
     <!-- Scan Area -->
-    <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5">
-      <label class="label">{{ $t('newQualityCheck.scan.label') }}</label>
+    <FormSection>
+      <div class="bg-orange-50 border border-orange-200 rounded-2xl p-5">
+        <label class="label">{{ $t('newQualityCheck.scan.label') }}</label>
 
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <input
-          v-model="scanText"
-          type="text"
-          class="input bg-white"
-          :placeholder="$t('newQualityCheck.scan.placeholder')"
-          @keyup.enter="scanItem"
-        />
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <input
+            v-model="scanText"
+            type="text"
+            class="input bg-white"
+            :placeholder="$t('newQualityCheck.scan.placeholder')"
+            @keyup.enter="scanItem"
+          />
 
-        <input
-          v-model.number="scanSampleQty"
-          type="number"
-          class="input bg-white input-number"
-          :placeholder="$t('newQualityCheck.scan.sampleQtyPlaceholder')"
-        />
+          <input
+            v-model.number="scanSampleQty"
+            type="number"
+            class="input bg-white input-number"
+            :placeholder="$t('newQualityCheck.scan.sampleQtyPlaceholder')"
+          />
 
-        <input
-          v-model.number="scanDefectQty"
-          type="number"
-          class="input bg-white input-number"
-          :placeholder="$t('newQualityCheck.scan.defectQtyPlaceholder')"
-        />
+          <input
+            v-model.number="scanDefectQty"
+            type="number"
+            class="input bg-white input-number"
+            :placeholder="$t('newQualityCheck.scan.defectQtyPlaceholder')"
+          />
 
-        <select v-model="scanResult" class="input bg-white">
-          <option value="PASS">{{ $t('newQualityCheck.resultOptions.pass') }}</option>
-          <option value="HOLD">{{ $t('newQualityCheck.resultOptions.hold') }}</option>
-          <option value="FAIL">{{ $t('newQualityCheck.resultOptions.fail') }}</option>
-        </select>
+          <select v-model="scanResult" class="input bg-white">
+            <option value="PASS">{{ $t('newQualityCheck.resultOptions.pass') }}</option>
+            <option value="HOLD">{{ $t('newQualityCheck.resultOptions.hold') }}</option>
+            <option value="FAIL">{{ $t('newQualityCheck.resultOptions.fail') }}</option>
+          </select>
 
-        <button
-          @click="scanItem"
-          class="bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold"
-        >
-          {{ $t('newQualityCheck.scan.addQc') }}
-        </button>
+          <button
+            @click="scanItem"
+            class="bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold"
+          >
+            {{ $t('newQualityCheck.scan.addQc') }}
+          </button>
+        </div>
       </div>
-    </div>
+    </FormSection>
 
     <!-- QC Items -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-6">
+    <FormSection>
       <div class="flex items-center justify-between mb-5">
         <div>
           <h2 class="text-lg font-bold text-slate-800">{{ $t('newQualityCheck.itemsSection.title') }}</h2>
@@ -150,116 +142,105 @@
         </button>
       </div>
 
-      <div class="border border-slate-200 rounded-2xl overflow-hidden">
-        <div class="w-full overflow-x-auto">
-          <table class="min-w-[1350px] w-full text-sm">
-            <thead class="bg-slate-50 text-slate-500">
-              <tr>
-                <th class="table-th">{{ $t('newQualityCheck.table.sku') }}</th>
-                <th class="table-th">{{ $t('newQualityCheck.table.productName') }}</th>
-                <th class="table-th">{{ $t('newQualityCheck.table.lotNo') }}</th>
-                <th class="table-th">{{ $t('newQualityCheck.table.receivedQty') }}</th>
-                <th class="table-th">{{ $t('newQualityCheck.table.sampleQty') }}</th>
-                <th class="table-th">{{ $t('newQualityCheck.table.defectQty') }}</th>
-                <th class="table-th">{{ $t('newQualityCheck.table.defectReason') }}</th>
-                <th class="table-th">{{ $t('newQualityCheck.table.result') }}</th>
-                <th class="table-th">{{ $t('common.labels.remark') }}</th>
-                <th class="table-th text-right">{{ $t('newQualityCheck.table.action') }}</th>
-              </tr>
-            </thead>
+      <DataTable
+        :is-empty="items.length === 0"
+        :empty-text="$t('newQualityCheck.table.noItems')"
+        :colspan="10"
+        min-width="1350px"
+      >
+        <template #head>
+          <tr>
+            <th class="table-th">{{ $t('newQualityCheck.table.sku') }}</th>
+            <th class="table-th">{{ $t('newQualityCheck.table.productName') }}</th>
+            <th class="table-th">{{ $t('newQualityCheck.table.lotNo') }}</th>
+            <th class="table-th">{{ $t('newQualityCheck.table.receivedQty') }}</th>
+            <th class="table-th">{{ $t('newQualityCheck.table.sampleQty') }}</th>
+            <th class="table-th">{{ $t('newQualityCheck.table.defectQty') }}</th>
+            <th class="table-th">{{ $t('newQualityCheck.table.defectReason') }}</th>
+            <th class="table-th">{{ $t('newQualityCheck.table.result') }}</th>
+            <th class="table-th">{{ $t('common.labels.remark') }}</th>
+            <th class="table-th text-right">{{ $t('newQualityCheck.table.action') }}</th>
+          </tr>
+        </template>
 
-            <tbody>
-              <tr
-                v-for="(item, index) in items"
-                :key="item.id"
-                class="border-t hover:bg-orange-50"
-              >
-                <td class="table-td">
-                  <input v-model="item.sku" class="table-input" />
-                </td>
+        <tr
+          v-for="(item, index) in items"
+          :key="item.id"
+          class="border-t hover:bg-orange-50"
+        >
+          <td class="table-td">
+            <input v-model="item.sku" class="table-input" />
+          </td>
 
-                <td class="table-td">
-                  <input v-model="item.productName" class="table-input min-w-[220px]" />
-                </td>
+          <td class="table-td">
+            <input v-model="item.productName" class="table-input min-w-[220px]" />
+          </td>
 
-                <td class="table-td">
-                  <input v-model="item.lotNo" class="table-input" />
-                </td>
+          <td class="table-td">
+            <input v-model="item.lotNo" class="table-input" />
+          </td>
 
-                <td class="table-td">
-                  <input
-                    v-model.number="item.receivedQty"
-                    type="number"
-                    class="table-input input-number"
-                  />
-                </td>
+          <td class="table-td">
+            <input
+              v-model.number="item.receivedQty"
+              type="number"
+              class="table-input input-number"
+            />
+          </td>
 
-                <td class="table-td">
-                  <input
-                    v-model.number="item.sampleQty"
-                    type="number"
-                    class="table-input input-number"
-                  />
-                </td>
+          <td class="table-td">
+            <input
+              v-model.number="item.sampleQty"
+              type="number"
+              class="table-input input-number"
+            />
+          </td>
 
-                <td class="table-td">
-                  <input
-                    v-model.number="item.defectQty"
-                    type="number"
-                    class="table-input input-number"
-                  />
-                </td>
+          <td class="table-td">
+            <input
+              v-model.number="item.defectQty"
+              type="number"
+              class="table-input input-number"
+            />
+          </td>
 
-                <td class="table-td">
-                  <select v-model="item.defectReason" class="table-input min-w-[180px]">
-                    <option value="">{{ $t('newQualityCheck.defectReasonOptions.none') }}</option>
-                    <option value="DAMAGED">{{ $t('newQualityCheck.defectReasonOptions.damaged') }}</option>
-                    <option value="WRONG_ITEM">{{ $t('newQualityCheck.defectReasonOptions.wrongItem') }}</option>
-                    <option value="EXPIRED">{{ $t('newQualityCheck.defectReasonOptions.expired') }}</option>
-                    <option value="SHORTAGE">{{ $t('newQualityCheck.defectReasonOptions.shortage') }}</option>
-                    <option value="PACKAGING_ISSUE">{{ $t('newQualityCheck.defectReasonOptions.packagingIssue') }}</option>
-                  </select>
-                </td>
+          <td class="table-td">
+            <select v-model="item.defectReason" class="table-input min-w-[180px]">
+              <option value="">{{ $t('newQualityCheck.defectReasonOptions.none') }}</option>
+              <option value="DAMAGED">{{ $t('newQualityCheck.defectReasonOptions.damaged') }}</option>
+              <option value="WRONG_ITEM">{{ $t('newQualityCheck.defectReasonOptions.wrongItem') }}</option>
+              <option value="EXPIRED">{{ $t('newQualityCheck.defectReasonOptions.expired') }}</option>
+              <option value="SHORTAGE">{{ $t('newQualityCheck.defectReasonOptions.shortage') }}</option>
+              <option value="PACKAGING_ISSUE">{{ $t('newQualityCheck.defectReasonOptions.packagingIssue') }}</option>
+            </select>
+          </td>
 
-                <td class="table-td">
-                  <select v-model="item.result" class="table-input">
-                    <option value="PASS">{{ $t('newQualityCheck.resultOptions.pass') }}</option>
-                    <option value="HOLD">{{ $t('newQualityCheck.resultOptions.hold') }}</option>
-                    <option value="FAIL">{{ $t('newQualityCheck.resultOptions.fail') }}</option>
-                  </select>
-                </td>
+          <td class="table-td">
+            <select v-model="item.result" class="table-input">
+              <option value="PASS">{{ $t('newQualityCheck.resultOptions.pass') }}</option>
+              <option value="HOLD">{{ $t('newQualityCheck.resultOptions.hold') }}</option>
+              <option value="FAIL">{{ $t('newQualityCheck.resultOptions.fail') }}</option>
+            </select>
+          </td>
 
-                <td class="table-td">
-                  <input v-model="item.remark" class="table-input min-w-[220px]" />
-                </td>
+          <td class="table-td">
+            <input v-model="item.remark" class="table-input min-w-[220px]" />
+          </td>
 
-                <td class="table-td text-right">
-                  <button
-                    @click="removeItem(index)"
-                    class="text-red-600 hover:text-red-700 font-semibold"
-                  >
-                    {{ $t('common.buttons.remove') }}
-                  </button>
-                </td>
-              </tr>
-
-              <tr v-if="items.length === 0">
-                <td colspan="10" class="text-center py-10 text-slate-400">
-                  {{ $t('newQualityCheck.table.noItems') }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+          <td class="table-td text-right">
+            <button
+              @click="removeItem(index)"
+              class="text-red-600 hover:text-red-700 font-semibold"
+            >
+              {{ $t('common.buttons.remove') }}
+            </button>
+          </td>
+        </tr>
+      </DataTable>
+    </FormSection>
 
     <!-- Summary -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-6">
-      <h2 class="text-lg font-bold text-slate-800 mb-5">
-        {{ $t('newQualityCheck.summary.title') }}
-      </h2>
-
+    <FormSection :title="$t('newQualityCheck.summary.title')">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
         <div class="summary-card">
           <p class="summary-label">{{ $t('newQualityCheck.summary.totalLines') }}</p>
@@ -285,10 +266,10 @@
           </h2>
         </div>
       </div>
-    </div>
+    </FormSection>
 
     <!-- Action Bar -->
-    <div class="bg-white border border-slate-200 rounded-2xl p-6">
+    <FormSection>
       <div class="flex flex-col md:flex-row justify-end gap-3">
         <button
           @click="saveDraft"
@@ -298,19 +279,37 @@
         </button>
 
         <button
-          @click="submitQc"
+          @click="confirmQcClick"
           class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold"
         >
           {{ $t('newQualityCheck.actions.confirmQc') }}
         </button>
       </div>
-    </div>
+    </FormSection>
+
+    <ConfirmDialog
+      :open="showSubmitConfirm"
+      :title="$t('newQualityCheck.actions.confirmQc')"
+      :message="$t('newQualityCheck.messages.confirmSubmitDialog')"
+      :confirm-label="$t('newQualityCheck.actions.confirmQc')"
+      :cancel-label="$t('common.buttons.cancel')"
+      @cancel="showSubmitConfirm = false"
+      @confirm="submitQc"
+    />
   </div>
 </template>
 
 <script>
+import { showToast } from '../../services/toast'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FormSection from '../../components/ui/FormSection.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
+
 export default {
   name: 'NewQualityCheckView',
+
+  components: { PageHeader, FormSection, DataTable, ConfirmDialog },
 
   data() {
     return {
@@ -318,6 +317,7 @@ export default {
       scanSampleQty: 1,
       scanDefectQty: 0,
       scanResult: 'PASS',
+      showSubmitConfirm: false,
 
       form: {
         receivingNo: '',
@@ -385,7 +385,7 @@ export default {
 
     scanItem() {
       if (!this.scanText) {
-        alert(this.$t('newQualityCheck.messages.barcodeRequired'))
+        showToast(this.$t('newQualityCheck.messages.barcodeRequired'), 'error')
         return
       }
 
@@ -423,22 +423,25 @@ export default {
     },
 
     saveDraft() {
-      alert(this.$t('newQualityCheck.messages.draftSaved'))
+      showToast(this.$t('newQualityCheck.messages.draftSaved'), 'success')
     },
 
-    submitQc() {
+    // Validates the form (same rules as before, now via toast instead of
+    // alert) and, if it passes, opens the confirmation dialog. The actual
+    // confirm step runs from submitQc() once the dialog is confirmed.
+    confirmQcClick() {
       if (!this.form.receivingNo) {
-        alert(this.$t('newQualityCheck.messages.receivingNoRequired'))
+        showToast(this.$t('newQualityCheck.messages.receivingNoRequired'), 'error')
         return
       }
 
       if (!this.form.warehouse) {
-        alert(this.$t('newQualityCheck.messages.warehouseRequired'))
+        showToast(this.$t('newQualityCheck.messages.warehouseRequired'), 'error')
         return
       }
 
       if (this.items.length === 0) {
-        alert(this.$t('newQualityCheck.messages.atLeastOneItem'))
+        showToast(this.$t('newQualityCheck.messages.atLeastOneItem'), 'error')
         return
       }
 
@@ -447,11 +450,16 @@ export default {
       })
 
       if (invalidFailItem) {
-        alert(this.$t('newQualityCheck.messages.defectReasonRequiredForFail'))
+        showToast(this.$t('newQualityCheck.messages.defectReasonRequiredForFail'), 'error')
         return
       }
 
-      alert(this.$t('newQualityCheck.messages.qcConfirmed'))
+      this.showSubmitConfirm = true
+    },
+
+    submitQc() {
+      this.showSubmitConfirm = false
+      showToast(this.$t('newQualityCheck.messages.qcConfirmed'), 'success')
       this.$router.push('/inbound/quality-check')
     }
   }

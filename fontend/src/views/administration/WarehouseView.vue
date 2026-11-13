@@ -1,21 +1,16 @@
 <template>
   <div class="space-y-6">
     <!-- Page Header -->
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">{{ $t('warehouseSetup.title') }}</h1>
-        <p class="text-slate-500">
-          {{ $t('warehouseSetup.subtitle') }}
-        </p>
-      </div>
-
-      <button
-        @click="openWarehouse(null)"
-        class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
-      >
-        {{ $t('warehouseSetup.newWarehouseButton') }}
-      </button>
-    </div>
+    <PageHeader :title="$t('warehouseSetup.title')" :subtitle="$t('warehouseSetup.subtitle')">
+      <template #actions>
+        <button
+          @click="openWarehouse(null)"
+          class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
+        >
+          {{ $t('warehouseSetup.newWarehouseButton') }}
+        </button>
+      </template>
+    </PageHeader>
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
@@ -41,128 +36,121 @@
     </div>
 
     <!-- Filter -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-5">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <input
-          v-model="filters.keyword"
-          type="text"
-          :placeholder="$t('warehouseSetup.filters.searchPlaceholder')"
-          class="input"
-        />
+    <FilterBar :cols="4">
+      <input
+        v-model="filters.keyword"
+        type="text"
+        :placeholder="$t('warehouseSetup.filters.searchPlaceholder')"
+        class="input"
+      />
 
-        <select v-model="filters.type" class="input">
-          <option value="">{{ $t('warehouseSetup.filters.allTypes') }}</option>
-          <option value="Distribution Center">{{ $t('warehouseSetup.warehouseTypes.distributionCenter') }}</option>
-          <option value="Factory Warehouse">{{ $t('warehouseSetup.warehouseTypes.factoryWarehouse') }}</option>
-          <option value="Transit Warehouse">{{ $t('warehouseSetup.warehouseTypes.transitWarehouse') }}</option>
-        </select>
+      <select v-model="filters.type" class="input">
+        <option value="">{{ $t('warehouseSetup.filters.allTypes') }}</option>
+        <option value="Distribution Center">{{ $t('warehouseSetup.warehouseTypes.distributionCenter') }}</option>
+        <option value="Factory Warehouse">{{ $t('warehouseSetup.warehouseTypes.factoryWarehouse') }}</option>
+        <option value="Transit Warehouse">{{ $t('warehouseSetup.warehouseTypes.transitWarehouse') }}</option>
+      </select>
 
-        <select v-model="filters.status" class="input">
-          <option value="">{{ $t('warehouseSetup.filters.allStatus') }}</option>
-          <option value="ACTIVE">{{ $t('common.status.active') }}</option>
-          <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
-        </select>
+      <select v-model="filters.status" class="input">
+        <option value="">{{ $t('warehouseSetup.filters.allStatus') }}</option>
+        <option value="ACTIVE">{{ $t('common.status.active') }}</option>
+        <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
+      </select>
 
-        <button
-          @click="clearFilter"
-          class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
-        >
-          {{ $t('common.buttons.clearFilter') }}
-        </button>
-      </div>
-    </div>
+      <button
+        @click="clearFilter"
+        class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
+      >
+        {{ $t('common.buttons.clearFilter') }}
+      </button>
+    </FilterBar>
 
     <!-- Warehouse Table -->
     <div v-if="listError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
       {{ listError }}
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="w-full overflow-x-auto">
-        <table class="min-w-[1150px] w-full text-sm">
-          <thead class="bg-slate-50 text-slate-500">
-            <tr>
-              <th class="table-th">{{ $t('warehouseSetup.table.code') }}</th>
-              <th class="table-th">{{ $t('warehouseSetup.table.name') }}</th>
-              <th class="table-th">{{ $t('warehouseSetup.table.type') }}</th>
-              <th class="table-th">{{ $t('warehouseSetup.table.address') }}</th>
-              <th class="table-th">{{ $t('warehouseSetup.table.zones') }}</th>
-              <th class="table-th">{{ $t('warehouseSetup.table.locations') }}</th>
-              <th class="table-th">{{ $t('warehouseSetup.table.utilization') }}</th>
-              <th class="table-th">{{ $t('warehouseSetup.table.status') }}</th>
-              <th class="table-th text-right">{{ $t('warehouseSetup.table.action') }}</th>
-            </tr>
-          </thead>
+    <DataTable
+      :loading="loading"
+      :is-empty="warehouses.length === 0"
+      :loading-text="$t('warehouseSetup.loadingWarehouses')"
+      :empty-text="$t('warehouseSetup.noWarehouses')"
+      :colspan="9"
+      min-width="1150px"
+    >
+      <template #head>
+        <tr>
+          <th class="table-th">{{ $t('warehouseSetup.table.code') }}</th>
+          <th class="table-th">{{ $t('warehouseSetup.table.name') }}</th>
+          <th class="table-th">{{ $t('warehouseSetup.table.type') }}</th>
+          <th class="table-th">{{ $t('warehouseSetup.table.address') }}</th>
+          <th class="table-th">{{ $t('warehouseSetup.table.zones') }}</th>
+          <th class="table-th">{{ $t('warehouseSetup.table.locations') }}</th>
+          <th class="table-th">{{ $t('warehouseSetup.table.utilization') }}</th>
+          <th class="table-th">{{ $t('warehouseSetup.table.status') }}</th>
+          <th class="table-th text-right">{{ $t('warehouseSetup.table.action') }}</th>
+        </tr>
+      </template>
 
-          <tbody>
-            <tr v-if="loading">
-              <td class="table-td" colspan="9">{{ $t('warehouseSetup.loadingWarehouses') }}</td>
-            </tr>
-            <tr v-else-if="warehouses.length === 0">
-              <td class="table-td" colspan="9">{{ $t('warehouseSetup.noWarehouses') }}</td>
-            </tr>
-            <tr
-              v-for="warehouse in warehouses"
-              :key="warehouse.id"
-              class="border-t hover:bg-orange-50"
-            >
-              <td class="table-td font-semibold text-slate-800">
-                {{ warehouse.code }}
-              </td>
+      <tr
+        v-for="warehouse in warehouses"
+        :key="warehouse.id"
+        class="border-t hover:bg-orange-50"
+      >
+        <td class="table-td font-semibold text-slate-800">
+          {{ warehouse.code }}
+        </td>
 
-              <td class="table-td">
-                {{ warehouse.name }}
-              </td>
+        <td class="table-td">
+          {{ warehouse.name }}
+        </td>
 
-              <td class="table-td">
-                {{ warehouse.type }}
-              </td>
+        <td class="table-td">
+          {{ warehouse.type }}
+        </td>
 
-              <td class="table-td">
-                {{ warehouse.address }}
-              </td>
+        <td class="table-td">
+          {{ warehouse.address }}
+        </td>
 
-              <td class="table-td">
-                {{ warehouse.zones }}
-              </td>
+        <td class="table-td">
+          {{ warehouse.zones }}
+        </td>
 
-              <td class="table-td">
-                {{ warehouse.locations }}
-              </td>
+        <td class="table-td">
+          {{ warehouse.locations }}
+        </td>
 
-              <td class="table-td">
-                <div class="w-32">
-                  <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-2 bg-orange-600 rounded-full"
-                      :style="{ width: (warehouse.utilization ?? 0) + '%' }"
-                    ></div>
-                  </div>
-                  <p class="text-xs text-slate-500 mt-1">
-                    {{ warehouse.utilization ?? 0 }}%
-                  </p>
-                </div>
-              </td>
+        <td class="table-td">
+          <div class="w-32">
+            <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                class="h-2 bg-orange-600 rounded-full"
+                :style="{ width: (warehouse.utilization ?? 0) + '%' }"
+              ></div>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">
+              {{ warehouse.utilization ?? 0 }}%
+            </p>
+          </div>
+        </td>
 
-              <td class="table-td">
-                <span :class="getStatusClass(warehouse.status)">
-                  {{ statusLabel(warehouse.status) }}
-                </span>
-              </td>
+        <td class="table-td">
+          <StatusBadge :tone="statusTone(warehouse.status)">
+            {{ statusLabel(warehouse.status) }}
+          </StatusBadge>
+        </td>
 
-              <td class="table-td text-right">
-                <button
-                  @click="openWarehouse(warehouse)"
-                  class="text-orange-600 hover:text-orange-700 font-semibold"
-                >
-                  {{ $t('warehouseSetup.manageButton') }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+        <td class="table-td text-right">
+          <button
+            @click="openWarehouse(warehouse)"
+            class="text-orange-600 hover:text-orange-700 font-semibold"
+          >
+            {{ $t('warehouseSetup.manageButton') }}
+          </button>
+        </td>
+      </tr>
+    </DataTable>
 
     <!-- Warehouse Drawer -->
     <div
@@ -427,13 +415,20 @@ import {
   listZones, createZone, updateZone,
   listLocations
 } from '../../services/warehouses'
+import { showToast } from '../../services/toast.js'
 import i18n from '../../i18n'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FilterBar from '../../components/ui/FilterBar.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 
 let searchDebounce = null
 let zoneTempCounter = 0
 
 export default {
   name: 'WarehouseView',
+
+  components: { PageHeader, FilterBar, DataTable, StatusBadge },
 
   data() {
     return {
@@ -683,13 +678,13 @@ export default {
     },
 
     generateLocations() {
-      alert(this.$t('warehouseSetup.messages.binsGenerated'))
+      showToast(this.$t('warehouseSetup.messages.binsGenerated'), 'success')
     },
 
-    getStatusClass(status) {
-      if (status === 'ACTIVE') return 'badge-green'
-      if (status === 'INACTIVE') return 'badge-gray'
-      return 'badge-gray'
+    statusTone(status) {
+      if (status === 'ACTIVE') return 'green'
+      if (status === 'INACTIVE') return 'gray'
+      return 'gray'
     },
 
     statusLabel(status) {
@@ -790,23 +785,5 @@ export default {
 .bin-button:hover {
   background: #ea580c;
   color: white;
-}
-
-.badge-gray {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-green {
-  background: #dcfce7;
-  color: #16a34a;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
 }
 </style>

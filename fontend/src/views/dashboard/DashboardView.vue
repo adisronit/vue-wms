@@ -1,13 +1,6 @@
 <template>
   <div>
-    <div class="mb-6">
-      <h1 class="text-2xl font-bold text-slate-800">
-        {{ $t('dashboard.title') }}
-      </h1>
-      <p class="text-slate-500">
-        {{ $t('dashboard.subtitle') }}
-      </p>
-    </div>
+    <PageHeader :title="$t('dashboard.title')" :subtitle="$t('dashboard.subtitle')" />
 
     <p v-if="loadError" class="text-red-600 mb-4">{{ loadError }}</p>
 
@@ -62,7 +55,7 @@
                 <td class="py-3 font-medium">{{ receipt.receipt_no }}</td>
                 <td class="py-3">{{ receipt.vendor || '-' }}</td>
                 <td class="py-3">
-                  <span :class="statusBadgeClass(receipt.status)">{{ statusLabel(receipt.status) }}</span>
+                  <StatusBadge :tone="statusTone(receipt.status)">{{ statusLabel(receipt.status) }}</StatusBadge>
                 </td>
                 <td class="py-3">{{ formatDate(receipt.receiving_date) }}</td>
               </tr>
@@ -78,19 +71,19 @@
 
         <div class="space-y-3">
           <button class="quick-button" @click="$router.push('/inbound/receiving/new')">
-            📥 {{ $t('dashboard.quickAction.startReceiving') }}
+            {{ $t('dashboard.quickAction.startReceiving') }}
           </button>
 
           <button class="quick-button" @click="$router.push('/inventory/stock-inquiry')">
-            📦 {{ $t('dashboard.quickAction.stockInquiry') }}
+            {{ $t('dashboard.quickAction.stockInquiry') }}
           </button>
 
           <button class="quick-button" @click="$router.push('/outbound/picking')">
-            📤 {{ $t('dashboard.quickAction.createPickingTask') }}
+            {{ $t('dashboard.quickAction.createPickingTask') }}
           </button>
 
           <button class="quick-button" @click="$router.push('/inventory/stock-adjustment')">
-            🔄 {{ $t('dashboard.quickAction.stockAdjustment') }}
+            {{ $t('dashboard.quickAction.stockAdjustment') }}
           </button>
         </div>
       </div>
@@ -101,6 +94,8 @@
 <script>
 import { getDashboardSummary } from '../../services/dashboard'
 import i18n from '../../i18n'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 
 function statusText(status) {
   const t = i18n.global.t
@@ -116,6 +111,7 @@ function statusText(status) {
 
 export default {
   name: 'DashboardPage',
+  components: { PageHeader, StatusBadge },
   data() {
     return {
       loading: true,
@@ -155,10 +151,10 @@ export default {
     statusLabel(status) {
       return statusText(status)
     },
-    statusBadgeClass(status) {
-      if (status === 'PARTIALLY_RECEIVED') return 'badge-orange'
-      if (status === 'COMPLETED') return 'badge-green'
-      return 'badge-gray'
+    statusTone(status) {
+      if (status === 'PARTIALLY_RECEIVED') return 'orange'
+      if (status === 'COMPLETED') return 'green'
+      return 'gray'
     }
   }
 }
@@ -190,33 +186,6 @@ export default {
   font-size: 13px;
   margin-top: 6px;
   font-weight: 600;
-}
-
-.badge-orange {
-  background: #ffedd5;
-  color: #ea580c;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-green {
-  background: #dcfce7;
-  color: #16a34a;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-gray {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
 }
 
 .quick-button {

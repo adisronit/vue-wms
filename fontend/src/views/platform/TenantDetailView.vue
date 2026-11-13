@@ -16,16 +16,11 @@
 
     <template v-else-if="tenant">
       <div class="bg-white rounded-2xl border border-slate-200 p-6">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 class="text-2xl font-bold text-slate-800">{{ tenant.name }}</h1>
-            <p class="text-slate-500">{{ tenant.slug }}</p>
-          </div>
-
-          <div class="flex items-center gap-3">
-            <span :class="statusClass(tenant.status)">
+        <PageHeader :title="tenant.name" :subtitle="tenant.slug">
+          <template #actions>
+            <StatusBadge :tone="statusTone(tenant.status)">
               {{ $t('platformAdmin.status.' + tenant.status.toLowerCase()) }}
-            </span>
+            </StatusBadge>
             <button
               @click="showForm = true"
               class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl font-semibold"
@@ -38,8 +33,8 @@
             >
               {{ $t('platformAdmin.detail.changeStatusButton') }}
             </button>
-          </div>
-        </div>
+          </template>
+        </PageHeader>
       </div>
 
       <div class="bg-white rounded-2xl border border-slate-200 p-2 flex gap-2 w-fit">
@@ -60,7 +55,11 @@
 
           <div>
             <p class="detail-label">{{ $t('platformAdmin.detail.fields.status') }}</p>
-            <p class="detail-value">{{ $t('platformAdmin.status.' + tenant.status.toLowerCase()) }}</p>
+            <p class="detail-value">
+              <StatusBadge :tone="statusTone(tenant.status)">
+                {{ $t('platformAdmin.status.' + tenant.status.toLowerCase()) }}
+              </StatusBadge>
+            </p>
           </div>
 
           <div>
@@ -109,11 +108,13 @@ import { getTenant } from '../../services/platformTenants'
 import TenantFormDrawer from './TenantFormDrawer.vue'
 import TenantStatusModal from './TenantStatusModal.vue'
 import TenantUserList from './TenantUserList.vue'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 
 export default {
   name: 'TenantDetailView',
 
-  components: { TenantFormDrawer, TenantStatusModal, TenantUserList },
+  components: { TenantFormDrawer, TenantStatusModal, TenantUserList, PageHeader, StatusBadge },
 
   data() {
     return {
@@ -158,12 +159,12 @@ export default {
       this.tenant = updatedTenant
     },
 
-    statusClass(status) {
-      if (status === 'ACTIVE') return 'badge badge-green'
-      if (status === 'TRIAL') return 'badge badge-orange'
-      if (status === 'SUSPENDED') return 'badge badge-gray'
-      if (status === 'CANCELLED') return 'badge badge-red'
-      return 'badge badge-gray'
+    statusTone(status) {
+      if (status === 'ACTIVE') return 'green'
+      if (status === 'TRIAL') return 'orange'
+      if (status === 'SUSPENDED') return 'gray'
+      if (status === 'CANCELLED') return 'red'
+      return 'gray'
     },
 
     tabClass(tab) {
@@ -189,32 +190,5 @@ export default {
   font-size: 15px;
   color: #334155;
   font-weight: 600;
-}
-
-.badge {
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-gray {
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.badge-green {
-  background: #dcfce7;
-  color: #16a34a;
-}
-
-.badge-orange {
-  background: #ffedd5;
-  color: #ea580c;
-}
-
-.badge-red {
-  background: #fee2e2;
-  color: #dc2626;
 }
 </style>

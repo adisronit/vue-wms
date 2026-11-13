@@ -849,49 +849,4 @@ export default {
   font-weight: 700;
   margin-top: 4px;
 }
-
-.badge-gray {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-orange {
-  background: #ffedd5;
-  color: #ea580c;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-blue {
-  background: #dbeafe;
-  color: #2563eb;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-green {
-  background: #dcfce7;
-  color: #16a34a;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-red {
-  background: #fee2e2;
-  color: #dc2626;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
 </style>

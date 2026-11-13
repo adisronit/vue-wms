@@ -1,30 +1,18 @@
 <template>
   <div class="space-y-6">
-    <!-- Page Header -->
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">
-          {{ $t('newReceiving.title') }}
-        </h1>
-        <p class="text-slate-500">
-          {{ $t('newReceiving.subtitle') }}
-        </p>
-      </div>
-
-      <button
-        @click="$router.push('/inbound/receiving')"
-        class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold"
-      >
-        {{ $t('newReceiving.backButton') }}
-      </button>
-    </div>
+    <PageHeader :title="$t('newReceiving.title')" :subtitle="$t('newReceiving.subtitle')">
+      <template #actions>
+        <button
+          @click="$router.push('/inbound/receiving')"
+          class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold"
+        >
+          {{ $t('newReceiving.backButton') }}
+        </button>
+      </template>
+    </PageHeader>
 
     <!-- Document Header -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-6">
-      <h2 class="text-lg font-bold text-slate-800 mb-5">
-        {{ $t('newReceiving.documentInfo') }}
-      </h2>
-
+    <FormSection :title="$t('newReceiving.documentInfo')">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label class="label">{{ $t('newReceiving.fields.receivingType') }}</label>
@@ -99,10 +87,10 @@
           :placeholder="$t('newReceiving.fields.remarkPlaceholder')"
         ></textarea>
       </div>
-    </div>
+    </FormSection>
 
     <!-- Scan / Add Item -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-6">
+    <FormSection>
       <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-5">
         <div>
           <h2 class="text-lg font-bold text-slate-800">
@@ -157,108 +145,97 @@
       </div>
 
       <!-- Item Table -->
-      <div class="border border-slate-200 rounded-2xl overflow-hidden">
-        <div class="w-full overflow-x-auto">
-          <table class="min-w-[1200px] w-full text-sm">
-            <thead class="bg-slate-50 text-slate-500">
-              <tr>
-                <th class="table-th">{{ $t('newReceiving.table.sku') }}</th>
-                <th class="table-th">{{ $t('newReceiving.table.productName') }}</th>
-                <th class="table-th">{{ $t('newReceiving.table.barcode') }}</th>
-                <th class="table-th">{{ $t('newReceiving.table.expectedQty') }}</th>
-                <th class="table-th">{{ $t('newReceiving.table.receiveQty') }}</th>
-                <th class="table-th">{{ $t('newReceiving.table.uom') }}</th>
-                <th class="table-th">{{ $t('newReceiving.table.lotNo') }}</th>
-                <th class="table-th">{{ $t('newReceiving.table.expiryDate') }}</th>
-                <th class="table-th">{{ $t('newReceiving.table.location') }}</th>
-                <th class="table-th text-right">{{ $t('newReceiving.table.action') }}</th>
-              </tr>
-            </thead>
+      <DataTable
+        :is-empty="items.length === 0"
+        :empty-text="$t('newReceiving.table.noItems')"
+        :colspan="10"
+        min-width="1200px"
+      >
+        <template #head>
+          <tr>
+            <th class="table-th">{{ $t('newReceiving.table.sku') }}</th>
+            <th class="table-th">{{ $t('newReceiving.table.productName') }}</th>
+            <th class="table-th">{{ $t('newReceiving.table.barcode') }}</th>
+            <th class="table-th">{{ $t('newReceiving.table.expectedQty') }}</th>
+            <th class="table-th">{{ $t('newReceiving.table.receiveQty') }}</th>
+            <th class="table-th">{{ $t('newReceiving.table.uom') }}</th>
+            <th class="table-th">{{ $t('newReceiving.table.lotNo') }}</th>
+            <th class="table-th">{{ $t('newReceiving.table.expiryDate') }}</th>
+            <th class="table-th">{{ $t('newReceiving.table.location') }}</th>
+            <th class="table-th text-right">{{ $t('newReceiving.table.action') }}</th>
+          </tr>
+        </template>
 
-            <tbody>
-              <tr
-                v-for="(item, index) in items"
-                :key="item.id"
-                class="border-t hover:bg-orange-50"
-              >
-                <td class="table-td">
-                  <input
-                    v-model="item.sku"
-                    class="table-input"
-                    :class="{ 'border-red-400': item.sku && !item.productId }"
-                    :placeholder="$t('newReceiving.table.skuPlaceholder')"
-                    @blur="lookupItemProduct(item)"
-                    @keyup.enter="lookupItemProduct(item)"
-                  />
-                </td>
+        <tr
+          v-for="(item, index) in items"
+          :key="item.id"
+          class="border-t hover:bg-orange-50"
+        >
+          <td class="table-td">
+            <input
+              v-model="item.sku"
+              class="table-input"
+              :class="{ 'border-red-400': item.sku && !item.productId }"
+              :placeholder="$t('newReceiving.table.skuPlaceholder')"
+              @blur="lookupItemProduct(item)"
+              @keyup.enter="lookupItemProduct(item)"
+            />
+          </td>
 
-                <td class="table-td">
-                  <input v-model="item.productName" class="table-input" readonly />
-                </td>
+          <td class="table-td">
+            <input v-model="item.productName" class="table-input" readonly />
+          </td>
 
-                <td class="table-td">
-                  <input v-model="item.barcode" class="table-input" readonly />
-                </td>
+          <td class="table-td">
+            <input v-model="item.barcode" class="table-input" readonly />
+          </td>
 
-                <td class="table-td">
-                  <input v-model.number="item.expectedQty" type="number" class="table-input input-number" />
-                </td>
+          <td class="table-td">
+            <input v-model.number="item.expectedQty" type="number" class="table-input input-number" />
+          </td>
 
-                <td class="table-td">
-                  <input v-model.number="item.receiveQty" type="number" class="table-input input-number" />
-                </td>
+          <td class="table-td">
+            <input v-model.number="item.receiveQty" type="number" class="table-input input-number" />
+          </td>
 
-                <td class="table-td">
-                  <select v-model="item.uom" class="table-input">
-                    <option value="PCS">PCS</option>
-                    <option value="BOX">BOX</option>
-                    <option value="ROLL">ROLL</option>
-                    <option value="KG">KG</option>
-                  </select>
-                </td>
+          <td class="table-td">
+            <select v-model="item.uom" class="table-input">
+              <option value="PCS">PCS</option>
+              <option value="BOX">BOX</option>
+              <option value="ROLL">ROLL</option>
+              <option value="KG">KG</option>
+            </select>
+          </td>
 
-                <td class="table-td">
-                  <input v-model="item.lotNo" class="table-input" />
-                </td>
+          <td class="table-td">
+            <input v-model="item.lotNo" class="table-input" />
+          </td>
 
-                <td class="table-td">
-                  <input v-model="item.expiryDate" type="date" class="table-input" />
-                </td>
+          <td class="table-td">
+            <input v-model="item.expiryDate" type="date" class="table-input" />
+          </td>
 
-                <td class="table-td">
-                  <select v-model="item.locationId" class="table-input">
-                    <option value="">{{ $t('newReceiving.scan.selectLocation') }}</option>
-                    <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
-                  </select>
-                </td>
+          <td class="table-td">
+            <select v-model="item.locationId" class="table-input">
+              <option value="">{{ $t('newReceiving.scan.selectLocation') }}</option>
+              <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
+            </select>
+          </td>
 
-                <td class="table-td text-right">
-                  <button
-                    @click="removeItem(index)"
-                    class="text-red-600 hover:text-red-700 font-semibold"
-                  >
-                    {{ $t('newReceiving.table.remove') }}
-                  </button>
-                </td>
-              </tr>
-
-              <tr v-if="items.length === 0">
-                <td colspan="10" class="text-center py-10 text-slate-400">
-                  {{ $t('newReceiving.table.noItems') }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+          <td class="table-td text-right">
+            <button
+              @click="removeItem(index)"
+              class="text-red-600 hover:text-red-700 font-semibold"
+            >
+              {{ $t('newReceiving.table.remove') }}
+            </button>
+          </td>
+        </tr>
+      </DataTable>
+    </FormSection>
 
     <!-- Summary -->
-    <div class="bg-white rounded-2xl border border-slate-200 p-6">
-      <h2 class="text-lg font-bold text-slate-800 mb-5">
-        {{ $t('newReceiving.summary.title') }}
-      </h2>
-
+    <FormSection :title="$t('newReceiving.summary.title')">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
         <div class="summary-card">
           <p class="summary-label">{{ $t('newReceiving.summary.totalLines') }}</p>
@@ -285,10 +262,10 @@
           </h2>
         </div>
       </div>
-    </div>
+    </FormSection>
 
     <!-- Action Bar -->
-    <div class="bg-white border border-slate-200 rounded-2xl p-6">
+    <FormSection>
       <div class="flex flex-col md:flex-row justify-end gap-3">
         <button
           @click="saveDraft"
@@ -300,17 +277,30 @@
 
         <button
           v-if="canConfirm"
-          @click="submitReceiving"
+          @click="confirmReceivingClick"
           :disabled="submitting"
           class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold disabled:opacity-60"
         >
-          {{ submitting ? $t('newReceiving.actions.submitting') : $t('newReceiving.actions.confirmReceiving') }}
+          {{ $t('newReceiving.actions.confirmReceiving') }}
         </button>
         <p v-else class="text-sm text-slate-500 self-center">
           {{ $t('newReceiving.actions.viewOnlyNote') }}
         </p>
       </div>
-    </div>
+    </FormSection>
+
+    <ConfirmDialog
+      :open="showSubmitConfirm"
+      :title="$t('newReceiving.actions.confirmReceiving')"
+      :message="$t('newReceiving.messages.confirmSubmitDialog')"
+      :confirm-label="$t('newReceiving.actions.confirmReceiving')"
+      :cancel-label="$t('common.buttons.cancel')"
+      :loading-label="$t('newReceiving.actions.submitting')"
+      :loading="submitting"
+      :error-message="submitError"
+      @cancel="showSubmitConfirm = false"
+      @confirm="submitReceiving"
+    />
   </div>
 </template>
 
@@ -319,6 +309,11 @@ import { listWarehouses, listZones, listLocations } from '../../services/warehou
 import { listProducts } from '../../services/products'
 import { createReceipt, confirmReceipt, newIdempotencyKey } from '../../services/receiving'
 import { hasPermission } from '../../services/auth'
+import { showToast } from '../../services/toast'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FormSection from '../../components/ui/FormSection.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
 
 function todayDate() {
   return new Date().toISOString().slice(0, 10)
@@ -334,6 +329,8 @@ function toApiDate(dateStr) {
 export default {
   name: 'NewReceivingView',
 
+  components: { PageHeader, FormSection, DataTable, ConfirmDialog },
+
   data() {
     return {
       scanText: '',
@@ -346,6 +343,8 @@ export default {
       formError: '',
       submitting: false,
       scanning: false,
+      showSubmitConfirm: false,
+      submitError: '',
 
       form: {
         receivingType: 'PO',
@@ -564,7 +563,7 @@ export default {
       this.formError = ''
       try {
         await createReceipt(this.buildCreatePayload('DRAFT'))
-        alert(this.$t('newReceiving.messages.draftSaved'))
+        showToast(this.$t('newReceiving.messages.draftSaved'), 'success')
         this.$router.push('/inbound/receiving')
       } catch (err) {
         this.formError = err.message
@@ -573,15 +572,24 @@ export default {
       }
     },
 
-    async submitReceiving() {
+    // Validates the form up front (same rule as before) and, if it
+    // passes, opens the confirmation dialog instead of submitting
+    // immediately — the actual submit logic is unchanged and now runs
+    // from submitReceiving() when the dialog is confirmed.
+    confirmReceivingClick() {
       const error = this.validateForm({ requireReceiveQty: true })
       if (error) {
         this.formError = error
         return
       }
-
-      this.submitting = true
       this.formError = ''
+      this.submitError = ''
+      this.showSubmitConfirm = true
+    },
+
+    async submitReceiving() {
+      this.submitting = true
+      this.submitError = ''
       try {
         const created = await createReceipt(this.buildCreatePayload('WAITING'))
 
@@ -604,10 +612,11 @@ export default {
           items: confirmItems
         })
 
-        alert(this.$t('newReceiving.messages.receivingConfirmed'))
+        this.showSubmitConfirm = false
+        showToast(this.$t('newReceiving.messages.receivingConfirmed'), 'success')
         this.$router.push('/inbound/receiving')
       } catch (err) {
-        this.formError = err.message
+        this.submitError = err.message
       } finally {
         this.submitting = false
       }

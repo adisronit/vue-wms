@@ -22,102 +22,98 @@
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-5">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <input
-          v-model="filters.search"
-          type="text"
-          :placeholder="$t('platformAdmin.tenantUsers.filters.searchPlaceholder')"
-          class="input md:col-span-2"
-        />
+    <FilterBar :cols="4">
+      <input
+        v-model="filters.search"
+        type="text"
+        :placeholder="$t('platformAdmin.tenantUsers.filters.searchPlaceholder')"
+        class="input md:col-span-2"
+      />
 
-        <select v-model="filters.role" class="input">
-          <option value="">{{ $t('platformAdmin.tenantUsers.filters.allRoles') }}</option>
-          <option v-for="code in TENANT_ROLE_CODES" :key="code" :value="code">
-            {{ $t('platformAdmin.tenantUsers.roles.' + roleKey(code)) }}
-          </option>
-        </select>
+      <select v-model="filters.role" class="input">
+        <option value="">{{ $t('platformAdmin.tenantUsers.filters.allRoles') }}</option>
+        <option v-for="code in TENANT_ROLE_CODES" :key="code" :value="code">
+          {{ $t('platformAdmin.tenantUsers.roles.' + roleKey(code)) }}
+        </option>
+      </select>
 
-        <select v-model="filters.status" class="input">
-          <option value="">{{ $t('platformAdmin.tenantUsers.filters.allStatus') }}</option>
-          <option v-for="code in MEMBERSHIP_STATUSES" :key="code" :value="code">
-            {{ $t('platformAdmin.tenantUsers.status.' + code.toLowerCase()) }}
-          </option>
-        </select>
-      </div>
-    </div>
+      <select v-model="filters.status" class="input">
+        <option value="">{{ $t('platformAdmin.tenantUsers.filters.allStatus') }}</option>
+        <option v-for="code in MEMBERSHIP_STATUSES" :key="code" :value="code">
+          {{ $t('platformAdmin.tenantUsers.status.' + code.toLowerCase()) }}
+        </option>
+      </select>
+    </FilterBar>
 
     <div v-if="listError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
       {{ listError }}
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="w-full overflow-x-auto">
-        <table class="min-w-[900px] w-full text-sm">
-          <thead class="bg-slate-50 text-slate-500">
-            <tr>
-              <th class="table-th">{{ $t('platformAdmin.tenantUsers.table.user') }}</th>
-              <th class="table-th">{{ $t('platformAdmin.tenantUsers.table.role') }}</th>
-              <th class="table-th">{{ $t('platformAdmin.tenantUsers.table.status') }}</th>
-              <th class="table-th">{{ $t('platformAdmin.tenantUsers.table.joinedAt') }}</th>
-              <th class="table-th text-right">{{ $t('platformAdmin.tenantUsers.table.action') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="loading">
-              <td colspan="5" class="text-center py-10 text-slate-400">{{ $t('platformAdmin.tenantUsers.table.loading') }}</td>
-            </tr>
-            <tr v-else-if="members.length === 0">
-              <td colspan="5" class="text-center py-10 text-slate-400">{{ $t('platformAdmin.tenantUsers.table.noData') }}</td>
-            </tr>
-            <tr v-for="m in members" :key="m.user_id" class="border-t hover:bg-orange-50">
-              <td class="table-td">
-                <div class="font-semibold text-slate-800">{{ m.full_name }}</div>
-                <div class="text-xs text-slate-400">{{ m.username }} &middot; {{ m.email }}</div>
-              </td>
-              <td class="table-td">{{ $t('platformAdmin.tenantUsers.roles.' + roleKey(m.role.code)) }}</td>
-              <td class="table-td">
-                <span :class="statusClass(m.status)">{{ $t('platformAdmin.tenantUsers.status.' + m.status.toLowerCase()) }}</span>
-              </td>
-              <td class="table-td">{{ m.joined_at ? $d(new Date(m.joined_at), 'short') : '—' }}</td>
-              <td class="table-td text-right space-x-3 whitespace-nowrap">
-                <button @click="openChangeRole(m)" class="text-slate-600 hover:text-slate-800 font-semibold">
-                  {{ $t('platformAdmin.tenantUsers.table.changeRole') }}
-                </button>
-                <button @click="openChangeStatus(m)" class="text-slate-600 hover:text-slate-800 font-semibold">
-                  {{ m.status === 'DISABLED' ? $t('platformAdmin.tenantUsers.table.reactivate') : $t('platformAdmin.tenantUsers.table.suspend') }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <DataTable
+      :loading="loading"
+      :is-empty="members.length === 0"
+      :loading-text="$t('platformAdmin.tenantUsers.table.loading')"
+      :empty-text="$t('platformAdmin.tenantUsers.table.noData')"
+      :colspan="5"
+      min-width="900px"
+    >
+      <template #head>
+        <tr>
+          <th class="table-th">{{ $t('platformAdmin.tenantUsers.table.user') }}</th>
+          <th class="table-th">{{ $t('platformAdmin.tenantUsers.table.role') }}</th>
+          <th class="table-th">{{ $t('platformAdmin.tenantUsers.table.status') }}</th>
+          <th class="table-th">{{ $t('platformAdmin.tenantUsers.table.joinedAt') }}</th>
+          <th class="table-th text-right">{{ $t('platformAdmin.tenantUsers.table.action') }}</th>
+        </tr>
+      </template>
 
-      <div v-if="!loading && members.length > 0" class="flex items-center justify-between px-5 py-4 border-t border-slate-200 text-sm text-slate-500">
-        <span>
-          {{ $t('common.pagination.showing') }} {{ rangeStart }} {{ $t('common.pagination.to') }} {{ rangeEnd }}
-          {{ $t('common.pagination.of') }} {{ total }} {{ $t('common.pagination.results') }}
-        </span>
+      <tr v-for="m in members" :key="m.user_id" class="border-t hover:bg-orange-50">
+        <td class="table-td">
+          <div class="font-semibold text-slate-800">{{ m.full_name }}</div>
+          <div class="text-xs text-slate-400">{{ m.username }} &middot; {{ m.email }}</div>
+        </td>
+        <td class="table-td">{{ $t('platformAdmin.tenantUsers.roles.' + roleKey(m.role.code)) }}</td>
+        <td class="table-td">
+          <StatusBadge :tone="statusTone(m.status)">{{ $t('platformAdmin.tenantUsers.status.' + m.status.toLowerCase()) }}</StatusBadge>
+        </td>
+        <td class="table-td">{{ m.joined_at ? $d(new Date(m.joined_at), 'short') : '—' }}</td>
+        <td class="table-td text-right space-x-3 whitespace-nowrap">
+          <button @click="openChangeRole(m)" class="text-slate-600 hover:text-slate-800 font-semibold">
+            {{ $t('platformAdmin.tenantUsers.table.changeRole') }}
+          </button>
+          <button @click="openChangeStatus(m)" class="text-slate-600 hover:text-slate-800 font-semibold">
+            {{ m.status === 'DISABLED' ? $t('platformAdmin.tenantUsers.table.reactivate') : $t('platformAdmin.tenantUsers.table.suspend') }}
+          </button>
+        </td>
+      </tr>
 
-        <div class="flex items-center gap-3">
-          <button
-            @click="page > 1 && goToPage(page - 1)"
-            :disabled="page <= 1"
-            class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold disabled:opacity-50"
-          >
-            {{ $t('common.pagination.previous') }}
-          </button>
-          <span>{{ $t('common.pagination.page') }} {{ page }} {{ $t('common.pagination.of') }} {{ totalPages }}</span>
-          <button
-            @click="page < totalPages && goToPage(page + 1)"
-            :disabled="page >= totalPages"
-            class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold disabled:opacity-50"
-          >
-            {{ $t('common.pagination.next') }}
-          </button>
+      <template v-if="!loading && members.length > 0" #footer>
+        <div class="flex items-center justify-between px-5 py-4 text-sm text-slate-500">
+          <span>
+            {{ $t('common.pagination.showing') }} {{ rangeStart }} {{ $t('common.pagination.to') }} {{ rangeEnd }}
+            {{ $t('common.pagination.of') }} {{ total }} {{ $t('common.pagination.results') }}
+          </span>
+
+          <div class="flex items-center gap-3">
+            <button
+              @click="page > 1 && goToPage(page - 1)"
+              :disabled="page <= 1"
+              class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold disabled:opacity-50"
+            >
+              {{ $t('common.pagination.previous') }}
+            </button>
+            <span>{{ $t('common.pagination.page') }} {{ page }} {{ $t('common.pagination.of') }} {{ totalPages }}</span>
+            <button
+              @click="page < totalPages && goToPage(page + 1)"
+              :disabled="page >= totalPages"
+              class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold disabled:opacity-50"
+            >
+              {{ $t('common.pagination.next') }}
+            </button>
+          </div>
         </div>
-      </div>
-    </div>
+      </template>
+    </DataTable>
 
     <TenantUserForm
       v-if="showForm"
@@ -157,6 +153,9 @@ import TenantUserForm from './TenantUserForm.vue'
 import AssignExistingUserDialog from './AssignExistingUserDialog.vue'
 import ChangeRoleDialog from './ChangeRoleDialog.vue'
 import MembershipStatusDialog from './MembershipStatusDialog.vue'
+import FilterBar from '../../components/ui/FilterBar.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 
 let searchDebounce = null
 const PAGE_LIMIT = 20
@@ -177,7 +176,15 @@ const ROLE_NAME_KEYS = {
 export default {
   name: 'TenantUserList',
 
-  components: { TenantUserForm, AssignExistingUserDialog, ChangeRoleDialog, MembershipStatusDialog },
+  components: {
+    TenantUserForm,
+    AssignExistingUserDialog,
+    ChangeRoleDialog,
+    MembershipStatusDialog,
+    FilterBar,
+    DataTable,
+    StatusBadge
+  },
 
   props: {
     tenantId: {
@@ -287,11 +294,11 @@ export default {
       this.fetchMembers()
     },
 
-    statusClass(status) {
-      if (status === 'ACTIVE') return 'badge-green'
-      if (status === 'INVITED') return 'badge-orange'
-      if (status === 'DISABLED') return 'badge-gray'
-      return 'badge-gray'
+    statusTone(status) {
+      if (status === 'ACTIVE') return 'green'
+      if (status === 'INVITED') return 'orange'
+      if (status === 'DISABLED') return 'gray'
+      return 'gray'
     }
   }
 }
@@ -322,32 +329,5 @@ export default {
   padding: 14px 16px;
   color: #475569;
   white-space: nowrap;
-}
-
-.badge-gray {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-green {
-  background: #dcfce7;
-  color: #16a34a;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-orange {
-  background: #ffedd5;
-  color: #ea580c;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
 }
 </style>

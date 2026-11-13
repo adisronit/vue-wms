@@ -1,20 +1,15 @@
 <template>
   <div class="space-y-6">
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">{{ $t('productMaster.title') }}</h1>
-        <p class="text-slate-500">
-          {{ $t('productMaster.subtitle') }}
-        </p>
-      </div>
-
-      <button
-        @click="openProduct(null)"
-        class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
-      >
-        {{ $t('productMaster.newProductButton') }}
-      </button>
-    </div>
+    <PageHeader :title="$t('productMaster.title')" :subtitle="$t('productMaster.subtitle')">
+      <template #actions>
+        <button
+          @click="openProduct(null)"
+          class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold"
+        >
+          {{ $t('productMaster.newProductButton') }}
+        </button>
+      </template>
+    </PageHeader>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
       <div class="summary-card">
@@ -38,140 +33,133 @@
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-5">
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <input
-          v-model="filters.keyword"
-          type="text"
-          class="input"
-          :placeholder="$t('productMaster.filters.searchPlaceholder')"
-        />
+    <FilterBar :cols="5">
+      <input
+        v-model="filters.keyword"
+        type="text"
+        class="input"
+        :placeholder="$t('productMaster.filters.searchPlaceholder')"
+      />
 
-        <select v-model="filters.category" class="input">
-          <option value="">{{ $t('productMaster.filters.allCategories') }}</option>
-          <option value="PACKAGING">{{ $t('productMaster.categories.packaging') }}</option>
-          <option value="LABEL">{{ $t('productMaster.categories.label') }}</option>
-          <option value="RFID">{{ $t('productMaster.categories.rfid') }}</option>
-          <option value="RAW_MATERIAL">{{ $t('productMaster.categories.rawMaterial') }}</option>
-        </select>
+      <select v-model="filters.category" class="input">
+        <option value="">{{ $t('productMaster.filters.allCategories') }}</option>
+        <option value="PACKAGING">{{ $t('productMaster.categories.packaging') }}</option>
+        <option value="LABEL">{{ $t('productMaster.categories.label') }}</option>
+        <option value="RFID">{{ $t('productMaster.categories.rfid') }}</option>
+        <option value="RAW_MATERIAL">{{ $t('productMaster.categories.rawMaterial') }}</option>
+      </select>
 
-        <select v-model="filters.status" class="input">
-          <option value="">{{ $t('productMaster.filters.allStatus') }}</option>
-          <option value="ACTIVE">{{ $t('common.status.active') }}</option>
-          <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
-        </select>
+      <select v-model="filters.status" class="input">
+        <option value="">{{ $t('productMaster.filters.allStatus') }}</option>
+        <option value="ACTIVE">{{ $t('common.status.active') }}</option>
+        <option value="INACTIVE">{{ $t('common.status.inactive') }}</option>
+      </select>
 
-        <select v-model="filters.lotRequired" class="input">
-          <option value="">{{ $t('productMaster.filters.lotRule') }}</option>
-          <option value="YES">{{ $t('productMaster.filters.lotRequiredOption') }}</option>
-          <option value="NO">{{ $t('productMaster.filters.noLotOption') }}</option>
-        </select>
+      <select v-model="filters.lotRequired" class="input">
+        <option value="">{{ $t('productMaster.filters.lotRule') }}</option>
+        <option value="YES">{{ $t('productMaster.filters.lotRequiredOption') }}</option>
+        <option value="NO">{{ $t('productMaster.filters.noLotOption') }}</option>
+      </select>
 
-        <button
-          @click="clearFilter"
-          class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
-        >
-          {{ $t('common.buttons.clearFilter') }}
-        </button>
-      </div>
-    </div>
+      <button
+        @click="clearFilter"
+        class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
+      >
+        {{ $t('common.buttons.clearFilter') }}
+      </button>
+    </FilterBar>
 
     <div v-if="listError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
       {{ listError }}
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="w-full overflow-x-auto">
-        <table class="min-w-[1250px] w-full text-sm">
-          <thead class="bg-slate-50 text-slate-500">
-            <tr>
-              <th class="table-th">{{ $t('productMaster.table.sku') }}</th>
-              <th class="table-th">{{ $t('productMaster.table.productName') }}</th>
-              <th class="table-th">{{ $t('productMaster.table.category') }}</th>
-              <th class="table-th">{{ $t('productMaster.table.baseUom') }}</th>
-              <th class="table-th text-right">{{ $t('productMaster.table.packSize') }}</th>
-              <th class="table-th">{{ $t('productMaster.table.lot') }}</th>
-              <th class="table-th">{{ $t('productMaster.table.serial') }}</th>
-              <th class="table-th">{{ $t('productMaster.table.expiry') }}</th>
-              <th class="table-th">{{ $t('productMaster.table.defaultZone') }}</th>
-              <th class="table-th">{{ $t('productMaster.table.status') }}</th>
-              <th class="table-th text-right">{{ $t('productMaster.table.action') }}</th>
-            </tr>
-          </thead>
+    <DataTable
+      :loading="loading"
+      :is-empty="products.length === 0"
+      :loading-text="$t('productMaster.loadingProducts')"
+      :empty-text="$t('productMaster.noProducts')"
+      :colspan="11"
+      min-width="1250px"
+    >
+      <template #head>
+        <tr>
+          <th class="table-th">{{ $t('productMaster.table.sku') }}</th>
+          <th class="table-th">{{ $t('productMaster.table.productName') }}</th>
+          <th class="table-th">{{ $t('productMaster.table.category') }}</th>
+          <th class="table-th">{{ $t('productMaster.table.baseUom') }}</th>
+          <th class="table-th text-right">{{ $t('productMaster.table.packSize') }}</th>
+          <th class="table-th">{{ $t('productMaster.table.lot') }}</th>
+          <th class="table-th">{{ $t('productMaster.table.serial') }}</th>
+          <th class="table-th">{{ $t('productMaster.table.expiry') }}</th>
+          <th class="table-th">{{ $t('productMaster.table.defaultZone') }}</th>
+          <th class="table-th">{{ $t('productMaster.table.status') }}</th>
+          <th class="table-th text-right">{{ $t('productMaster.table.action') }}</th>
+        </tr>
+      </template>
 
-          <tbody>
-            <tr v-if="loading">
-              <td class="table-td" colspan="11">{{ $t('productMaster.loadingProducts') }}</td>
-            </tr>
-            <tr v-else-if="products.length === 0">
-              <td class="table-td" colspan="11">{{ $t('productMaster.noProducts') }}</td>
-            </tr>
-            <tr
-              v-for="product in products"
-              :key="product.id"
-              class="border-t hover:bg-orange-50"
-            >
-              <td class="table-td font-semibold text-slate-800">
-                {{ product.sku }}
-              </td>
+      <tr
+        v-for="product in products"
+        :key="product.id"
+        class="border-t hover:bg-orange-50"
+      >
+        <td class="table-td font-semibold text-slate-800">
+          {{ product.sku }}
+        </td>
 
-              <td class="table-td">
-                {{ product.productName }}
-              </td>
+        <td class="table-td">
+          {{ product.productName }}
+        </td>
 
-              <td class="table-td">
-                {{ product.category }}
-              </td>
+        <td class="table-td">
+          {{ product.category }}
+        </td>
 
-              <td class="table-td">
-                {{ product.baseUom }}
-              </td>
+        <td class="table-td">
+          {{ product.baseUom }}
+        </td>
 
-              <td class="table-td text-number">
-                {{ product.packSize }}
-              </td>
+        <td class="table-td text-number">
+          {{ product.packSize }}
+        </td>
 
-              <td class="table-td">
-                <span :class="product.lotRequired ? 'badge-orange' : 'badge-gray'">
-                  {{ product.lotRequired ? $t('common.labels.yes') : $t('common.labels.no') }}
-                </span>
-              </td>
+        <td class="table-td">
+          <StatusBadge :tone="product.lotRequired ? 'orange' : 'gray'">
+            {{ product.lotRequired ? $t('common.labels.yes') : $t('common.labels.no') }}
+          </StatusBadge>
+        </td>
 
-              <td class="table-td">
-                <span :class="product.serialRequired ? 'badge-orange' : 'badge-gray'">
-                  {{ product.serialRequired ? $t('common.labels.yes') : $t('common.labels.no') }}
-                </span>
-              </td>
+        <td class="table-td">
+          <StatusBadge :tone="product.serialRequired ? 'orange' : 'gray'">
+            {{ product.serialRequired ? $t('common.labels.yes') : $t('common.labels.no') }}
+          </StatusBadge>
+        </td>
 
-              <td class="table-td">
-                <span :class="product.expiryRequired ? 'badge-orange' : 'badge-gray'">
-                  {{ product.expiryRequired ? $t('common.labels.yes') : $t('common.labels.no') }}
-                </span>
-              </td>
+        <td class="table-td">
+          <StatusBadge :tone="product.expiryRequired ? 'orange' : 'gray'">
+            {{ product.expiryRequired ? $t('common.labels.yes') : $t('common.labels.no') }}
+          </StatusBadge>
+        </td>
 
-              <td class="table-td">
-                {{ product.defaultZone }}
-              </td>
+        <td class="table-td">
+          {{ product.defaultZone }}
+        </td>
 
-              <td class="table-td">
-                <span :class="getStatusClass(product.status)">
-                  {{ statusLabel(product.status) }}
-                </span>
-              </td>
+        <td class="table-td">
+          <StatusBadge :tone="statusTone(product.status)">
+            {{ statusLabel(product.status) }}
+          </StatusBadge>
+        </td>
 
-              <td class="table-td text-right">
-                <button
-                  @click="openProduct(product)"
-                  class="text-orange-600 hover:text-orange-700 font-semibold"
-                >
-                  {{ $t('productMaster.manageButton') }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+        <td class="table-td text-right">
+          <button
+            @click="openProduct(product)"
+            class="text-orange-600 hover:text-orange-700 font-semibold"
+          >
+            {{ $t('productMaster.manageButton') }}
+          </button>
+        </td>
+      </tr>
+    </DataTable>
 
     <div
       v-if="selectedProduct"
@@ -483,6 +471,10 @@
 
 <script>
 import { listProducts, createProduct, updateProduct } from '../../services/products'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FilterBar from '../../components/ui/FilterBar.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 
 let searchDebounce = null
 
@@ -532,6 +524,8 @@ function mapProductToApi(form) {
 
 export default {
   name: 'ProductMasterView',
+
+  components: { PageHeader, FilterBar, DataTable, StatusBadge },
 
   data() {
     return {
@@ -736,10 +730,21 @@ export default {
       }
     },
 
-    getStatusClass(status) {
-      if (status === 'ACTIVE') return 'badge-green'
-      if (status === 'INACTIVE') return 'badge-gray'
-      return 'badge-gray'
+    statusTone(status) {
+      if (status === 'ACTIVE') return 'green'
+      if (status === 'INACTIVE') return 'gray'
+      return 'gray'
+    },
+
+    // The template already called statusLabel() for the status column,
+    // but no such method existed on this component (only getStatusClass,
+    // now statusTone above) — added here to match the identical helper
+    // already defined in WarehouseView.vue/UserManagementView.vue, since
+    // without it the status cell would throw at render time.
+    statusLabel(status) {
+      if (status === 'ACTIVE') return this.$t('common.status.active')
+      if (status === 'INACTIVE') return this.$t('common.status.inactive')
+      return status
     }
   }
 }
@@ -849,32 +854,5 @@ export default {
 .tab-active {
   background: #ea580c;
   color: white;
-}
-
-.badge-gray {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-green {
-  background: #dcfce7;
-  color: #16a34a;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-orange {
-  background: #ffedd5;
-  color: #ea580c;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
 }
 </style>

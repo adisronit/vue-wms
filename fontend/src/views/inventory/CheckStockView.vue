@@ -1,25 +1,20 @@
 <template>
   <div class="space-y-6">
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">{{ $t('checkStock.title') }}</h1>
-        <p class="text-slate-500">
-          {{ $t('checkStock.subtitle') }}
-        </p>
-      </div>
-
-      <button
-        v-if="!countId"
-        @click="createCountTask"
-        :disabled="submitting"
-        class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
-      >
-        {{ $t('checkStock.newCountTask') }}
-      </button>
-      <span v-else class="text-sm text-slate-500 font-semibold">
-        {{ countNo }} — {{ statusText }}
-      </span>
-    </div>
+    <PageHeader :title="$t('checkStock.title')" :subtitle="$t('checkStock.subtitle')">
+      <template #actions>
+        <button
+          v-if="!countId"
+          @click="createCountTask"
+          :disabled="submitting"
+          class="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-semibold disabled:opacity-60"
+        >
+          {{ $t('checkStock.newCountTask') }}
+        </button>
+        <span v-else class="text-sm text-slate-500 font-semibold">
+          {{ countNo }} — {{ statusText }}
+        </span>
+      </template>
+    </PageHeader>
 
     <div v-if="pageError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
       {{ pageError }}
@@ -85,71 +80,61 @@
         {{ historyError }}
       </div>
 
-      <div class="border border-slate-200 rounded-2xl overflow-hidden">
-        <div class="w-full overflow-x-auto">
-          <table class="min-w-[1100px] w-full text-sm">
-            <thead class="bg-slate-50 text-slate-500">
-              <tr>
-                <th class="table-th">{{ $t('checkStock.history.table.countNo') }}</th>
-                <th class="table-th">{{ $t('checkStock.history.table.type') }}</th>
-                <th class="table-th">{{ $t('checkStock.history.table.warehouse') }}</th>
-                <th class="table-th">{{ $t('checkStock.history.table.zone') }}</th>
-                <th class="table-th">{{ $t('checkStock.history.table.createdDate') }}</th>
-                <th class="table-th">{{ $t('checkStock.history.table.createdBy') }}</th>
-                <th class="table-th text-right">{{ $t('checkStock.history.table.items') }}</th>
-                <th class="table-th text-right">{{ $t('checkStock.history.table.varianceLines') }}</th>
-                <th class="table-th">{{ $t('checkStock.history.table.status') }}</th>
-                <th class="table-th text-right">{{ $t('checkStock.history.table.action') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="historyLoading">
-                <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('checkStock.history.table.loading') }}</td>
-              </tr>
-              <tr v-else-if="historyList.length === 0">
-                <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('checkStock.history.table.noData') }}</td>
-              </tr>
-              <template v-else>
-                <tr
-                  v-for="row in historyList"
-                  :key="row.id"
-                  class="border-t hover:bg-orange-50"
-                  :class="row.id === countId ? 'bg-orange-50' : ''"
-                >
-                  <td class="table-td font-semibold text-slate-800">{{ row.countNo }}</td>
-                  <td class="table-td">{{ countTypeText(row.countType) }}</td>
-                  <td class="table-td">{{ row.warehouseCode }}</td>
-                  <td class="table-td">{{ row.zoneCode }}</td>
-                  <td class="table-td">{{ row.createdAt }}</td>
-                  <td class="table-td">{{ row.createdByName }}</td>
-                  <td class="table-td text-right">{{ row.itemCount }}</td>
-                  <td class="table-td text-right">
-                    <span :class="row.varianceLines > 0 ? 'text-red-600 font-semibold' : ''">{{ row.varianceLines }}</span>
-                  </td>
-                  <td class="table-td">
-                    <span :class="historyStatusClass(row.status)">
-                      {{ historyStatusText(row.status) }}
-                    </span>
-                  </td>
-                  <td class="table-td text-right">
-                    <button
-                      @click="viewCount(row)"
-                      class="text-orange-600 hover:text-orange-700 font-semibold"
-                    >
-                      {{ $t('checkStock.history.table.view') }}
-                    </button>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DataTable
+        :loading="historyLoading"
+        :is-empty="historyList.length === 0"
+        :loading-text="$t('checkStock.history.table.loading')"
+        :empty-text="$t('checkStock.history.table.noData')"
+        :colspan="10"
+        min-width="1100px"
+      >
+        <template #head>
+          <tr>
+            <th class="table-th">{{ $t('checkStock.history.table.countNo') }}</th>
+            <th class="table-th">{{ $t('checkStock.history.table.type') }}</th>
+            <th class="table-th">{{ $t('checkStock.history.table.warehouse') }}</th>
+            <th class="table-th">{{ $t('checkStock.history.table.zone') }}</th>
+            <th class="table-th">{{ $t('checkStock.history.table.createdDate') }}</th>
+            <th class="table-th">{{ $t('checkStock.history.table.createdBy') }}</th>
+            <th class="table-th text-right">{{ $t('checkStock.history.table.items') }}</th>
+            <th class="table-th text-right">{{ $t('checkStock.history.table.varianceLines') }}</th>
+            <th class="table-th">{{ $t('checkStock.history.table.status') }}</th>
+            <th class="table-th text-right">{{ $t('checkStock.history.table.action') }}</th>
+          </tr>
+        </template>
+
+        <tr
+          v-for="row in historyList"
+          :key="row.id"
+          class="border-t hover:bg-orange-50"
+          :class="row.id === countId ? 'bg-orange-50' : ''"
+        >
+          <td class="table-td font-semibold text-slate-800">{{ row.countNo }}</td>
+          <td class="table-td">{{ countTypeText(row.countType) }}</td>
+          <td class="table-td">{{ row.warehouseCode }}</td>
+          <td class="table-td">{{ row.zoneCode }}</td>
+          <td class="table-td">{{ row.createdAt }}</td>
+          <td class="table-td">{{ row.createdByName }}</td>
+          <td class="table-td text-right">{{ row.itemCount }}</td>
+          <td class="table-td text-right">
+            <span :class="row.varianceLines > 0 ? 'text-red-600 font-semibold' : ''">{{ row.varianceLines }}</span>
+          </td>
+          <td class="table-td">
+            <StatusBadge :tone="historyStatusTone(row.status)">{{ historyStatusText(row.status) }}</StatusBadge>
+          </td>
+          <td class="table-td text-right">
+            <button
+              @click="viewCount(row)"
+              class="text-orange-600 hover:text-orange-700 font-semibold"
+            >
+              {{ $t('checkStock.history.table.view') }}
+            </button>
+          </td>
+        </tr>
+      </DataTable>
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-6">
-      <h2 class="text-lg font-bold text-slate-800 mb-5">{{ $t('checkStock.countInfo.title') }}</h2>
-
+    <FormSection :title="$t('checkStock.countInfo.title')">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <label class="label">{{ $t('checkStock.countInfo.countType') }}</label>
@@ -182,7 +167,7 @@
           <input v-model="form.countDate" type="date" class="input" :disabled="!!countId" />
         </div>
       </div>
-    </div>
+    </FormSection>
 
     <div v-if="countId" class="bg-orange-50 border border-orange-200 rounded-2xl p-5">
       <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-4">
@@ -193,7 +178,7 @@
           </p>
         </div>
 
-        <span class="badge-orange">{{ $t('checkStock.scan.scannerReady') }}</span>
+        <StatusBadge tone="orange">{{ $t('checkStock.scan.scannerReady') }}</StatusBadge>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -263,99 +248,92 @@
         </button>
       </div>
 
-      <div class="border border-slate-200 rounded-2xl overflow-hidden">
-        <div class="w-full overflow-x-auto">
-          <table class="min-w-[1400px] w-full text-sm">
-            <thead class="bg-slate-50 text-slate-500">
-              <tr>
-                <th class="table-th">{{ $t('checkStock.items.table.sku') }}</th>
-                <th class="table-th">{{ $t('checkStock.items.table.productName') }}</th>
-                <th class="table-th">{{ $t('checkStock.items.table.location') }}</th>
-                <th class="table-th">{{ $t('checkStock.items.table.lotNo') }}</th>
-                <th class="table-th text-right">{{ $t('checkStock.items.table.systemQty') }}</th>
-                <th class="table-th text-right">{{ $t('checkStock.items.table.countQty') }}</th>
-                <th class="table-th text-right">{{ $t('checkStock.items.table.variance') }}</th>
-                <th class="table-th">{{ $t('checkStock.items.table.uom') }}</th>
-                <th class="table-th">{{ $t('checkStock.items.table.condition') }}</th>
-                <th class="table-th">{{ $t('checkStock.items.table.status') }}</th>
-                <th class="table-th">{{ $t('checkStock.items.table.remark') }}</th>
-                <th class="table-th text-right">{{ $t('checkStock.items.table.action') }}</th>
-              </tr>
-            </thead>
+      <DataTable
+        :is-empty="items.length === 0"
+        :empty-text="$t('checkStock.items.table.noData')"
+        :colspan="12"
+        min-width="1400px"
+      >
+        <template #head>
+          <tr>
+            <th class="table-th">{{ $t('checkStock.items.table.sku') }}</th>
+            <th class="table-th">{{ $t('checkStock.items.table.productName') }}</th>
+            <th class="table-th">{{ $t('checkStock.items.table.location') }}</th>
+            <th class="table-th">{{ $t('checkStock.items.table.lotNo') }}</th>
+            <th class="table-th text-right">{{ $t('checkStock.items.table.systemQty') }}</th>
+            <th class="table-th text-right">{{ $t('checkStock.items.table.countQty') }}</th>
+            <th class="table-th text-right">{{ $t('checkStock.items.table.variance') }}</th>
+            <th class="table-th">{{ $t('checkStock.items.table.uom') }}</th>
+            <th class="table-th">{{ $t('checkStock.items.table.condition') }}</th>
+            <th class="table-th">{{ $t('checkStock.items.table.status') }}</th>
+            <th class="table-th">{{ $t('checkStock.items.table.remark') }}</th>
+            <th class="table-th text-right">{{ $t('checkStock.items.table.action') }}</th>
+          </tr>
+        </template>
 
-            <tbody>
-              <tr
-                v-for="item in items"
-                :key="item.id"
-                class="border-t hover:bg-orange-50"
-                :class="rowVariance(item) !== 0 ? 'bg-red-50' : ''"
-              >
-                <td class="table-td">{{ item.sku }}</td>
-                <td class="table-td min-w-[220px]">{{ item.productName }}</td>
-                <td class="table-td">{{ item.locationCode }}</td>
-                <td class="table-td">{{ item.lotNo || '—' }}</td>
+        <tr
+          v-for="item in items"
+          :key="item.id"
+          class="border-t hover:bg-orange-50"
+          :class="rowVariance(item) !== 0 ? 'bg-red-50' : ''"
+        >
+          <td class="table-td">{{ item.sku }}</td>
+          <td class="table-td min-w-[220px]">{{ item.productName }}</td>
+          <td class="table-td">{{ item.locationCode }}</td>
+          <td class="table-td">{{ item.lotNo || '—' }}</td>
 
-                <td class="table-td text-right">{{ item.systemQty }}</td>
+          <td class="table-td text-right">{{ item.systemQty }}</td>
 
-                <td class="table-td">
-                  <input
-                    v-model.number="item.editCountQty"
-                    type="number"
-                    class="table-input input-number"
-                    :readonly="!canEdit"
-                  />
-                </td>
+          <td class="table-td">
+            <input
+              v-model.number="item.editCountQty"
+              type="number"
+              class="table-input input-number"
+              :readonly="!canEdit"
+            />
+          </td>
 
-                <td class="table-td text-right font-bold">
-                  <span :class="rowVariance(item) === 0 ? 'text-slate-600' : 'text-red-600'">
-                    {{ rowVariance(item) > 0 ? '+' : '' }}{{ rowVariance(item) }}
-                  </span>
-                </td>
+          <td class="table-td text-right font-bold">
+            <span :class="rowVariance(item) === 0 ? 'text-slate-600' : 'text-red-600'">
+              {{ rowVariance(item) > 0 ? '+' : '' }}{{ rowVariance(item) }}
+            </span>
+          </td>
 
-                <td class="table-td">{{ item.uom }}</td>
+          <td class="table-td">{{ item.uom }}</td>
 
-                <td class="table-td">
-                  <select v-model="item.editCondition" class="table-input min-w-[130px]" :disabled="!canEdit">
-                    <option value="GOOD">{{ $t('checkStock.scan.good') }}</option>
-                    <option value="DAMAGED">{{ $t('checkStock.scan.damaged') }}</option>
-                    <option value="HOLD">{{ $t('checkStock.scan.hold') }}</option>
-                  </select>
-                </td>
+          <td class="table-td">
+            <select v-model="item.editCondition" class="table-input min-w-[130px]" :disabled="!canEdit">
+              <option value="GOOD">{{ $t('checkStock.scan.good') }}</option>
+              <option value="DAMAGED">{{ $t('checkStock.scan.damaged') }}</option>
+              <option value="HOLD">{{ $t('checkStock.scan.hold') }}</option>
+            </select>
+          </td>
 
-                <td class="table-td">
-                  <span :class="getItemStatusClass(item.status)">{{ $t('checkStock.itemStatus.' + item.status.toLowerCase()) }}</span>
-                </td>
+          <td class="table-td">
+            <StatusBadge :tone="itemStatusTone(item.status)">{{ $t('checkStock.itemStatus.' + item.status.toLowerCase()) }}</StatusBadge>
+          </td>
 
-                <td class="table-td">
-                  <input
-                    v-model="item.editRemark"
-                    class="table-input min-w-[220px]"
-                    :placeholder="$t('checkStock.items.table.remarkPlaceholder')"
-                    :readonly="!canEdit"
-                  />
-                </td>
+          <td class="table-td">
+            <input
+              v-model="item.editRemark"
+              class="table-input min-w-[220px]"
+              :placeholder="$t('checkStock.items.table.remarkPlaceholder')"
+              :readonly="!canEdit"
+            />
+          </td>
 
-                <td class="table-td text-right">
-                  <button
-                    v-if="canEdit"
-                    @click="saveItem(item)"
-                    :disabled="submitting"
-                    class="text-orange-600 hover:text-orange-700 font-semibold disabled:opacity-60"
-                  >
-                    {{ $t('checkStock.items.table.save') }}
-                  </button>
-                </td>
-              </tr>
-
-              <tr v-if="items.length === 0">
-                <td colspan="12" class="text-center py-10 text-slate-400">
-                  {{ $t('checkStock.items.table.noData') }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+          <td class="table-td text-right">
+            <button
+              v-if="canEdit"
+              @click="saveItem(item)"
+              :disabled="submitting"
+              class="text-orange-600 hover:text-orange-700 font-semibold disabled:opacity-60"
+            >
+              {{ $t('checkStock.items.table.save') }}
+            </button>
+          </td>
+        </tr>
+      </DataTable>
     </div>
 
     <div v-if="countId" class="bg-white rounded-2xl border border-slate-200 p-6">
@@ -405,28 +383,25 @@
         </button>
       </div>
 
-      <div class="border border-slate-200 rounded-2xl overflow-hidden">
-        <table class="min-w-full w-full text-sm">
-          <thead class="bg-slate-50 text-slate-500">
-            <tr>
-              <th class="table-th">{{ $t('checkStock.generatedAdjustments.table.adjustmentNo') }}</th>
-              <th class="table-th">{{ $t('checkStock.generatedAdjustments.table.reason') }}</th>
-              <th class="table-th">{{ $t('checkStock.generatedAdjustments.table.status') }}</th>
-              <th class="table-th">{{ $t('checkStock.generatedAdjustments.table.created') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="adj in generatedAdjustments" :key="adj.id" class="border-t">
-              <td class="table-td font-semibold text-slate-800">{{ adj.adjustment_no }}</td>
-              <td class="table-td">{{ adj.reason }}</td>
-              <td class="table-td">
-                <span :class="adjustmentStatusClass(adj.status)">{{ adjustmentStatusLabel(adj.status) }}</span>
-              </td>
-              <td class="table-td">{{ (adj.created_at || '').slice(0, 10) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <DataTable :colspan="4">
+        <template #head>
+          <tr>
+            <th class="table-th">{{ $t('checkStock.generatedAdjustments.table.adjustmentNo') }}</th>
+            <th class="table-th">{{ $t('checkStock.generatedAdjustments.table.reason') }}</th>
+            <th class="table-th">{{ $t('checkStock.generatedAdjustments.table.status') }}</th>
+            <th class="table-th">{{ $t('checkStock.generatedAdjustments.table.created') }}</th>
+          </tr>
+        </template>
+
+        <tr v-for="adj in generatedAdjustments" :key="adj.id" class="border-t">
+          <td class="table-td font-semibold text-slate-800">{{ adj.adjustment_no }}</td>
+          <td class="table-td">{{ adj.reason }}</td>
+          <td class="table-td">
+            <StatusBadge :tone="adjustmentStatusTone(adj.status)">{{ adjustmentStatusLabel(adj.status) }}</StatusBadge>
+          </td>
+          <td class="table-td">{{ (adj.created_at || '').slice(0, 10) }}</td>
+        </tr>
+      </DataTable>
     </div>
 
     <div v-if="countId && canEdit" class="bg-white border border-slate-200 rounded-2xl p-6">
@@ -466,6 +441,11 @@
 import { listStockCounts, getStockCount, createStockCount, addStockCountItem, recordStockCount, confirmStockCount, createAdjustmentsFromCount, newIdempotencyKey, exportStockCounts } from '../../services/stockCount'
 import { listWarehouses, listZones, listLocations } from '../../services/warehouses'
 import { listProducts } from '../../services/products'
+import { showToast } from '../../services/toast'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FormSection from '../../components/ui/FormSection.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 import i18n from '../../i18n'
 
 let historySearchDebounce = null
@@ -497,21 +477,21 @@ function historyStatusText(status) {
   return t('checkStock.status.draft')
 }
 
-function historyStatusClass(status) {
-  if (status === 'CONFIRMED') return 'badge-green'
-  if (status === 'ADJUSTMENT_CREATED') return 'badge-orange'
-  return 'badge-gray'
+function historyStatusTone(status) {
+  if (status === 'CONFIRMED') return 'green'
+  if (status === 'ADJUSTMENT_CREATED') return 'orange'
+  return 'gray'
 }
 
 // Phase 17 — status badge for a generated Stock Adjustment document
 // (DRAFT/PENDING/APPROVED/REJECTED, StockAdjustmentView.vue's own
 // vocabulary — distinct from this page's own Status/ItemStatus values,
-// so reusing getItemStatusClass here would be wrong).
-function adjustmentStatusClass(status) {
-  if (status === 'APPROVED') return 'badge-green'
-  if (status === 'PENDING') return 'badge-orange'
-  if (status === 'REJECTED') return 'badge-red'
-  return 'badge-gray'
+// so reusing itemStatusTone here would be wrong).
+function adjustmentStatusTone(status) {
+  if (status === 'APPROVED') return 'green'
+  if (status === 'PENDING') return 'orange'
+  if (status === 'REJECTED') return 'red'
+  return 'gray'
 }
 
 // Reuses stockAdjustment.status.* (StockAdjustmentView.vue's own
@@ -565,6 +545,8 @@ function mapItem(it) {
 
 export default {
   name: 'CheckStockView',
+
+  components: { PageHeader, FormSection, DataTable, StatusBadge },
 
   data() {
     return {
@@ -651,8 +633,8 @@ export default {
 
     countTypeText,
     historyStatusText,
-    historyStatusClass,
-    adjustmentStatusClass,
+    historyStatusTone,
+    adjustmentStatusTone,
     adjustmentStatusLabel,
 
     async fetchHistory() {
@@ -894,7 +876,7 @@ export default {
         const res = await getStockCount(this.countId)
         this.items = (res.data.items || []).map(mapItem)
         this.generatedAdjustments = res.data.generated_adjustments || []
-        alert(this.$t('checkStock.messages.draftSaved'))
+        showToast(this.$t('checkStock.messages.draftSaved'), 'success')
       } catch (err) {
         this.pageError = err.message
       } finally {
@@ -937,11 +919,11 @@ export default {
       }
     },
 
-    getItemStatusClass(status) {
-      if (status === 'PENDING') return 'badge-gray'
-      if (status === 'COUNTED') return 'badge-green'
-      if (status === 'RECOUNT') return 'badge-red'
-      return 'badge-gray'
+    itemStatusTone(status) {
+      if (status === 'PENDING') return 'gray'
+      if (status === 'COUNTED') return 'green'
+      if (status === 'RECOUNT') return 'red'
+      return 'gray'
     },
 
     async confirmCount() {
@@ -964,7 +946,7 @@ export default {
         // guarantee (Phase 17).
         this.generatedAdjustments = res.data.generated_adjustments || []
         await this.fetchHistory()
-        alert(this.$t('checkStock.messages.countConfirmed'))
+        showToast(this.$t('checkStock.messages.countConfirmed'), 'success')
       } catch (err) {
         this.pageError = err.message
       } finally {
@@ -1048,41 +1030,5 @@ export default {
   color: #0f172a;
   margin-top: 8px;
   font-variant-numeric: tabular-nums;
-}
-
-.badge-orange {
-  background: #ffedd5;
-  color: #ea580c;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: 12px;
-}
-
-.badge-gray {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-green {
-  background: #dcfce7;
-  color: #16a34a;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
-}
-
-.badge-red {
-  background: #fee2e2;
-  color: #dc2626;
-  padding: 5px 10px;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 12px;
 }
 </style>
