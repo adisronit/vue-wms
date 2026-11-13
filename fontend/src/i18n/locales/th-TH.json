@@ -106,6 +106,8 @@
     "locations": "ตำแหน่งจัดเก็บ",
     "productMaster": "ข้อมูลสินค้าหลัก",
     "productCategories": "หมวดหมู่สินค้า",
+    "brands": "แบรนด์",
+    "productFamilies": "กลุ่มสินค้า",
     "customers": "ลูกค้า",
     "suppliers": "ผู้จำหน่าย",
     "logout": "ออกจากระบบ",
@@ -1128,7 +1130,7 @@
   },
   "productMaster": {
     "title": "ข้อมูลสินค้าหลัก",
-    "subtitle": "จัดการข้อมูลสินค้า การจับคู่บาร์โค้ด หน่วยนับ และกฎการจัดเก็บ",
+    "subtitle": "จัดการข้อมูลสินค้า การตั้งค่าคลังสินค้า และรายละเอียดเพิ่มเติม",
     "newProductButton": "+ สินค้าใหม่",
     "summary": {
       "totalProducts": "สินค้าทั้งหมด",
@@ -1138,31 +1140,24 @@
     },
     "filters": {
       "searchPlaceholder": "ค้นหา SKU, สินค้า, บาร์โค้ด...",
-      "allCategories": "หมวดหมู่ทั้งหมด",
+      "categoryPlaceholder": "หมวดหมู่ทั้งหมด",
+      "brandPlaceholder": "แบรนด์ทั้งหมด",
       "allStatus": "สถานะทั้งหมด",
       "lotRule": "กฎการระบุล็อต",
       "lotRequiredOption": "ต้องระบุล็อต",
       "noLotOption": "ไม่ต้องระบุล็อต"
     },
-    "categories": {
-      "packaging": "บรรจุภัณฑ์",
-      "label": "ป้ายฉลาก",
-      "rfid": "RFID",
-      "rawMaterial": "วัตถุดิบ"
-    },
     "table": {
+      "thumbnail": "รูปภาพ",
       "sku": "SKU",
       "productName": "ชื่อสินค้า",
+      "brand": "แบรนด์",
       "category": "หมวดหมู่",
       "baseUom": "หน่วยนับหลัก",
       "packSize": "ขนาดแพ็ค",
-      "lot": "ล็อต",
-      "serial": "ซีเรียล",
-      "expiry": "วันหมดอายุ",
-      "defaultZone": "โซนเริ่มต้น",
+      "rules": "กฎ",
       "status": "สถานะ",
-      "action": "การดำเนินการ",
-      "productCategory": "หมวดหมู่สินค้า"
+      "action": "การดำเนินการ"
     },
     "loadingProducts": "กำลังโหลดสินค้า...",
     "noProducts": "ไม่พบสินค้า",
@@ -1170,70 +1165,137 @@
     "drawer": {
       "detailTitle": "รายละเอียดสินค้า",
       "newTitle": "สินค้าใหม่",
-      "subtitle": "ข้อมูลหลักสินค้า การจับคู่บาร์โค้ด และกฎการจัดการสต็อก"
+      "subtitle": "ข้อมูลพื้นฐาน การตั้งค่าคลังสินค้า และรายละเอียดเพิ่มเติม"
     },
-    "tabs": {
-      "info": "ข้อมูลสินค้า",
-      "barcode": "การจับคู่บาร์โค้ด",
-      "rules": "กฎการจัดการสต็อก",
-      "uom": "การแปลงหน่วยนับ"
+    "sections": {
+      "basic": "ข้อมูลพื้นฐาน",
+      "warehouse": "การตั้งค่าคลังสินค้า",
+      "advanced": "รายละเอียดเพิ่มเติม",
+      "advancedHint": "ไม่บังคับ — คำอธิบาย บาร์โค้ดเพิ่มเติม น้ำหนักและขนาด ผู้ผลิต รุ่น",
+      "expand": "แสดง",
+      "collapse": "ซ่อน"
     },
-    "infoTab": {
+    "basic": {
       "sku": "SKU",
-      "productName": "ชื่อสินค้า",
+      "nameEn": "ชื่อสินค้า (EN)",
+      "nameTh": "ชื่อสินค้า (TH)",
       "category": "หมวดหมู่",
-      "baseUom": "หน่วยนับหลัก",
-      "status": "สถานะ",
-      "barcode": "บาร์โค้ด",
+      "categoryPlaceholder": "ค้นหาหมวดหมู่...",
+      "noCategoryOption": "ไม่มีหมวดหมู่",
+      "brand": "แบรนด์",
+      "brandPlaceholder": "ค้นหาแบรนด์...",
+      "noBrandOption": "ไม่มีแบรนด์",
+      "barcode": "บาร์โค้ดหลัก",
       "barcodePlaceholder": "บาร์โค้ดหลัก (ไม่บังคับ)",
-      "description": "คำอธิบาย",
-      "productCategory": "หมวดหมู่สินค้า",
-      "noProductCategory": "ไม่มีหมวดหมู่สินค้า"
+      "packSize": "ขนาดแพ็ค",
+      "packSizeUnit": "หน่วย",
+      "baseUom": "หน่วยนับหลัก",
+      "status": "สถานะการใช้งาน"
     },
-    "barcodeTab": {
-      "title": "การจับคู่บาร์โค้ด",
-      "addButton": "+ เพิ่มบาร์โค้ด",
+    "warehouse": {
+      "storageType": "ประเภทการจัดเก็บ",
+      "storageTypes": {
+        "AMBIENT": "อุณหภูมิห้อง",
+        "CHILLED": "แช่เย็น",
+        "FROZEN": "แช่แข็ง"
+      },
+      "noStorageTypeOption": "ไม่ระบุ",
+      "lotTrackingTitle": "การติดตามล็อต",
+      "lotTrackingDesc": "กำหนดให้ระบุเลขที่ล็อตเมื่อรับสินค้าและตรวจสต็อก",
+      "expiryTrackingTitle": "การติดตามวันหมดอายุ",
+      "expiryTrackingDesc": "กำหนดให้ควบคุมวันหมดอายุ",
+      "rotationRule": "กฎการหมุนสต็อก",
+      "rotationRules": {
+        "FIFO": "FIFO",
+        "FEFO": "FEFO"
+      },
+      "noRotationRuleOption": "ไม่ระบุ",
+      "defaultSupplier": "ผู้จำหน่ายเริ่มต้น",
+      "defaultSupplierPlaceholder": "ค้นหาผู้จำหน่าย...",
+      "noSupplierOption": "ไม่มีผู้จำหน่ายเริ่มต้น",
+      "countryOfOrigin": "ประเทศแหล่งกำเนิด",
+      "countryOfOriginPlaceholder": "เช่น นิวซีแลนด์",
+      "preferredWarehouse": "คลังสินค้าที่ต้องการ",
+      "preferredWarehousePlaceholder": "ค้นหาคลังสินค้า...",
+      "noWarehouseOption": "ไม่มีคลังสินค้าที่ต้องการ",
+      "preferredZone": "โซนที่ต้องการ",
+      "preferredZonePlaceholder": "เลือกคลังสินค้าก่อน",
+      "noZoneOption": "ไม่มีโซนที่ต้องการ"
+    },
+    "advanced": {
+      "description": "คำอธิบาย",
+      "manufacturer": "ผู้ผลิต",
+      "variantName": "รุ่น / รสชาติ",
+      "family": "กลุ่มสินค้า",
+      "familyPlaceholder": "ค้นหากลุ่มสินค้า...",
+      "noFamilyOption": "ไม่มีกลุ่มสินค้า",
+      "grossWeight": "น้ำหนักรวม",
+      "netWeight": "น้ำหนักสุทธิ",
+      "weightUnit": "หน่วยน้ำหนัก",
+      "dimensions": "ขนาด (ยาว × กว้าง × สูง, มม.)",
+      "serialRequired": "การติดตามซีเรียล",
+      "serialRequiredDesc": "กำหนดให้ระบุหมายเลขซีเรียลต่อหน่วยสินค้า",
+      "minStock": "สต็อกขั้นต่ำ",
+      "maxStock": "สต็อกสูงสุด",
+      "barcodesTitle": "บาร์โค้ดเพิ่มเติม",
+      "packagingConversionTitle": "หน่วยนับจัดซื้อและการแปลงบรรจุภัณฑ์",
+      "packagingConversionComingSoon": "เร็ว ๆ นี้ — ยังไม่พร้อมใช้งานในรุ่นนี้"
+    },
+    "barcodes": {
+      "saveFirstHint": "บันทึกสินค้าก่อนเพื่อเพิ่มบาร์โค้ดเพิ่มเติม",
+      "empty": "ไม่มีบาร์โค้ดเพิ่มเติม",
+      "loadFailed": "ไม่สามารถโหลดบาร์โค้ดได้",
+      "addFailed": "ไม่สามารถเพิ่มบาร์โค้ดได้",
+      "removeFailed": "ไม่สามารถนำบาร์โค้ดออกได้",
       "table": {
         "value": "ค่าบาร์โค้ด",
-        "type": "ประเภทบาร์โค้ด",
+        "type": "ประเภท",
         "uom": "หน่วยนับ",
-        "qtyPerBarcode": "จำนวนต่อบาร์โค้ด",
-        "primary": "หลัก",
-        "status": "สถานะ",
-        "action": "การดำเนินการ"
+        "qty": "จำนวน/บาร์โค้ด",
+        "primary": "หลัก"
       },
-      "noMapping": "ไม่มีการจับคู่บาร์โค้ด",
-      "removeButton": "นำออก"
+      "types": {
+        "SUPPLIER_BARCODE": "บาร์โค้ดผู้จำหน่าย",
+        "INTERNAL_BARCODE": "บาร์โค้ดภายใน",
+        "BOX_CODE": "โค้ดกล่อง",
+        "QR_CODE": "คิวอาร์โค้ด"
+      },
+      "form": {
+        "valuePlaceholder": "ค่าบาร์โค้ด",
+        "uomPlaceholder": "หน่วยนับ (ไม่บังคับ)",
+        "primary": "หลัก",
+        "addButton": "เพิ่ม"
+      }
     },
-    "barcodeTypes": {
-      "supplier": "บาร์โค้ดผู้จำหน่าย",
-      "internal": "บาร์โค้ดภายใน",
-      "box": "โค้ดกล่อง",
-      "qr": "คิวอาร์โค้ด"
+    "image": {
+      "placeholder": "ไม่มีรูปภาพ",
+      "uploadButton": "อัปโหลดรูปภาพ",
+      "replaceButton": "เปลี่ยนรูปภาพ",
+      "removeButton": "ลบ",
+      "uploading": "กำลังอัปโหลด...",
+      "removing": "กำลังลบ...",
+      "help": "JPG, PNG หรือ WebP — ขนาดไม่เกิน 5MB",
+      "errors": {
+        "invalidType": "รูปภาพต้องเป็นไฟล์ JPG, PNG หรือ WebP",
+        "tooLarge": "รูปภาพมีขนาดเกิน 5MB",
+        "uploadFailed": "ไม่สามารถอัปโหลดรูปภาพได้",
+        "removeFailed": "ไม่สามารถลบรูปภาพได้"
+      }
     },
-    "rulesTab": {
-      "lotRequiredTitle": "ต้องระบุล็อต",
-      "lotRequiredDesc": "กำหนดให้ระบุเลขที่ล็อตเมื่อรับสินค้าและตรวจสต็อก",
-      "serialRequiredTitle": "ต้องระบุซีเรียล",
-      "serialRequiredDesc": "กำหนดให้ระบุหมายเลขซีเรียลต่อหน่วยสินค้า",
-      "expiryRequiredTitle": "ต้องระบุวันหมดอายุ",
-      "expiryRequiredDesc": "กำหนดให้ควบคุมวันหมดอายุ",
-      "defaultZone": "โซนจัดเก็บเริ่มต้น",
-      "minStock": "สต็อกขั้นต่ำ",
-      "maxStock": "สต็อกสูงสุด"
-    },
-    "uomTab": {
-      "title": "การแปลงหน่วยนับ",
-      "addButton": "+ เพิ่มหน่วยนับ",
-      "qtyPlaceholder": "จำนวน",
-      "removeButton": "นำออก"
+    "unsavedChanges": {
+      "title": "ยกเลิกการเปลี่ยนแปลงที่ยังไม่บันทึก?",
+      "message": "คุณมีการเปลี่ยนแปลงที่ยังไม่บันทึก การปิดตอนนี้จะยกเลิกการเปลี่ยนแปลงเหล่านั้น",
+      "confirmButton": "ยกเลิกการเปลี่ยนแปลง",
+      "cancelButton": "แก้ไขต่อไป"
     },
     "cancelButton": "ยกเลิก",
     "saveProductButton": "บันทึกสินค้า",
     "saving": "กำลังบันทึก...",
     "messages": {
       "skuRequired": "กรุณากรอก SKU",
-      "nameRequired": "กรุณากรอกชื่อสินค้า",
+      "nameRequired": "กรุณากรอกชื่อสินค้า (EN)",
+      "categoryRequired": "กรุณาเลือกหมวดหมู่",
+      "baseUomRequired": "กรุณาเลือกหน่วยนับหลัก",
       "saveFailed": "ไม่สามารถบันทึกสินค้าได้",
       "loadFailed": "ไม่สามารถโหลดสินค้าได้"
     }
@@ -1413,6 +1475,72 @@
       "loadFailed": "ไม่สามารถโหลดผู้จำหน่ายได้",
       "saveFailed": "ไม่สามารถบันทึกผู้จำหน่ายได้",
       "deleteFailed": "ไม่สามารถลบผู้จำหน่ายได้"
+    }
+  },
+  "brands": {
+    "title": "แบรนด์",
+    "subtitle": "จัดการข้อมูลหลักแบรนด์ที่ใช้ในตัวเลือกแบรนด์ของแบบฟอร์มสินค้า",
+    "newButton": "+ แบรนด์ใหม่",
+    "filters": {
+      "searchPlaceholder": "ค้นหาโค้ดหรือชื่อ...",
+      "allStatus": "สถานะทั้งหมด"
+    },
+    "table": {
+      "code": "โค้ด",
+      "name": "ชื่อ",
+      "status": "สถานะ",
+      "action": "การดำเนินการ"
+    },
+    "loading": "กำลังโหลดแบรนด์...",
+    "empty": "ไม่พบแบรนด์",
+    "drawer": {
+      "detailTitle": "รายละเอียดแบรนด์",
+      "newTitle": "แบรนด์ใหม่",
+      "subtitle": "โค้ด ชื่อ และสถานะของแบรนด์"
+    },
+    "fields": {
+      "code": "โค้ด",
+      "name": "ชื่อ",
+      "status": "สถานะ"
+    },
+    "deleteTitle": "ลบแบรนด์",
+    "messages": {
+      "loadFailed": "ไม่สามารถโหลดแบรนด์ได้",
+      "saveFailed": "ไม่สามารถบันทึกแบรนด์ได้",
+      "deleteFailed": "ไม่สามารถลบแบรนด์ได้"
+    }
+  },
+  "productFamilies": {
+    "title": "กลุ่มสินค้า",
+    "subtitle": "จัดการข้อมูลหลักกลุ่มสินค้าที่รวม SKU และรุ่นที่ขายได้",
+    "newButton": "+ กลุ่มสินค้าใหม่",
+    "filters": {
+      "searchPlaceholder": "ค้นหาโค้ดหรือชื่อ...",
+      "allStatus": "สถานะทั้งหมด"
+    },
+    "table": {
+      "code": "โค้ด",
+      "name": "ชื่อ",
+      "status": "สถานะ",
+      "action": "การดำเนินการ"
+    },
+    "loading": "กำลังโหลดกลุ่มสินค้า...",
+    "empty": "ไม่พบกลุ่มสินค้า",
+    "drawer": {
+      "detailTitle": "รายละเอียดกลุ่มสินค้า",
+      "newTitle": "กลุ่มสินค้าใหม่",
+      "subtitle": "โค้ด ชื่อ และสถานะของกลุ่มสินค้า"
+    },
+    "fields": {
+      "code": "โค้ด",
+      "name": "ชื่อ",
+      "status": "สถานะ"
+    },
+    "deleteTitle": "ลบกลุ่มสินค้า",
+    "messages": {
+      "loadFailed": "ไม่สามารถโหลดกลุ่มสินค้าได้",
+      "saveFailed": "ไม่สามารถบันทึกกลุ่มสินค้าได้",
+      "deleteFailed": "ไม่สามารถลบกลุ่มสินค้าได้"
     }
   },
   "stockInquiry": {

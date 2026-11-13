@@ -106,6 +106,8 @@
     "locations": "货位管理",
     "productMaster": "产品主数据",
     "productCategories": "产品类别",
+    "brands": "品牌",
+    "productFamilies": "产品系列",
     "customers": "客户",
     "suppliers": "供应商",
     "logout": "退出登录",
@@ -1128,7 +1130,7 @@
   },
   "productMaster": {
     "title": "产品主数据",
-    "subtitle": "管理产品信息、条码映射、单位和存储规则",
+    "subtitle": "管理产品信息、仓库设置和其他详情",
     "newProductButton": "+ 新建产品",
     "summary": {
       "totalProducts": "产品总数",
@@ -1138,31 +1140,24 @@
     },
     "filters": {
       "searchPlaceholder": "搜索 SKU、产品、条码...",
-      "allCategories": "全部类别",
+      "categoryPlaceholder": "全部类别",
+      "brandPlaceholder": "全部品牌",
       "allStatus": "全部状态",
       "lotRule": "批次规则",
       "lotRequiredOption": "需批次管理",
       "noLotOption": "无需批次"
     },
-    "categories": {
-      "packaging": "包装材料",
-      "label": "标签",
-      "rfid": "RFID",
-      "rawMaterial": "原材料"
-    },
     "table": {
+      "thumbnail": "图片",
       "sku": "SKU",
       "productName": "产品名称",
+      "brand": "品牌",
       "category": "类别",
       "baseUom": "基本单位",
       "packSize": "包装规格",
-      "lot": "批次",
-      "serial": "序列号",
-      "expiry": "有效期",
-      "defaultZone": "默认区域",
+      "rules": "规则",
       "status": "状态",
-      "action": "操作",
-      "productCategory": "产品类别"
+      "action": "操作"
     },
     "loadingProducts": "正在加载产品...",
     "noProducts": "未找到产品。",
@@ -1170,70 +1165,137 @@
     "drawer": {
       "detailTitle": "产品详情",
       "newTitle": "新建产品",
-      "subtitle": "产品主数据、条码映射与库存规则"
+      "subtitle": "基本信息、仓库设置和其他详情"
     },
-    "tabs": {
-      "info": "产品信息",
-      "barcode": "条码映射",
-      "rules": "库存规则",
-      "uom": "单位换算"
+    "sections": {
+      "basic": "基本信息",
+      "warehouse": "仓库设置",
+      "advanced": "其他详情",
+      "advancedHint": "选填 — 描述、附加条码、重量与尺寸、制造商、规格",
+      "expand": "展开",
+      "collapse": "收起"
     },
-    "infoTab": {
+    "basic": {
       "sku": "SKU",
-      "productName": "产品名称",
+      "nameEn": "产品名称（英文）",
+      "nameTh": "产品名称（泰文）",
       "category": "类别",
-      "baseUom": "基本单位",
-      "status": "状态",
-      "barcode": "条码",
+      "categoryPlaceholder": "搜索类别...",
+      "noCategoryOption": "无类别",
+      "brand": "品牌",
+      "brandPlaceholder": "搜索品牌...",
+      "noBrandOption": "无品牌",
+      "barcode": "主条码",
       "barcodePlaceholder": "主条码（选填）",
-      "description": "描述",
-      "productCategory": "产品类别",
-      "noProductCategory": "无产品类别"
+      "packSize": "包装规格",
+      "packSizeUnit": "单位",
+      "baseUom": "基本单位",
+      "status": "启用状态"
     },
-    "barcodeTab": {
-      "title": "条码映射",
-      "addButton": "+ 添加条码",
+    "warehouse": {
+      "storageType": "存储方式",
+      "storageTypes": {
+        "AMBIENT": "常温",
+        "CHILLED": "冷藏",
+        "FROZEN": "冷冻"
+      },
+      "noStorageTypeOption": "未指定",
+      "lotTrackingTitle": "批次管理",
+      "lotTrackingDesc": "收货和库存操作要求填写批次号",
+      "expiryTrackingTitle": "有效期管理",
+      "expiryTrackingDesc": "要求控制有效期",
+      "rotationRule": "出库规则",
+      "rotationRules": {
+        "FIFO": "FIFO",
+        "FEFO": "FEFO"
+      },
+      "noRotationRuleOption": "未指定",
+      "defaultSupplier": "默认供应商",
+      "defaultSupplierPlaceholder": "搜索供应商...",
+      "noSupplierOption": "无默认供应商",
+      "countryOfOrigin": "原产国",
+      "countryOfOriginPlaceholder": "例如：新西兰",
+      "preferredWarehouse": "首选仓库",
+      "preferredWarehousePlaceholder": "搜索仓库...",
+      "noWarehouseOption": "无首选仓库",
+      "preferredZone": "首选区域",
+      "preferredZonePlaceholder": "请先选择仓库",
+      "noZoneOption": "无首选区域"
+    },
+    "advanced": {
+      "description": "描述",
+      "manufacturer": "制造商",
+      "variantName": "规格 / 口味",
+      "family": "产品系列",
+      "familyPlaceholder": "搜索产品系列...",
+      "noFamilyOption": "无产品系列",
+      "grossWeight": "毛重",
+      "netWeight": "净重",
+      "weightUnit": "重量单位",
+      "dimensions": "尺寸（长 × 宽 × 高，毫米）",
+      "serialRequired": "序列号管理",
+      "serialRequiredDesc": "要求每个单品填写序列号",
+      "minStock": "最低库存",
+      "maxStock": "最高库存",
+      "barcodesTitle": "附加条码",
+      "packagingConversionTitle": "采购单位与包装换算",
+      "packagingConversionComingSoon": "即将推出 — 本版本尚未提供。"
+    },
+    "barcodes": {
+      "saveFirstHint": "请先保存产品以添加附加条码。",
+      "empty": "暂无附加条码。",
+      "loadFailed": "加载条码失败",
+      "addFailed": "添加条码失败",
+      "removeFailed": "移除条码失败",
       "table": {
         "value": "条码值",
-        "type": "条码类型",
+        "type": "类型",
         "uom": "单位",
-        "qtyPerBarcode": "每条码数量",
-        "primary": "主条码",
-        "status": "状态",
-        "action": "操作"
+        "qty": "每条码数量",
+        "primary": "主条码"
       },
-      "noMapping": "暂无条码映射",
-      "removeButton": "移除"
+      "types": {
+        "SUPPLIER_BARCODE": "供应商条码",
+        "INTERNAL_BARCODE": "内部条码",
+        "BOX_CODE": "箱码",
+        "QR_CODE": "二维码"
+      },
+      "form": {
+        "valuePlaceholder": "条码值",
+        "uomPlaceholder": "单位（选填）",
+        "primary": "主条码",
+        "addButton": "添加"
+      }
     },
-    "barcodeTypes": {
-      "supplier": "供应商条码",
-      "internal": "内部条码",
-      "box": "箱码",
-      "qr": "二维码"
+    "image": {
+      "placeholder": "无图片",
+      "uploadButton": "上传图片",
+      "replaceButton": "更换图片",
+      "removeButton": "移除",
+      "uploading": "正在上传...",
+      "removing": "正在移除...",
+      "help": "JPG、PNG 或 WebP — 最大 5MB",
+      "errors": {
+        "invalidType": "图片必须是 JPG、PNG 或 WebP 文件",
+        "tooLarge": "图片超过 5MB 大小限制",
+        "uploadFailed": "上传图片失败",
+        "removeFailed": "移除图片失败"
+      }
     },
-    "rulesTab": {
-      "lotRequiredTitle": "需批次管理",
-      "lotRequiredDesc": "收货和库存操作要求填写批次号",
-      "serialRequiredTitle": "需序列号管理",
-      "serialRequiredDesc": "要求每个单品填写序列号",
-      "expiryRequiredTitle": "需有效期管理",
-      "expiryRequiredDesc": "要求控制有效期",
-      "defaultZone": "默认上架区域",
-      "minStock": "最低库存",
-      "maxStock": "最高库存"
-    },
-    "uomTab": {
-      "title": "单位换算",
-      "addButton": "+ 添加单位换算",
-      "qtyPlaceholder": "数量",
-      "removeButton": "移除"
+    "unsavedChanges": {
+      "title": "放弃未保存的更改？",
+      "message": "您有未保存的更改。现在关闭将放弃这些更改。",
+      "confirmButton": "放弃更改",
+      "cancelButton": "继续编辑"
     },
     "cancelButton": "取消",
     "saveProductButton": "保存产品",
     "saving": "正在保存...",
     "messages": {
       "skuRequired": "请输入 SKU",
-      "nameRequired": "请输入产品名称",
+      "nameRequired": "请输入产品名称（英文）",
+      "categoryRequired": "请选择类别",
+      "baseUomRequired": "请选择基本单位",
       "saveFailed": "保存产品失败",
       "loadFailed": "加载产品失败"
     }
@@ -1413,6 +1475,72 @@
       "loadFailed": "加载供应商失败",
       "saveFailed": "保存供应商失败",
       "deleteFailed": "删除供应商失败"
+    }
+  },
+  "brands": {
+    "title": "品牌",
+    "subtitle": "管理产品表单品牌选择器使用的品牌主数据",
+    "newButton": "+ 新建品牌",
+    "filters": {
+      "searchPlaceholder": "搜索编码或名称...",
+      "allStatus": "全部状态"
+    },
+    "table": {
+      "code": "编码",
+      "name": "名称",
+      "status": "状态",
+      "action": "操作"
+    },
+    "loading": "正在加载品牌...",
+    "empty": "未找到品牌。",
+    "drawer": {
+      "detailTitle": "品牌详情",
+      "newTitle": "新建品牌",
+      "subtitle": "品牌编码、名称与状态"
+    },
+    "fields": {
+      "code": "编码",
+      "name": "名称",
+      "status": "状态"
+    },
+    "deleteTitle": "删除品牌",
+    "messages": {
+      "loadFailed": "加载品牌失败",
+      "saveFailed": "保存品牌失败",
+      "deleteFailed": "删除品牌失败"
+    }
+  },
+  "productFamilies": {
+    "title": "产品系列",
+    "subtitle": "管理用于归类可销售 SKU 和规格的产品系列主数据",
+    "newButton": "+ 新建产品系列",
+    "filters": {
+      "searchPlaceholder": "搜索编码或名称...",
+      "allStatus": "全部状态"
+    },
+    "table": {
+      "code": "编码",
+      "name": "名称",
+      "status": "状态",
+      "action": "操作"
+    },
+    "loading": "正在加载产品系列...",
+    "empty": "未找到产品系列。",
+    "drawer": {
+      "detailTitle": "产品系列详情",
+      "newTitle": "新建产品系列",
+      "subtitle": "产品系列编码、名称与状态"
+    },
+    "fields": {
+      "code": "编码",
+      "name": "名称",
+      "status": "状态"
+    },
+    "deleteTitle": "删除产品系列",
+    "messages": {
+      "loadFailed": "加载产品系列失败",
+      "saveFailed": "保存产品系列失败",
+      "deleteFailed": "删除产品系列失败"
     }
   },
   "stockInquiry": {

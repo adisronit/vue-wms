@@ -74,6 +74,15 @@ var Modules = []ModuleDef{
 	{Code: "product_category", Name: "Product Categories", Actions: []string{"view", "create", "update", "delete"}},
 	{Code: "customer", Name: "Customers", Actions: []string{"view", "create", "update", "delete"}},
 	{Code: "supplier", Name: "Suppliers", Actions: []string{"view", "create", "update", "delete"}},
+	// EWTA Product Master enhancement: Brand and Product Family are new
+	// admin-level master data, the same view/create/update/delete shape
+	// and ADMIN/WAREHOUSE_MANAGER-only default grants as
+	// product_category/customer/supplier above. Product image upload/
+	// replace/remove deliberately reuses product.update/product.view
+	// rather than minting its own codes — see internal/product/handler.go's
+	// Register doc.
+	{Code: "brand", Name: "Brands", Actions: []string{"view", "create", "update", "delete"}},
+	{Code: "product_family", Name: "Product Families", Actions: []string{"view", "create", "update", "delete"}},
 }
 
 var actionLabels = map[string]string{

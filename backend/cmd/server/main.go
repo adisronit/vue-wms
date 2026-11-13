@@ -26,6 +26,7 @@ import (
 	"wms-backend/config"
 	_ "wms-backend/docs"
 	"wms-backend/internal/auth"
+	"wms-backend/internal/brand"
 	"wms-backend/internal/customer"
 	"wms-backend/internal/dashboard"
 	"wms-backend/internal/health"
@@ -43,6 +44,7 @@ import (
 	"wms-backend/internal/platformadmin"
 	"wms-backend/internal/product"
 	"wms-backend/internal/productcategory"
+	"wms-backend/internal/productfamily"
 	"wms-backend/internal/putaway"
 	"wms-backend/internal/receiving"
 	"wms-backend/internal/replenishment"
@@ -201,22 +203,30 @@ func main() {
 	locationService := location.NewService(locationRepo, zoneRepo, inventoryRepo)
 	location.NewHandler(locationService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
-	// Master Data Expansion: Product Category, Customer, Supplier.
-	// Registered ahead of product below because productService.Create/
-	// Update need a categoryChecker (productcategory's Exists) to
-	// validate an optional category_id — see
-	// internal/product/service.go's categoryChecker doc. Each handler's
-	// Register uses the RequireJWT -> RequireTenantContext ->
+	// Master Data Expansion: Product Category, Customer, Supplier, plus
+	// (EWTA Product Master enhancement) Brand and Product Family.
+	// supplierRepo/brandRepo/familyRepo are constructed ahead of their
+	// own handler registration below because productService.Create/
+	// Update now need them (alongside productCategoryRepo) as checkers
+	// to validate optional default_supplier_id/brand_id/family_id — see
+	// internal/product/service.go's own checker interface docs. Each
+	// handler's Register uses the RequireJWT -> RequireTenantContext ->
 	// RequirePermission chain (membershipChecker/cacheTTL are the same
 	// tenantService/cfg.TenantMembershipCacheTTL the Tenant Admin
-	// membership API above already uses), unlike product/warehouse's
-	// RequireJWT-only chain — see internal/productcategory/handler.go's
-	// doc for why these new modules are held to the stricter standard.
+	// membership API above already uses) — product.Handler.Register now
+	// uses this chain too (EWTA closes its own pre-existing,
+	// RequireJWT-only gap; see internal/product/repository.go's doc).
 	productCategoryRepo := productcategory.NewRepository(dbManager.DB())
+	supplierRepo := supplier.NewRepository(dbManager.DB())
+	brandRepo := brand.NewRepository(dbManager.DB())
+	familyRepo := productfamily.NewRepository(dbManager.DB())
 
 	productRepo := product.NewRepository(dbManager.DB())
-	productService := product.NewService(productRepo, productCategoryRepo)
-	product.NewHandler(productService).Register(v1, cfg.JWTSecret)
+	productService := product.NewService(
+		productRepo, productCategoryRepo, brandRepo, familyRepo, supplierRepo, warehouseRepo, zoneRepo,
+		cfg.ImageStorageDir, cfg.ImageMaxUploadBytes,
+	)
+	product.NewHandler(productService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	productCategoryService := productcategory.NewService(productCategoryRepo, productRepo)
 	productcategory.NewHandler(productCategoryService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
@@ -225,9 +235,14 @@ func main() {
 	customerService := customer.NewService(customerRepo)
 	customer.NewHandler(customerService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
-	supplierRepo := supplier.NewRepository(dbManager.DB())
 	supplierService := supplier.NewService(supplierRepo)
 	supplier.NewHandler(supplierService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	brandService := brand.NewService(brandRepo)
+	brand.NewHandler(brandService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	familyService := productfamily.NewService(familyRepo)
+	productfamily.NewHandler(familyService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	inventoryService := inventory.NewService(inventoryRepo)
 	inventory.NewHandler(inventoryService).Register(v1, cfg.JWTSecret)

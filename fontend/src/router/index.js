@@ -24,6 +24,8 @@ import ProductMasterView from '../views/administration/ProductMasterView.vue'
 import ProductCategoryView from '../views/administration/ProductCategoryView.vue'
 import CustomerView from '../views/administration/CustomerView.vue'
 import SupplierView from '../views/administration/SupplierView.vue'
+import BrandView from '../views/administration/BrandView.vue'
+import ProductFamilyView from '../views/administration/ProductFamilyView.vue'
 import ReplenishmentView from '../views/inventory/ReplenishmentView.vue'
 import TenantManagementView from '../views/platform/TenantManagementView.vue'
 import TenantDetailView from '../views/platform/TenantDetailView.vue'
@@ -145,6 +147,16 @@ const routes = [
         path: 'administration/suppliers',
         name: 'Suppliers',
         component: SupplierView
+      },
+      {
+        path: 'administration/brands',
+        name: 'Brands',
+        component: BrandView
+      },
+      {
+        path: 'administration/product-families',
+        name: 'ProductFamilies',
+        component: ProductFamilyView
       },
       {
         path: 'inventory/replenishment',

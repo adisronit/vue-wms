@@ -60,6 +60,24 @@ type Config struct {
 	// is immediately readable by the server's download endpoint.
 	ExportDir string
 
+	// ImageStorageDir is the EWTA Product Master enhancement's
+	// server-side storage path for uploaded product images — the
+	// product_images Docker volume is mounted at this same path in the
+	// backend container only (see docker-compose.yml; uploads are
+	// synchronous HTTP, not RabbitMQ-driven, so unlike ExportDir the
+	// worker never needs it). Empty means image upload is not
+	// configured — internal/product.Service.UploadImage returns a
+	// validation error rather than writing to an empty/relative path.
+	ImageStorageDir string
+
+	// ImageMaxUploadBytes bounds a single product image upload — the
+	// EWTA image requirements' 5MB cap. 0 (unset) falls back to
+	// internal/product's own maxImageUploadBytes constant; this knob
+	// exists only so ops can lower it further without a code change,
+	// never to raise it past 5MB (Service clamps any larger value back
+	// down).
+	ImageMaxUploadBytes int64
+
 	// TenantMembershipCacheTTL bounds how long
 	// middleware.RequireTenantContext trusts a positive tenant-membership
 	// check before re-querying the database — the cache window
@@ -157,6 +175,11 @@ func Load() (*Config, error) {
 	if cfg.ExportDir == "" {
 		cfg.ExportDir = "/app/exports"
 	}
+	cfg.ImageStorageDir = os.Getenv("IMAGE_STORAGE_DIR")
+	if cfg.ImageStorageDir == "" {
+		cfg.ImageStorageDir = "/app/images"
+	}
+	cfg.ImageMaxUploadBytes = int64(parseInt(os.Getenv("IMAGE_MAX_UPLOAD_BYTES"), 0))
 
 	cfg.TenantMembershipCacheTTL = parseDuration(os.Getenv("TENANT_MEMBERSHIP_CACHE_TTL"), 60*time.Second)
 

@@ -106,6 +106,8 @@
     "locations": "Locations",
     "productMaster": "Product Master",
     "productCategories": "Product Categories",
+    "brands": "Brands",
+    "productFamilies": "Product Families",
     "customers": "Customers",
     "suppliers": "Suppliers",
     "logout": "Logout",
@@ -1128,7 +1130,7 @@
   },
   "productMaster": {
     "title": "Product Master",
-    "subtitle": "Manage product information, barcode mapping, UOM and storage rules",
+    "subtitle": "Manage product information, warehouse settings, and additional details",
     "newProductButton": "+ New Product",
     "summary": {
       "totalProducts": "Total Products",
@@ -1138,31 +1140,24 @@
     },
     "filters": {
       "searchPlaceholder": "Search SKU, product, barcode...",
-      "allCategories": "All Categories",
+      "categoryPlaceholder": "All Categories",
+      "brandPlaceholder": "All Brands",
       "allStatus": "All Status",
       "lotRule": "Lot Rule",
       "lotRequiredOption": "Lot Required",
       "noLotOption": "No Lot"
     },
-    "categories": {
-      "packaging": "Packaging",
-      "label": "Label",
-      "rfid": "RFID",
-      "rawMaterial": "Raw Material"
-    },
     "table": {
+      "thumbnail": "Image",
       "sku": "SKU",
       "productName": "Product Name",
+      "brand": "Brand",
       "category": "Category",
       "baseUom": "Base UOM",
       "packSize": "Pack Size",
-      "lot": "Lot",
-      "serial": "Serial",
-      "expiry": "Expiry",
-      "defaultZone": "Default Zone",
+      "rules": "Rules",
       "status": "Status",
-      "action": "Action",
-      "productCategory": "Product Category"
+      "action": "Action"
     },
     "loadingProducts": "Loading products...",
     "noProducts": "No products found.",
@@ -1170,70 +1165,137 @@
     "drawer": {
       "detailTitle": "Product Detail",
       "newTitle": "New Product",
-      "subtitle": "Product master, barcode mapping and inventory rules"
+      "subtitle": "Basic information, warehouse settings, and additional details"
     },
-    "tabs": {
-      "info": "Product Info",
-      "barcode": "Barcode Mapping",
-      "rules": "Inventory Rules",
-      "uom": "UOM Conversion"
+    "sections": {
+      "basic": "Basic Information",
+      "warehouse": "Warehouse Settings",
+      "advanced": "Additional Details",
+      "advancedHint": "Optional — description, additional barcodes, weight & dimensions, manufacturer, variant",
+      "expand": "Show",
+      "collapse": "Hide"
     },
-    "infoTab": {
+    "basic": {
       "sku": "SKU",
-      "productName": "Product Name",
+      "nameEn": "Product Name (EN)",
+      "nameTh": "Product Name (TH)",
       "category": "Category",
-      "baseUom": "Base UOM",
-      "status": "Status",
-      "barcode": "Barcode",
+      "categoryPlaceholder": "Search category...",
+      "noCategoryOption": "No category",
+      "brand": "Brand",
+      "brandPlaceholder": "Search brand...",
+      "noBrandOption": "No brand",
+      "barcode": "Primary Barcode",
       "barcodePlaceholder": "Primary barcode (optional)",
-      "description": "Description",
-      "productCategory": "Product Category",
-      "noProductCategory": "No Product Category"
+      "packSize": "Pack Size",
+      "packSizeUnit": "Unit",
+      "baseUom": "Base UOM",
+      "status": "Active Status"
     },
-    "barcodeTab": {
-      "title": "Barcode Mapping",
-      "addButton": "+ Add Barcode",
+    "warehouse": {
+      "storageType": "Storage Type",
+      "storageTypes": {
+        "AMBIENT": "Ambient",
+        "CHILLED": "Chilled",
+        "FROZEN": "Frozen"
+      },
+      "noStorageTypeOption": "Not specified",
+      "lotTrackingTitle": "Lot Tracking",
+      "lotTrackingDesc": "Require lot number for receiving and stock",
+      "expiryTrackingTitle": "Expiry Tracking",
+      "expiryTrackingDesc": "Require expiry date control",
+      "rotationRule": "Rotation Rule",
+      "rotationRules": {
+        "FIFO": "FIFO",
+        "FEFO": "FEFO"
+      },
+      "noRotationRuleOption": "Not specified",
+      "defaultSupplier": "Default Supplier",
+      "defaultSupplierPlaceholder": "Search supplier...",
+      "noSupplierOption": "No default supplier",
+      "countryOfOrigin": "Country of Origin",
+      "countryOfOriginPlaceholder": "e.g. New Zealand",
+      "preferredWarehouse": "Preferred Warehouse",
+      "preferredWarehousePlaceholder": "Search warehouse...",
+      "noWarehouseOption": "No preferred warehouse",
+      "preferredZone": "Preferred Zone",
+      "preferredZonePlaceholder": "Select a warehouse first",
+      "noZoneOption": "No preferred zone"
+    },
+    "advanced": {
+      "description": "Description",
+      "manufacturer": "Manufacturer",
+      "variantName": "Variant / Flavor",
+      "family": "Product Family",
+      "familyPlaceholder": "Search product family...",
+      "noFamilyOption": "No family",
+      "grossWeight": "Gross Weight",
+      "netWeight": "Net Weight",
+      "weightUnit": "Weight Unit",
+      "dimensions": "Dimensions (L × W × H, mm)",
+      "serialRequired": "Serial Tracking",
+      "serialRequiredDesc": "Require serial number per item",
+      "minStock": "Min Stock",
+      "maxStock": "Max Stock",
+      "barcodesTitle": "Additional Barcodes",
+      "packagingConversionTitle": "Purchase UOM & Packaging Conversion",
+      "packagingConversionComingSoon": "Coming soon — not yet available in this release."
+    },
+    "barcodes": {
+      "saveFirstHint": "Save the product first to add additional barcodes.",
+      "empty": "No additional barcodes mapped.",
+      "loadFailed": "Failed to load barcodes",
+      "addFailed": "Failed to add barcode",
+      "removeFailed": "Failed to remove barcode",
       "table": {
         "value": "Barcode Value",
-        "type": "Barcode Type",
+        "type": "Type",
         "uom": "UOM",
-        "qtyPerBarcode": "Qty Per Barcode",
-        "primary": "Primary",
-        "status": "Status",
-        "action": "Action"
+        "qty": "Qty / Barcode",
+        "primary": "Primary"
       },
-      "noMapping": "No barcode mapping",
-      "removeButton": "Remove"
+      "types": {
+        "SUPPLIER_BARCODE": "Supplier Barcode",
+        "INTERNAL_BARCODE": "Internal Barcode",
+        "BOX_CODE": "Box Code",
+        "QR_CODE": "QR Code"
+      },
+      "form": {
+        "valuePlaceholder": "Barcode value",
+        "uomPlaceholder": "UOM (optional)",
+        "primary": "Primary",
+        "addButton": "Add"
+      }
     },
-    "barcodeTypes": {
-      "supplier": "Supplier Barcode",
-      "internal": "Internal Barcode",
-      "box": "Box Code",
-      "qr": "QR Code"
+    "image": {
+      "placeholder": "No image",
+      "uploadButton": "Upload Image",
+      "replaceButton": "Replace Image",
+      "removeButton": "Remove",
+      "uploading": "Uploading...",
+      "removing": "Removing...",
+      "help": "JPG, PNG, or WebP — max 5MB",
+      "errors": {
+        "invalidType": "Image must be a JPG, PNG, or WebP file",
+        "tooLarge": "Image exceeds the 5MB size limit",
+        "uploadFailed": "Failed to upload image",
+        "removeFailed": "Failed to remove image"
+      }
     },
-    "rulesTab": {
-      "lotRequiredTitle": "Lot Required",
-      "lotRequiredDesc": "Require lot number for receiving and stock",
-      "serialRequiredTitle": "Serial Required",
-      "serialRequiredDesc": "Require serial number per item",
-      "expiryRequiredTitle": "Expiry Required",
-      "expiryRequiredDesc": "Require expiry date control",
-      "defaultZone": "Default Putaway Zone",
-      "minStock": "Min Stock",
-      "maxStock": "Max Stock"
-    },
-    "uomTab": {
-      "title": "UOM Conversion",
-      "addButton": "+ Add UOM",
-      "qtyPlaceholder": "Qty",
-      "removeButton": "Remove"
+    "unsavedChanges": {
+      "title": "Discard unsaved changes?",
+      "message": "You have unsaved changes. Closing now will discard them.",
+      "confirmButton": "Discard Changes",
+      "cancelButton": "Keep Editing"
     },
     "cancelButton": "Cancel",
     "saveProductButton": "Save Product",
     "saving": "Saving...",
     "messages": {
       "skuRequired": "SKU is required",
-      "nameRequired": "Product Name is required",
+      "nameRequired": "Product Name (EN) is required",
+      "categoryRequired": "Category is required",
+      "baseUomRequired": "Base UOM is required",
       "saveFailed": "Failed to save product",
       "loadFailed": "Failed to load products"
     }
@@ -1413,6 +1475,72 @@
       "loadFailed": "Failed to load suppliers",
       "saveFailed": "Failed to save supplier",
       "deleteFailed": "Failed to delete supplier"
+    }
+  },
+  "brands": {
+    "title": "Brands",
+    "subtitle": "Manage the brand master used by the Product Add/Edit form's Brand selector",
+    "newButton": "+ New Brand",
+    "filters": {
+      "searchPlaceholder": "Search code or name...",
+      "allStatus": "All Status"
+    },
+    "table": {
+      "code": "Code",
+      "name": "Name",
+      "status": "Status",
+      "action": "Action"
+    },
+    "loading": "Loading brands...",
+    "empty": "No brands found.",
+    "drawer": {
+      "detailTitle": "Brand Detail",
+      "newTitle": "New Brand",
+      "subtitle": "Brand code, name and status"
+    },
+    "fields": {
+      "code": "Code",
+      "name": "Name",
+      "status": "Status"
+    },
+    "deleteTitle": "Delete Brand",
+    "messages": {
+      "loadFailed": "Failed to load brands",
+      "saveFailed": "Failed to save brand",
+      "deleteFailed": "Failed to delete brand"
+    }
+  },
+  "productFamilies": {
+    "title": "Product Families",
+    "subtitle": "Manage the family master that groups sellable SKUs and variants",
+    "newButton": "+ New Family",
+    "filters": {
+      "searchPlaceholder": "Search code or name...",
+      "allStatus": "All Status"
+    },
+    "table": {
+      "code": "Code",
+      "name": "Name",
+      "status": "Status",
+      "action": "Action"
+    },
+    "loading": "Loading product families...",
+    "empty": "No product families found.",
+    "drawer": {
+      "detailTitle": "Family Detail",
+      "newTitle": "New Family",
+      "subtitle": "Family code, name and status"
+    },
+    "fields": {
+      "code": "Code",
+      "name": "Name",
+      "status": "Status"
+    },
+    "deleteTitle": "Delete Family",
+    "messages": {
+      "loadFailed": "Failed to load product families",
+      "saveFailed": "Failed to save product family",
+      "deleteFailed": "Failed to delete product family"
     }
   },
   "stockInquiry": {
