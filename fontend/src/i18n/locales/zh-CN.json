@@ -988,7 +988,8 @@
       "edit": "编辑",
       "delete": "删除",
       "approve": "批准",
-      "export": "导出"
+      "export": "导出",
+      "suspend": "暂停"
     },
     "modules": {
       "dashboard": "仪表盘",
@@ -1003,7 +1004,8 @@
       "users": "用户管理",
       "roles": "角色与权限",
       "warehouse": "仓库设置",
-      "product": "产品主数据"
+      "product": "产品主数据",
+      "tenantUsers": "租户用户管理"
     },
     "selectRolePrompt": "选择一个角色以配置权限",
     "permissionConfigLabel": "{code} 权限配置",

@@ -55,6 +55,15 @@ var exemptMethods = map[string]bool{
 	"role.ListPermissions":     true,
 	"role.PermissionsByCodes":  true,
 	"role.RolePermissionCodes": true, // reads the Platform-Global permissions table, joined only through an already-tenant-checked role_id upstream per the audit's own recommendation
+
+	// WMS-29E: users is Platform-Global identity by design (one `users`
+	// row can hold memberships in many tenants, tenant-er-design.md §1) —
+	// there is no tenant_id on this table to thread through, and
+	// shouldn't be; the tenant-owned side of "link an existing user" is
+	// the tenant_users row created afterward, which does go through a
+	// tenant-scoped repository method (tenant.Repository's
+	// CreateMembershipWithExistingUser).
+	"user.FindByUsernameOrEmail": true,
 }
 
 var tenantNamePattern = regexp.MustCompile(`(?i)tenant`)

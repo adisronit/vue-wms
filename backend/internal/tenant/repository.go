@@ -8,6 +8,8 @@ import (
 	"gorm.io/gorm"
 
 	"wms-backend/internal/platform/database/sqlerr"
+	"wms-backend/internal/rbac"
+	"wms-backend/internal/role"
 )
 
 // ErrMembershipNotFound covers "no such tenant_users row", "row exists but
@@ -168,13 +170,17 @@ func (r *Repository) insertAuditLog(tx *gorm.DB, log *TenantAuditLog) error {
 	return tx.Create(log).Error
 }
 
-// CreateWithAudit inserts t and, in the same transaction, an audit log
-// row describing the creation — buildLog receives the newly assigned
-// t.ID so it can set TargetID without a second round trip. Returns
-// ErrDuplicate if t.Slug collides with UQ_tenants_slug.
+// CreateWithAudit inserts t, seeds its own role catalog (see
+// seedRoleCatalog) and, in the same transaction, an audit log row
+// describing the creation — buildLog receives the newly assigned t.ID so
+// it can set TargetID without a second round trip. Returns ErrDuplicate
+// if t.Slug collides with UQ_tenants_slug.
 func (r *Repository) CreateWithAudit(ctx context.Context, t *Tenant, buildLog func(tenantID int64) *TenantAuditLog) error {
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(t).Error; err != nil {
+			return err
+		}
+		if err := r.seedRoleCatalog(tx, t.ID); err != nil {
 			return err
 		}
 		return r.insertAuditLog(tx, buildLog(t.ID))
@@ -183,6 +189,69 @@ func (r *Repository) CreateWithAudit(ctx context.Context, t *Tenant, buildLog fu
 		return ErrDuplicate
 	}
 	return err
+}
+
+// seedRoleCatalog gives a newly created tenant its own copy of
+// rbac.RoleCatalog (roles.tenant_id + UQ_roles_tenant_code,
+// migrations/0043/0048, mean every tenant needs its own role rows — a
+// tenant_users row's role_id must resolve to a role owned by that same
+// tenant_id, see migrations/0042's header) plus rbac.RoleDefaultGrants
+// against the permissions catalog, which stays global and is not
+// re-created per tenant. Without this step a freshly created tenant
+// would have zero roles and WMS-29E's membership-management API could
+// never create a tenant_users row for it (there is no role_id to assign).
+// Runs inside CreateWithAudit's own transaction so a tenant row is never
+// left half-provisioned if this fails.
+func (r *Repository) seedRoleCatalog(tx *gorm.DB, tenantID int64) error {
+	roleIDs := make(map[string]int64, len(rbac.RoleCatalog))
+	for _, def := range rbac.RoleCatalog {
+		rl := role.Role{TenantID: tenantID, Code: def.Code, Name: def.Name, Description: def.Description, IsActive: true}
+		if err := tx.Create(&rl).Error; err != nil {
+			return err
+		}
+		roleIDs[def.Code] = rl.ID
+	}
+
+	var permissions []role.Permission
+	if err := tx.Find(&permissions).Error; err != nil {
+		return err
+	}
+	permissionIDs := make(map[string]int64, len(permissions))
+	for _, p := range permissions {
+		permissionIDs[p.Code] = p.ID
+	}
+
+	for roleCode, codes := range rbac.RoleDefaultGrants {
+		roleID, ok := roleIDs[roleCode]
+		if !ok {
+			continue
+		}
+
+		grants := make([]role.RolePermission, 0, len(codes))
+		for _, code := range codes {
+			permissionID, ok := permissionIDs[code]
+			if !ok {
+				// The global permission catalog has not been seeded yet
+				// (fresh install, before cmd/migrate's `seed` has ever
+				// run) — skip rather than fail tenant creation. That seed
+				// command is additive/idempotent and remains the single
+				// source of truth for the permissions table; re-running
+				// it after this tenant exists would still need a way to
+				// backfill this tenant's missing grants, but that gap is
+				// no different from the pre-existing one seedRolePermissions
+				// itself documents for catalog drift on existing tenants.
+				continue
+			}
+			grants = append(grants, role.RolePermission{RoleID: roleID, PermissionID: permissionID})
+		}
+		if len(grants) > 0 {
+			if err := tx.Create(&grants).Error; err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // UpdateWithAudit updates t's Slug/Name (the only platform-admin-

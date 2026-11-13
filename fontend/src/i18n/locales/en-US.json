@@ -988,7 +988,8 @@
       "edit": "Edit",
       "delete": "Delete",
       "approve": "Approve",
-      "export": "Export"
+      "export": "Export",
+      "suspend": "Suspend"
     },
     "modules": {
       "dashboard": "Dashboard",
@@ -1003,7 +1004,8 @@
       "users": "User Management",
       "roles": "Roles & Permissions",
       "warehouse": "Warehouse Setup",
-      "product": "Product Master"
+      "product": "Product Master",
+      "tenantUsers": "Tenant User Management"
     },
     "selectRolePrompt": "Select a role to configure permissions",
     "permissionConfigLabel": "{code} permission configuration",

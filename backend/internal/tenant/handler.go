@@ -12,20 +12,23 @@ import (
 	"wms-backend/internal/platform/middleware"
 )
 
-// Handler exposes Service's tenant-management methods over HTTP, under
-// /api/v1/platform/tenants — the Platform Admin API (WMS-29). It never
+// Handler exposes Service's tenant-management methods, plus (WMS-29E)
+// membership's Platform Admin membership-management methods, over HTTP
+// under /api/v1/platform/tenants — the Platform Admin API. It never
 // exposes the membership-resolution methods (ActiveMembership(s),
 // DefaultMembership, Valid) auth already consumes directly.
 type Handler struct {
-	service *Service
+	service    *Service
+	membership *MembershipService
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, membership *MembershipService) *Handler {
+	return &Handler{service: service, membership: membership}
 }
 
-// Register mounts the Platform Admin tenant-management endpoints on rg,
-// gated by RequireJWT then RequirePlatformAdmin — deliberately never
+// Register mounts the Platform Admin tenant-management AND
+// tenant-membership-management endpoints on rg, gated by RequireJWT
+// then RequirePlatformAdmin — deliberately never
 // middleware.RequirePermission/RequireTenantContext: per
 // tenant-isolation-security.md §3, the platform-admin chain is a
 // separate parallel chain from the tenant chain, and per this phase's
@@ -42,6 +45,8 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, platformAdminC
 	tenants.GET("/:id", h.Get)
 	tenants.PUT("/:id", h.Update)
 	tenants.PATCH("/:id/status", h.UpdateStatus)
+
+	h.RegisterPlatformMembers(tenants)
 }
 
 // List godoc

@@ -75,6 +75,25 @@ func (r *Repository) FindByUsername(ctx context.Context, username string) (*User
 	return &u, nil
 }
 
+// FindByUsernameOrEmail resolves identifier against username OR email
+// with an exact match only (never LIKE/partial) — the lookup behind
+// WMS-29E's "link an existing user to another tenant" flow, which must
+// not become a general user-search facility (CLAUDE.md: "Do not expose
+// unrestricted global user search to Tenant Admins"). A caller already
+// knows the exact identifier (shared out of band); this answers "does a
+// user with exactly this identifier exist," nothing broader.
+func (r *Repository) FindByUsernameOrEmail(ctx context.Context, identifier string) (*User, error) {
+	var u User
+	err := r.db.WithContext(ctx).First(&u, "username = ? OR email = ?", identifier, identifier).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
 func (r *Repository) Update(ctx context.Context, u *User) error {
 	err := r.db.WithContext(ctx).Model(&User{}).Where("id = ?", u.ID).Updates(map[string]any{
 		"username":      u.Username,
