@@ -78,14 +78,15 @@
       :is-empty="products.length === 0"
       :loading-text="$t('productMaster.loadingProducts')"
       :empty-text="$t('productMaster.noProducts')"
-      :colspan="11"
-      min-width="1250px"
+      :colspan="12"
+      min-width="1350px"
     >
       <template #head>
         <tr>
           <th class="table-th">{{ $t('productMaster.table.sku') }}</th>
           <th class="table-th">{{ $t('productMaster.table.productName') }}</th>
           <th class="table-th">{{ $t('productMaster.table.category') }}</th>
+          <th class="table-th">{{ $t('productMaster.table.productCategory') }}</th>
           <th class="table-th">{{ $t('productMaster.table.baseUom') }}</th>
           <th class="table-th text-right">{{ $t('productMaster.table.packSize') }}</th>
           <th class="table-th">{{ $t('productMaster.table.lot') }}</th>
@@ -112,6 +113,10 @@
 
         <td class="table-td">
           {{ product.category }}
+        </td>
+
+        <td class="table-td">
+          {{ categoryName(product.categoryId) }}
         </td>
 
         <td class="table-td">
@@ -215,6 +220,16 @@
                 <option value="LABEL">{{ $t('productMaster.categories.label') }}</option>
                 <option value="RFID">{{ $t('productMaster.categories.rfid') }}</option>
                 <option value="RAW_MATERIAL">{{ $t('productMaster.categories.rawMaterial') }}</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="label">{{ $t('productMaster.infoTab.productCategory') }}</label>
+              <select v-model="productForm.categoryId" class="input">
+                <option value="">{{ $t('productMaster.infoTab.noProductCategory') }}</option>
+                <option v-for="cat in productCategories" :key="cat.id" :value="cat.id">
+                  {{ cat.code }} - {{ cat.name }}
+                </option>
               </select>
             </div>
 
@@ -471,6 +486,7 @@
 
 <script>
 import { listProducts, createProduct, updateProduct } from '../../services/products'
+import { listProductCategories } from '../../services/productCategories'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import FilterBar from '../../components/ui/FilterBar.vue'
 import DataTable from '../../components/ui/DataTable.vue'
@@ -490,6 +506,7 @@ function mapProductFromApi(p) {
     productName: p.name,
     description: p.description,
     category: p.category,
+    categoryId: p.category_id || '',
     baseUom: p.base_uom,
     packSize: p.pack_size,
     barcode: p.barcode || '',
@@ -509,6 +526,7 @@ function mapProductToApi(form) {
     name: form.productName,
     description: form.description,
     category: form.category,
+    category_id: form.categoryId || null,
     base_uom: form.baseUom,
     pack_size: form.packSize,
     barcode: form.barcode || null,
@@ -548,7 +566,11 @@ export default {
         { key: 'UOM', labelKey: 'productMaster.tabs.uom' }
       ],
       products: [],
-      productForm: this.createEmptyProduct()
+      productForm: this.createEmptyProduct(),
+      // Fetched once on mount — sources the new "Product Category"
+      // dropdown and the resolved-name column in the table, additive
+      // alongside the pre-existing fixed category enum.
+      productCategories: []
     }
   },
 
@@ -582,9 +604,27 @@ export default {
 
   mounted() {
     this.fetchProducts()
+    this.fetchProductCategories()
   },
 
   methods: {
+    async fetchProductCategories() {
+      try {
+        const res = await listProductCategories({ status: 'ACTIVE', limit: 100 })
+        this.productCategories = res.data
+      } catch {
+        // Non-critical: the Product Category dropdown/column simply
+        // stays empty this cycle — product save/load itself is
+        // unaffected.
+      }
+    },
+
+    categoryName(categoryId) {
+      if (!categoryId) return '—'
+      const cat = this.productCategories.find((c) => c.id === categoryId)
+      return cat ? `${cat.code} - ${cat.name}` : '—'
+    },
+
     async fetchProducts() {
       this.loading = true
       this.listError = ''
@@ -609,6 +649,7 @@ export default {
         sku: '',
         productName: '',
         category: 'PACKAGING',
+        categoryId: '',
         baseUom: 'PCS',
         status: 'ACTIVE',
         description: '',

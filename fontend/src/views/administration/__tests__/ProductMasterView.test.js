@@ -7,7 +7,13 @@ vi.mock('../../../services/products', async () => {
   return { ...actual, listProducts: vi.fn(), createProduct: vi.fn(), updateProduct: vi.fn() }
 })
 
+vi.mock('../../../services/productCategories', async () => {
+  const actual = await vi.importActual('../../../services/productCategories')
+  return { ...actual, listProductCategories: vi.fn() }
+})
+
 import { listProducts } from '../../../services/products'
+import { listProductCategories } from '../../../services/productCategories'
 
 const globalMocks = {
   $t: (key) => key,
@@ -36,9 +42,23 @@ const activeProduct = {
   status: 'ACTIVE'
 }
 
+const productCategory = {
+  id: '5',
+  code: 'PKG',
+  name: 'Packaging',
+  parent_id: null,
+  description: '',
+  status: 'ACTIVE'
+}
+
 describe('ProductMasterView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Every test mounts the component, which fetches the Product
+    // Category dropdown options on mount — default this to an empty,
+    // successful page so tests that don't care about categories aren't
+    // forced to stub it individually.
+    listProductCategories.mockResolvedValue(page([]))
   })
 
   // Regression test: the template calls statusLabel(product.status) for
@@ -84,5 +104,71 @@ describe('ProductMasterView', () => {
 
     expect(wrapper.vm.statusTone('ACTIVE')).toBe('green')
     expect(wrapper.vm.statusTone('INACTIVE')).toBe('gray')
+  })
+
+  // Regression coverage for the new, additive category_id dropdown: it
+  // must coexist with the pre-existing fixed category enum select, be
+  // populated from GET /product-categories, and resolve a product's
+  // category_id to a readable name in the list column.
+  it('fetches product categories on mount and renders them as dropdown options', async () => {
+    listProducts.mockResolvedValue(page([]))
+    listProductCategories.mockResolvedValue(page([productCategory]))
+
+    const wrapper = mount(ProductMasterView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    expect(listProductCategories).toHaveBeenCalledWith({ status: 'ACTIVE', limit: 100 })
+    expect(wrapper.vm.productCategories).toEqual([productCategory])
+
+    wrapper.vm.openProduct(null)
+    await flushPromises()
+
+    const options = wrapper.findAll('option').map((o) => o.text())
+    expect(options).toContain('PKG - Packaging')
+  })
+
+  it('resolves a product row\'s category_id to its code/name in the table instead of showing the raw ID', async () => {
+    listProducts.mockResolvedValue(page([{ ...activeProduct, category_id: '5' }]))
+    listProductCategories.mockResolvedValue(page([productCategory]))
+
+    const wrapper = mount(ProductMasterView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    expect(wrapper.vm.categoryName('5')).toBe('PKG - Packaging')
+    expect(wrapper.text()).toContain('PKG - Packaging')
+  })
+
+  it('shows a placeholder for products without a category_id', async () => {
+    listProducts.mockResolvedValue(page([activeProduct]))
+    listProductCategories.mockResolvedValue(page([productCategory]))
+
+    const wrapper = mount(ProductMasterView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    expect(wrapper.vm.categoryName(null)).toBe('—')
+    expect(wrapper.vm.categoryName('')).toBe('—')
+  })
+
+  it('preserves the legacy fixed category enum field alongside the new category_id in the save payload', async () => {
+    listProducts.mockResolvedValue(page([]))
+    listProductCategories.mockResolvedValue(page([productCategory]))
+
+    const wrapper = mount(ProductMasterView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    wrapper.vm.openProduct(null)
+    wrapper.vm.productForm.sku = 'SKU-NEW'
+    wrapper.vm.productForm.productName = 'New Widget'
+    wrapper.vm.productForm.categoryId = '5'
+
+    const { createProduct } = await import('../../../services/products')
+    createProduct.mockResolvedValue({})
+
+    await wrapper.vm.saveProduct()
+    await flushPromises()
+
+    expect(createProduct).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'PACKAGING', category_id: '5' })
+    )
   })
 })

@@ -6,6 +6,14 @@
 // handler/service/repository stack (not a mock) over a real SQL Server
 // connection, exactly like cmd/server does in production.
 //
+// Master Data Expansion addition: also wires product_category/
+// customer/supplier, the first modules in this harness gated by the
+// full RequireJWT -> RequireTenantContext -> RequirePermission chain —
+// see TenantRepo/TenantService on RouterDeps, which the isolation
+// suite's real-two-tenant fixtures (unlike this file's pre-existing
+// seedTenant, which never sets a real TenantID) need to provision an
+// actual second tenant with its own membership.
+//
 // Deliberately narrower than main.go: it omits every RabbitMQ-dependent
 // module (report, notification's reminder scanner) and every module
 // outside Phase 29's own scope (inventory, receiving, putaway, picking,
@@ -33,11 +41,14 @@ import (
 	"gorm.io/gorm"
 
 	"wms-backend/internal/auth"
+	"wms-backend/internal/customer"
 	"wms-backend/internal/location"
 	apihttp "wms-backend/internal/platform/http"
 	"wms-backend/internal/platform/middleware"
 	"wms-backend/internal/product"
+	"wms-backend/internal/productcategory"
 	"wms-backend/internal/role"
+	"wms-backend/internal/supplier"
 	"wms-backend/internal/tenant"
 	"wms-backend/internal/user"
 	"wms-backend/internal/warehouse"
@@ -49,14 +60,26 @@ import (
 // HTTP layer itself uses (e.g. resolving a seeded role's ID), without
 // exporting the whole dependency graph BuildTestRouter wires internally.
 type RouterDeps struct {
-	Engine        *gin.Engine
-	WarehouseRepo *warehouse.Repository
-	ZoneRepo      *zone.Repository
-	LocationRepo  *location.Repository
-	ProductRepo   *product.Repository
-	UserRepo      *user.Repository
-	RoleRepo      *role.Repository
+	Engine              *gin.Engine
+	WarehouseRepo       *warehouse.Repository
+	ZoneRepo            *zone.Repository
+	LocationRepo        *location.Repository
+	ProductRepo         *product.Repository
+	UserRepo            *user.Repository
+	RoleRepo            *role.Repository
+	TenantRepo          *tenant.Repository
+	TenantService       *tenant.Service
+	ProductCategoryRepo *productcategory.Repository
+	CustomerRepo        *customer.Repository
+	SupplierRepo        *supplier.Repository
 }
+
+// membershipCacheTTL is the fixed TTL BuildTestRouter uses for every
+// RequireTenantContext-gated module below — short enough that an
+// isolation test's cross-tenant assertions are never masked by a stale
+// positive cache entry, matching how short-lived each test's own
+// httptest.Server already is.
+const membershipCacheTTL = 0
 
 // BuildTestRouter wires a gin.Engine against db using the production
 // Register(...) calls each module already exposes — the same wiring
@@ -95,17 +118,35 @@ func BuildTestRouter(db *gorm.DB, jwtSecret string) RouterDeps {
 	locationService := location.NewService(locationRepo, zoneRepo)
 	location.NewHandler(locationService).Register(v1, jwtSecret)
 
+	productCategoryRepo := productcategory.NewRepository(db)
+
 	productRepo := product.NewRepository(db)
-	productService := product.NewService(productRepo)
+	productService := product.NewService(productRepo, productCategoryRepo)
 	product.NewHandler(productService).Register(v1, jwtSecret)
 
+	productCategoryService := productcategory.NewService(productCategoryRepo, productRepo)
+	productcategory.NewHandler(productCategoryService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)
+
+	customerRepo := customer.NewRepository(db)
+	customerService := customer.NewService(customerRepo)
+	customer.NewHandler(customerService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)
+
+	supplierRepo := supplier.NewRepository(db)
+	supplierService := supplier.NewService(supplierRepo)
+	supplier.NewHandler(supplierService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)
+
 	return RouterDeps{
-		Engine:        engine,
-		WarehouseRepo: warehouseRepo,
-		ZoneRepo:      zoneRepo,
-		LocationRepo:  locationRepo,
-		ProductRepo:   productRepo,
-		UserRepo:      userRepo,
-		RoleRepo:      roleRepo,
+		Engine:              engine,
+		WarehouseRepo:       warehouseRepo,
+		ZoneRepo:            zoneRepo,
+		LocationRepo:        locationRepo,
+		ProductRepo:         productRepo,
+		UserRepo:            userRepo,
+		RoleRepo:            roleRepo,
+		TenantRepo:          tenantRepo,
+		TenantService:       tenantService,
+		ProductCategoryRepo: productCategoryRepo,
+		CustomerRepo:        customerRepo,
+		SupplierRepo:        supplierRepo,
 	}
 }

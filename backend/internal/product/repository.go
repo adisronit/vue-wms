@@ -61,6 +61,7 @@ func (r *Repository) Update(ctx context.Context, p *Product) error {
 		"name":            p.Name,
 		"description":     p.Description,
 		"category":        p.Category,
+		"category_id":     p.CategoryID,
 		"base_uom":        p.BaseUOM,
 		"pack_size":       p.PackSize,
 		"barcode":         p.Barcode,
@@ -115,6 +116,24 @@ func (r *Repository) List(ctx context.Context, filter ListFilter) ([]Product, in
 	}
 
 	return products, total, nil
+}
+
+// CountByCategory reports how many products, within tenantID, currently
+// have categoryID set as their category_id — used by
+// internal/productcategory.Service.Delete's referential-safety check
+// before deleting a category. Unlike every other method on this
+// Repository (which, consistent with this module's pre-existing,
+// documented lack of tenant enforcement — see
+// internal/productcategory/repository.go's own doc — ignore tenant_id
+// entirely), this one new method filters by it: it exists specifically
+// to answer a question posed by a module that IS correctly
+// tenant-scoped, and must not leak a count across tenants back to it.
+func (r *Repository) CountByCategory(ctx context.Context, tenantID, categoryID int64) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&Product{}).
+		Where("tenant_id = ? AND category_id = ?", tenantID, categoryID).
+		Count(&count).Error
+	return count, err
 }
 
 // translateUniqueViolation maps a SQL Server unique-constraint error to

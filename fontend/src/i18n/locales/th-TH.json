@@ -103,6 +103,9 @@
     "sectionMasterData": "ข้อมูลหลัก",
     "warehouse": "ตั้งค่าคลังสินค้า",
     "productMaster": "ข้อมูลสินค้าหลัก",
+    "productCategories": "หมวดหมู่สินค้า",
+    "customers": "ลูกค้า",
+    "suppliers": "ผู้จำหน่าย",
     "logout": "ออกจากระบบ",
     "sectionPlatformAdmin": "การบริหารแพลตฟอร์ม",
     "platformTenants": "ผู้เช่า"
@@ -1156,7 +1159,8 @@
       "expiry": "วันหมดอายุ",
       "defaultZone": "โซนเริ่มต้น",
       "status": "สถานะ",
-      "action": "การดำเนินการ"
+      "action": "การดำเนินการ",
+      "productCategory": "หมวดหมู่สินค้า"
     },
     "loadingProducts": "กำลังโหลดสินค้า...",
     "noProducts": "ไม่พบสินค้า",
@@ -1180,7 +1184,9 @@
       "status": "สถานะ",
       "barcode": "บาร์โค้ด",
       "barcodePlaceholder": "บาร์โค้ดหลัก (ไม่บังคับ)",
-      "description": "คำอธิบาย"
+      "description": "คำอธิบาย",
+      "productCategory": "หมวดหมู่สินค้า",
+      "noProductCategory": "ไม่มีหมวดหมู่สินค้า"
     },
     "barcodeTab": {
       "title": "การจับคู่บาร์โค้ด",
@@ -1228,6 +1234,128 @@
       "nameRequired": "กรุณากรอกชื่อสินค้า",
       "saveFailed": "ไม่สามารถบันทึกสินค้าได้",
       "loadFailed": "ไม่สามารถโหลดสินค้าได้"
+    }
+  },
+  "productCategory": {
+    "title": "หมวดหมู่สินค้า",
+    "subtitle": "จัดการโครงสร้างหมวดหมู่ที่ใช้จัดประเภทสินค้า",
+    "newButton": "+ หมวดหมู่ใหม่",
+    "filters": {
+      "searchPlaceholder": "ค้นหาโค้ดหรือชื่อ...",
+      "allParents": "หมวดหมู่หลักทั้งหมด",
+      "allStatus": "สถานะทั้งหมด"
+    },
+    "table": {
+      "code": "โค้ด",
+      "name": "ชื่อ",
+      "parent": "หมวดหมู่หลัก",
+      "description": "คำอธิบาย",
+      "status": "สถานะ",
+      "action": "การดำเนินการ"
+    },
+    "noParentLabel": "—",
+    "loading": "กำลังโหลดหมวดหมู่...",
+    "empty": "ไม่พบหมวดหมู่",
+    "drawer": {
+      "detailTitle": "รายละเอียดหมวดหมู่",
+      "newTitle": "หมวดหมู่ใหม่",
+      "subtitle": "โค้ด ชื่อ โครงสร้างลำดับชั้น และสถานะของหมวดหมู่"
+    },
+    "fields": {
+      "code": "โค้ด",
+      "name": "ชื่อ",
+      "parent": "หมวดหมู่หลัก",
+      "noParentOption": "ไม่มีหมวดหมู่หลัก (ระดับบนสุด)",
+      "description": "คำอธิบาย",
+      "status": "สถานะ"
+    },
+    "deleteTitle": "ลบหมวดหมู่",
+    "messages": {
+      "loadFailed": "ไม่สามารถโหลดหมวดหมู่ได้",
+      "saveFailed": "ไม่สามารถบันทึกหมวดหมู่ได้",
+      "deleteFailed": "ไม่สามารถลบหมวดหมู่ได้"
+    }
+  },
+  "customers": {
+    "title": "ลูกค้า",
+    "subtitle": "จัดการข้อมูลหลักลูกค้าที่ใช้ในคำสั่งซื้อและการจัดส่ง",
+    "newButton": "+ ลูกค้าใหม่",
+    "filters": {
+      "searchPlaceholder": "ค้นหาโค้ด, ชื่อบริษัท, เลขประจำตัวผู้เสียภาษี...",
+      "allStatus": "สถานะทั้งหมด"
+    },
+    "table": {
+      "code": "โค้ด",
+      "companyName": "ชื่อบริษัท",
+      "taxId": "เลขประจำตัวผู้เสียภาษี",
+      "contactPerson": "ผู้ติดต่อ",
+      "status": "สถานะ",
+      "action": "การดำเนินการ"
+    },
+    "loading": "กำลังโหลดลูกค้า...",
+    "empty": "ไม่พบลูกค้า",
+    "drawer": {
+      "detailTitle": "รายละเอียดลูกค้า",
+      "newTitle": "ลูกค้าใหม่",
+      "subtitle": "โค้ดลูกค้า ข้อมูลติดต่อ และสถานะ"
+    },
+    "fields": {
+      "code": "โค้ด",
+      "companyName": "ชื่อบริษัท",
+      "taxId": "เลขประจำตัวผู้เสียภาษี",
+      "contactPerson": "ผู้ติดต่อ",
+      "contactPhone": "โทรศัพท์ผู้ติดต่อ",
+      "address": "ที่อยู่",
+      "email": "อีเมล",
+      "phone": "โทรศัพท์",
+      "status": "สถานะ"
+    },
+    "deleteTitle": "ลบลูกค้า",
+    "messages": {
+      "loadFailed": "ไม่สามารถโหลดลูกค้าได้",
+      "saveFailed": "ไม่สามารถบันทึกลูกค้าได้",
+      "deleteFailed": "ไม่สามารถลบลูกค้าได้"
+    }
+  },
+  "suppliers": {
+    "title": "ผู้จำหน่าย",
+    "subtitle": "จัดการข้อมูลหลักผู้จำหน่ายที่ใช้ในการจัดซื้อและการรับสินค้า",
+    "newButton": "+ ผู้จำหน่ายใหม่",
+    "filters": {
+      "searchPlaceholder": "ค้นหาโค้ด, ชื่อบริษัท, เลขประจำตัวผู้เสียภาษี...",
+      "allStatus": "สถานะทั้งหมด"
+    },
+    "table": {
+      "code": "โค้ด",
+      "companyName": "ชื่อบริษัท",
+      "taxId": "เลขประจำตัวผู้เสียภาษี",
+      "contactPerson": "ผู้ติดต่อ",
+      "status": "สถานะ",
+      "action": "การดำเนินการ"
+    },
+    "loading": "กำลังโหลดผู้จำหน่าย...",
+    "empty": "ไม่พบผู้จำหน่าย",
+    "drawer": {
+      "detailTitle": "รายละเอียดผู้จำหน่าย",
+      "newTitle": "ผู้จำหน่ายใหม่",
+      "subtitle": "โค้ดผู้จำหน่าย ข้อมูลติดต่อ และสถานะ"
+    },
+    "fields": {
+      "code": "โค้ด",
+      "companyName": "ชื่อบริษัท",
+      "taxId": "เลขประจำตัวผู้เสียภาษี",
+      "contactPerson": "ผู้ติดต่อ",
+      "contactPhone": "โทรศัพท์ผู้ติดต่อ",
+      "address": "ที่อยู่",
+      "email": "อีเมล",
+      "phone": "โทรศัพท์",
+      "status": "สถานะ"
+    },
+    "deleteTitle": "ลบผู้จำหน่าย",
+    "messages": {
+      "loadFailed": "ไม่สามารถโหลดผู้จำหน่ายได้",
+      "saveFailed": "ไม่สามารถบันทึกผู้จำหน่ายได้",
+      "deleteFailed": "ไม่สามารถลบผู้จำหน่ายได้"
     }
   },
   "stockInquiry": {

@@ -102,6 +102,104 @@ func TestUOM_IsValid(t *testing.T) {
 	}
 }
 
+// fakeCategoryChecker is a test-local stand-in for categoryChecker —
+// validateCategoryID's unit tests below need to control Exists'
+// return value/error without a real internal/productcategory
+// repository or database connection.
+type fakeCategoryChecker struct {
+	existsResult bool
+	err          error
+	called       bool
+}
+
+func (f *fakeCategoryChecker) Exists(ctx context.Context, tenantID, id int64) (bool, error) {
+	f.called = true
+	return f.existsResult, f.err
+}
+
+func TestValidateCategoryID_NilCategoryIDSkipsCheck(t *testing.T) {
+	checker := &fakeCategoryChecker{}
+	svc := &Service{categories: checker}
+
+	if err := svc.validateCategoryID(context.Background(), nil); err != nil {
+		t.Fatalf("validateCategoryID(nil) = %v, want nil", err)
+	}
+	if checker.called {
+		t.Error("Exists should not be called when categoryID is nil")
+	}
+}
+
+func TestValidateCategoryID_NoCheckerConfiguredSkipsCheck(t *testing.T) {
+	svc := &Service{} // categories is nil — the nil-safe fallback existing tests' &Service{} literals rely on.
+	id := int64(5)
+
+	if err := svc.validateCategoryID(context.Background(), &id); err != nil {
+		t.Fatalf("validateCategoryID with no categoryChecker configured = %v, want nil (defensive no-op)", err)
+	}
+}
+
+func TestValidateCategoryID_RequiresTenantHint(t *testing.T) {
+	checker := &fakeCategoryChecker{existsResult: true}
+	svc := &Service{categories: checker}
+	id := int64(5)
+
+	err := svc.validateCategoryID(context.Background(), &id) // no WithCategoryTenantHint attached
+
+	var validationErr ErrValidation
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("error = %v, want ErrValidation (missing tenant hint)", err)
+	}
+	if checker.called {
+		t.Error("Exists should not be called without a tenant hint — must fail closed")
+	}
+}
+
+func TestValidateCategoryID_RejectsWhenCategoryDoesNotExist(t *testing.T) {
+	checker := &fakeCategoryChecker{existsResult: false}
+	svc := &Service{categories: checker}
+	id := int64(5)
+	ctx := WithCategoryTenantHint(context.Background(), 1)
+
+	_, err := svc.Create(ctx, CreateRequest{
+		SKU: "SKU-X", Name: "Has Bad Category", Category: CategoryPackaging, BaseUOM: UOMPieces, CategoryID: &id,
+	})
+
+	var validationErr ErrValidation
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("Create error = %v, want ErrValidation", err)
+	}
+	if !checker.called {
+		t.Error("Exists should have been called")
+	}
+}
+
+func TestValidateCategoryID_AcceptsWhenCategoryExists(t *testing.T) {
+	checker := &fakeCategoryChecker{existsResult: true}
+	svc := &Service{categories: checker}
+	id := int64(5)
+	ctx := WithCategoryTenantHint(context.Background(), 1)
+
+	if err := svc.validateCategoryID(ctx, &id); err != nil {
+		t.Fatalf("validateCategoryID = %v, want nil", err)
+	}
+	if !checker.called {
+		t.Error("Exists should have been called")
+	}
+}
+
+func TestValidateCategoryID_PropagatesCheckerError(t *testing.T) {
+	wantErr := errors.New("db unavailable")
+	checker := &fakeCategoryChecker{err: wantErr}
+	svc := &Service{categories: checker}
+	id := int64(5)
+	ctx := WithCategoryTenantHint(context.Background(), 1)
+
+	err := svc.validateCategoryID(ctx, &id)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("error = %v, want %v", err, wantErr)
+	}
+}
+
 func TestNormalizeBarcode(t *testing.T) {
 	empty := ""
 	value := "12345"

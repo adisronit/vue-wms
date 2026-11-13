@@ -77,6 +77,13 @@ type Product struct {
 	Name           string    `gorm:"column:name"`
 	Description    string    `gorm:"column:description"`
 	Category       Category  `gorm:"column:category"`
+	// CategoryID (migrations/0049, Master Data Expansion) optionally
+	// links to the new, admin-managed internal/productcategory.Category
+	// hierarchy, additive alongside the fixed Category enum above —
+	// existing data/filters/business logic built on Category are
+	// untouched; this is a brand-new, independently-nullable field a
+	// product may or may not have set.
+	CategoryID     *int64    `gorm:"column:category_id"`
 	BaseUOM        UOM       `gorm:"column:base_uom"`
 	PackSize       int       `gorm:"column:pack_size"`
 	Barcode        *string   `gorm:"column:barcode"`

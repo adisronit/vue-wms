@@ -20,6 +20,9 @@ import NewQualityCheckView from '../views/inbound/NewQualityCheckView.vue'
 import NewPutawayView from '../views/inbound/NewPutawayView.vue'
 import CheckStockView from '../views/inventory/CheckStockView.vue'
 import ProductMasterView from '../views/administration/ProductMasterView.vue'
+import ProductCategoryView from '../views/administration/ProductCategoryView.vue'
+import CustomerView from '../views/administration/CustomerView.vue'
+import SupplierView from '../views/administration/SupplierView.vue'
 import ReplenishmentView from '../views/inventory/ReplenishmentView.vue'
 import TenantManagementView from '../views/platform/TenantManagementView.vue'
 import TenantDetailView from '../views/platform/TenantDetailView.vue'
@@ -121,6 +124,21 @@ const routes = [
         path: 'administration/products',
         name: 'ProductMaster',
         component: ProductMasterView
+      },
+      {
+        path: 'administration/product-categories',
+        name: 'ProductCategories',
+        component: ProductCategoryView
+      },
+      {
+        path: 'administration/customers',
+        name: 'Customers',
+        component: CustomerView
+      },
+      {
+        path: 'administration/suppliers',
+        name: 'Suppliers',
+        component: SupplierView
       },
       {
         path: 'inventory/replenishment',

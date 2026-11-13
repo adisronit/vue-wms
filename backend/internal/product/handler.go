@@ -134,7 +134,12 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.Create(c.Request.Context(), req)
+	ctx := c.Request.Context()
+	if tenantID, ok := middleware.CurrentTenantID(c); ok {
+		ctx = WithCategoryTenantHint(ctx, tenantID)
+	}
+
+	resp, err := h.service.Create(ctx, req)
 	if err == nil {
 		apihttp.Status(c, http.StatusCreated, resp, "product created")
 		return
@@ -172,7 +177,12 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.Update(c.Request.Context(), id, req)
+	ctx := c.Request.Context()
+	if tenantID, ok := middleware.CurrentTenantID(c); ok {
+		ctx = WithCategoryTenantHint(ctx, tenantID)
+	}
+
+	resp, err := h.service.Update(ctx, id, req)
 	writeResult(c, resp, err)
 }
 

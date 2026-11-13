@@ -52,13 +52,22 @@
         {{ $t('nav.shipping') }}
       </router-link>
 
-      <template v-if="canViewWarehouses || canViewProducts">
+      <template v-if="canViewWarehouses || canViewProducts || canViewProductCategories || canViewCustomers || canViewSuppliers">
         <p class="menu-title">{{ $t('nav.sectionMasterData') }}</p>
         <router-link v-if="canViewWarehouses" to="/administration/warehouse" class="menu-item" active-class="menu-active">
           {{ $t('nav.warehouse') }}
         </router-link>
         <router-link v-if="canViewProducts" to="/administration/products" class="menu-item" active-class="menu-active">
           {{ $t('nav.productMaster') }}
+        </router-link>
+        <router-link v-if="canViewProductCategories" to="/administration/product-categories" class="menu-item" active-class="menu-active">
+          {{ $t('nav.productCategories') }}
+        </router-link>
+        <router-link v-if="canViewCustomers" to="/administration/customers" class="menu-item" active-class="menu-active">
+          {{ $t('nav.customers') }}
+        </router-link>
+        <router-link v-if="canViewSuppliers" to="/administration/suppliers" class="menu-item" active-class="menu-active">
+          {{ $t('nav.suppliers') }}
         </router-link>
       </template>
 
@@ -106,6 +115,9 @@ export default {
     canViewRoles: { type: Boolean, default: false },
     canViewWarehouses: { type: Boolean, default: false },
     canViewProducts: { type: Boolean, default: false },
+    canViewProductCategories: { type: Boolean, default: false },
+    canViewCustomers: { type: Boolean, default: false },
+    canViewSuppliers: { type: Boolean, default: false },
     canViewReplenishment: { type: Boolean, default: false },
     canViewPlatformAdmin: { type: Boolean, default: false }
   },
