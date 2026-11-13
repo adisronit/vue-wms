@@ -504,7 +504,8 @@
       "dispatchedSuccess": "นำส่งสินค้าสำเร็จ",
       "deliveredSuccess": "บันทึกการจัดส่งสำเร็จแล้ว",
       "issueReported": "รายงานปัญหาการจัดส่งแล้ว",
-      "shipmentCancelled": "ยกเลิกการจัดส่งแล้ว"
+      "shipmentCancelled": "ยกเลิกการจัดส่งแล้ว",
+      "confirmCancelShipment": "การจัดส่งนี้จะถูกยกเลิกและไม่สามารถดำเนินการต่อได้ ต้องการดำเนินการต่อหรือไม่?"
     }
   },
   "qualityCheck": {

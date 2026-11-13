@@ -504,7 +504,8 @@
       "dispatchedSuccess": "Shipment dispatched successfully",
       "deliveredSuccess": "Shipment marked as delivered",
       "issueReported": "Shipping issue has been reported",
-      "shipmentCancelled": "Shipment cancelled"
+      "shipmentCancelled": "Shipment cancelled",
+      "confirmCancelShipment": "This shipment will be cancelled and cannot be resumed. Continue?"
     }
   },
   "qualityCheck": {

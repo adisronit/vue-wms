@@ -1,14 +1,7 @@
 <template>
   <div class="space-y-6">
-    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800">{{ $t('picking.title') }}</h1>
-        <p class="text-slate-500">
-          {{ $t('picking.subtitle') }}
-        </p>
-      </div>
-
-      <div class="flex gap-3">
+    <PageHeader :title="$t('picking.title')" :subtitle="$t('picking.subtitle')">
+      <template #actions>
         <button
           @click="exportCsv"
           :disabled="exporting"
@@ -24,8 +17,8 @@
         >
           {{ $t('picking.newTaskButton') }}
         </button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
       <div class="summary-card">
@@ -53,130 +46,101 @@
       {{ loadError }}
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 p-5">
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <input
-          v-model="filters.keyword"
-          type="text"
-          :placeholder="$t('picking.filters.searchPlaceholder')"
-          class="input"
-        />
+    <FilterBar :cols="5">
+      <input
+        v-model="filters.keyword"
+        type="text"
+        :placeholder="$t('picking.filters.searchPlaceholder')"
+        class="input"
+      />
 
-        <select v-model="filters.status" class="input">
-          <option value="">{{ $t('picking.filters.allStatus') }}</option>
-          <option value="PENDING">{{ $t('common.status.pending') }}</option>
-          <option value="IN_PROGRESS">{{ $t('common.status.inProgress') }}</option>
-          <option value="COMPLETED">{{ $t('common.status.completed') }}</option>
-          <option value="SHORT_PICK">{{ $t('picking.filters.statusShortPick') }}</option>
-          <option value="CANCELLED">{{ $t('common.status.cancelled') }}</option>
-        </select>
+      <select v-model="filters.status" class="input">
+        <option value="">{{ $t('picking.filters.allStatus') }}</option>
+        <option value="PENDING">{{ $t('common.status.pending') }}</option>
+        <option value="IN_PROGRESS">{{ $t('common.status.inProgress') }}</option>
+        <option value="COMPLETED">{{ $t('common.status.completed') }}</option>
+        <option value="SHORT_PICK">{{ $t('picking.filters.statusShortPick') }}</option>
+        <option value="CANCELLED">{{ $t('common.status.cancelled') }}</option>
+      </select>
 
-        <select v-model="filters.priority" class="input">
-          <option value="">{{ $t('picking.filters.allPriority') }}</option>
-          <option value="HIGH">{{ $t('picking.priority.high') }}</option>
-          <option value="NORMAL">{{ $t('picking.priority.normal') }}</option>
-          <option value="LOW">{{ $t('picking.priority.low') }}</option>
-        </select>
+      <select v-model="filters.priority" class="input">
+        <option value="">{{ $t('picking.filters.allPriority') }}</option>
+        <option value="HIGH">{{ $t('picking.priority.high') }}</option>
+        <option value="NORMAL">{{ $t('picking.priority.normal') }}</option>
+        <option value="LOW">{{ $t('picking.priority.low') }}</option>
+      </select>
 
-        <input
-          v-model="filters.date"
-          type="date"
-          class="input"
-        />
+      <input v-model="filters.date" type="date" class="input" />
 
-        <button
-          @click="clearFilter"
-          class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
-        >
-          {{ $t('common.buttons.clearFilter') }}
-        </button>
-      </div>
-    </div>
+      <button
+        @click="clearFilter"
+        class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
+      >
+        {{ $t('common.buttons.clearFilter') }}
+      </button>
+    </FilterBar>
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="w-full overflow-x-auto">
-        <table class="min-w-[1200px] w-full text-sm">
-          <thead class="bg-slate-50 text-slate-500">
-            <tr>
-              <th class="table-th">{{ $t('picking.table.pickNo') }}</th>
-              <th class="table-th">{{ $t('picking.table.orderNo') }}</th>
-              <th class="table-th">{{ $t('picking.table.customer') }}</th>
-              <th class="table-th">{{ $t('picking.table.warehouse') }}</th>
-              <th class="table-th">{{ $t('picking.table.priority') }}</th>
-              <th class="table-th">{{ $t('picking.table.items') }}</th>
-              <th class="table-th">{{ $t('picking.table.progress') }}</th>
-              <th class="table-th">{{ $t('picking.table.dueDate') }}</th>
-              <th class="table-th">{{ $t('picking.table.status') }}</th>
-              <th class="table-th text-right">{{ $t('picking.table.action') }}</th>
-            </tr>
-          </thead>
+    <DataTable
+      :loading="loading"
+      :is-empty="pickingList.length === 0"
+      :loading-text="$t('picking.loadingTasks')"
+      :empty-text="$t('picking.noTasks')"
+      :colspan="10"
+      min-width="1200px"
+    >
+      <template #head>
+        <tr>
+          <th class="table-th">{{ $t('picking.table.pickNo') }}</th>
+          <th class="table-th">{{ $t('picking.table.orderNo') }}</th>
+          <th class="table-th">{{ $t('picking.table.customer') }}</th>
+          <th class="table-th">{{ $t('picking.table.warehouse') }}</th>
+          <th class="table-th">{{ $t('picking.table.priority') }}</th>
+          <th class="table-th text-right">{{ $t('picking.table.items') }}</th>
+          <th class="table-th">{{ $t('picking.table.progress') }}</th>
+          <th class="table-th">{{ $t('picking.table.dueDate') }}</th>
+          <th class="table-th">{{ $t('picking.table.status') }}</th>
+          <th class="table-th text-right">{{ $t('picking.table.action') }}</th>
+        </tr>
+      </template>
 
-          <tbody>
-            <tr v-if="loading">
-              <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('picking.loadingTasks') }}</td>
-            </tr>
+      <tr
+        v-for="item in pickingList"
+        :key="item.id"
+        class="border-t hover:bg-orange-50"
+      >
+        <td class="table-td font-semibold text-slate-800">{{ item.pickNo }}</td>
+        <td class="table-td">{{ item.orderNo }}</td>
+        <td class="table-td">{{ item.customer }}</td>
+        <td class="table-td">{{ item.warehouse }}</td>
 
-            <tr v-else-if="pickingList.length === 0">
-              <td colspan="10" class="text-center py-10 text-slate-400">{{ $t('picking.noTasks') }}</td>
-            </tr>
+        <td class="table-td">
+          <StatusBadge :tone="priorityTone(item.priority)">{{ priorityLabel(item.priority) }}</StatusBadge>
+        </td>
 
-            <template v-else>
-            <tr
-              v-for="item in pickingList"
-              :key="item.id"
-              class="border-t hover:bg-orange-50"
-            >
-              <td class="table-td font-semibold text-slate-800">
-                {{ item.pickNo }}
-              </td>
-              <td class="table-td">{{ item.orderNo }}</td>
-              <td class="table-td">{{ item.customer }}</td>
-              <td class="table-td">{{ item.warehouse }}</td>
+        <td class="table-td text-right">{{ item.items }}</td>
 
-              <td class="table-td">
-                <span :class="getPriorityClass(item.priority)">
-                  {{ priorityLabel(item.priority) }}
-                </span>
-              </td>
+        <td class="table-td">
+          <div class="w-32">
+            <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div class="h-2 bg-orange-600 rounded-full" :style="{ width: item.progress + '%' }"></div>
+            </div>
+            <p class="text-xs text-slate-500 mt-1 tabular-nums">{{ item.progress }}%</p>
+          </div>
+        </td>
 
-              <td class="table-td">{{ item.items }}</td>
+        <td class="table-td">{{ item.dueDate || '—' }}</td>
 
-              <td class="table-td">
-                <div class="w-32">
-                  <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      class="h-2 bg-orange-600 rounded-full"
-                      :style="{ width: item.progress + '%' }"
-                    ></div>
-                  </div>
-                  <p class="text-xs text-slate-500 mt-1">
-                    {{ item.progress }}%
-                  </p>
-                </div>
-              </td>
+        <td class="table-td">
+          <StatusBadge :tone="statusTone(item.status)">{{ statusText(item.status) }}</StatusBadge>
+        </td>
 
-              <td class="table-td">{{ item.dueDate || '—' }}</td>
-
-              <td class="table-td">
-                <span :class="getStatusClass(item.status)">
-                  {{ statusText(item.status) }}
-                </span>
-              </td>
-
-              <td class="table-td text-right">
-                <button
-                  @click="openPicking(item)"
-                  class="text-orange-600 hover:text-orange-700 font-semibold"
-                >
-                  {{ $t('picking.table.startPick') }}
-                </button>
-              </td>
-            </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
-    </div>
+        <td class="table-td text-right">
+          <button @click="openPicking(item)" class="text-orange-600 hover:text-orange-700 font-semibold">
+            {{ $t('picking.table.startPick') }}
+          </button>
+        </td>
+      </tr>
+    </DataTable>
 
     <div
       v-if="selectedPicking"
@@ -455,6 +419,11 @@ import { listPicking, getPickingTask, createPickingTask, confirmPickingTask, can
 import { listWarehouses, listZones, listLocations } from '../../services/warehouses'
 import { listProducts } from '../../services/products'
 import { hasPermission } from '../../services/auth'
+import { showToast } from '../../services/toast'
+import PageHeader from '../../components/ui/PageHeader.vue'
+import FilterBar from '../../components/ui/FilterBar.vue'
+import DataTable from '../../components/ui/DataTable.vue'
+import StatusBadge from '../../components/ui/StatusBadge.vue'
 import i18n from '../../i18n'
 
 let searchDebounce = null
@@ -508,6 +477,8 @@ function mapPickingRow(r) {
 
 export default {
   name: 'PickingView',
+
+  components: { PageHeader, FilterBar, DataTable, StatusBadge },
 
   data() {
     return {
@@ -839,7 +810,7 @@ export default {
             uom: it.uom
           }))
         })
-        alert(this.$t('picking.messages.taskCreated'))
+        showToast(this.$t('picking.messages.taskCreated'), 'success')
         this.closeDrawer()
         await this.fetchPicking()
         await this.fetchSummary()
@@ -937,13 +908,12 @@ export default {
       return priority
     },
 
-    getStatusClass(status) {
-      if (status === 'PENDING') return 'badge-gray'
-      if (status === 'IN_PROGRESS') return 'badge-orange'
-      if (status === 'COMPLETED') return 'badge-green'
-      if (status === 'SHORT_PICK') return 'badge-red'
-      if (status === 'CANCELLED') return 'badge-red'
-      return 'badge-gray'
+    statusTone(status) {
+      if (status === 'IN_PROGRESS') return 'orange'
+      if (status === 'COMPLETED') return 'green'
+      if (status === 'SHORT_PICK') return 'red'
+      if (status === 'CANCELLED') return 'red'
+      return 'gray'
     },
 
     getItemStatusClass(status) {
@@ -954,11 +924,10 @@ export default {
       return 'badge-gray'
     },
 
-    getPriorityClass(priority) {
-      if (priority === 'HIGH') return 'badge-red'
-      if (priority === 'NORMAL') return 'badge-blue'
-      if (priority === 'LOW') return 'badge-gray'
-      return 'badge-gray'
+    priorityTone(priority) {
+      if (priority === 'HIGH') return 'red'
+      if (priority === 'NORMAL') return 'blue'
+      return 'gray'
     }
   }
 }

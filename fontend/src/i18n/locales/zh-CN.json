@@ -504,7 +504,8 @@
       "dispatchedSuccess": "发货成功",
       "deliveredSuccess": "已标记为送达",
       "issueReported": "已报告发货异常",
-      "shipmentCancelled": "发货单已取消"
+      "shipmentCancelled": "发货单已取消",
+      "confirmCancelShipment": "此发货单将被取消且无法恢复，是否继续？"
     }
   },
   "qualityCheck": {
