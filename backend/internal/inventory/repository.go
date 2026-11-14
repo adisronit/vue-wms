@@ -17,6 +17,7 @@ var ErrNotFound = errors.New("inventory: not found")
 // below, which match these Go field names case-insensitively.
 type row struct {
 	ID               int64
+	TenantID         int64
 	ProductID        int64
 	SKU              string
 	ProductName      string
@@ -52,10 +53,13 @@ func (r row) toResponse() Response {
 // joinedSelect is shared by List and FindByID. status is computed here
 // (not stored — see dto.go's Status doc) so both filtering and display
 // use the exact same rule, applied before pagination so OFFSET/FETCH
-// stays correct with a status filter active.
+// stays correct with a status filter active. inv.tenant_id is selected
+// (Phase 30 Batch 1) so the outer WHERE below can filter by it without
+// re-joining — List/FindByID are the Stock Inquiry screen's own read
+// path and must never return another tenant's balance row.
 const joinedSelect = `
 	SELECT
-		inv.id AS id, inv.product_id AS product_id, p.sku AS sku, p.name AS product_name, p.barcode AS barcode,
+		inv.id AS id, inv.tenant_id AS tenant_id, inv.product_id AS product_id, p.sku AS sku, p.name AS product_name, p.barcode AS barcode,
 		w.id AS warehouse_id, w.code AS warehouse_code,
 		z.id AS zone_id, z.code AS zone_code,
 		l.id AS location_id, l.code AS location_code,
@@ -80,6 +84,14 @@ const joinedSelect = `
 // write side (see AdjustBalance) so stock mutation stays a single
 // atomic statement rather than read-then-write in Go. Business rules
 // (insufficient-stock handling, ledger pairing) live in Service.
+//
+// Every method below takes an explicit tenantID and applies it to every
+// query (Phase 30 Batch 1) — Inventory is the leaf dependency every
+// inbound/outbound workflow's stock mutation funnels through
+// (AdjustBalance/AdjustReservation), so a tenant-mismatched write here
+// doesn't just leak data, it silently corrupts another tenant's on-hand
+// or reserved quantity. See phase27-audit-report.md §2.4 and the
+// Phase 30 planning note for the full rationale.
 type Repository struct {
 	db *gorm.DB
 }
@@ -90,15 +102,20 @@ func NewRepository(db *gorm.DB) *Repository {
 
 // Transaction runs fn inside a database transaction, handing it a
 // Repository bound to the transactional *gorm.DB so every call fn makes
-// participates in the same COMMIT/ROLLBACK.
+// participates in the same COMMIT/ROLLBACK. Deliberately takes no
+// tenantID — it opens a transaction and returns a bound Repository, it
+// executes no business query itself — mirroring every other module's
+// own Transaction wrapper (order/picking/receiving/putaway/...), all of
+// which are accepted exceptions to tenant-scoping for the same reason.
 func (r *Repository) Transaction(ctx context.Context, fn func(txRepo *Repository) error) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return fn(&Repository{db: tx})
 	})
 }
 
-func (r *Repository) List(ctx context.Context, params ListParams) ([]Response, int64, error) {
-	where := `WHERE (? = '' OR sku LIKE ? OR product_name LIKE ? OR barcode LIKE ? OR location_code LIKE ? OR lot_no LIKE ?)
+func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams) ([]Response, int64, error) {
+	where := `WHERE tenant_id = ?
+		AND (? = '' OR sku LIKE ? OR product_name LIKE ? OR barcode LIKE ? OR location_code LIKE ? OR lot_no LIKE ?)
 		AND (? = 0 OR product_id = ?)
 		AND (? = 0 OR warehouse_id = ?)
 		AND (? = 0 OR zone_id = ?)
@@ -108,6 +125,7 @@ func (r *Repository) List(ctx context.Context, params ListParams) ([]Response, i
 
 	like := "%" + params.Search + "%"
 	args := []any{
+		tenantID,
 		params.Search, like, like, like, like, like,
 		params.ProductID, params.ProductID,
 		params.WarehouseID, params.WarehouseID,
@@ -140,10 +158,10 @@ func (r *Repository) List(ctx context.Context, params ListParams) ([]Response, i
 	return responses, total, nil
 }
 
-func (r *Repository) FindByID(ctx context.Context, id int64) (*Response, error) {
-	sql := "SELECT * FROM (" + joinedSelect + ") j WHERE id = ?"
+func (r *Repository) FindByID(ctx context.Context, tenantID, id int64) (*Response, error) {
+	sql := "SELECT * FROM (" + joinedSelect + ") j WHERE id = ? AND tenant_id = ?"
 	var rows []row
-	if err := r.db.WithContext(ctx).Raw(sql, id).Scan(&rows).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw(sql, id, tenantID).Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	if len(rows) == 0 {
@@ -166,7 +184,7 @@ type summaryRow struct {
 	LowStockCount int64   `gorm:"column:low_stock_count"`
 }
 
-func (r *Repository) Summary(ctx context.Context) (SummaryResponse, error) {
+func (r *Repository) Summary(ctx context.Context, tenantID int64) (SummaryResponse, error) {
 	var s summaryRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT
@@ -177,11 +195,13 @@ func (r *Repository) Summary(ctx context.Context) (SummaryResponse, error) {
 				SELECT inv2.product_id
 				FROM inventory inv2
 				JOIN products p2 ON p2.id = inv2.product_id
+				WHERE inv2.tenant_id = ?
 				GROUP BY inv2.product_id, p2.min_stock
 				HAVING SUM(inv2.quantity - inv2.reserved_quantity) <= p2.min_stock
 			) low) AS low_stock_count
 		FROM inventory inv
-	`).Scan(&s).Error
+		WHERE inv.tenant_id = ?
+	`, tenantID, tenantID).Scan(&s).Error
 	if err != nil {
 		return SummaryResponse{}, err
 	}
@@ -191,15 +211,15 @@ func (r *Repository) Summary(ctx context.Context) (SummaryResponse, error) {
 	}, nil
 }
 
-func (r *Repository) Transactions(ctx context.Context, inventoryID int64, limit int) ([]TransactionResponse, error) {
-	inv, err := r.findRaw(ctx, inventoryID)
+func (r *Repository) Transactions(ctx context.Context, tenantID, inventoryID int64, limit int) ([]TransactionResponse, error) {
+	inv, err := r.findRaw(ctx, tenantID, inventoryID)
 	if err != nil {
 		return nil, err
 	}
 
 	var txns []Transaction
 	err = r.db.WithContext(ctx).
-		Where("product_id = ? AND location_id = ? AND lot_no = ?", inv.ProductID, inv.LocationID, inv.LotNo).
+		Where("tenant_id = ? AND product_id = ? AND location_id = ? AND lot_no = ?", tenantID, inv.ProductID, inv.LocationID, inv.LotNo).
 		Order("created_at DESC").Limit(limit).Find(&txns).Error
 	if err != nil {
 		return nil, err
@@ -223,15 +243,19 @@ func (r *Repository) Transactions(ctx context.Context, inventoryID int64, limit 
 // csvexport.MaxExportRows regardless of how many rows actually match:
 // even the async job pipeline has a defensive ceiling, it just also
 // exists to make crossing the *synchronous* export's own smaller
-// tolerance for query time a non-issue.
-func (r *Repository) ListTransactionsForExport(ctx context.Context, filters TransactionExportFilters) ([]TransactionExportRow, error) {
-	where := `WHERE (? = 0 OR it.product_id = ?)
+// tolerance for query time a non-issue. tenantID (Phase 30 Batch 1) is
+// the export_jobs row's own tenant_id, supplied by internal/report —
+// without it this query would dump every tenant's ledger into one CSV.
+func (r *Repository) ListTransactionsForExport(ctx context.Context, tenantID int64, filters TransactionExportFilters) ([]TransactionExportRow, error) {
+	where := `WHERE it.tenant_id = ?
+		AND (? = 0 OR it.product_id = ?)
 		AND (? = 0 OR w.id = ?)
 		AND (? = '' OR it.transaction_type = ?)
 		AND (? IS NULL OR it.created_at >= ?)
 		AND (? IS NULL OR it.created_at <= ?)`
 
 	args := []any{
+		tenantID,
 		filters.ProductID, filters.ProductID,
 		filters.WarehouseID, filters.WarehouseID,
 		string(filters.TransactionType), string(filters.TransactionType),
@@ -264,9 +288,9 @@ func (r *Repository) ListTransactionsForExport(ctx context.Context, filters Tran
 	return rows, nil
 }
 
-func (r *Repository) findRaw(ctx context.Context, id int64) (*Inventory, error) {
+func (r *Repository) findRaw(ctx context.Context, tenantID, id int64) (*Inventory, error) {
 	var inv Inventory
-	err := r.db.WithContext(ctx).First(&inv, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&inv, "id = ? AND tenant_id = ?", id, tenantID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
 	}
@@ -277,11 +301,13 @@ func (r *Repository) findRaw(ctx context.Context, id int64) (*Inventory, error) 
 }
 
 // FindBalance returns the current balance row for (product, location,
-// lot), or ErrNotFound if none exists yet.
-func (r *Repository) FindBalance(ctx context.Context, productID, locationID int64, lotNo string) (*Inventory, error) {
+// lot) within tenantID, or ErrNotFound if none exists yet (or exists
+// under a different tenant — the two cases are indistinguishable by
+// design, see tenant-isolation-security.md §6).
+func (r *Repository) FindBalance(ctx context.Context, tenantID, productID, locationID int64, lotNo string) (*Inventory, error) {
 	var inv Inventory
 	err := r.db.WithContext(ctx).
-		Where("product_id = ? AND location_id = ? AND lot_no = ?", productID, locationID, lotNo).
+		Where("tenant_id = ? AND product_id = ? AND location_id = ? AND lot_no = ?", tenantID, productID, locationID, lotNo).
 		First(&inv).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
@@ -296,16 +322,19 @@ func (r *Repository) FindBalance(ctx context.Context, productID, locationID int6
 // one UPDATE statement — the arithmetic and the non-negative check both
 // happen inside the WHERE clause, in the database, not as a Go
 // read-then-write. Returns rows affected: 0 means either the row
-// doesn't exist yet, or applying delta would take quantity negative;
-// Service disambiguates by calling FindBalance separately when this
-// returns 0. This is the concurrency-safety mechanism — see
-// PROJECT_STATUS.md.
-func (r *Repository) AdjustBalance(ctx context.Context, productID, locationID int64, lotNo string, delta float64) (int64, error) {
+// doesn't exist (in this tenant), or applying delta would take quantity
+// negative; Service disambiguates by calling FindBalance separately
+// when this returns 0. This is the concurrency-safety mechanism — see
+// PROJECT_STATUS.md. tenant_id is in the WHERE clause itself (Phase 30
+// Batch 1), not just checked beforehand in Go, because this is an
+// atomic, hand-written UPDATE: a tenant-mismatched write here would
+// silently corrupt another tenant's on-hand quantity, not just leak it.
+func (r *Repository) AdjustBalance(ctx context.Context, tenantID, productID, locationID int64, lotNo string, delta float64) (int64, error) {
 	result := r.db.WithContext(ctx).Exec(`
 		UPDATE inventory
 		SET quantity = quantity + ?, updated_at = SYSUTCDATETIME()
-		WHERE product_id = ? AND location_id = ? AND lot_no = ? AND quantity + ? >= 0
-	`, delta, productID, locationID, lotNo, delta)
+		WHERE tenant_id = ? AND product_id = ? AND location_id = ? AND lot_no = ? AND quantity + ? >= 0
+	`, delta, tenantID, productID, locationID, lotNo, delta)
 	return result.RowsAffected, result.Error
 }
 
@@ -313,48 +342,53 @@ func (r *Repository) AdjustBalance(ctx context.Context, productID, locationID in
 // UPDATE statement — the arithmetic and both safety checks (a
 // reservation can never exceed on-hand quantity; a release/consume can
 // never take reserved_quantity negative) live in the WHERE clause, not
-// as a Go read-then-write, mirroring AdjustBalance's mechanism exactly.
+// as a Go read-then-write, mirroring AdjustBalance's mechanism exactly,
+// including the same tenant_id-in-WHERE reasoning (Phase 30 Batch 1).
 // A positive delta reserves; a negative delta releases or consumes.
-// Returns rows affected: 0 means either the row doesn't exist, or
-// applying delta would push reserved_quantity outside [0, quantity].
-// This statement never touches quantity itself — reservation is a claim
-// against an existing balance, never a movement of it. This is Phase
-// 12's concurrency-safety mechanism for Picking reservation — see
-// PROJECT_STATUS.md.
-func (r *Repository) AdjustReservation(ctx context.Context, productID, locationID int64, lotNo string, delta float64) (int64, error) {
+// Returns rows affected: 0 means either the row doesn't exist (in this
+// tenant), or applying delta would push reserved_quantity outside
+// [0, quantity]. This statement never touches quantity itself —
+// reservation is a claim against an existing balance, never a movement
+// of it. This is Phase 12's concurrency-safety mechanism for Picking
+// reservation — see PROJECT_STATUS.md.
+func (r *Repository) AdjustReservation(ctx context.Context, tenantID, productID, locationID int64, lotNo string, delta float64) (int64, error) {
 	result := r.db.WithContext(ctx).Exec(`
 		UPDATE inventory
 		SET reserved_quantity = reserved_quantity + ?, updated_at = SYSUTCDATETIME()
-		WHERE product_id = ? AND location_id = ? AND lot_no = ?
+		WHERE tenant_id = ? AND product_id = ? AND location_id = ? AND lot_no = ?
 			AND reserved_quantity + ? >= 0
 			AND reserved_quantity + ? <= quantity
-	`, delta, productID, locationID, lotNo, delta, delta)
+	`, delta, tenantID, productID, locationID, lotNo, delta, delta)
 	return result.RowsAffected, result.Error
 }
 
 // CreateBalance inserts the first balance row for a (product, location,
 // lot) tuple — only ever called after AdjustBalance affected 0 rows
 // because the row didn't exist (an AddStock of a brand new location).
-func (r *Repository) CreateBalance(ctx context.Context, inv *Inventory) error {
+// Stamps tenantID onto the row itself (Phase 30 Batch 1) rather than
+// trusting the caller to have already set inv.TenantID.
+func (r *Repository) CreateBalance(ctx context.Context, tenantID int64, inv *Inventory) error {
+	inv.TenantID = tenantID
 	return r.db.WithContext(ctx).Create(inv).Error
 }
 
-// InsertTransaction appends one immutable ledger row.
-func (r *Repository) InsertTransaction(ctx context.Context, t *Transaction) error {
+// InsertTransaction appends one immutable ledger row. Stamps tenantID
+// onto the row itself (Phase 30 Batch 1), same reasoning as CreateBalance.
+func (r *Repository) InsertTransaction(ctx context.Context, tenantID int64, t *Transaction) error {
+	t.TenantID = tenantID
 	return r.db.WithContext(ctx).Create(t).Error
 }
 
 // CountByLocation reports how many inventory rows, within tenantID,
 // currently hold a positive quantity at locationID — used by
 // internal/location.Service.Delete's referential-safety check before
-// deleting a location. Unlike every other method on this Repository
-// (which, consistent with this module's pre-existing, documented lack
-// of tenant enforcement, ignore tenant_id entirely), this one new
-// method filters by it: it exists specifically to answer a question
-// posed by a module that IS correctly tenant-scoped (Location Master
-// Management), and must not leak a count across tenants back to it.
-// Zero-quantity residual rows (a balance drained to exactly 0 but not
-// yet cleaned up) don't count as "stock still exists."
+// deleting a location. This was the first tenant-scoped method on this
+// Repository, added ahead of the rest of Phase 30 Batch 1 specifically
+// to answer a question posed by a module that was already correctly
+// tenant-scoped (Location Master Management) without leaking a count
+// across tenants back to it. Zero-quantity residual rows (a balance
+// drained to exactly 0 but not yet cleaned up) don't count as "stock
+// still exists."
 func (r *Repository) CountByLocation(ctx context.Context, tenantID, locationID int64) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&Inventory{}).

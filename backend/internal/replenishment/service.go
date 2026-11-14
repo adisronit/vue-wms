@@ -144,7 +144,11 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 		// stock, nothing is created — the same ordering Picking's own
 		// createItem uses (reserve, then persist the row only once the
 		// reservation succeeded).
+		// TenantID: inventory.UnverifiedCallerTenantID — replenishment has
+		// no verified per-request tenant context of its own yet (not yet
+		// a scheduled Phase 30 batch; see that constant's own doc).
 		if _, err := s.inventory.ReserveStockTx(ctx, invRepo, inventory.ReserveRequest{
+			TenantID:  inventory.UnverifiedCallerTenantID,
 			ProductID: req.ProductID, LocationID: req.FromLocationID, LotNo: req.LotNo, Quantity: req.Quantity,
 		}); err != nil {
 			if errors.Is(err, inventory.ErrNoStock) {
@@ -229,7 +233,10 @@ func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest,
 		// ConsumeReservationTx composition (release, then act), split
 		// into two calls here since MoveStockTx (unlike RemoveStockTx)
 		// has no built-in reservation-consuming variant.
+		// TenantID: inventory.UnverifiedCallerTenantID on both calls below
+		// — see Create's own call site earlier in this file for why.
 		if _, err := s.inventory.ReleaseReservationTx(ctx, invRepo, inventory.ReserveRequest{
+			TenantID:  inventory.UnverifiedCallerTenantID,
 			ProductID: task.ProductID, LocationID: task.FromLocationID, LotNo: task.LotNo, Quantity: task.Quantity,
 		}); err != nil {
 			if errors.Is(err, inventory.ErrReservationUnderflow) || errors.Is(err, inventory.ErrNoStock) {
@@ -241,6 +248,7 @@ func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest,
 		refType := "REPLENISHMENT"
 		refID := task.TaskNo
 		if err := s.inventory.MoveStockTx(ctx, invRepo, inventory.MoveStockRequest{
+			TenantID:  inventory.UnverifiedCallerTenantID,
 			ProductID: task.ProductID, FromLocationID: task.FromLocationID, ToLocationID: task.ToLocationID,
 			LotNo: task.LotNo, Quantity: task.Quantity, Type: inventory.TransactionMove,
 			ReferenceType: &refType, ReferenceID: &refID, CreatedBy: &userID,
@@ -287,7 +295,10 @@ func (s *Service) Cancel(ctx context.Context, taskID int64, req CancelRequest, u
 		}
 
 		invRepo := inventory.NewRepository(tx)
+		// TenantID: inventory.UnverifiedCallerTenantID — see Create's own
+		// call site earlier in this file for why.
 		if _, err := s.inventory.ReleaseReservationTx(ctx, invRepo, inventory.ReserveRequest{
+			TenantID:  inventory.UnverifiedCallerTenantID,
 			ProductID: task.ProductID, LocationID: task.FromLocationID, LotNo: task.LotNo, Quantity: task.Quantity,
 		}); err != nil {
 			return err
@@ -324,7 +335,10 @@ func (s *Service) ReportIssue(ctx context.Context, taskID int64, req IssueReques
 		}
 
 		invRepo := inventory.NewRepository(tx)
+		// TenantID: inventory.UnverifiedCallerTenantID — see Create's own
+		// call site earlier in this file for why.
 		if _, err := s.inventory.ReleaseReservationTx(ctx, invRepo, inventory.ReserveRequest{
+			TenantID:  inventory.UnverifiedCallerTenantID,
 			ProductID: task.ProductID, LocationID: task.FromLocationID, LotNo: task.LotNo, Quantity: task.Quantity,
 		}); err != nil {
 			return err

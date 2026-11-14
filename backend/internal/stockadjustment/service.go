@@ -133,7 +133,10 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 	// location with no stock yet is valid (first stock ever placed
 	// there); before_qty is simply left nil (display-only, see doc).
 	var beforeQty *float64
-	if bal, err := s.inventory.FindBalance(ctx, req.ProductID, req.LocationID, req.LotNo); err == nil {
+	// TenantID: inventory.UnverifiedCallerTenantID — stockadjustment has
+	// no verified per-request tenant context of its own yet (not yet a
+	// scheduled Phase 30 batch; see that constant's own doc).
+	if bal, err := s.inventory.FindBalance(ctx, inventory.UnverifiedCallerTenantID, req.ProductID, req.LocationID, req.LotNo); err == nil {
 		q := bal.Quantity
 		beforeQty = &q
 	} else if !errors.Is(err, inventory.ErrNotFound) {
@@ -187,7 +190,10 @@ func (s *Service) CreateTx(ctx context.Context, tx *gorm.DB, req CreateRequest, 
 	}
 
 	var beforeQty *float64
-	if bal, err := s.inventory.FindBalance(ctx, req.ProductID, req.LocationID, req.LotNo); err == nil {
+	// TenantID: inventory.UnverifiedCallerTenantID — stockadjustment has
+	// no verified per-request tenant context of its own yet (not yet a
+	// scheduled Phase 30 batch; see that constant's own doc).
+	if bal, err := s.inventory.FindBalance(ctx, inventory.UnverifiedCallerTenantID, req.ProductID, req.LocationID, req.LotNo); err == nil {
 		q := bal.Quantity
 		beforeQty = &q
 	} else if !errors.Is(err, inventory.ErrNotFound) {
@@ -331,15 +337,19 @@ func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, use
 			refID := adjustment.AdjustmentNo
 			reason := string(item.Reason)
 
+			// TenantID: inventory.UnverifiedCallerTenantID on both branches —
+			// see the FindBalance call site above for why.
 			var result *inventory.Inventory
 			if item.AdjustType == AdjustIncrease {
 				result, err = s.inventory.AddStockTx(ctx, invRepo, inventory.StockChangeRequest{
+					TenantID:  inventory.UnverifiedCallerTenantID,
 					ProductID: item.ProductID, LocationID: item.LocationID, LotNo: item.LotNo,
 					Quantity: item.AdjustQty, Type: inventory.TransactionAdjust,
 					ReferenceType: &refType, ReferenceID: &refID, Reason: &reason, CreatedBy: &userID,
 				})
 			} else {
 				result, err = s.inventory.RemoveStockTx(ctx, invRepo, inventory.StockChangeRequest{
+					TenantID:  inventory.UnverifiedCallerTenantID,
 					ProductID: item.ProductID, LocationID: item.LocationID, LotNo: item.LotNo,
 					Quantity: item.AdjustQty, Type: inventory.TransactionAdjust,
 					ReferenceType: &refType, ReferenceID: &refID, Reason: &reason, CreatedBy: &userID,

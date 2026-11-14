@@ -407,7 +407,13 @@ func (s *Service) Confirm(ctx context.Context, receiptID int64, req ConfirmReque
 				return ErrLocationNotFound
 			}
 
+			// TenantID: inventory.UnverifiedCallerTenantID — receiving has no
+			// verified per-request tenant context of its own yet (Phase 30
+			// Batch 1 only covers internal/inventory itself; see that
+			// constant's own doc). Equals the bootstrap tenant, so this
+			// changes nothing about today's single-tenant behavior.
 			if _, err := s.inventory.AddStockTx(ctx, invRepo, inventory.StockChangeRequest{
+				TenantID:  inventory.UnverifiedCallerTenantID,
 				ProductID: item.ProductID, LocationID: locationID, LotNo: lotNo, ExpiryDate: expiryDate,
 				Quantity: lineReq.Quantity, Type: inventory.TransactionReceive,
 				ReferenceType: &refType, ReferenceID: &refID, CreatedBy: &userID,

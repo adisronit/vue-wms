@@ -28,7 +28,7 @@ var (
 // precedent internal/stockcount's own adjustmentCreator already
 // established for internal/stockadjustment.
 type transactionExporter interface {
-	ListTransactionsForExport(ctx context.Context, filters inventory.TransactionExportFilters) ([]inventory.TransactionExportRow, error)
+	ListTransactionsForExport(ctx context.Context, tenantID int64, filters inventory.TransactionExportFilters) ([]inventory.TransactionExportRow, error)
 }
 
 // messagePublisher is the narrow slice of
@@ -166,7 +166,12 @@ func (s *Service) ProcessJob(ctx context.Context, jobID int64) error {
 		}
 	}
 
-	rows, err := s.transactions.ListTransactionsForExport(ctx, filters)
+	// TenantID: job.TenantID — the export_jobs row's own authoritative
+	// tenant_id (migrations/0045, Phase 29A), not a placeholder: this
+	// job row was already fetched above, so the real value is available
+	// without needing report's own repository methods to be tenant-
+	// scoped yet.
+	rows, err := s.transactions.ListTransactionsForExport(ctx, job.TenantID, filters)
 	if err != nil {
 		return s.fail(ctx, jobID, "query failed: "+err.Error())
 	}

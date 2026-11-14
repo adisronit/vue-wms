@@ -28,11 +28,13 @@ import (
 
 	"wms-backend/config"
 	"wms-backend/internal/inventory"
+	"wms-backend/internal/location"
 	"wms-backend/internal/messaging/rabbitmq"
 	"wms-backend/internal/notification"
 	"wms-backend/internal/platform/database"
 	"wms-backend/internal/platform/dbctx"
 	"wms-backend/internal/platform/logging"
+	"wms-backend/internal/product"
 	"wms-backend/internal/report"
 	"wms-backend/internal/stockadjustment"
 	"wms-backend/internal/user"
@@ -72,7 +74,11 @@ func main() {
 	notificationRepo := notification.NewRepository(dbManager.DB())
 	notificationService := notification.NewService(notificationRepo, userRepo)
 
-	inventoryService := inventory.NewService(inventory.NewRepository(dbManager.DB()))
+	inventoryService := inventory.NewService(
+		inventory.NewRepository(dbManager.DB()),
+		product.NewRepository(dbManager.DB()),
+		location.NewRepository(dbManager.DB()),
+	)
 	reportRepo := report.NewRepository(dbManager.DB())
 	// publisher is nil here: ProcessJob (the only report.Service method
 	// this worker ever calls) never publishes — only

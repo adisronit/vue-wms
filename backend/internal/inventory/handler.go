@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -24,12 +25,19 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-// Register mounts the read-only Inventory endpoints on rg, gated by the
-// existing stock_inquiry.view permission (Phase 2) — reused as-is, no
-// new permission module, per CLAUDE.md's "don't create duplicate
-// concepts" guidance.
-func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
-	inv := rg.Group("/inventory", middleware.RequireJWT(jwtSecret), middleware.RequirePermission("stock_inquiry.view"))
+// Register mounts the read-only Inventory endpoints on rg, gated by
+// RequireJWT -> RequireTenantContext -> RequirePermission (Phase 30
+// Batch 1 — upgraded from the JWT-only chain this handler used before,
+// matching internal/customer/internal/supplier/internal/location's own
+// chain) plus the existing stock_inquiry.view permission (Phase 2,
+// unchanged — no new permission module, per CLAUDE.md's "don't create
+// duplicate concepts" guidance).
+func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChecker middleware.MembershipChecker, membershipCacheTTL time.Duration) {
+	inv := rg.Group("/inventory",
+		middleware.RequireJWT(jwtSecret),
+		middleware.RequireTenantContext(membershipChecker, membershipCacheTTL),
+		middleware.RequirePermission("stock_inquiry.view"),
+	)
 	inv.GET("/summary", h.Summary)
 	inv.GET("", h.List)
 	inv.GET("/:id", h.Get)
@@ -45,7 +53,7 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
 // List godoc
 //
 //	@Summary		List current inventory balances
-//	@Description	Supports the Stock Inquiry screen's search box plus warehouse/zone/location/status/lot filters, with pagination. Filtering and pagination both happen in SQL Server, not in the browser.
+//	@Description	Supports the Stock Inquiry screen's search box plus warehouse/zone/location/status/lot filters, with pagination. Filtering and pagination both happen in SQL Server, not in the browser. Scoped to the caller's own active tenant.
 //	@Tags			Inventory
 //	@Produce		json
 //	@Security		BearerAuth
@@ -63,6 +71,12 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
 //	@Failure		403				{object}	apihttp.ErrorResponse
 //	@Router			/inventory [get]
 func (h *Handler) List(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		apihttp.Fail(c, http.StatusUnauthorized, "missing tenant context", "UNAUTHORIZED")
+		return
+	}
+
 	page, _ := strconv.Atoi(c.Query("page"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	productID, _ := strconv.ParseInt(c.Query("product_id"), 10, 64)
@@ -77,7 +91,7 @@ func (h *Handler) List(c *gin.Context) {
 		Page: page, Limit: limit,
 	}
 
-	responses, total, err := h.service.List(c.Request.Context(), params)
+	responses, total, err := h.service.List(c.Request.Context(), tenantID, params)
 	if err != nil {
 		apihttp.Fail(c, http.StatusInternalServerError, "failed to list inventory", "INTERNAL_ERROR")
 		return
@@ -113,13 +127,19 @@ func (h *Handler) List(c *gin.Context) {
 //	@Failure		404	{object}	apihttp.ErrorResponse
 //	@Router			/inventory/{id} [get]
 func (h *Handler) Get(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		apihttp.Fail(c, http.StatusUnauthorized, "missing tenant context", "UNAUTHORIZED")
+		return
+	}
+
 	id, err := parseID(c)
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid inventory id", "INVALID_REQUEST")
 		return
 	}
 
-	resp, err := h.service.Get(c.Request.Context(), id)
+	resp, err := h.service.Get(c.Request.Context(), tenantID, id)
 	if errors.Is(err, ErrNotFound) {
 		apihttp.Fail(c, http.StatusNotFound, "inventory record not found", "NOT_FOUND")
 		return
@@ -134,7 +154,7 @@ func (h *Handler) Get(c *gin.Context) {
 // Summary godoc
 //
 //	@Summary		Get inventory summary totals
-//	@Description	Matches the Stock Inquiry screen's four summary cards (Total SKUs, Available Qty, Reserved Qty, Low Stock).
+//	@Description	Matches the Stock Inquiry screen's four summary cards (Total SKUs, Available Qty, Reserved Qty, Low Stock). Scoped to the caller's own active tenant.
 //	@Tags			Inventory
 //	@Produce		json
 //	@Security		BearerAuth
@@ -143,7 +163,13 @@ func (h *Handler) Get(c *gin.Context) {
 //	@Failure		403	{object}	apihttp.ErrorResponse
 //	@Router			/inventory/summary [get]
 func (h *Handler) Summary(c *gin.Context) {
-	summary, err := h.service.Summary(c.Request.Context())
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		apihttp.Fail(c, http.StatusUnauthorized, "missing tenant context", "UNAUTHORIZED")
+		return
+	}
+
+	summary, err := h.service.Summary(c.Request.Context(), tenantID)
 	if err != nil {
 		apihttp.Fail(c, http.StatusInternalServerError, "failed to load inventory summary", "INTERNAL_ERROR")
 		return
@@ -154,7 +180,7 @@ func (h *Handler) Summary(c *gin.Context) {
 // Transactions godoc
 //
 //	@Summary		Get recent ledger entries for one inventory balance
-//	@Description	Powers the Stock Inquiry detail drawer's "Recent Movement" panel. Likely empty this phase — no workflow writes to the ledger yet (see PROJECT_STATUS.md).
+//	@Description	Powers the Stock Inquiry detail drawer's "Recent Movement" panel. Scoped to the caller's own active tenant.
 //	@Tags			Inventory
 //	@Produce		json
 //	@Security		BearerAuth
@@ -165,13 +191,19 @@ func (h *Handler) Summary(c *gin.Context) {
 //	@Failure		404	{object}	apihttp.ErrorResponse
 //	@Router			/inventory/{id}/transactions [get]
 func (h *Handler) Transactions(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		apihttp.Fail(c, http.StatusUnauthorized, "missing tenant context", "UNAUTHORIZED")
+		return
+	}
+
 	id, err := parseID(c)
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid inventory id", "INVALID_REQUEST")
 		return
 	}
 
-	txns, err := h.service.Transactions(c.Request.Context(), id)
+	txns, err := h.service.Transactions(c.Request.Context(), tenantID, id)
 	if errors.Is(err, ErrNotFound) {
 		apihttp.Fail(c, http.StatusNotFound, "inventory record not found", "NOT_FOUND")
 		return
@@ -187,7 +219,7 @@ func (h *Handler) Transactions(c *gin.Context) {
 // Export godoc
 //
 //	@Summary		Export the Inventory Stock Report as CSV
-//	@Description	Synchronous CSV export (Phase 22) — same search/warehouse_id/zone_id/location_id/status/lot_no filters as the list endpoint, capped at csvexport.MaxExportRows. Requires stock_inquiry.export in addition to the group's own stock_inquiry.view.
+//	@Description	Synchronous CSV export (Phase 22) — same search/warehouse_id/zone_id/location_id/status/lot_no filters as the list endpoint, capped at csvexport.MaxExportRows. Requires stock_inquiry.export in addition to the group's own stock_inquiry.view. Scoped to the caller's own active tenant.
 //	@Tags			Inventory
 //	@Produce		text/csv
 //	@Security		BearerAuth
@@ -202,12 +234,18 @@ func (h *Handler) Transactions(c *gin.Context) {
 //	@Failure		403				{object}	apihttp.ErrorResponse
 //	@Router			/inventory/export [get]
 func (h *Handler) Export(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		apihttp.Fail(c, http.StatusUnauthorized, "missing tenant context", "UNAUTHORIZED")
+		return
+	}
+
 	productID, _ := strconv.ParseInt(c.Query("product_id"), 10, 64)
 	warehouseID, _ := strconv.ParseInt(c.Query("warehouse_id"), 10, 64)
 	zoneID, _ := strconv.ParseInt(c.Query("zone_id"), 10, 64)
 	locationID, _ := strconv.ParseInt(c.Query("location_id"), 10, 64)
 
-	rows, err := h.service.ListForExport(c.Request.Context(), ListParams{
+	rows, err := h.service.ListForExport(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), ProductID: productID,
 		WarehouseID: warehouseID, ZoneID: zoneID, LocationID: locationID,
 		Status: Status(c.Query("status")), LotNo: c.Query("lot_no"),

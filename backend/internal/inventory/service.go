@@ -40,12 +40,57 @@ var ErrNoStock = errors.New("inventory: no stock at this location")
 // ErrInsufficientStock.
 var ErrReservationUnderflow = errors.New("inventory: cannot release or consume more than is currently reserved")
 
+// ErrProductNotFound and ErrLocationNotFound (Phase 30 Batch 1) are
+// returned by verifyOwnership when ProductID/LocationID either doesn't
+// exist at all or exists under a different tenant — the two cases are
+// deliberately indistinguishable (tenant-isolation-security.md §6),
+// the same "existence checker, not ownership checker" gap
+// phase27-audit-report.md §3(c) flagged project-wide, now closed for
+// every mutation entry point in this package.
+var ErrProductNotFound = errors.New("inventory: product not found")
+var ErrLocationNotFound = errors.New("inventory: location not found")
+
+// UnverifiedCallerTenantID (Phase 30 Batch 1) is the explicit,
+// greppable placeholder every caller that has no verified per-request
+// tenant context of its own yet must pass until its own Phase 30 batch
+// lands (Picking: Batch 2, Order: Batch 3, Shipping: Batch 4; Receiving/
+// Putaway/StockAdjustment/StockCount/Replenishment/Dashboard are not
+// yet scheduled). It equals the bootstrap tenant (migrations/0046-0047's
+// own DEFAULT(1)) so every existing single-tenant installation keeps
+// working unchanged — this constant changes NOTHING about today's
+// behavior, it only makes every remaining unverified call site
+// searchable (`grep -rn UnverifiedCallerTenantID`) instead of a bare
+// magic literal. It must never be read from a request body or any
+// client-supplied value — every site that sets it today is Go code
+// constructing a request struct, never json.Unmarshal.
+const UnverifiedCallerTenantID int64 = 1
+
+// productChecker and locationChecker are the narrow ownership-check
+// interfaces this package needs. Both are intentionally primitive-typed
+// (no internal/product or internal/location import) — internal/location
+// already imports internal/inventory (for CountByLocation), so this
+// package importing internal/location's types back would be a cycle;
+// internal/product avoids the same risk for symmetry and because it
+// needs nothing more than an Exists call either.
+type productChecker interface {
+	Exists(ctx context.Context, tenantID, id int64) (bool, error)
+}
+
+type locationChecker interface {
+	Exists(ctx context.Context, tenantID, id int64) (bool, error)
+}
+
 // ReserveRequest is the input to ReserveStockTx/ReleaseReservationTx —
 // deliberately narrower than StockChangeRequest: a reservation never
 // writes a ledger row (it isn't a stock movement, just a claim against
 // an existing balance), so it carries no Type/ReferenceType/Reason/
-// CreatedBy.
+// CreatedBy. TenantID (Phase 30 Batch 1) travels on the request struct,
+// not as a separate Tx-method parameter, so every existing caller's
+// call-site change is "add one field to a struct literal," not a
+// function-signature/arity change that would ripple into their own
+// transaction-opening code.
 type ReserveRequest struct {
+	TenantID   int64
 	ProductID  int64
 	LocationID int64
 	LotNo      string
@@ -54,8 +99,10 @@ type ReserveRequest struct {
 
 // StockChangeRequest is the input to AddStock/RemoveStock. Quantity is
 // always a positive magnitude — direction is implied by which method is
-// called, not by the sign of Quantity.
+// called, not by the sign of Quantity. TenantID (Phase 30 Batch 1): see
+// ReserveRequest's doc.
 type StockChangeRequest struct {
+	TenantID      int64
 	ProductID     int64
 	LocationID    int64
 	LotNo         string
@@ -75,8 +122,9 @@ type StockChangeRequest struct {
 // PUTAWAY-specific transaction type/reference instead of the generic
 // defaults below. Any existing caller that leaves them zero-valued gets
 // MoveStock's original MOVE-typed, auto-generated-reference behavior
-// unchanged.
+// unchanged. TenantID (Phase 30 Batch 1): see ReserveRequest's doc.
 type MoveStockRequest struct {
+	TenantID       int64
 	ProductID      int64
 	FromLocationID int64
 	ToLocationID   int64
@@ -93,19 +141,18 @@ type MoveStockRequest struct {
 // Service is the reusable inventory foundation: read-side queries for
 // the Stock Inquiry screen, plus AddStock/RemoveStock/MoveStock — the
 // only sanctioned way any part of this codebase changes a stock
-// balance. No HTTP handler in this phase calls the mutation methods;
-// they exist so Receiving/Putaway/Picking/Shipping/Adjustment/Count
-// (later phases) never need to reimplement "update balance + write
-// ledger row, atomically" themselves.
+// balance.
 type Service struct {
-	repo *Repository
+	repo      *Repository
+	products  productChecker
+	locations locationChecker
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, products productChecker, locations locationChecker) *Service {
+	return &Service{repo: repo, products: products, locations: locations}
 }
 
-func (s *Service) List(ctx context.Context, params ListParams) ([]Response, int64, error) {
+func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) ([]Response, int64, error) {
 	page, limit := params.Page, params.Limit
 	if page < 1 {
 		page = 1
@@ -114,36 +161,60 @@ func (s *Service) List(ctx context.Context, params ListParams) ([]Response, int6
 		limit = 20
 	}
 	params.Page, params.Limit = page, limit
-	return s.repo.List(ctx, params)
+	return s.repo.List(ctx, tenantID, params)
 }
 
 // ListForExport is Phase 22's CSV-export path for the Inventory Stock
 // Report — see internal/receiving's own ListForExport doc for the
 // shared reasoning.
-func (s *Service) ListForExport(ctx context.Context, params ListParams) ([]Response, error) {
+func (s *Service) ListForExport(ctx context.Context, tenantID int64, params ListParams) ([]Response, error) {
 	params.Page = 1
 	params.Limit = csvexport.MaxExportRows
-	rows, _, err := s.repo.List(ctx, params)
+	rows, _, err := s.repo.List(ctx, tenantID, params)
 	return rows, err
 }
 
 // ListTransactionsForExport backs the async Inventory Transaction
 // History export (internal/report's worker calls this) — see
-// TransactionExportRow's own doc.
-func (s *Service) ListTransactionsForExport(ctx context.Context, filters TransactionExportFilters) ([]TransactionExportRow, error) {
-	return s.repo.ListTransactionsForExport(ctx, filters)
+// TransactionExportRow's own doc. tenantID is the export_jobs row's own
+// (already-stamped) TenantID, supplied by the caller.
+func (s *Service) ListTransactionsForExport(ctx context.Context, tenantID int64, filters TransactionExportFilters) ([]TransactionExportRow, error) {
+	return s.repo.ListTransactionsForExport(ctx, tenantID, filters)
 }
 
-func (s *Service) Get(ctx context.Context, id int64) (*Response, error) {
-	return s.repo.FindByID(ctx, id)
+func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error) {
+	return s.repo.FindByID(ctx, tenantID, id)
 }
 
-func (s *Service) Summary(ctx context.Context) (SummaryResponse, error) {
-	return s.repo.Summary(ctx)
+func (s *Service) Summary(ctx context.Context, tenantID int64) (SummaryResponse, error) {
+	return s.repo.Summary(ctx, tenantID)
 }
 
-func (s *Service) Transactions(ctx context.Context, inventoryID int64) ([]TransactionResponse, error) {
-	return s.repo.Transactions(ctx, inventoryID, 50)
+func (s *Service) Transactions(ctx context.Context, tenantID, inventoryID int64) ([]TransactionResponse, error) {
+	return s.repo.Transactions(ctx, tenantID, inventoryID, 50)
+}
+
+// verifyOwnership confirms productID and locationID both belong to
+// tenantID before any mutation proceeds — the missing half of every
+// "existence checker, not ownership checker" call site
+// phase27-audit-report.md §3(c) found project-wide. Called at the start
+// of every mutation path (addStockTx/removeStockTx/ReserveStockTx/
+// ReleaseReservationTx/ConsumeReservationTx) so no caller can reach
+// AdjustBalance/AdjustReservation with a cross-tenant product_id or
+// location_id, regardless of what the caller itself has or hasn't
+// verified.
+func (s *Service) verifyOwnership(ctx context.Context, tenantID, productID, locationID int64) error {
+	if ok, err := s.products.Exists(ctx, tenantID, productID); err != nil {
+		return err
+	} else if !ok {
+		return ErrProductNotFound
+	}
+	if ok, err := s.locations.Exists(ctx, tenantID, locationID); err != nil {
+		return err
+	} else if !ok {
+		return ErrLocationNotFound
+	}
+	return nil
 }
 
 // AddStock increases the balance at (ProductID, LocationID, LotNo) by
@@ -152,6 +223,9 @@ func (s *Service) Transactions(ctx context.Context, inventoryID int64) ([]Transa
 // database transaction.
 func (s *Service) AddStock(ctx context.Context, req StockChangeRequest) (*Inventory, error) {
 	if err := validateStockChange(req); err != nil {
+		return nil, err
+	}
+	if err := s.verifyOwnership(ctx, req.TenantID, req.ProductID, req.LocationID); err != nil {
 		return nil, err
 	}
 
@@ -187,6 +261,9 @@ func (s *Service) AddStockTx(ctx context.Context, txRepo *Repository, req StockC
 	if err := validateStockChange(req); err != nil {
 		return nil, err
 	}
+	if err := s.verifyOwnership(ctx, req.TenantID, req.ProductID, req.LocationID); err != nil {
+		return nil, err
+	}
 	return addStockTx(ctx, txRepo, req)
 }
 
@@ -197,6 +274,9 @@ func (s *Service) AddStockTx(ctx context.Context, txRepo *Repository, req StockC
 // ledger row is written).
 func (s *Service) RemoveStock(ctx context.Context, req StockChangeRequest) (*Inventory, error) {
 	if err := validateStockChange(req); err != nil {
+		return nil, err
+	}
+	if err := s.verifyOwnership(ctx, req.TenantID, req.ProductID, req.LocationID); err != nil {
 		return nil, err
 	}
 
@@ -229,6 +309,9 @@ func (s *Service) RemoveStockTx(ctx context.Context, txRepo *Repository, req Sto
 	if err := validateStockChange(req); err != nil {
 		return nil, err
 	}
+	if err := s.verifyOwnership(ctx, req.TenantID, req.ProductID, req.LocationID); err != nil {
+		return nil, err
+	}
 	return removeStockTx(ctx, txRepo, req)
 }
 
@@ -238,6 +321,12 @@ func (s *Service) RemoveStockTx(ctx context.Context, txRepo *Repository, req Sto
 // req.Type overrides it) — either both legs succeed or neither does.
 func (s *Service) MoveStock(ctx context.Context, req MoveStockRequest) error {
 	if err := validateMoveStock(req); err != nil {
+		return err
+	}
+	if err := s.verifyOwnership(ctx, req.TenantID, req.ProductID, req.FromLocationID); err != nil {
+		return err
+	}
+	if err := s.verifyOwnership(ctx, req.TenantID, req.ProductID, req.ToLocationID); err != nil {
 		return err
 	}
 
@@ -264,6 +353,12 @@ func (s *Service) MoveStockTx(ctx context.Context, txRepo *Repository, req MoveS
 	if err := validateMoveStock(req); err != nil {
 		return err
 	}
+	if err := s.verifyOwnership(ctx, req.TenantID, req.ProductID, req.FromLocationID); err != nil {
+		return err
+	}
+	if err := s.verifyOwnership(ctx, req.TenantID, req.ProductID, req.ToLocationID); err != nil {
+		return err
+	}
 	return moveStockTx(ctx, txRepo, req)
 }
 
@@ -281,7 +376,10 @@ func (s *Service) ReserveStockTx(ctx context.Context, txRepo *Repository, req Re
 	if err := validateReserveRequest(req); err != nil {
 		return nil, err
 	}
-	rows, err := txRepo.AdjustReservation(ctx, req.ProductID, req.LocationID, req.LotNo, req.Quantity)
+	if err := s.verifyOwnership(ctx, req.TenantID, req.ProductID, req.LocationID); err != nil {
+		return nil, err
+	}
+	rows, err := txRepo.AdjustReservation(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo, req.Quantity)
 	if err != nil {
 		return nil, err
 	}
@@ -290,12 +388,12 @@ func (s *Service) ReserveStockTx(ctx context.Context, txRepo *Repository, req Re
 		// race-free decision that this can't proceed; this lookup is only
 		// to tell the caller *why*, not to decide anything — same pattern
 		// as removeStockTx's own disambiguation lookup.
-		if _, ferr := txRepo.FindBalance(ctx, req.ProductID, req.LocationID, req.LotNo); errors.Is(ferr, ErrNotFound) {
+		if _, ferr := txRepo.FindBalance(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo); errors.Is(ferr, ErrNotFound) {
 			return nil, ErrNoStock
 		}
 		return nil, ErrInsufficientStock
 	}
-	return txRepo.FindBalance(ctx, req.ProductID, req.LocationID, req.LotNo)
+	return txRepo.FindBalance(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo)
 }
 
 // ReleaseReservationTx decreases reserved_quantity at (ProductID,
@@ -306,17 +404,20 @@ func (s *Service) ReleaseReservationTx(ctx context.Context, txRepo *Repository, 
 	if err := validateReserveRequest(req); err != nil {
 		return nil, err
 	}
-	rows, err := txRepo.AdjustReservation(ctx, req.ProductID, req.LocationID, req.LotNo, -req.Quantity)
+	if err := s.verifyOwnership(ctx, req.TenantID, req.ProductID, req.LocationID); err != nil {
+		return nil, err
+	}
+	rows, err := txRepo.AdjustReservation(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo, -req.Quantity)
 	if err != nil {
 		return nil, err
 	}
 	if rows == 0 {
-		if _, ferr := txRepo.FindBalance(ctx, req.ProductID, req.LocationID, req.LotNo); errors.Is(ferr, ErrNotFound) {
+		if _, ferr := txRepo.FindBalance(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo); errors.Is(ferr, ErrNotFound) {
 			return nil, ErrNoStock
 		}
 		return nil, ErrReservationUnderflow
 	}
-	return txRepo.FindBalance(ctx, req.ProductID, req.LocationID, req.LotNo)
+	return txRepo.FindBalance(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo)
 }
 
 // ConsumeReservationTx is the PICKED-confirm composite: release the
@@ -334,12 +435,15 @@ func (s *Service) ConsumeReservationTx(ctx context.Context, txRepo *Repository, 
 	if err := validateStockChange(req); err != nil {
 		return nil, err
 	}
-	rows, err := txRepo.AdjustReservation(ctx, req.ProductID, req.LocationID, req.LotNo, -req.Quantity)
+	if err := s.verifyOwnership(ctx, req.TenantID, req.ProductID, req.LocationID); err != nil {
+		return nil, err
+	}
+	rows, err := txRepo.AdjustReservation(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo, -req.Quantity)
 	if err != nil {
 		return nil, err
 	}
 	if rows == 0 {
-		if _, ferr := txRepo.FindBalance(ctx, req.ProductID, req.LocationID, req.LotNo); errors.Is(ferr, ErrNotFound) {
+		if _, ferr := txRepo.FindBalance(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo); errors.Is(ferr, ErrNotFound) {
 			return nil, ErrNoStock
 		}
 		return nil, ErrReservationUnderflow
@@ -348,6 +452,9 @@ func (s *Service) ConsumeReservationTx(ctx context.Context, txRepo *Repository, 
 }
 
 func validateReserveRequest(req ReserveRequest) error {
+	if req.TenantID == 0 {
+		return ErrValidation{Message: "tenant_id is required"}
+	}
 	if req.ProductID == 0 || req.LocationID == 0 {
 		return ErrValidation{Message: "product_id and location_id are required"}
 	}
@@ -362,11 +469,14 @@ func validateReserveRequest(req ReserveRequest) error {
 // balance's authoritative current ExpiryDate before moving it (see
 // MoveStockRequest's doc: putaway must never let the caller invent an
 // expiry, only carry forward whatever the source row already has).
-func (s *Service) FindBalance(ctx context.Context, productID, locationID int64, lotNo string) (*Inventory, error) {
-	return s.repo.FindBalance(ctx, productID, locationID, lotNo)
+func (s *Service) FindBalance(ctx context.Context, tenantID, productID, locationID int64, lotNo string) (*Inventory, error) {
+	return s.repo.FindBalance(ctx, tenantID, productID, locationID, lotNo)
 }
 
 func validateMoveStock(req MoveStockRequest) error {
+	if req.TenantID == 0 {
+		return ErrValidation{Message: "tenant_id is required"}
+	}
 	if req.ProductID == 0 || req.FromLocationID == 0 || req.ToLocationID == 0 {
 		return ErrValidation{Message: "product_id, from_location_id, and to_location_id are required"}
 	}
@@ -398,6 +508,7 @@ func moveStockTx(ctx context.Context, txRepo *Repository, req MoveStockRequest) 
 	}
 
 	if _, err := removeStockTx(ctx, txRepo, StockChangeRequest{
+		TenantID:  req.TenantID,
 		ProductID: req.ProductID, LocationID: req.FromLocationID, LotNo: req.LotNo,
 		Quantity: req.Quantity, Type: txType,
 		ReferenceType: refType, ReferenceID: moveRef, Reason: req.Reason, CreatedBy: req.CreatedBy,
@@ -406,6 +517,7 @@ func moveStockTx(ctx context.Context, txRepo *Repository, req MoveStockRequest) 
 	}
 
 	_, err := addStockTx(ctx, txRepo, StockChangeRequest{
+		TenantID:  req.TenantID,
 		ProductID: req.ProductID, LocationID: req.ToLocationID, LotNo: req.LotNo,
 		ExpiryDate: req.ExpiryDate,
 		Quantity:   req.Quantity, Type: txType,
@@ -418,7 +530,7 @@ func moveStockTx(ctx context.Context, txRepo *Repository, req MoveStockRequest) 
 // already-open transactional repository, so MoveStock can compose it
 // with removeStockTx inside one shared transaction instead of two.
 func addStockTx(ctx context.Context, txRepo *Repository, req StockChangeRequest) (*Inventory, error) {
-	rows, err := txRepo.AdjustBalance(ctx, req.ProductID, req.LocationID, req.LotNo, req.Quantity)
+	rows, err := txRepo.AdjustBalance(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo, req.Quantity)
 	if err != nil {
 		return nil, err
 	}
@@ -427,7 +539,7 @@ func addStockTx(ctx context.Context, txRepo *Repository, req StockChangeRequest)
 		// A positive delta can only fail AdjustBalance's WHERE clause if
 		// the row doesn't exist yet (the >= 0 guard can't reject a
 		// positive delta) — first stock ever placed at this tuple.
-		if err := txRepo.CreateBalance(ctx, &Inventory{
+		if err := txRepo.CreateBalance(ctx, req.TenantID, &Inventory{
 			ProductID: req.ProductID, LocationID: req.LocationID, LotNo: req.LotNo,
 			ExpiryDate: req.ExpiryDate, Quantity: req.Quantity,
 		}); err != nil {
@@ -435,12 +547,12 @@ func addStockTx(ctx context.Context, txRepo *Repository, req StockChangeRequest)
 		}
 	}
 
-	inv, err := txRepo.FindBalance(ctx, req.ProductID, req.LocationID, req.LotNo)
+	inv, err := txRepo.FindBalance(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := txRepo.InsertTransaction(ctx, &Transaction{
+	if err := txRepo.InsertTransaction(ctx, req.TenantID, &Transaction{
 		TransactionType: req.Type, ProductID: req.ProductID, LocationID: req.LocationID, LotNo: req.LotNo,
 		Quantity: req.Quantity, ReferenceType: req.ReferenceType, ReferenceID: req.ReferenceID,
 		Reason: req.Reason, CreatedBy: req.CreatedBy,
@@ -457,7 +569,7 @@ func addStockTx(ctx context.Context, txRepo *Repository, req StockChangeRequest)
 func removeStockTx(ctx context.Context, txRepo *Repository, req StockChangeRequest) (*Inventory, error) {
 	delta := -req.Quantity
 
-	rows, err := txRepo.AdjustBalance(ctx, req.ProductID, req.LocationID, req.LotNo, delta)
+	rows, err := txRepo.AdjustBalance(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo, delta)
 	if err != nil {
 		return nil, err
 	}
@@ -467,18 +579,18 @@ func removeStockTx(ctx context.Context, txRepo *Repository, req StockChangeReque
 		// race-free decision that this can't proceed; this lookup is only
 		// to tell the caller *why* (missing vs. insufficient), not to
 		// decide anything.
-		if _, ferr := txRepo.FindBalance(ctx, req.ProductID, req.LocationID, req.LotNo); errors.Is(ferr, ErrNotFound) {
+		if _, ferr := txRepo.FindBalance(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo); errors.Is(ferr, ErrNotFound) {
 			return nil, ErrNoStock
 		}
 		return nil, ErrInsufficientStock
 	}
 
-	inv, err := txRepo.FindBalance(ctx, req.ProductID, req.LocationID, req.LotNo)
+	inv, err := txRepo.FindBalance(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := txRepo.InsertTransaction(ctx, &Transaction{
+	if err := txRepo.InsertTransaction(ctx, req.TenantID, &Transaction{
 		TransactionType: req.Type, ProductID: req.ProductID, LocationID: req.LocationID, LotNo: req.LotNo,
 		Quantity: delta, ReferenceType: req.ReferenceType, ReferenceID: req.ReferenceID,
 		Reason: req.Reason, CreatedBy: req.CreatedBy,
@@ -490,6 +602,9 @@ func removeStockTx(ctx context.Context, txRepo *Repository, req StockChangeReque
 }
 
 func validateStockChange(req StockChangeRequest) error {
+	if req.TenantID == 0 {
+		return ErrValidation{Message: "tenant_id is required"}
+	}
 	if req.ProductID == 0 || req.LocationID == 0 {
 		return ErrValidation{Message: "product_id and location_id are required"}
 	}
