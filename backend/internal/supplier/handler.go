@@ -49,6 +49,7 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChec
 //	@Param			limit		query		int		false	"Page size (max 100)"	default(25)
 //	@Param			search		query		string	false	"Matches code or company name"
 //	@Param			status		query		string	false	"ACTIVE or INACTIVE"
+//	@Param			supplier_type	query		string	false	"DOMESTIC or OVERSEAS"
 //	@Param			sort_by		query		string	false	"code, companyName, or status"	default(code)
 //	@Param			sort_dir	query		string	false	"asc or desc"					default(asc)
 //	@Success		200			{object}	apihttp.ListResponse{data=[]Response}
@@ -67,12 +68,13 @@ func (h *Handler) List(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.Query("limit"))
 
 	params := ListParams{
-		Search:  c.Query("search"),
-		Status:  Status(c.Query("status")),
-		Page:    page,
-		Limit:   limit,
-		SortBy:  c.Query("sort_by"),
-		SortDir: c.Query("sort_dir"),
+		Search:       c.Query("search"),
+		Status:       Status(c.Query("status")),
+		SupplierType: SupplierType(c.Query("supplier_type")),
+		Page:         page,
+		Limit:        limit,
+		SortBy:       c.Query("sort_by"),
+		SortDir:      c.Query("sort_dir"),
 	}
 
 	responses, total, err := h.service.List(c.Request.Context(), tenantID, params)

@@ -22,12 +22,13 @@ var ErrDuplicateCode = errors.New("supplier: code already exists")
 // a future caller skips Service — see internal/productcategory's own
 // ListFilter doc for the original rationale.
 type ListFilter struct {
-	Search  string // matched against code, company_name (LIKE)
-	Status  Status
-	Page    int
-	Limit   int
-	SortBy  string // one of sortColumns' keys; falls back to "code" if not
-	SortDir string // "ASC" or "DESC"; falls back to "ASC" otherwise
+	Search       string // matched against code, company_name (LIKE)
+	Status       Status
+	SupplierType SupplierType
+	Page         int
+	Limit        int
+	SortBy       string // one of sortColumns' keys; falls back to "code" if not
+	SortDir      string // "ASC" or "DESC"; falls back to "ASC" otherwise
 }
 
 // sortColumns maps List's logical SortBy key to the actual column name
@@ -94,15 +95,28 @@ func (r *Repository) Update(ctx context.Context, tenantID int64, s *Supplier) er
 	result := r.db.WithContext(ctx).Model(&Supplier{}).
 		Where("id = ? AND tenant_id = ?", s.ID, tenantID).
 		Updates(map[string]any{
-			"code":           s.Code,
-			"company_name":   s.CompanyName,
-			"tax_id":         s.TaxID,
-			"contact_person": s.ContactPerson,
-			"contact_phone":  s.ContactPhone,
-			"address":        s.Address,
-			"email":          s.Email,
-			"phone":          s.Phone,
-			"status":         s.Status,
+			"code":                 s.Code,
+			"company_name":         s.CompanyName,
+			"legal_name_th":        s.LegalNameTH,
+			"supplier_type":        s.SupplierType,
+			"country":              s.Country,
+			"tax_id":               s.TaxID,
+			"contact_person":       s.ContactPerson,
+			"contact_phone":        s.ContactPhone,
+			"address":              s.Address,
+			"email":                s.Email,
+			"phone":                s.Phone,
+			"status":               s.Status,
+			"currency":             s.Currency,
+			"default_incoterm":     s.DefaultIncoterm,
+			"incoterm_named_place": s.IncotermNamedPlace,
+			"lead_time_days":       s.LeadTimeDays,
+			"payment_terms":        s.PaymentTerms,
+			"shipping_method":      s.ShippingMethod,
+			"thai_tax_id":          s.ThaiTaxID,
+			"vat_registration":     s.VATRegistration,
+			"province":             s.Province,
+			"postal_code":          s.PostalCode,
 		})
 	if result.Error != nil {
 		return translateUniqueViolation(result.Error)
@@ -133,6 +147,9 @@ func (r *Repository) List(ctx context.Context, tenantID int64, filter ListFilter
 	}
 	if filter.Status != "" {
 		query = query.Where("status = ?", filter.Status)
+	}
+	if filter.SupplierType != "" {
+		query = query.Where("supplier_type = ?", filter.SupplierType)
 	}
 
 	var total int64

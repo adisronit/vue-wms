@@ -17,7 +17,7 @@ vi.mock('../../../services/toast', () => ({
   showToast: vi.fn()
 }))
 
-import { listSuppliers, deleteSupplier } from '../../../services/suppliers'
+import { listSuppliers, createSupplier, deleteSupplier } from '../../../services/suppliers'
 import { showToast } from '../../../services/toast'
 
 const globalMocks = {
@@ -37,13 +37,26 @@ const supplier = {
   id: '1',
   code: 'SUP-001',
   company_name: 'Global Supply Co',
+  legal_name_th: 'บริษัท โกลบอล ซัพพลาย จำกัด',
+  supplier_type: 'OVERSEAS',
+  country: 'Singapore',
   tax_id: '9876543210',
   contact_person: 'John Smith',
   contact_phone: '555-0200',
   address: '2 Industrial Way',
   email: 'john@globalsupply.test',
   phone: '555-0201',
-  status: 'ACTIVE'
+  status: 'ACTIVE',
+  currency: 'USD',
+  default_incoterm: 'FOB',
+  incoterm_named_place: 'Singapore Port',
+  lead_time_days: 21,
+  payment_terms: 'Net 30',
+  shipping_method: 'Sea Freight',
+  thai_tax_id: '',
+  vat_registration: '',
+  province: '',
+  postal_code: ''
 }
 
 describe('SupplierView', () => {
@@ -84,6 +97,68 @@ describe('SupplierView', () => {
     expect(wrapper.vm.supplierForm.companyName).toBe('Global Supply Co')
     expect(wrapper.vm.supplierForm.contactPerson).toBe('John Smith')
     expect(wrapper.vm.supplierForm.taxId).toBe('9876543210')
+    expect(wrapper.vm.supplierForm.legalNameTh).toBe('บริษัท โกลบอล ซัพพลาย จำกัด')
+    expect(wrapper.vm.supplierForm.supplierType).toBe('OVERSEAS')
+    expect(wrapper.vm.supplierForm.country).toBe('Singapore')
+    expect(wrapper.vm.supplierForm.currency).toBe('USD')
+    expect(wrapper.vm.supplierForm.defaultIncoterm).toBe('FOB')
+    expect(wrapper.vm.supplierForm.leadTimeDays).toBe(21)
+  })
+
+  it('defaults a brand-new supplier to DOMESTIC supplier type', async () => {
+    listSuppliers.mockResolvedValue(page([]))
+
+    const wrapper = mount(SupplierView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    wrapper.vm.openSupplier(null)
+
+    expect(wrapper.vm.supplierForm.supplierType).toBe('DOMESTIC')
+  })
+
+  it('renders the Type and Country list columns from the server response', async () => {
+    listSuppliers.mockResolvedValue(page([supplier]))
+
+    const wrapper = mount(SupplierView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Singapore')
+    expect(wrapper.vm.typeLabel('OVERSEAS')).toBe('suppliers.fields.typeOverseas')
+    expect(wrapper.vm.typeLabel('DOMESTIC')).toBe('suppliers.fields.typeDomestic')
+    expect(wrapper.vm.typeTone('OVERSEAS')).toBe('blue')
+    expect(wrapper.vm.typeTone('DOMESTIC')).toBe('gray')
+  })
+
+  it('rejects an invalid email inline without calling the API', async () => {
+    listSuppliers.mockResolvedValue(page([]))
+
+    const wrapper = mount(SupplierView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    wrapper.vm.openSupplier(null)
+    wrapper.vm.supplierForm.code = 'SUP-NEW'
+    wrapper.vm.supplierForm.companyName = 'New Co'
+    wrapper.vm.supplierForm.email = 'not-an-email'
+    await wrapper.vm.saveSupplier()
+
+    expect(wrapper.vm.fieldErrors.email).toBe('suppliers.messages.emailInvalid')
+    expect(createSupplier).not.toHaveBeenCalled()
+  })
+
+  it('filtering by supplier type refetches with the filter and resets to page 1', async () => {
+    listSuppliers.mockResolvedValue(page([supplier]))
+
+    const wrapper = mount(SupplierView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    wrapper.vm.page = 2
+    listSuppliers.mockClear()
+
+    wrapper.vm.filters.supplierType = 'OVERSEAS'
+    await flushPromises()
+
+    expect(listSuppliers).toHaveBeenCalledWith(
+      expect.objectContaining({ supplierType: 'OVERSEAS', page: 1 })
+    )
   })
 
   it('deletes via the toast service (not window.alert) and refetches the list', async () => {

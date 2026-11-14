@@ -1445,15 +1445,18 @@
   },
   "suppliers": {
     "title": "供应商",
-    "subtitle": "管理采购和收货流程中使用的供应商主数据",
+    "subtitle": "管理采购和收货流程中使用的国内与海外供应商主数据",
     "newButton": "+ 新建供应商",
     "filters": {
       "searchPlaceholder": "搜索编码、公司名称、税号...",
-      "allStatus": "全部状态"
+      "allStatus": "全部状态",
+      "allTypes": "全部类型"
     },
     "table": {
       "code": "编码",
       "companyName": "公司名称",
+      "type": "类型",
+      "country": "国家",
       "taxId": "税号",
       "contactPerson": "联系人",
       "status": "状态",
@@ -1464,24 +1467,61 @@
     "drawer": {
       "detailTitle": "供应商详情",
       "newTitle": "新建供应商",
-      "subtitle": "供应商编码、联系方式与状态"
+      "subtitle": "供应商信息、联系方式与贸易条款"
+    },
+    "sections": {
+      "basic": "基本信息",
+      "contact": "联系方式与地址",
+      "trade": "贸易条款",
+      "tradeHintOverseas": "该海外供应商的币种、贸易术语、交货周期、付款条件与运输方式。",
+      "tradeHintDomestic": "该国内供应商的泰国税号、增值税登记号、省份与邮政编码。"
     },
     "fields": {
       "code": "编码",
       "companyName": "公司名称",
-      "taxId": "税号",
+      "legalNameEn": "法定名称（英文）",
+      "legalNameTh": "法定名称（泰文）",
+      "supplierType": "供应商类型",
+      "typeDomestic": "国内",
+      "typeOverseas": "海外",
+      "country": "国家",
+      "countryPlaceholder": "搜索国家...",
+      "noMatches": "未找到匹配项",
+      "taxId": "税号 / 注册号",
       "contactPerson": "联系人",
       "contactPhone": "联系电话",
       "address": "地址",
       "email": "电子邮箱",
       "phone": "电话",
-      "status": "状态"
+      "status": "状态",
+      "currency": "币种",
+      "currencyPlaceholder": "搜索币种...",
+      "defaultIncoterm": "默认贸易术语",
+      "defaultIncotermPlaceholder": "搜索贸易术语...",
+      "incotermNamedPlace": "指定地点",
+      "incotermNamedPlacePlaceholder": "例如 Rotterdam, Singapore Port",
+      "leadTimeDays": "交货周期（天）",
+      "paymentTerms": "付款条件",
+      "paymentTermsPlaceholder": "例如 Net 30",
+      "shippingMethod": "运输方式",
+      "thaiTaxId": "泰国税号",
+      "vatRegistration": "增值税登记号",
+      "province": "省份",
+      "postalCode": "邮政编码"
     },
     "deleteTitle": "删除供应商",
+    "unsavedChanges": {
+      "title": "有未保存的更改",
+      "message": "此供应商有未保存的更改，是否放弃这些更改？",
+      "confirmButton": "放弃更改",
+      "cancelButton": "继续编辑"
+    },
     "messages": {
       "loadFailed": "加载供应商失败",
       "saveFailed": "保存供应商失败",
-      "deleteFailed": "删除供应商失败"
+      "deleteFailed": "删除供应商失败",
+      "emailInvalid": "请输入有效的电子邮箱地址",
+      "leadTimeInvalid": "交货周期不能为负数"
     }
   },
   "brands": {
