@@ -2,6 +2,7 @@ package supplier
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -19,6 +20,75 @@ func TestStatus_IsValid(t *testing.T) {
 		if got := status.IsValid(); got != want {
 			t.Errorf("Status(%q).IsValid() = %v, want %v", status, got, want)
 		}
+	}
+}
+
+func TestSupplierType_IsValid(t *testing.T) {
+	cases := map[SupplierType]bool{
+		SupplierTypeDomestic: true, SupplierTypeOverseas: true,
+		"NOT_REAL": false, "": false,
+	}
+	for supplierType, want := range cases {
+		if got := supplierType.IsValid(); got != want {
+			t.Errorf("SupplierType(%q).IsValid() = %v, want %v", supplierType, got, want)
+		}
+	}
+}
+
+// TestService_Create_DefaultsSupplierTypeToDomestic proves a Create
+// request that omits supplier_type lands as DOMESTIC — mirroring the
+// existing Status default-to-ACTIVE behavior, so existing callers that
+// predate the EWTA overseas-supplier field set don't need to change.
+func TestService_Create_DefaultsSupplierTypeToDomestic(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+	tenantID := newSortTestTenant(t, tx, "default-supplier-type")
+
+	svc := NewService(NewRepository(tx))
+	resp, err := svc.Create(context.Background(), tenantID, CreateRequest{Code: "SUP-DEFAULT-TYPE", CompanyName: "Default Type Co."})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if resp.SupplierType != SupplierTypeDomestic {
+		t.Errorf("SupplierType = %q, want %q", resp.SupplierType, SupplierTypeDomestic)
+	}
+}
+
+func TestService_Create_RejectsInvalidSupplierType(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+	tenantID := newSortTestTenant(t, tx, "invalid-supplier-type")
+
+	svc := NewService(NewRepository(tx))
+	_, err := svc.Create(context.Background(), tenantID, CreateRequest{Code: "SUP-BAD-TYPE", CompanyName: "Bad Type Co.", SupplierType: "NOT_REAL"})
+	var validationErr ErrValidation
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("Create(bad supplier_type) = %v, want ErrValidation", err)
+	}
+}
+
+// TestService_List_FiltersBySupplierType proves the supplier_type
+// filter (GET /api/v1/suppliers?supplier_type=OVERSEAS) narrows the
+// result set the same way the existing status filter does.
+func TestService_List_FiltersBySupplierType(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+	tenantID := newSortTestTenant(t, tx, "filter-supplier-type")
+
+	svc := NewService(NewRepository(tx))
+	if _, err := svc.Create(context.Background(), tenantID, CreateRequest{Code: "SUP-DOM", CompanyName: "Domestic Co.", SupplierType: SupplierTypeDomestic}); err != nil {
+		t.Fatalf("Create(domestic): %v", err)
+	}
+	if _, err := svc.Create(context.Background(), tenantID, CreateRequest{Code: "SUP-OS", CompanyName: "Overseas Co.", SupplierType: SupplierTypeOverseas}); err != nil {
+		t.Fatalf("Create(overseas): %v", err)
+	}
+
+	overseas, total, err := svc.List(context.Background(), tenantID, ListParams{SupplierType: SupplierTypeOverseas})
+	if err != nil {
+		t.Fatalf("List(supplier_type=OVERSEAS): %v", err)
+	}
+	if total != 1 || len(overseas) != 1 || overseas[0].Code != "SUP-OS" {
+		t.Fatalf("List(supplier_type=OVERSEAS) = %+v (total %d), want exactly [SUP-OS]", overseas, total)
 	}
 }
 

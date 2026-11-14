@@ -81,7 +81,7 @@ func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) (
 	}
 
 	suppliers, total, err := s.repo.List(ctx, tenantID, ListFilter{
-		Search: params.Search, Status: params.Status, Page: page, Limit: limit,
+		Search: params.Search, Status: params.Status, SupplierType: params.SupplierType, Page: page, Limit: limit,
 		SortBy: sortBy, SortDir: sortDir,
 	})
 	if err != nil {
@@ -112,10 +112,22 @@ func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest)
 		return Response{}, ErrValidation{Message: "status must be ACTIVE or INACTIVE"}
 	}
 
+	supplierType := req.SupplierType
+	if supplierType == "" {
+		supplierType = SupplierTypeDomestic
+	}
+	if !supplierType.IsValid() {
+		return Response{}, ErrValidation{Message: "supplier_type must be DOMESTIC or OVERSEAS"}
+	}
+
 	sup := &Supplier{
-		Code: req.Code, CompanyName: req.CompanyName, TaxID: req.TaxID,
+		Code: req.Code, CompanyName: req.CompanyName, LegalNameTH: req.LegalNameTH,
+		SupplierType: supplierType, Country: req.Country, TaxID: req.TaxID,
 		ContactPerson: req.ContactPerson, ContactPhone: req.ContactPhone,
 		Address: req.Address, Email: req.Email, Phone: req.Phone, Status: status,
+		Currency: req.Currency, DefaultIncoterm: req.DefaultIncoterm, IncotermNamedPlace: req.IncotermNamedPlace,
+		LeadTimeDays: req.LeadTimeDays, PaymentTerms: req.PaymentTerms, ShippingMethod: req.ShippingMethod,
+		ThaiTaxID: req.ThaiTaxID, VATRegistration: req.VATRegistration, Province: req.Province, PostalCode: req.PostalCode,
 	}
 
 	if err := s.repo.Create(ctx, tenantID, sup); err != nil {
@@ -133,11 +145,18 @@ func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequ
 	if !req.Status.IsValid() {
 		return Response{}, ErrValidation{Message: "status must be ACTIVE or INACTIVE"}
 	}
+	if !req.SupplierType.IsValid() {
+		return Response{}, ErrValidation{Message: "supplier_type must be DOMESTIC or OVERSEAS"}
+	}
 
 	sup := &Supplier{
-		ID: id, Code: req.Code, CompanyName: req.CompanyName, TaxID: req.TaxID,
+		ID: id, Code: req.Code, CompanyName: req.CompanyName, LegalNameTH: req.LegalNameTH,
+		SupplierType: req.SupplierType, Country: req.Country, TaxID: req.TaxID,
 		ContactPerson: req.ContactPerson, ContactPhone: req.ContactPhone,
 		Address: req.Address, Email: req.Email, Phone: req.Phone, Status: req.Status,
+		Currency: req.Currency, DefaultIncoterm: req.DefaultIncoterm, IncotermNamedPlace: req.IncotermNamedPlace,
+		LeadTimeDays: req.LeadTimeDays, PaymentTerms: req.PaymentTerms, ShippingMethod: req.ShippingMethod,
+		ThaiTaxID: req.ThaiTaxID, VATRegistration: req.VATRegistration, Province: req.Province, PostalCode: req.PostalCode,
 	}
 
 	if err := s.repo.Update(ctx, tenantID, sup); err != nil {

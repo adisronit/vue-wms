@@ -1445,15 +1445,18 @@
   },
   "suppliers": {
     "title": "Suppliers",
-    "subtitle": "Manage supplier master data used across purchasing and receiving",
+    "subtitle": "Manage domestic and overseas supplier master data used across purchasing and receiving",
     "newButton": "+ New Supplier",
     "filters": {
       "searchPlaceholder": "Search code, company name, tax ID...",
-      "allStatus": "All Status"
+      "allStatus": "All Status",
+      "allTypes": "All Types"
     },
     "table": {
       "code": "Code",
       "companyName": "Company Name",
+      "type": "Type",
+      "country": "Country",
       "taxId": "Tax ID",
       "contactPerson": "Contact Person",
       "status": "Status",
@@ -1464,24 +1467,61 @@
     "drawer": {
       "detailTitle": "Supplier Detail",
       "newTitle": "New Supplier",
-      "subtitle": "Supplier code, contact information and status"
+      "subtitle": "Supplier identity, contact information and trade details"
+    },
+    "sections": {
+      "basic": "Basic Information",
+      "contact": "Contact & Address",
+      "trade": "Trade Details",
+      "tradeHintOverseas": "Currency, incoterms, lead time, payment terms and shipping method for this overseas supplier.",
+      "tradeHintDomestic": "Thai tax ID, VAT registration, province and postal code for this domestic supplier."
     },
     "fields": {
       "code": "Code",
       "companyName": "Company Name",
-      "taxId": "Tax ID",
+      "legalNameEn": "Legal Name (EN)",
+      "legalNameTh": "Legal Name (TH)",
+      "supplierType": "Supplier Type",
+      "typeDomestic": "Domestic",
+      "typeOverseas": "Overseas",
+      "country": "Country",
+      "countryPlaceholder": "Search country...",
+      "noMatches": "No matches",
+      "taxId": "Tax / Registration ID",
       "contactPerson": "Contact Person",
       "contactPhone": "Contact Phone",
       "address": "Address",
       "email": "Email",
       "phone": "Phone",
-      "status": "Status"
+      "status": "Status",
+      "currency": "Currency",
+      "currencyPlaceholder": "Search currency...",
+      "defaultIncoterm": "Default Incoterm",
+      "defaultIncotermPlaceholder": "Search incoterm...",
+      "incotermNamedPlace": "Named Place",
+      "incotermNamedPlacePlaceholder": "e.g. Rotterdam, Singapore Port",
+      "leadTimeDays": "Lead Time (days)",
+      "paymentTerms": "Payment Terms",
+      "paymentTermsPlaceholder": "e.g. Net 30",
+      "shippingMethod": "Shipping Method",
+      "thaiTaxId": "Thai Tax ID",
+      "vatRegistration": "VAT Registration",
+      "province": "Province",
+      "postalCode": "Postal Code"
     },
     "deleteTitle": "Delete Supplier",
+    "unsavedChanges": {
+      "title": "Unsaved changes",
+      "message": "You have unsaved changes to this supplier. Discard them?",
+      "confirmButton": "Discard changes",
+      "cancelButton": "Keep editing"
+    },
     "messages": {
       "loadFailed": "Failed to load suppliers",
       "saveFailed": "Failed to save supplier",
-      "deleteFailed": "Failed to delete supplier"
+      "deleteFailed": "Failed to delete supplier",
+      "emailInvalid": "Enter a valid email address",
+      "leadTimeInvalid": "Lead time cannot be negative"
     }
   },
   "brands": {

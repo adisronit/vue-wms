@@ -1445,15 +1445,18 @@
   },
   "suppliers": {
     "title": "ผู้จำหน่าย",
-    "subtitle": "จัดการข้อมูลหลักผู้จำหน่ายที่ใช้ในการจัดซื้อและการรับสินค้า",
+    "subtitle": "จัดการข้อมูลหลักผู้จำหน่ายในและนอกประเทศที่ใช้ในการจัดซื้อและการรับสินค้า",
     "newButton": "+ ผู้จำหน่ายใหม่",
     "filters": {
       "searchPlaceholder": "ค้นหาโค้ด, ชื่อบริษัท, เลขประจำตัวผู้เสียภาษี...",
-      "allStatus": "สถานะทั้งหมด"
+      "allStatus": "สถานะทั้งหมด",
+      "allTypes": "ประเภททั้งหมด"
     },
     "table": {
       "code": "โค้ด",
       "companyName": "ชื่อบริษัท",
+      "type": "ประเภท",
+      "country": "ประเทศ",
       "taxId": "เลขประจำตัวผู้เสียภาษี",
       "contactPerson": "ผู้ติดต่อ",
       "status": "สถานะ",
@@ -1464,24 +1467,61 @@
     "drawer": {
       "detailTitle": "รายละเอียดผู้จำหน่าย",
       "newTitle": "ผู้จำหน่ายใหม่",
-      "subtitle": "โค้ดผู้จำหน่าย ข้อมูลติดต่อ และสถานะ"
+      "subtitle": "ข้อมูลผู้จำหน่าย ข้อมูลติดต่อ และรายละเอียดการค้า"
+    },
+    "sections": {
+      "basic": "ข้อมูลพื้นฐาน",
+      "contact": "ข้อมูลติดต่อและที่อยู่",
+      "trade": "รายละเอียดการค้า",
+      "tradeHintOverseas": "สกุลเงิน, Incoterm, ระยะเวลาส่งมอบ, เงื่อนไขการชำระเงิน และวิธีการจัดส่งสำหรับผู้จำหน่ายต่างประเทศนี้",
+      "tradeHintDomestic": "เลขประจำตัวผู้เสียภาษี, เลขทะเบียนภาษีมูลค่าเพิ่ม, จังหวัด และรหัสไปรษณีย์สำหรับผู้จำหน่ายในประเทศนี้"
     },
     "fields": {
       "code": "โค้ด",
       "companyName": "ชื่อบริษัท",
-      "taxId": "เลขประจำตัวผู้เสียภาษี",
+      "legalNameEn": "ชื่อนิติบุคคล (EN)",
+      "legalNameTh": "ชื่อนิติบุคคล (TH)",
+      "supplierType": "ประเภทผู้จำหน่าย",
+      "typeDomestic": "ในประเทศ",
+      "typeOverseas": "ต่างประเทศ",
+      "country": "ประเทศ",
+      "countryPlaceholder": "ค้นหาประเทศ...",
+      "noMatches": "ไม่พบข้อมูล",
+      "taxId": "เลขประจำตัวผู้เสียภาษี / เลขทะเบียน",
       "contactPerson": "ผู้ติดต่อ",
       "contactPhone": "โทรศัพท์ผู้ติดต่อ",
       "address": "ที่อยู่",
       "email": "อีเมล",
       "phone": "โทรศัพท์",
-      "status": "สถานะ"
+      "status": "สถานะ",
+      "currency": "สกุลเงิน",
+      "currencyPlaceholder": "ค้นหาสกุลเงิน...",
+      "defaultIncoterm": "Incoterm หลัก",
+      "defaultIncotermPlaceholder": "ค้นหา Incoterm...",
+      "incotermNamedPlace": "สถานที่ระบุ",
+      "incotermNamedPlacePlaceholder": "เช่น Rotterdam, Singapore Port",
+      "leadTimeDays": "ระยะเวลาส่งมอบ (วัน)",
+      "paymentTerms": "เงื่อนไขการชำระเงิน",
+      "paymentTermsPlaceholder": "เช่น Net 30",
+      "shippingMethod": "วิธีการจัดส่ง",
+      "thaiTaxId": "เลขประจำตัวผู้เสียภาษีไทย",
+      "vatRegistration": "เลขทะเบียนภาษีมูลค่าเพิ่ม",
+      "province": "จังหวัด",
+      "postalCode": "รหัสไปรษณีย์"
     },
     "deleteTitle": "ลบผู้จำหน่าย",
+    "unsavedChanges": {
+      "title": "มีการเปลี่ยนแปลงที่ยังไม่บันทึก",
+      "message": "คุณมีการเปลี่ยนแปลงข้อมูลผู้จำหน่ายที่ยังไม่บันทึก ต้องการยกเลิกการเปลี่ยนแปลงหรือไม่?",
+      "confirmButton": "ยกเลิกการเปลี่ยนแปลง",
+      "cancelButton": "แก้ไขต่อ"
+    },
     "messages": {
       "loadFailed": "ไม่สามารถโหลดผู้จำหน่ายได้",
       "saveFailed": "ไม่สามารถบันทึกผู้จำหน่ายได้",
-      "deleteFailed": "ไม่สามารถลบผู้จำหน่ายได้"
+      "deleteFailed": "ไม่สามารถลบผู้จำหน่ายได้",
+      "emailInvalid": "กรุณากรอกอีเมลให้ถูกต้อง",
+      "leadTimeInvalid": "ระยะเวลาส่งมอบต้องไม่ติดลบ"
     }
   },
   "brands": {

@@ -13,6 +13,7 @@ export function listSuppliers(params = {}) {
   if (params.limit) query.set('limit', params.limit)
   if (params.search) query.set('search', params.search)
   if (params.status) query.set('status', params.status)
+  if (params.supplierType) query.set('supplier_type', params.supplierType)
   if (params.sortBy) query.set('sort_by', params.sortBy)
   if (params.sortDir) query.set('sort_dir', params.sortDir)
 
