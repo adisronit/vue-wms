@@ -249,8 +249,16 @@ func main() {
 	familyService := productfamily.NewService(familyRepo)
 	productfamily.NewHandler(familyService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
-	inventoryService := inventory.NewService(inventoryRepo)
-	inventory.NewHandler(inventoryService).Register(v1, cfg.JWTSecret)
+	// Phase 30 Batch 1: inventoryService now threads a verified tenantID
+	// through every query (List/FindByID/Summary/Transactions/
+	// AdjustBalance/AdjustReservation/...), and verifies productRepo/
+	// locationRepo ownership before any mutation — see
+	// internal/inventory/service.go's own package doc for the full
+	// rationale. Its own Register now uses the RequireJWT ->
+	// RequireTenantContext -> RequirePermission chain, same as
+	// location/customer/supplier above.
+	inventoryService := inventory.NewService(inventoryRepo, productRepo, locationRepo)
+	inventory.NewHandler(inventoryService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// locationUnscoped adapts locationRepo's new tenant-scoped FindByID
 	// back to the single-arg shape receiving/stockadjustment/stockcount's

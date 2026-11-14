@@ -226,7 +226,11 @@ func (s *Service) createItem(ctx context.Context, txRepo *Repository, task *Task
 	// an early, clear error instead of deferring every check to Confirm.
 	// The authoritative, concurrency-safe check still happens inside
 	// Confirm's own MoveStockTx call (see its doc).
-	if _, err := s.inventory.FindBalance(ctx, req.ProductID, req.SourceLocationID, req.LotNo); err != nil {
+	// TenantID: inventory.UnverifiedCallerTenantID — putaway has no
+	// verified per-request tenant context of its own yet (Phase 30
+	// Batch 1 only covers internal/inventory itself; see that
+	// constant's own doc).
+	if _, err := s.inventory.FindBalance(ctx, inventory.UnverifiedCallerTenantID, req.ProductID, req.SourceLocationID, req.LotNo); err != nil {
 		if errors.Is(err, inventory.ErrNotFound) {
 			return ErrNoSourceStock
 		}
@@ -358,7 +362,11 @@ func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest,
 			// identity must match source stock" and "expiry must remain
 			// unchanged" both hold by construction rather than by a
 			// separate check.
-			balance, err := s.inventory.FindBalance(ctx, item.ProductID, item.SourceLocationID, item.LotNo)
+			// TenantID: inventory.UnverifiedCallerTenantID on both calls
+			// below — putaway has no verified per-request tenant context of
+			// its own yet (Phase 30 Batch 1 only covers internal/inventory
+			// itself; see that constant's own doc).
+			balance, err := s.inventory.FindBalance(ctx, inventory.UnverifiedCallerTenantID, item.ProductID, item.SourceLocationID, item.LotNo)
 			if err != nil {
 				if errors.Is(err, inventory.ErrNotFound) {
 					return ErrNoSourceStock
@@ -367,6 +375,7 @@ func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest,
 			}
 
 			if err := s.inventory.MoveStockTx(ctx, invRepo, inventory.MoveStockRequest{
+				TenantID:  inventory.UnverifiedCallerTenantID,
 				ProductID: item.ProductID, FromLocationID: item.SourceLocationID, ToLocationID: destinationID,
 				LotNo: item.LotNo, ExpiryDate: balance.ExpiryDate, Quantity: lineReq.Quantity,
 				Type: inventory.TransactionPutaway, ReferenceType: &refType, ReferenceID: &refID,

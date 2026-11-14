@@ -42,7 +42,7 @@ type pickingSummarizer interface {
 // summary cards already use, so "Available Stock"/"Low Stock" can never
 // disagree between the two screens.
 type inventorySummarizer interface {
-	Summary(ctx context.Context) (inventory.SummaryResponse, error)
+	Summary(ctx context.Context, tenantID int64) (inventory.SummaryResponse, error)
 }
 
 // Service composes the three existing domains above into one read-only
@@ -71,7 +71,10 @@ func (s *Service) Summary(ctx context.Context) (SummaryResponse, error) {
 		return SummaryResponse{}, err
 	}
 
-	invSummary, err := s.inventory.Summary(ctx)
+	// TenantID: inventory.UnverifiedCallerTenantID — dashboard has no
+	// verified per-request tenant context of its own yet (not yet a
+	// scheduled Phase 30 batch; see that constant's own doc).
+	invSummary, err := s.inventory.Summary(ctx, inventory.UnverifiedCallerTenantID)
 	if err != nil {
 		return SummaryResponse{}, err
 	}

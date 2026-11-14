@@ -226,7 +226,11 @@ func (s *Service) createItem(ctx context.Context, txRepo *Repository, invRepo *i
 	// arithmetic and the availability check are one atomic SQL statement,
 	// not a Go read-then-write. Never touches quantity and never writes a
 	// ledger row — a reservation is a claim, not a movement.
+	// TenantID: inventory.UnverifiedCallerTenantID — picking has no
+	// verified per-request tenant context of its own yet (Phase 30
+	// Batch 2 picks this up next; see that constant's own doc).
 	if _, err := s.inventory.ReserveStockTx(ctx, invRepo, inventory.ReserveRequest{
+		TenantID:  inventory.UnverifiedCallerTenantID,
 		ProductID: req.ProductID, LocationID: req.LocationID, LotNo: req.LotNo, Quantity: req.OrderedQty,
 	}); err != nil {
 		if errors.Is(err, inventory.ErrNoStock) {
@@ -331,7 +335,10 @@ func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest,
 				// building.
 				unreserveQty := item.OrderedQty - item.PickedQty
 				if unreserveQty > 0 {
+					// TenantID: inventory.UnverifiedCallerTenantID — see
+					// Create's own call site above for why.
 					if _, err := s.inventory.ReleaseReservationTx(ctx, invRepo, inventory.ReserveRequest{
+						TenantID:  inventory.UnverifiedCallerTenantID,
 						ProductID: item.ProductID, LocationID: item.LocationID, LotNo: item.LotNo, Quantity: unreserveQty,
 					}); err != nil {
 						return err
@@ -354,7 +361,10 @@ func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest,
 			// row), atomically — see its doc. Replaces the earlier phase's
 			// direct RemoveStockTx call now that stock is reserved before
 			// it's ever physically picked.
+			// TenantID: inventory.UnverifiedCallerTenantID — see Create's
+			// own call site above for why.
 			if _, err := s.inventory.ConsumeReservationTx(ctx, invRepo, inventory.StockChangeRequest{
+				TenantID:  inventory.UnverifiedCallerTenantID,
 				ProductID: item.ProductID, LocationID: item.LocationID, LotNo: item.LotNo,
 				Quantity: lineReq.Quantity, Type: inventory.TransactionPick,
 				ReferenceType: &refType, ReferenceID: &refID, CreatedBy: &userID,
@@ -469,7 +479,10 @@ func (s *Service) Cancel(ctx context.Context, taskID int64, req CancelRequest, u
 			if remaining <= 0 {
 				continue
 			}
+			// TenantID: inventory.UnverifiedCallerTenantID — see Create's
+			// own call site above for why.
 			if _, err := s.inventory.ReleaseReservationTx(ctx, invRepo, inventory.ReserveRequest{
+				TenantID:  inventory.UnverifiedCallerTenantID,
 				ProductID: item.ProductID, LocationID: item.LocationID, LotNo: item.LotNo, Quantity: remaining,
 			}); err != nil {
 				return err

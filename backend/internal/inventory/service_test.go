@@ -47,9 +47,18 @@ func TestValidateStockChange_RejectsInvalidType(t *testing.T) {
 }
 
 func TestValidateStockChange_AcceptsValidRequest(t *testing.T) {
-	err := validateStockChange(StockChangeRequest{ProductID: 1, LocationID: 1, Quantity: 10, Type: TransactionReceive})
+	err := validateStockChange(StockChangeRequest{TenantID: 1, ProductID: 1, LocationID: 1, Quantity: 10, Type: TransactionReceive})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateStockChange_RequiresTenantID(t *testing.T) {
+	err := validateStockChange(StockChangeRequest{ProductID: 1, LocationID: 1, Quantity: 10, Type: TransactionReceive})
+
+	var validationErr ErrValidation
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("error = %v, want ErrValidation (Phase 30 Batch 1: tenant_id is now required)", err)
 	}
 }
 
@@ -146,9 +155,18 @@ func TestValidateReserveRequest_RejectsNegativeQuantity(t *testing.T) {
 }
 
 func TestValidateReserveRequest_AcceptsValidRequest(t *testing.T) {
-	err := validateReserveRequest(ReserveRequest{ProductID: 1, LocationID: 1, Quantity: 10})
+	err := validateReserveRequest(ReserveRequest{TenantID: 1, ProductID: 1, LocationID: 1, Quantity: 10})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateReserveRequest_RequiresTenantID(t *testing.T) {
+	err := validateReserveRequest(ReserveRequest{ProductID: 1, LocationID: 1, Quantity: 10})
+
+	var validationErr ErrValidation
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("error = %v, want ErrValidation (Phase 30 Batch 1: tenant_id is now required)", err)
 	}
 }
 

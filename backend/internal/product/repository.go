@@ -96,6 +96,21 @@ func (r *Repository) FindByIDForTenant(ctx context.Context, tenantID, id int64) 
 	return &p, nil
 }
 
+// Exists reports whether id exists within tenantID — the ownership
+// check internal/inventory.Service uses (Phase 30 Batch 1) to confirm a
+// stock mutation's product_id belongs to the same tenant as the
+// caller, mirroring internal/supplier/internal/customer's own Exists.
+func (r *Repository) Exists(ctx context.Context, tenantID, id int64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&Product{}).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (r *Repository) Update(ctx context.Context, tenantID int64, p *Product) error {
 	err := r.db.WithContext(ctx).Model(&Product{}).Where("id = ? AND tenant_id = ?", p.ID, tenantID).Updates(map[string]any{
 		"sku":                    p.SKU,

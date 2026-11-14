@@ -252,7 +252,10 @@ func (s *Service) addItem(ctx context.Context, txRepo *Repository, countID int64
 	}
 
 	systemQty := 0.0
-	if bal, err := s.inventory.FindBalance(ctx, req.ProductID, req.LocationID, req.LotNo); err == nil {
+	// TenantID: inventory.UnverifiedCallerTenantID — stockcount has no
+	// verified per-request tenant context of its own yet (not yet a
+	// scheduled Phase 30 batch; see that constant's own doc).
+	if bal, err := s.inventory.FindBalance(ctx, inventory.UnverifiedCallerTenantID, req.ProductID, req.LocationID, req.LotNo); err == nil {
 		systemQty = bal.Quantity
 	} else if !errors.Is(err, inventory.ErrNotFound) {
 		return err
@@ -408,7 +411,9 @@ func (s *Service) Confirm(ctx context.Context, countID int64, req ConfirmRequest
 			// drifted balance shouldn't have a now-stale variance silently
 			// applied on top of it. See ErrStaleCount's doc.
 			currentQty := 0.0
-			if bal, err := s.inventory.FindBalance(ctx, it.ProductID, it.LocationID, it.LotNo); err == nil {
+			// TenantID: inventory.UnverifiedCallerTenantID — see the
+			// FindBalance call site earlier in this file for why.
+			if bal, err := s.inventory.FindBalance(ctx, inventory.UnverifiedCallerTenantID, it.ProductID, it.LocationID, it.LotNo); err == nil {
 				currentQty = bal.Quantity
 			} else if !errors.Is(err, inventory.ErrNotFound) {
 				return err
@@ -423,15 +428,19 @@ func (s *Service) Confirm(ctx context.Context, countID int64, req ConfirmRequest
 			}
 
 			reason := "Stock count variance"
+			// TenantID: inventory.UnverifiedCallerTenantID on both branches —
+			// see the FindBalance call site earlier in this file for why.
 			var mutErr error
 			if variance > 0 {
 				_, mutErr = s.inventory.AddStockTx(ctx, invRepo, inventory.StockChangeRequest{
+					TenantID:  inventory.UnverifiedCallerTenantID,
 					ProductID: it.ProductID, LocationID: it.LocationID, LotNo: it.LotNo,
 					Quantity: variance, Type: inventory.TransactionCount,
 					ReferenceType: &refType, ReferenceID: &refID, Reason: &reason, CreatedBy: &userID,
 				})
 			} else {
 				_, mutErr = s.inventory.RemoveStockTx(ctx, invRepo, inventory.StockChangeRequest{
+					TenantID:  inventory.UnverifiedCallerTenantID,
 					ProductID: it.ProductID, LocationID: it.LocationID, LotNo: it.LotNo,
 					Quantity: -variance, Type: inventory.TransactionCount,
 					ReferenceType: &refType, ReferenceID: &refID, Reason: &reason, CreatedBy: &userID,

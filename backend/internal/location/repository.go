@@ -117,6 +117,21 @@ func (r *Repository) FindByIDUnscoped(ctx context.Context, id int64) (*Location,
 	return &l, nil
 }
 
+// Exists reports whether id exists within tenantID — the ownership
+// check internal/inventory.Service uses (Phase 30 Batch 1) to confirm a
+// stock mutation's location_id belongs to the same tenant as the
+// caller, mirroring internal/supplier/internal/customer's own Exists.
+func (r *Repository) Exists(ctx context.Context, tenantID, id int64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&Location{}).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 // UnscopedAdapter exposes FindByIDUnscoped as a bare FindByID(ctx, id) —
 // the pre-Location-Master-Management signature — so
 // internal/receiving/internal/stockadjustment/internal/stockcount's own
