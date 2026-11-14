@@ -2,6 +2,7 @@ package customer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -9,6 +10,50 @@ import (
 
 	"wms-backend/internal/platform/testsupport"
 )
+
+// noDeliveryLocations is a deliveryLocationCounter stub for tests that
+// never exercise Delete's referential-safety check — every List/sort/
+// pagination test below only needs a Service to call List on, not a
+// real customerdeliverylocation.Repository.
+type noDeliveryLocations struct{}
+
+func (noDeliveryLocations) CountByCustomer(ctx context.Context, tenantID, customerID int64) (int64, error) {
+	return 0, nil
+}
+
+// hasDeliveryLocations is the opposite stub — used to prove
+// Service.Delete refuses to hard-delete a customer that still has
+// delivery locations.
+type hasDeliveryLocations struct{}
+
+func (hasDeliveryLocations) CountByCustomer(ctx context.Context, tenantID, customerID int64) (int64, error) {
+	return 1, nil
+}
+
+func TestService_Delete_RejectsWhenDeliveryLocationsExist(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+	tenantID := newSortTestTenant(t, tx, "delete-has-locations")
+	c := seedCustomer(t, tx, tenantID, "CUST-HASLOC", "Has Locations Co.", StatusActive)
+
+	svc := NewService(NewRepository(tx), hasDeliveryLocations{})
+	err := svc.Delete(context.Background(), tenantID, c.ID)
+	if !errors.Is(err, ErrHasDeliveryLocations) {
+		t.Fatalf("Delete(customer with delivery locations) = %v, want ErrHasDeliveryLocations", err)
+	}
+}
+
+func TestService_Delete_AllowedWhenNoDeliveryLocationsExist(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+	tenantID := newSortTestTenant(t, tx, "delete-no-locations")
+	c := seedCustomer(t, tx, tenantID, "CUST-NOLOC", "No Locations Co.", StatusActive)
+
+	svc := NewService(NewRepository(tx), noDeliveryLocations{})
+	if err := svc.Delete(context.Background(), tenantID, c.ID); err != nil {
+		t.Fatalf("Delete(customer with no delivery locations): %v", err)
+	}
+}
 
 func TestStatus_IsValid(t *testing.T) {
 	cases := map[Status]bool{
@@ -59,7 +104,7 @@ func TestService_List_DefaultsToCodeAscending(t *testing.T) {
 	seedCustomer(t, tx, tenantID, "CUST-A", "Alpha Co.", StatusActive)
 	seedCustomer(t, tx, tenantID, "CUST-B", "Bravo Co.", StatusActive)
 
-	svc := NewService(NewRepository(tx))
+	svc := NewService(NewRepository(tx), noDeliveryLocations{})
 	responses, total, err := svc.List(context.Background(), tenantID, ListParams{})
 	if err != nil {
 		t.Fatalf("List: %v", err)
@@ -84,7 +129,7 @@ func TestService_List_SortByColumn_AscAndDesc(t *testing.T) {
 	seedCustomer(t, tx, tenantID, "CUST-2", "Alpha Co.", StatusActive)
 	seedCustomer(t, tx, tenantID, "CUST-3", "Bravo Co.", StatusActive)
 
-	svc := NewService(NewRepository(tx))
+	svc := NewService(NewRepository(tx), noDeliveryLocations{})
 
 	asc, _, err := svc.List(context.Background(), tenantID, ListParams{SortBy: "companyName", SortDir: "asc"})
 	if err != nil {
@@ -120,7 +165,7 @@ func TestService_List_SecondarySortIsDeterministic(t *testing.T) {
 	second := seedCustomer(t, tx, tenantID, "CUST-Y", "Yankee Co.", StatusActive)
 	third := seedCustomer(t, tx, tenantID, "CUST-X", "Xray Co.", StatusActive)
 
-	svc := NewService(NewRepository(tx))
+	svc := NewService(NewRepository(tx), noDeliveryLocations{})
 
 	for i := 0; i < 3; i++ {
 		responses, _, err := svc.List(context.Background(), tenantID, ListParams{SortBy: "status", SortDir: "asc"})
@@ -139,7 +184,7 @@ func TestService_List_InvalidSortBy_Rejected(t *testing.T) {
 	tx := testsupport.BeginRollbackTx(t, db)
 	tenantID := newSortTestTenant(t, tx, "invalid-sortby")
 
-	svc := NewService(NewRepository(tx))
+	svc := NewService(NewRepository(tx), noDeliveryLocations{})
 	_, _, err := svc.List(context.Background(), tenantID, ListParams{SortBy: "taxId; DROP TABLE customers"})
 	if err != ErrInvalidSort {
 		t.Errorf("List(bad sort_by) = %v, want ErrInvalidSort", err)
@@ -151,7 +196,7 @@ func TestService_List_InvalidSortDir_Rejected(t *testing.T) {
 	tx := testsupport.BeginRollbackTx(t, db)
 	tenantID := newSortTestTenant(t, tx, "invalid-sortdir")
 
-	svc := NewService(NewRepository(tx))
+	svc := NewService(NewRepository(tx), noDeliveryLocations{})
 	_, _, err := svc.List(context.Background(), tenantID, ListParams{SortBy: "code", SortDir: "sideways"})
 	if err != ErrInvalidSort {
 		t.Errorf("List(bad sort_dir) = %v, want ErrInvalidSort", err)
@@ -168,7 +213,7 @@ func TestService_List_Pagination_PagesThroughCodeOrder(t *testing.T) {
 		seedCustomer(t, tx, tenantID, code, code, StatusActive)
 	}
 
-	svc := NewService(NewRepository(tx))
+	svc := NewService(NewRepository(tx), noDeliveryLocations{})
 
 	page1, total, err := svc.List(context.Background(), tenantID, ListParams{Page: 1, Limit: 2})
 	if err != nil {
@@ -202,7 +247,7 @@ func TestService_List_LimitClampedToDefault_WhenOutOfRange(t *testing.T) {
 		seedCustomer(t, tx, tenantID, fmt.Sprintf("CUST-%03d", i), fmt.Sprintf("Customer %03d Co.", i), StatusActive)
 	}
 
-	svc := NewService(NewRepository(tx))
+	svc := NewService(NewRepository(tx), noDeliveryLocations{})
 
 	zero, total, err := svc.List(context.Background(), tenantID, ListParams{Limit: 0})
 	if err != nil {
@@ -233,7 +278,7 @@ func TestService_List_SearchCombinesWithSort(t *testing.T) {
 	seedCustomer(t, tx, tenantID, "PKG-WRAP", "Wraps Co.", StatusActive)
 	seedCustomer(t, tx, tenantID, "RAW-STEEL", "Steel Co.", StatusActive)
 
-	svc := NewService(NewRepository(tx))
+	svc := NewService(NewRepository(tx), noDeliveryLocations{})
 	responses, total, err := svc.List(context.Background(), tenantID, ListParams{
 		Search: "PKG", SortBy: "companyName", SortDir: "desc",
 	})

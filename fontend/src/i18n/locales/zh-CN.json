@@ -1404,7 +1404,7 @@
   },
   "customers": {
     "title": "客户",
-    "subtitle": "管理订单和发货流程中使用的客户主数据",
+    "subtitle": "管理订单和发货流程中使用的泰国国内 B2B 客户主数据",
     "newButton": "+ 新建客户",
     "filters": {
       "searchPlaceholder": "搜索编码、公司名称、税号...",
@@ -1423,24 +1423,86 @@
     "drawer": {
       "detailTitle": "客户详情",
       "newTitle": "新建客户",
-      "subtitle": "客户编码、联系方式与状态"
+      "subtitle": "客户信息、联系方式、账单与收货地点"
+    },
+    "tabs": {
+      "overview": "概览",
+      "locations": "收货地点"
+    },
+    "sections": {
+      "basic": "基本信息",
+      "contact": "联系方式",
+      "billing": "账单信息",
+      "more": "更多详情",
+      "moreHint": "客户类型/分组、泰国税号与分支编号。"
     },
     "fields": {
       "code": "编码",
       "companyName": "公司名称",
-      "taxId": "税号",
+      "legalNameEn": "法定名称（英文）",
+      "legalNameTh": "法定名称（泰文）",
+      "customerType": "客户类型",
+      "customerTypePlaceholder": "例如 经销商、零售商",
+      "customerGroup": "客户分组",
+      "customerGroupPlaceholder": "例如 重点客户、标准客户",
+      "taxId": "泰国税号",
+      "branchNo": "分支编号",
+      "branchNoPlaceholder": "例如总部为 00000",
       "contactPerson": "联系人",
       "contactPhone": "联系电话",
       "address": "地址",
+      "billingAddress": "账单地址",
       "email": "电子邮箱",
       "phone": "电话",
       "status": "状态"
     },
     "deleteTitle": "删除客户",
+    "unsavedChanges": {
+      "title": "有未保存的更改",
+      "message": "此客户有未保存的更改，是否放弃这些更改？",
+      "confirmButton": "放弃更改",
+      "cancelButton": "继续编辑"
+    },
+    "locationsTab": {
+      "saveFirst": "请先保存客户信息，然后再管理收货地点。",
+      "searchPlaceholder": "搜索编码或名称...",
+      "addButton": "+ 添加收货地点",
+      "addTitle": "新建收货地点",
+      "editTitle": "编辑收货地点",
+      "loading": "正在加载收货地点...",
+      "empty": "未找到收货地点。",
+      "loadFailed": "加载收货地点失败",
+      "defaultBadge": "默认",
+      "deactivateButton": "停用",
+      "deactivateTitle": "停用收货地点",
+      "deactivateConfirm": "停用此收货地点？停用后将无法用于新订单。",
+      "fields": {
+        "code": "编码",
+        "name": "名称",
+        "type": "类型",
+        "address": "地址",
+        "province": "省份",
+        "district": "区/县",
+        "postalCode": "邮政编码",
+        "contactPerson": "联系人",
+        "contactPhone": "联系电话",
+        "receivingWindow": "收货时间窗口",
+        "receivingWindowPlaceholder": "例如 周一至周五 08:00-17:00",
+        "instructions": "配送说明",
+        "isDefault": "设为默认收货地点",
+        "status": "状态"
+      },
+      "types": {
+        "branch": "分支机构",
+        "distributionCenter": "配送中心",
+        "deliveryAddress": "收货地址"
+      }
+    },
     "messages": {
       "loadFailed": "加载客户失败",
       "saveFailed": "保存客户失败",
-      "deleteFailed": "删除客户失败"
+      "deleteFailed": "删除客户失败",
+      "emailInvalid": "请输入有效的电子邮箱地址"
     }
   },
   "suppliers": {
