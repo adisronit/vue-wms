@@ -76,13 +76,33 @@ func (r *Repository) FindByID(ctx context.Context, tenantID, id int64) (*Custome
 	return &c, nil
 }
 
+// Exists reports whether id exists within tenantID — the ownership
+// check internal/customerdeliverylocation.Service uses to confirm a
+// delivery location's customer_id belongs to the same tenant as the
+// caller, mirroring internal/supplier.Repository's own Exists (used by
+// internal/product for its default_supplier_id check).
+func (r *Repository) Exists(ctx context.Context, tenantID, id int64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&Customer{}).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 func (r *Repository) Update(ctx context.Context, tenantID int64, c *Customer) error {
 	result := r.db.WithContext(ctx).Model(&Customer{}).
 		Where("id = ? AND tenant_id = ?", c.ID, tenantID).
 		Updates(map[string]any{
 			"code":           c.Code,
 			"company_name":   c.CompanyName,
+			"legal_name_th":  c.LegalNameTH,
+			"customer_type":  c.CustomerType,
+			"customer_group": c.CustomerGroup,
 			"tax_id":         c.TaxID,
+			"branch_no":      c.BranchNo,
 			"contact_person": c.ContactPerson,
 			"contact_phone":  c.ContactPhone,
 			"address":        c.Address,

@@ -218,6 +218,7 @@ func (h *Handler) Update(c *gin.Context) {
 //	@Failure		401	{object}	apihttp.ErrorResponse
 //	@Failure		403	{object}	apihttp.ErrorResponse
 //	@Failure		404	{object}	apihttp.ErrorResponse
+//	@Failure		409	{object}	apihttp.ErrorResponse	"delivery locations still exist"
 //	@Router			/customers/{id} [delete]
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID, ok := middleware.EnforcedTenantID(c)
@@ -260,6 +261,8 @@ func writeError(c *gin.Context, err error) {
 		apihttp.Fail(c, http.StatusNotFound, "customer not found", "NOT_FOUND")
 	case errors.Is(err, ErrDuplicateCode):
 		apihttp.Fail(c, http.StatusConflict, "code already exists", "DUPLICATE_CODE")
+	case errors.Is(err, ErrHasDeliveryLocations):
+		apihttp.Fail(c, http.StatusConflict, "cannot delete — delivery locations still exist", "HAS_DELIVERY_LOCATIONS")
 	case errors.As(err, &validationErr):
 		apihttp.Fail(c, http.StatusUnprocessableEntity, validationErr.Message, "VALIDATION_ERROR")
 	default:

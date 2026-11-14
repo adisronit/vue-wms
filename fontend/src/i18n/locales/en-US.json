@@ -1404,7 +1404,7 @@
   },
   "customers": {
     "title": "Customers",
-    "subtitle": "Manage customer master data used across orders and shipping",
+    "subtitle": "Manage Thai domestic B2B customer master data used across orders and shipping",
     "newButton": "+ New Customer",
     "filters": {
       "searchPlaceholder": "Search code, company name, tax ID...",
@@ -1423,24 +1423,86 @@
     "drawer": {
       "detailTitle": "Customer Detail",
       "newTitle": "New Customer",
-      "subtitle": "Customer code, contact information and status"
+      "subtitle": "Customer identity, contact information, billing and delivery locations"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "locations": "Delivery Locations"
+    },
+    "sections": {
+      "basic": "Basic Information",
+      "contact": "Contact",
+      "billing": "Billing",
+      "more": "More Details",
+      "moreHint": "Customer type/group, Thai Tax ID and branch number."
     },
     "fields": {
       "code": "Code",
       "companyName": "Company Name",
-      "taxId": "Tax ID",
+      "legalNameEn": "Legal Name (EN)",
+      "legalNameTh": "Legal Name (TH)",
+      "customerType": "Customer Type",
+      "customerTypePlaceholder": "e.g. Distributor, Retailer",
+      "customerGroup": "Customer Group",
+      "customerGroupPlaceholder": "e.g. Key Account, Standard",
+      "taxId": "Thai Tax ID",
+      "branchNo": "Branch Number",
+      "branchNoPlaceholder": "e.g. 00000 for head office",
       "contactPerson": "Contact Person",
       "contactPhone": "Contact Phone",
       "address": "Address",
+      "billingAddress": "Billing Address",
       "email": "Email",
       "phone": "Phone",
       "status": "Status"
     },
     "deleteTitle": "Delete Customer",
+    "unsavedChanges": {
+      "title": "Unsaved changes",
+      "message": "You have unsaved changes to this customer. Discard them?",
+      "confirmButton": "Discard changes",
+      "cancelButton": "Keep editing"
+    },
+    "locationsTab": {
+      "saveFirst": "Save the customer first to manage its delivery locations.",
+      "searchPlaceholder": "Search code or name...",
+      "addButton": "+ Add Location",
+      "addTitle": "New Delivery Location",
+      "editTitle": "Edit Delivery Location",
+      "loading": "Loading delivery locations...",
+      "empty": "No delivery locations found.",
+      "loadFailed": "Failed to load delivery locations",
+      "defaultBadge": "Default",
+      "deactivateButton": "Deactivate",
+      "deactivateTitle": "Deactivate Delivery Location",
+      "deactivateConfirm": "Deactivate this delivery location? It will no longer be available for new orders.",
+      "fields": {
+        "code": "Code",
+        "name": "Name",
+        "type": "Type",
+        "address": "Address",
+        "province": "Province",
+        "district": "District",
+        "postalCode": "Postal Code",
+        "contactPerson": "Contact Person",
+        "contactPhone": "Contact Phone",
+        "receivingWindow": "Receiving Window",
+        "receivingWindowPlaceholder": "e.g. Mon-Fri 08:00-17:00",
+        "instructions": "Delivery Instructions",
+        "isDefault": "Set as default delivery location",
+        "status": "Status"
+      },
+      "types": {
+        "branch": "Branch",
+        "distributionCenter": "Distribution Center",
+        "deliveryAddress": "Delivery Address"
+      }
+    },
     "messages": {
       "loadFailed": "Failed to load customers",
       "saveFailed": "Failed to save customer",
-      "deleteFailed": "Failed to delete customer"
+      "deleteFailed": "Failed to delete customer",
+      "emailInvalid": "Enter a valid email address"
     }
   },
   "suppliers": {

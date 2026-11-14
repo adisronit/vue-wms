@@ -44,6 +44,7 @@ import (
 	"wms-backend/internal/auth"
 	"wms-backend/internal/brand"
 	"wms-backend/internal/customer"
+	"wms-backend/internal/customerdeliverylocation"
 	"wms-backend/internal/inventory"
 	"wms-backend/internal/location"
 	apihttp "wms-backend/internal/platform/http"
@@ -152,8 +153,12 @@ func BuildTestRouter(db *gorm.DB, jwtSecret string) RouterDeps {
 	productcategory.NewHandler(productCategoryService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)
 
 	customerRepo := customer.NewRepository(db)
-	customerService := customer.NewService(customerRepo)
+	customerDeliveryLocationRepo := customerdeliverylocation.NewRepository(db)
+	customerService := customer.NewService(customerRepo, customerDeliveryLocationRepo)
 	customer.NewHandler(customerService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)
+
+	customerDeliveryLocationService := customerdeliverylocation.NewService(customerDeliveryLocationRepo, customerRepo)
+	customerdeliverylocation.NewHandler(customerDeliveryLocationService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)
 
 	supplierService := supplier.NewService(supplierRepo)
 	supplier.NewHandler(supplierService).Register(v1, jwtSecret, tenantService, membershipCacheTTL)

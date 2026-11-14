@@ -22,6 +22,14 @@ func (e ErrValidation) Error() string { return e.Message }
 // exact pattern.
 var ErrInvalidSort = errors.New("customer: invalid sort_by or sort_dir")
 
+// ErrHasDeliveryLocations is returned when deleting a customer that
+// still has delivery locations (any status) — mirrors
+// internal/warehouse.ErrHasZones exactly: customer_delivery_locations
+// (migrations/0059) now holds a real customer_id FK, so a plain hard
+// delete would otherwise fail on that FK with a raw SQL error instead
+// of this clean, client-facing one.
+var ErrHasDeliveryLocations = errors.New("customer: cannot delete — delivery locations still exist")
+
 // defaultSortBy/defaultSortDir match the Customers screen's default
 // view: code is the field users actually scan to find a row.
 const (
@@ -46,14 +54,24 @@ var allowedSortColumns = map[string]bool{
 // is 25 rows per page.
 const defaultLimit = 25
 
+// deliveryLocationCounter is the narrow slice of
+// *customerdeliverylocation.Repository this package needs for Delete's
+// referential-safety check — the same narrow-interface pattern
+// internal/warehouse established for its own zoneCounter dependency on
+// internal/zone.
+type deliveryLocationCounter interface {
+	CountByCustomer(ctx context.Context, tenantID, customerID int64) (int64, error)
+}
+
 // Service holds Customer master data's business rules: validation and
 // uniqueness-error mapping. Handlers never call Repository directly.
 type Service struct {
-	repo *Repository
+	repo              *Repository
+	deliveryLocations deliveryLocationCounter
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, deliveryLocations deliveryLocationCounter) *Service {
+	return &Service{repo: repo, deliveryLocations: deliveryLocations}
 }
 
 func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) ([]Response, int64, error) {
@@ -114,7 +132,8 @@ func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest)
 	}
 
 	c := &Customer{
-		Code: req.Code, CompanyName: req.CompanyName, TaxID: req.TaxID,
+		Code: req.Code, CompanyName: req.CompanyName, LegalNameTH: req.LegalNameTH,
+		CustomerType: req.CustomerType, CustomerGroup: req.CustomerGroup, TaxID: req.TaxID, BranchNo: req.BranchNo,
 		ContactPerson: req.ContactPerson, ContactPhone: req.ContactPhone,
 		Address: req.Address, Email: req.Email, Phone: req.Phone, Status: status,
 	}
@@ -136,7 +155,8 @@ func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequ
 	}
 
 	c := &Customer{
-		ID: id, Code: req.Code, CompanyName: req.CompanyName, TaxID: req.TaxID,
+		ID: id, Code: req.Code, CompanyName: req.CompanyName, LegalNameTH: req.LegalNameTH,
+		CustomerType: req.CustomerType, CustomerGroup: req.CustomerGroup, TaxID: req.TaxID, BranchNo: req.BranchNo,
 		ContactPerson: req.ContactPerson, ContactPhone: req.ContactPhone,
 		Address: req.Address, Email: req.Email, Phone: req.Phone, Status: req.Status,
 	}
@@ -148,22 +168,28 @@ func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequ
 	return s.Get(ctx, tenantID, id)
 }
 
-// Delete hard-deletes the customer. Nothing in this codebase currently
-// references customers by foreign key — Order.Customer is a plain
-// free-text column, not a customer_id FK (the task's own instruction:
-// "reuse customer/supplier relationships in existing workflows only
-// where supported by current API/data contracts", and today's contract
-// doesn't) — so there is no child row to protect against, the same
-// starting point internal/product.Service.Delete itself documents for
-// the same reason. Deactivation (status=INACTIVE) is the safe,
-// non-destructive way to retire a customer; this hard-delete endpoint
-// exists for completeness/admin use. If a future phase adds a real
-// customer_id FK elsewhere, this must gain the same referential-safety
-// check internal/warehouse/zone/productcategory's own Delete already
-// have.
+// Delete hard-deletes the customer. Order.Customer is still a plain
+// free-text column (no customer_id FK — see internal/order/model.go's
+// doc), but customer_delivery_locations (migrations/0059) now does
+// hold a real FK, so this gained the same referential-safety check
+// internal/warehouse.Service.Delete already has for zones — a clean
+// ErrHasDeliveryLocations instead of letting the FK violation surface
+// as a raw SQL error. Deactivation (status=INACTIVE) remains the safe,
+// non-destructive way to retire a customer that still has locations;
+// this hard-delete endpoint exists for completeness/admin use once none
+// remain.
 func (s *Service) Delete(ctx context.Context, tenantID, id int64) error {
 	if _, err := s.repo.FindByID(ctx, tenantID, id); err != nil {
 		return err
 	}
+
+	count, err := s.deliveryLocations.CountByCustomer(ctx, tenantID, id)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return ErrHasDeliveryLocations
+	}
+
 	return s.repo.Delete(ctx, tenantID, id)
 }

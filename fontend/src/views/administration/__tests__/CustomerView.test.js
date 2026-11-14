@@ -13,11 +13,26 @@ vi.mock('../../../services/customers', async () => {
   }
 })
 
+vi.mock('../../../services/customerDeliveryLocations', async () => {
+  const actual = await vi.importActual('../../../services/customerDeliveryLocations')
+  return {
+    ...actual,
+    listCustomerDeliveryLocations: vi.fn(),
+    createCustomerDeliveryLocation: vi.fn(),
+    updateCustomerDeliveryLocation: vi.fn()
+  }
+})
+
 vi.mock('../../../services/toast', () => ({
   showToast: vi.fn()
 }))
 
-import { listCustomers, deleteCustomer } from '../../../services/customers'
+import { listCustomers, createCustomer, updateCustomer, deleteCustomer } from '../../../services/customers'
+import {
+  listCustomerDeliveryLocations,
+  createCustomerDeliveryLocation,
+  updateCustomerDeliveryLocation
+} from '../../../services/customerDeliveryLocations'
 import { showToast } from '../../../services/toast'
 
 const globalMocks = {
@@ -37,7 +52,11 @@ const customer = {
   id: '1',
   code: 'CUST-001',
   company_name: 'Acme Corp',
+  legal_name_th: 'บริษัท เอเคมี จำกัด',
+  customer_type: 'Distributor',
+  customer_group: 'Key Account',
   tax_id: '1234567890',
+  branch_no: '00000',
   contact_person: 'Jane Doe',
   contact_phone: '555-0100',
   address: '1 Market St',
@@ -97,6 +116,124 @@ describe('CustomerView', () => {
     expect(wrapper.vm.customerForm.companyName).toBe('Acme Corp')
     expect(wrapper.vm.customerForm.contactPerson).toBe('Jane Doe')
     expect(wrapper.vm.customerForm.taxId).toBe('1234567890')
+    expect(wrapper.vm.customerForm.legalNameTh).toBe('บริษัท เอเคมี จำกัด')
+    expect(wrapper.vm.customerForm.customerType).toBe('Distributor')
+    expect(wrapper.vm.customerForm.customerGroup).toBe('Key Account')
+    expect(wrapper.vm.customerForm.branchNo).toBe('00000')
+  })
+
+  it('always opens a customer on the Overview tab', async () => {
+    listCustomers.mockResolvedValue(page([customer]))
+    const wrapper = mount(CustomerView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    wrapper.vm.activeTab = 'LOCATIONS'
+    wrapper.vm.openCustomer(customer)
+
+    expect(wrapper.vm.activeTab).toBe('OVERVIEW')
+  })
+
+  it('rejects an invalid email inline without calling the API', async () => {
+    listCustomers.mockResolvedValue(page([]))
+    const wrapper = mount(CustomerView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    wrapper.vm.openCustomer(null)
+    wrapper.vm.customerForm.code = 'CUST-NEW'
+    wrapper.vm.customerForm.companyName = 'New Co'
+    wrapper.vm.customerForm.email = 'not-an-email'
+    await wrapper.vm.saveCustomer()
+
+    expect(wrapper.vm.fieldErrors.email).toBe('customers.messages.emailInvalid')
+    expect(createCustomer).not.toHaveBeenCalled()
+  })
+
+  it('shows "save first" on the Locations tab for a brand-new customer', async () => {
+    listCustomers.mockResolvedValue(page([]))
+    const wrapper = mount(CustomerView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    wrapper.vm.openCustomer(null)
+    wrapper.vm.activeTab = 'LOCATIONS'
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('customers.locationsTab.saveFirst')
+    expect(listCustomerDeliveryLocations).not.toHaveBeenCalled()
+  })
+
+  it('switching to the Locations tab for a saved customer fetches its delivery locations', async () => {
+    listCustomers.mockResolvedValue(page([customer]))
+    listCustomerDeliveryLocations.mockResolvedValue(page([]))
+    const wrapper = mount(CustomerView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    wrapper.vm.openCustomer(customer)
+    wrapper.vm.activeTab = 'LOCATIONS'
+    await flushPromises()
+
+    expect(listCustomerDeliveryLocations).toHaveBeenCalledWith(
+      '1', expect.objectContaining({ search: '', status: '' })
+    )
+  })
+
+  it('creates a delivery location scoped to the open customer', async () => {
+    listCustomers.mockResolvedValue(page([customer]))
+    listCustomerDeliveryLocations.mockResolvedValue(page([]))
+    createCustomerDeliveryLocation.mockResolvedValue({ data: {} })
+    const wrapper = mount(CustomerView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    wrapper.vm.openCustomer(customer)
+    wrapper.vm.activeTab = 'LOCATIONS'
+    await flushPromises()
+
+    wrapper.vm.openLocationForm(null)
+    wrapper.vm.locationForm.code = 'BKK-01'
+    wrapper.vm.locationForm.name = 'Bangkok Branch'
+    await wrapper.vm.saveLocation()
+    await flushPromises()
+
+    expect(createCustomerDeliveryLocation).toHaveBeenCalledWith(
+      expect.objectContaining({ customer_id: '1', code: 'BKK-01', name: 'Bangkok Branch' })
+    )
+    expect(wrapper.vm.locationFormOpen).toBe(false)
+  })
+
+  it('opens the location form pre-filled, mapping snake_case fields including is_default', async () => {
+    listCustomers.mockResolvedValue(page([customer]))
+    const wrapper = mount(CustomerView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    wrapper.vm.openCustomer(customer)
+
+    const location = {
+      id: '10', code: 'BKK-DC', name: 'Bangkok DC', type: 'DISTRIBUTION_CENTER',
+      address: '99 Bang Na Rd', province: 'Bangkok', district: 'Bang Na', postal_code: '10260',
+      contact_person: 'Somchai', contact_phone: '02-000-0000', receiving_window: 'Mon-Fri 08:00-17:00',
+      instructions: 'Use rear dock', is_default: true, status: 'ACTIVE'
+    }
+    wrapper.vm.openLocationForm(location)
+
+    expect(wrapper.vm.editingLocationId).toBe('10')
+    expect(wrapper.vm.locationForm.postalCode).toBe('10260')
+    expect(wrapper.vm.locationForm.isDefault).toBe(true)
+  })
+
+  it('deactivating a delivery location sends status INACTIVE while preserving other fields', async () => {
+    listCustomers.mockResolvedValue(page([customer]))
+    updateCustomerDeliveryLocation.mockResolvedValue({ data: {} })
+    const wrapper = mount(CustomerView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    wrapper.vm.openCustomer(customer)
+
+    const location = { id: '10', code: 'BKK-DC', name: 'Bangkok DC', is_default: false, status: 'ACTIVE' }
+    wrapper.vm.askDeactivateLocation(location)
+    await wrapper.vm.confirmDeactivateLocation()
+    await flushPromises()
+
+    expect(updateCustomerDeliveryLocation).toHaveBeenCalledWith(
+      '10', expect.objectContaining({ code: 'BKK-DC', name: 'Bangkok DC', status: 'INACTIVE' })
+    )
+    expect(wrapper.vm.locationToDeactivate).toBe(null)
   })
 
   it('deletes via the toast service (not window.alert) and refetches the list', async () => {

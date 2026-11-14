@@ -28,6 +28,7 @@ import (
 	"wms-backend/internal/auth"
 	"wms-backend/internal/brand"
 	"wms-backend/internal/customer"
+	"wms-backend/internal/customerdeliverylocation"
 	"wms-backend/internal/dashboard"
 	"wms-backend/internal/health"
 	"wms-backend/internal/inventory"
@@ -232,8 +233,12 @@ func main() {
 	productcategory.NewHandler(productCategoryService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	customerRepo := customer.NewRepository(dbManager.DB())
-	customerService := customer.NewService(customerRepo)
+	customerDeliveryLocationRepo := customerdeliverylocation.NewRepository(dbManager.DB())
+	customerService := customer.NewService(customerRepo, customerDeliveryLocationRepo)
 	customer.NewHandler(customerService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	customerDeliveryLocationService := customerdeliverylocation.NewService(customerDeliveryLocationRepo, customerRepo)
+	customerdeliverylocation.NewHandler(customerDeliveryLocationService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	supplierService := supplier.NewService(supplierRepo)
 	supplier.NewHandler(supplierService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)

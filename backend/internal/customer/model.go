@@ -26,13 +26,21 @@ func (s Status) IsValid() bool {
 	}
 }
 
-// Customer is the GORM model for the customers table (migrations/0049).
+// Customer is the GORM model for the customers table (migrations/0049,
+// master-data fields added in migrations/0058). CompanyName/Address
+// keep serving as "Legal Name (EN)"/"Billing Address" under the
+// redesigned form's new labels — no rename, since every existing
+// integration already reads these two column names.
 type Customer struct {
 	ID            int64     `gorm:"column:id;primaryKey"`
 	TenantID      int64     `gorm:"column:tenant_id;not null;default:1"`
 	Code          string    `gorm:"column:code"`
 	CompanyName   string    `gorm:"column:company_name"`
+	LegalNameTH   string    `gorm:"column:legal_name_th"`
+	CustomerType  string    `gorm:"column:customer_type"`
+	CustomerGroup string    `gorm:"column:customer_group"`
 	TaxID         string    `gorm:"column:tax_id"`
+	BranchNo      string    `gorm:"column:branch_no"`
 	ContactPerson string    `gorm:"column:contact_person"`
 	ContactPhone  string    `gorm:"column:contact_phone"`
 	Address       string    `gorm:"column:address"`

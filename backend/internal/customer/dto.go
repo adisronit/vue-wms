@@ -4,25 +4,34 @@ import "time"
 
 // Response is what every customer-returning endpoint sends back.
 type Response struct {
-	ID            int64     `json:"id,string" example:"1"`
-	Code          string    `json:"code" example:"CUST-0001"`
-	CompanyName   string    `json:"company_name" example:"Acme Retail Co."`
-	TaxID         string    `json:"tax_id" example:"0105558000001"`
-	ContactPerson string    `json:"contact_person" example:"Jane Somchai"`
-	ContactPhone  string    `json:"contact_phone" example:"+66-2-000-0000"`
-	Address       string    `json:"address"`
-	Email         string    `json:"email" example:"jane@acme.example"`
-	Phone         string    `json:"phone" example:"+66-2-111-1111"`
-	Status        Status    `json:"status" example:"ACTIVE"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            int64  `json:"id,string" example:"1"`
+	Code          string `json:"code" example:"CUST-0001"`
+	CompanyName   string `json:"company_name" example:"Acme Retail Co."`
+	LegalNameTH   string `json:"legal_name_th" example:"บริษัท เอเคมี รีเทล จำกัด"`
+	CustomerType  string `json:"customer_type" example:"Distributor"`
+	CustomerGroup string `json:"customer_group" example:"Key Account"`
+	TaxID         string `json:"tax_id" example:"0105558000001"`
+	BranchNo      string `json:"branch_no" example:"00000"`
+	ContactPerson string `json:"contact_person" example:"Jane Somchai"`
+	ContactPhone  string `json:"contact_phone" example:"+66-2-000-0000"`
+	Address       string `json:"address"`
+	Email         string `json:"email" example:"jane@acme.example"`
+	Phone         string `json:"phone" example:"+66-2-111-1111"`
+	Status        Status `json:"status" example:"ACTIVE"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 } //	@name	CustomerResponse
 
 // CreateRequest is the POST /api/v1/customers body.
 type CreateRequest struct {
 	Code          string `json:"code" binding:"required" example:"CUST-0001"`
 	CompanyName   string `json:"company_name" binding:"required" example:"Acme Retail Co."`
+	LegalNameTH   string `json:"legal_name_th" example:"บริษัท เอเคมี รีเทล จำกัด"`
+	CustomerType  string `json:"customer_type" example:"Distributor"`
+	CustomerGroup string `json:"customer_group" example:"Key Account"`
 	TaxID         string `json:"tax_id" example:"0105558000001"`
+	BranchNo      string `json:"branch_no" example:"00000"`
 	ContactPerson string `json:"contact_person" example:"Jane Somchai"`
 	ContactPhone  string `json:"contact_phone" example:"+66-2-000-0000"`
 	Address       string `json:"address"`
@@ -35,7 +44,11 @@ type CreateRequest struct {
 type UpdateRequest struct {
 	Code          string `json:"code" binding:"required" example:"CUST-0001"`
 	CompanyName   string `json:"company_name" binding:"required" example:"Acme Retail Co."`
+	LegalNameTH   string `json:"legal_name_th" example:"บริษัท เอเคมี รีเทล จำกัด"`
+	CustomerType  string `json:"customer_type" example:"Distributor"`
+	CustomerGroup string `json:"customer_group" example:"Key Account"`
 	TaxID         string `json:"tax_id" example:"0105558000001"`
+	BranchNo      string `json:"branch_no" example:"00000"`
 	ContactPerson string `json:"contact_person" example:"Jane Somchai"`
 	ContactPhone  string `json:"contact_phone" example:"+66-2-000-0000"`
 	Address       string `json:"address"`
@@ -60,7 +73,8 @@ type ListParams struct {
 
 func toResponse(c Customer) Response {
 	return Response{
-		ID: c.ID, Code: c.Code, CompanyName: c.CompanyName, TaxID: c.TaxID,
+		ID: c.ID, Code: c.Code, CompanyName: c.CompanyName, LegalNameTH: c.LegalNameTH,
+		CustomerType: c.CustomerType, CustomerGroup: c.CustomerGroup, TaxID: c.TaxID, BranchNo: c.BranchNo,
 		ContactPerson: c.ContactPerson, ContactPhone: c.ContactPhone,
 		Address: c.Address, Email: c.Email, Phone: c.Phone, Status: c.Status,
 		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
