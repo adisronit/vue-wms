@@ -14,6 +14,12 @@ import (
 	"wms-backend/internal/platform/middleware"
 )
 
+// writeTenantUnauthorized is shared by every handler method's
+// EnforcedTenantID guard below.
+func writeTenantUnauthorized(c *gin.Context) {
+	apihttp.Fail(c, http.StatusUnauthorized, "tenant context required", "UNAUTHORIZED")
+}
+
 // Handler exposes Service over HTTP.
 type Handler struct {
 	service *Service
@@ -47,8 +53,17 @@ func NewHandler(service *Service) *Handler {
 // level as Create rather than at picking.update's execution level.
 // Under current seed data this again means ADMIN/WAREHOUSE_MANAGER
 // only, the same as Create.
-func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
-	pickingGroup := rg.Group("/picking", middleware.RequireJWT(jwtSecret))
+//
+// Phase 30 Batch 2 upgrades the chain from RequireJWT-only to
+// RequireJWT -> RequireTenantContext -> RequirePermission, matching
+// internal/inventory/internal/customer/internal/supplier/internal/location's
+// own chain — every handler method below now extracts tenantID via
+// middleware.EnforcedTenantID and threads it through to Service.
+func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChecker middleware.MembershipChecker, membershipCacheTTL time.Duration) {
+	pickingGroup := rg.Group("/picking",
+		middleware.RequireJWT(jwtSecret),
+		middleware.RequireTenantContext(membershipChecker, membershipCacheTTL),
+	)
 	pickingGroup.GET("", middleware.RequirePermission("picking.view"), h.List)
 	pickingGroup.GET("/export", middleware.RequirePermission("picking.view"), h.Export)
 	pickingGroup.GET("/:id", middleware.RequirePermission("picking.view"), h.Get)
@@ -76,6 +91,12 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
 //	@Failure		403				{object}	apihttp.ErrorResponse
 //	@Router			/picking [get]
 func (h *Handler) List(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	page, _ := strconv.Atoi(c.Query("page"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	warehouseID, _ := strconv.ParseInt(c.Query("warehouse_id"), 10, 64)
@@ -87,7 +108,7 @@ func (h *Handler) List(c *gin.Context) {
 		}
 	}
 
-	responses, total, err := h.service.List(c.Request.Context(), ListParams{
+	responses, total, err := h.service.List(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), Status: Status(c.Query("status")), Priority: Priority(c.Query("priority")),
 		WarehouseID: warehouseID, Date: date, Page: page, Limit: limit,
 	})
@@ -130,6 +151,12 @@ func (h *Handler) List(c *gin.Context) {
 //	@Failure		403				{object}	apihttp.ErrorResponse
 //	@Router			/picking/export [get]
 func (h *Handler) Export(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	warehouseID, _ := strconv.ParseInt(c.Query("warehouse_id"), 10, 64)
 	var date *time.Time
 	if raw := c.Query("date"); raw != "" {
@@ -138,7 +165,7 @@ func (h *Handler) Export(c *gin.Context) {
 		}
 	}
 
-	rows, err := h.service.ListForExport(c.Request.Context(), ListParams{
+	rows, err := h.service.ListForExport(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), Status: Status(c.Query("status")), Priority: Priority(c.Query("priority")),
 		WarehouseID: warehouseID, Date: date,
 	})
@@ -174,13 +201,19 @@ func (h *Handler) Export(c *gin.Context) {
 //	@Failure		404	{object}	apihttp.ErrorResponse
 //	@Router			/picking/{id} [get]
 func (h *Handler) Get(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid picking task id", "INVALID_REQUEST")
 		return
 	}
 
-	resp, err := h.service.Get(c.Request.Context(), id)
+	resp, err := h.service.Get(c.Request.Context(), tenantID, id)
 	if errors.Is(err, ErrNotFound) {
 		apihttp.Fail(c, http.StatusNotFound, "picking task not found", "NOT_FOUND")
 		return
@@ -209,6 +242,12 @@ func (h *Handler) Get(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/picking [post]
 func (h *Handler) Create(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	var req CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid request body", "INVALID_REQUEST")
@@ -218,7 +257,7 @@ func (h *Handler) Create(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Create(ctx, req, userID)
+	resp, err := h.service.Create(ctx, tenantID, req, userID)
 	if err == nil {
 		apihttp.Status(c, http.StatusCreated, resp, "picking task created")
 		return
@@ -245,6 +284,12 @@ func (h *Handler) Create(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/picking/{id}/confirm [post]
 func (h *Handler) Confirm(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid picking task id", "INVALID_REQUEST")
@@ -260,7 +305,7 @@ func (h *Handler) Confirm(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Confirm(ctx, id, req, userID)
+	resp, err := h.service.Confirm(ctx, tenantID, id, req, userID)
 	if err == nil {
 		apihttp.OK(c, resp, "picking confirmed")
 		return
@@ -286,6 +331,12 @@ func (h *Handler) Confirm(c *gin.Context) {
 //	@Failure		409		{object}	apihttp.ErrorResponse	"task is not in a cancellable status (already completed, short-picked, or already cancelled)"
 //	@Router			/picking/{id}/cancel [post]
 func (h *Handler) Cancel(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid picking task id", "INVALID_REQUEST")
@@ -303,7 +354,7 @@ func (h *Handler) Cancel(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Cancel(ctx, id, req, userID)
+	resp, err := h.service.Cancel(ctx, tenantID, id, req, userID)
 	if err == nil {
 		apihttp.OK(c, resp, "picking task cancelled")
 		return

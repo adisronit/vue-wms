@@ -8,6 +8,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"wms-backend/internal/inventory"
 	"wms-backend/internal/picking"
 	"wms-backend/internal/platform/dbctx"
 	"wms-backend/internal/product"
@@ -48,9 +49,17 @@ type warehouseChecker interface {
 // atomic unit, and Get so Service.Get can resolve a linked task's live
 // status for FulfillmentStatus without internal/order ever storing or
 // syncing that state itself.
+//
+// Phase 30 Batch 2 added a required tenantID parameter to both methods;
+// internal/order is not itself tenant-scoped yet (Batch 3, explicitly
+// out of scope for Batch 2 — "No unrelated Order/Shipping refactor") and
+// has no verified per-request tenant context to hand down, so its call
+// sites below pass inventory.UnverifiedCallerTenantID. This means the
+// Order->Picking boundary remains unverified until Order itself is
+// scoped — reported, not silently treated as secure.
 type pickingOrchestrator interface {
-	CreateTx(ctx context.Context, tx *gorm.DB, req picking.CreateRequest, userID int64) (int64, error)
-	Get(ctx context.Context, id int64) (*picking.Response, error)
+	CreateTx(ctx context.Context, tenantID int64, tx *gorm.DB, req picking.CreateRequest, userID int64) (int64, error)
+	Get(ctx context.Context, tenantID, id int64) (*picking.Response, error)
 }
 
 // shippingReader is the narrow slice of internal/shipping's own Service
@@ -124,7 +133,9 @@ func (s *Service) Get(ctx context.Context, id int64) (*Response, error) {
 	var pickingStatus *picking.Status
 	var shipmentStatus *shipping.Status
 	if row.PickingTaskID != nil {
-		pickingResp, err := s.picking.Get(ctx, *row.PickingTaskID)
+		// TenantID: inventory.UnverifiedCallerTenantID — see
+		// pickingOrchestrator's own doc above for why.
+		pickingResp, err := s.picking.Get(ctx, inventory.UnverifiedCallerTenantID, *row.PickingTaskID)
 		if err != nil {
 			return nil, err
 		}
@@ -335,7 +346,9 @@ func (s *Service) CreatePickingTask(ctx context.Context, id int64, req CreatePic
 			return ErrNotReleasable
 		}
 
-		pickingTaskID, err := s.picking.CreateTx(ctx, tx, picking.CreateRequest{
+		// TenantID: inventory.UnverifiedCallerTenantID — see
+		// pickingOrchestrator's own doc above for why.
+		pickingTaskID, err := s.picking.CreateTx(ctx, inventory.UnverifiedCallerTenantID, tx, picking.CreateRequest{
 			OrderNo: order.OrderNo, Customer: order.Customer, WarehouseID: order.WarehouseID,
 			Priority: picking.Priority(req.Priority), DueDate: req.DueDate, Remark: order.Remark, Items: pickingItems,
 		}, userID)

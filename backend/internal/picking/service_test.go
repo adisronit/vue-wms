@@ -200,7 +200,7 @@ func (f *fakeWarehouses) FindByID(context.Context, int64) (*warehouse.Warehouse,
 func TestCreate_RejectsUnknownWarehouse(t *testing.T) {
 	svc := NewService(nil, nil, &fakeWarehouses{err: errors.New("not found")}, nil)
 
-	_, err := svc.Create(context.Background(), CreateRequest{WarehouseID: 999, OrderNo: "SO-1"}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{WarehouseID: 999, OrderNo: "SO-1"}, 1)
 
 	if !errors.Is(err, ErrWarehouseNotFound) {
 		t.Fatalf("error = %v, want ErrWarehouseNotFound", err)
@@ -210,7 +210,7 @@ func TestCreate_RejectsUnknownWarehouse(t *testing.T) {
 func TestCreate_RejectsInvalidPriority(t *testing.T) {
 	svc := NewService(nil, nil, &fakeWarehouses{}, nil)
 
-	_, err := svc.Create(context.Background(), CreateRequest{WarehouseID: 1, OrderNo: "SO-1", Priority: "URGENT"}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{WarehouseID: 1, OrderNo: "SO-1", Priority: "URGENT"}, 1)
 
 	var validationErr ErrValidation
 	if !errors.As(err, &validationErr) {
@@ -225,7 +225,7 @@ func TestCreate_RejectsInvalidPriority(t *testing.T) {
 func TestCreateTx_RejectsUnknownWarehouse(t *testing.T) {
 	svc := NewService(nil, nil, &fakeWarehouses{err: errors.New("not found")}, nil)
 
-	_, err := svc.CreateTx(context.Background(), nil, CreateRequest{WarehouseID: 999, OrderNo: "SO-1"}, 1)
+	_, err := svc.CreateTx(context.Background(), 1, nil, CreateRequest{WarehouseID: 999, OrderNo: "SO-1"}, 1)
 
 	if !errors.Is(err, ErrWarehouseNotFound) {
 		t.Fatalf("error = %v, want ErrWarehouseNotFound", err)
@@ -235,7 +235,7 @@ func TestCreateTx_RejectsUnknownWarehouse(t *testing.T) {
 func TestConfirm_RejectsEmptyItems(t *testing.T) {
 	svc := &Service{}
 
-	_, err := svc.Confirm(context.Background(), 1, ConfirmRequest{IdempotencyKey: "key-1"}, 1)
+	_, err := svc.Confirm(context.Background(), 1, 1, ConfirmRequest{IdempotencyKey: "key-1"}, 1)
 
 	var validationErr ErrValidation
 	if !errors.As(err, &validationErr) {

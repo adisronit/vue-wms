@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"wms-backend/internal/inventory"
 	"wms-backend/internal/picking"
 	"wms-backend/internal/platform/csvexport"
 	"wms-backend/internal/platform/dbctx"
@@ -32,8 +33,16 @@ var (
 // package needs — satisfied structurally by *picking.Service, the same
 // narrow-interface pattern internal/putaway established for its own
 // receiptChecker dependency on internal/receiving.
+//
+// Phase 30 Batch 2 added a required tenantID parameter to Get;
+// internal/shipping is not itself tenant-scoped yet (Batch 3, explicitly
+// out of scope for Batch 2 — "No unrelated Order/Shipping refactor") and
+// has no verified per-request tenant context to hand down, so its call
+// site below passes inventory.UnverifiedCallerTenantID. This means the
+// Shipping->Picking boundary remains unverified until Shipping itself is
+// scoped — reported, not silently treated as secure.
 type pickingChecker interface {
-	Get(ctx context.Context, id int64) (*picking.Response, error)
+	Get(ctx context.Context, tenantID, id int64) (*picking.Response, error)
 }
 
 // Service holds the Shipping workflow's business rules. It deliberately
@@ -127,7 +136,9 @@ func (s *Service) Sources(ctx context.Context) ([]SourceResponse, error) {
 // Picking's own Confirm (Phase 9); this only records that it is now
 // being shipped.
 func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (*Response, error) {
-	task, err := s.picking.Get(ctx, req.PickingTaskID)
+	// TenantID: inventory.UnverifiedCallerTenantID — see pickingChecker's
+	// own doc above for why.
+	task, err := s.picking.Get(ctx, inventory.UnverifiedCallerTenantID, req.PickingTaskID)
 	if err != nil {
 		return nil, ErrPickingTaskNotFound
 	}
