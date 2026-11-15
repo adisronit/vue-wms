@@ -32,15 +32,23 @@ var (
 	ErrNoSourceStock     = errors.New("picking: no stock found for this product/lot at the source location")
 )
 
-// productChecker and warehouseChecker are the narrow slices of the
-// Phase 4/3 repositories this package needs — satisfied structurally by
-// *product.Repository and *warehouse.Repository, the same narrow-
-// interface pattern internal/receiving and internal/putaway already
-// established for their own dependencies.
+// productChecker is the narrow slice of internal/product's own
+// Repository this package needs — upgraded in Phase 30 Batch 2 from the
+// old unscoped FindByID to FindByIDForTenant (added in Batch 1 for
+// exactly this purpose), so a line's product_id is verified to belong
+// to the caller's own tenant, not merely to exist.
 type productChecker interface {
-	FindByID(ctx context.Context, id int64) (*product.Product, error)
+	FindByIDForTenant(ctx context.Context, tenantID, id int64) (*product.Product, error)
 }
 
+// warehouseChecker is still the old, unscoped Phase 3 lookup — the
+// Warehouse module itself has not been tenant-scoped in any Phase 30
+// batch yet (no tenant-scoped warehouse repository method exists
+// anywhere in the codebase), so warehouse ownership remains unverified
+// here. This mirrors Batch 1's own inventory.Service, which was equally
+// unable to verify Warehouse ownership for the same reason. Reported as
+// a remaining gap, not silently treated as secure — see this package's
+// final Phase 30 Batch 2 report.
 type warehouseChecker interface {
 	FindByID(ctx context.Context, id int64) (*warehouse.Warehouse, error)
 }
@@ -61,7 +69,7 @@ func NewService(repo *Repository, products productChecker, warehouses warehouseC
 	return &Service{repo: repo, products: products, warehouses: warehouses, inventory: inventorySvc}
 }
 
-func (s *Service) List(ctx context.Context, params ListParams) ([]ListResponse, int64, error) {
+func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
 	page, limit := params.Page, params.Limit
 	if page < 1 {
 		page = 1
@@ -70,30 +78,34 @@ func (s *Service) List(ctx context.Context, params ListParams) ([]ListResponse, 
 		limit = 20
 	}
 	params.Page, params.Limit = page, limit
-	return s.repo.List(ctx, params)
+	return s.repo.List(ctx, tenantID, params)
 }
 
 // ListForExport is Phase 22's CSV-export path — see internal/receiving's
 // own ListForExport doc for the shared reasoning.
-func (s *Service) ListForExport(ctx context.Context, params ListParams) ([]ListResponse, error) {
+func (s *Service) ListForExport(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, error) {
 	params.Page = 1
 	params.Limit = csvexport.MaxExportRows
-	rows, _, err := s.repo.List(ctx, params)
+	rows, _, err := s.repo.List(ctx, tenantID, params)
 	return rows, err
 }
 
 // CountOpen exposes Repository.CountOpen through Service — Phase 23's
-// Dashboard "Pending Picking" card.
-func (s *Service) CountOpen(ctx context.Context) (int64, error) {
-	return s.repo.CountOpen(ctx)
+// Dashboard "Pending Picking" card. Dashboard itself has no verified
+// tenant context yet, so it calls this with inventory.UnverifiedCallerTenantID
+// (see dashboard/service.go's own comment) — Picking now honestly
+// threads whatever tenantID it is given rather than hardcoding the
+// placeholder itself.
+func (s *Service) CountOpen(ctx context.Context, tenantID int64) (int64, error) {
+	return s.repo.CountOpen(ctx, tenantID)
 }
 
-func (s *Service) Get(ctx context.Context, id int64) (*Response, error) {
-	header, err := s.repo.FindTaskDetail(ctx, id)
+func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error) {
+	header, err := s.repo.FindTaskDetail(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
-	items, err := s.repo.ListItems(ctx, id)
+	items, err := s.repo.ListItems(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +120,7 @@ func (s *Service) Get(ctx context.Context, id int64) (*Response, error) {
 	}, nil
 }
 
-func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (*Response, error) {
+func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest, userID int64) (*Response, error) {
 	priority, err := s.validateCreate(ctx, req)
 	if err != nil {
 		return nil, err
@@ -125,7 +137,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 	var taskID int64
 	start := time.Now()
 	err = s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
-		id, err := s.createCore(ctx, txRepo, inventory.NewRepository(tx), req, priority, userID)
+		id, err := s.createCore(ctx, tenantID, txRepo, inventory.NewRepository(tx), req, priority, userID)
 		taskID = id
 		return err
 	})
@@ -134,7 +146,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 		return nil, err
 	}
 
-	return s.Get(ctx, taskID)
+	return s.Get(ctx, tenantID, taskID)
 }
 
 // CreateTx is Create's core logic (header + line inserts, each with its
@@ -150,17 +162,29 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 // Runs the exact same validation and createItem/ReserveStockTx logic as
 // Create — nothing about the reservation mechanism is duplicated or
 // reimplemented for this caller.
-func (s *Service) CreateTx(ctx context.Context, tx *gorm.DB, req CreateRequest, userID int64) (int64, error) {
+//
+// Phase 30 Batch 2: tenantID is a new required parameter. Order itself
+// is not yet tenant-scoped (Batch 3, explicitly out of scope for this
+// batch — "No unrelated Order/Shipping refactor") and has no verified
+// tenant context of its own to hand down, so its one call site
+// (internal/order/service.go's CreatePickingTask) passes
+// inventory.UnverifiedCallerTenantID — Picking now honestly threads
+// whatever tenantID it is given through to every repository/inventory
+// call instead of hardcoding that placeholder internally, but this
+// Order→Picking boundary itself remains unverified until Order is
+// scoped. See this package's final Phase 30 Batch 2 report.
+func (s *Service) CreateTx(ctx context.Context, tenantID int64, tx *gorm.DB, req CreateRequest, userID int64) (int64, error) {
 	priority, err := s.validateCreate(ctx, req)
 	if err != nil {
 		return 0, err
 	}
-	return s.createCore(ctx, NewRepository(tx), inventory.NewRepository(tx), req, priority, userID)
+	return s.createCore(ctx, tenantID, NewRepository(tx), inventory.NewRepository(tx), req, priority, userID)
 }
 
 // validateCreate is the pre-transaction validation both Create and
 // CreateTx run — warehouse existence and priority — before either opens
-// (or receives) a transaction.
+// (or receives) a transaction. Warehouse ownership is not verified here
+// (see warehouseChecker's own doc above) — only existence.
 func (s *Service) validateCreate(ctx context.Context, req CreateRequest) (Priority, error) {
 	if _, err := s.warehouses.FindByID(ctx, req.WarehouseID); err != nil {
 		return "", ErrWarehouseNotFound
@@ -178,34 +202,40 @@ func (s *Service) validateCreate(ctx context.Context, req CreateRequest) (Priori
 // createCore is the shared insert logic both Create (via its own
 // transaction) and CreateTx (via the caller's) run against a
 // transactional Repository/inventory.Repository pair.
-func (s *Service) createCore(ctx context.Context, txRepo *Repository, invRepo *inventory.Repository, req CreateRequest, priority Priority, userID int64) (int64, error) {
+func (s *Service) createCore(ctx context.Context, tenantID int64, txRepo *Repository, invRepo *inventory.Repository, req CreateRequest, priority Priority, userID int64) (int64, error) {
 	task := &Task{
 		OrderNo: req.OrderNo, Customer: req.Customer, WarehouseID: req.WarehouseID,
 		Status: StatusPending, Priority: priority, DueDate: req.DueDate, Remark: req.Remark, CreatedBy: &userID,
 	}
-	if err := txRepo.CreateTask(ctx, task); err != nil {
+	if err := txRepo.CreateTask(ctx, tenantID, task); err != nil {
 		return 0, err
 	}
 
 	for _, itemReq := range req.Items {
-		if err := s.createItem(ctx, txRepo, invRepo, task, itemReq); err != nil {
+		if err := s.createItem(ctx, tenantID, txRepo, invRepo, task, itemReq); err != nil {
 			return 0, err
 		}
 	}
 	return task.ID, nil
 }
 
-func (s *Service) createItem(ctx context.Context, txRepo *Repository, invRepo *inventory.Repository, task *Task, req CreateItemRequest) error {
+func (s *Service) createItem(ctx context.Context, tenantID int64, txRepo *Repository, invRepo *inventory.Repository, task *Task, req CreateItemRequest) error {
 	if req.OrderedQty <= 0 {
 		return ErrValidation{Message: "ordered_qty must be greater than zero"}
 	}
 
-	p, err := s.products.FindByID(ctx, req.ProductID)
+	// Phase 30 Batch 2: verified against the caller's own tenant via
+	// FindByIDForTenant — a product belonging to another tenant now
+	// returns ErrProductNotFound exactly like a nonexistent one.
+	p, err := s.products.FindByIDForTenant(ctx, tenantID, req.ProductID)
 	if err != nil {
 		return ErrProductNotFound
 	}
 
-	locInfo, err := txRepo.resolveLocation(ctx, req.LocationID)
+	// Phase 30 Batch 2: resolveLocation itself is now tenant-scoped (see
+	// repository.go) — a location belonging to another tenant returns
+	// ErrLocationNotFound here, verifying Location ownership.
+	locInfo, err := txRepo.resolveLocation(ctx, tenantID, req.LocationID)
 	if err != nil {
 		return err
 	}
@@ -226,11 +256,13 @@ func (s *Service) createItem(ctx context.Context, txRepo *Repository, invRepo *i
 	// arithmetic and the availability check are one atomic SQL statement,
 	// not a Go read-then-write. Never touches quantity and never writes a
 	// ledger row — a reservation is a claim, not a movement.
-	// TenantID: inventory.UnverifiedCallerTenantID — picking has no
-	// verified per-request tenant context of its own yet (Phase 30
-	// Batch 2 picks this up next; see that constant's own doc).
+	// Phase 30 Batch 2: uses the caller's own verified tenantID instead
+	// of inventory.UnverifiedCallerTenantID — the Inventory call now
+	// shares the exact tenant Product/Location ownership was just
+	// checked against above, so a cross-tenant reservation against
+	// another tenant's balance is impossible, not just unlikely.
 	if _, err := s.inventory.ReserveStockTx(ctx, invRepo, inventory.ReserveRequest{
-		TenantID:  inventory.UnverifiedCallerTenantID,
+		TenantID:  tenantID,
 		ProductID: req.ProductID, LocationID: req.LocationID, LotNo: req.LotNo, Quantity: req.OrderedQty,
 	}); err != nil {
 		if errors.Is(err, inventory.ErrNoStock) {
@@ -251,7 +283,7 @@ func (s *Service) createItem(ctx context.Context, txRepo *Repository, invRepo *i
 		PickingTaskID: task.ID, ProductID: req.ProductID, LotNo: req.LotNo, LocationID: req.LocationID,
 		OrderedQty: req.OrderedQty, UOM: uom, Status: ItemStatusPending,
 	}
-	return txRepo.CreateItem(ctx, item)
+	return txRepo.CreateItem(ctx, tenantID, item)
 }
 
 // Confirm is the atomic core of this phase: validate -> call
@@ -262,7 +294,13 @@ func (s *Service) createItem(ctx context.Context, txRepo *Repository, invRepo *i
 // -> commit. Any failure rolls back everything, including any lines
 // already processed earlier in this same call. Never calls AddStock or
 // MoveStock — RemoveStockTx only ever draws down an existing balance.
-func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest, userID int64) (*Response, error) {
+// Phase 30 Batch 2: tenantID is the caller's own verified tenant
+// (extracted by the handler from the authenticated request, never from
+// the request body) — every repository read/write and every Inventory
+// call below is now scoped to it, so a task ID from another tenant is
+// rejected as ErrNotFound before any reservation/stock mutation is even
+// attempted.
+func (s *Service) Confirm(ctx context.Context, tenantID, taskID int64, req ConfirmRequest, userID int64) (*Response, error) {
 	if len(req.Items) == 0 {
 		return nil, ErrValidation{Message: "at least one item is required to confirm picking"}
 	}
@@ -276,16 +314,18 @@ func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest,
 
 	start := time.Now()
 	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
-		// Confirm the task exists BEFORE claiming the idempotency key:
-		// picking_confirmations.picking_task_id is a real FK
-		// (migrations/0019), so inserting the guard for a nonexistent id
-		// would raise a raw FK-violation 500 instead of a clean 404 — a
-		// real bug found live during Phase 11's own testing (fixed there
-		// in internal/stockadjustment/internal/stockcount first, applied
-		// here identically per Phase 12's cross-package audit — see
-		// PROJECT_STATUS.md). This SELECT has no side effect, so moving it
-		// ahead of the INSERT does not weaken the idempotency guarantee.
-		task, err := txRepo.FindTaskByID(ctx, taskID)
+		// Confirm the task exists (and belongs to tenantID) BEFORE
+		// claiming the idempotency key: picking_confirmations.picking_task_id
+		// is a real FK (migrations/0019), so inserting the guard for a
+		// nonexistent id would raise a raw FK-violation 500 instead of a
+		// clean 404 — a real bug found live during Phase 11's own testing
+		// (fixed there in internal/stockadjustment/internal/stockcount
+		// first, applied here identically per Phase 12's cross-package
+		// audit — see PROJECT_STATUS.md). This SELECT has no side effect,
+		// so moving it ahead of the INSERT does not weaken the idempotency
+		// guarantee. Phase 30 Batch 2: now also the task's IDOR guard — a
+		// cross-tenant taskID is rejected here as ErrNotFound.
+		task, err := txRepo.FindTaskByID(ctx, tenantID, taskID)
 		if err != nil {
 			return err
 		}
@@ -293,7 +333,7 @@ func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest,
 		// Idempotency guard: if this key was already used, the INSERT
 		// fails on the PRIMARY KEY constraint and everything below is
 		// skipped and rolled back — see migrations/0019's doc.
-		if err := txRepo.InsertConfirmation(ctx, req.IdempotencyKey, taskID); err != nil {
+		if err := txRepo.InsertConfirmation(ctx, tenantID, req.IdempotencyKey, taskID); err != nil {
 			return err
 		}
 
@@ -306,7 +346,7 @@ func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest,
 		refID := task.PickNo
 
 		for _, lineReq := range req.Items {
-			item, err := txRepo.FindItemByID(ctx, lineReq.ItemID)
+			item, err := txRepo.FindItemByID(ctx, tenantID, lineReq.ItemID)
 			if err != nil {
 				return err
 			}
@@ -335,17 +375,17 @@ func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest,
 				// building.
 				unreserveQty := item.OrderedQty - item.PickedQty
 				if unreserveQty > 0 {
-					// TenantID: inventory.UnverifiedCallerTenantID — see
-					// Create's own call site above for why.
+					// Phase 30 Batch 2: real verified tenantID, not
+					// inventory.UnverifiedCallerTenantID.
 					if _, err := s.inventory.ReleaseReservationTx(ctx, invRepo, inventory.ReserveRequest{
-						TenantID:  inventory.UnverifiedCallerTenantID,
+						TenantID:  tenantID,
 						ProductID: item.ProductID, LocationID: item.LocationID, LotNo: item.LotNo, Quantity: unreserveQty,
 					}); err != nil {
 						return err
 					}
 				}
 
-				if err := txRepo.UpdateItemAfterConfirm(ctx, item); err != nil {
+				if err := txRepo.UpdateItemAfterConfirm(ctx, tenantID, item); err != nil {
 					return err
 				}
 				continue
@@ -360,11 +400,10 @@ func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest,
 			// same quantity from the real balance (writing the PICK ledger
 			// row), atomically — see its doc. Replaces the earlier phase's
 			// direct RemoveStockTx call now that stock is reserved before
-			// it's ever physically picked.
-			// TenantID: inventory.UnverifiedCallerTenantID — see Create's
-			// own call site above for why.
+			// it's ever physically picked. Phase 30 Batch 2: real verified
+			// tenantID, not inventory.UnverifiedCallerTenantID.
 			if _, err := s.inventory.ConsumeReservationTx(ctx, invRepo, inventory.StockChangeRequest{
-				TenantID:  inventory.UnverifiedCallerTenantID,
+				TenantID:  tenantID,
 				ProductID: item.ProductID, LocationID: item.LocationID, LotNo: item.LotNo,
 				Quantity: lineReq.Quantity, Type: inventory.TransactionPick,
 				ReferenceType: &refType, ReferenceID: &refID, CreatedBy: &userID,
@@ -381,20 +420,20 @@ func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest,
 			// Atomic guarded increment, not a Go read-modify-write — see
 			// AdjustPickedQty's doc. Re-read afterward so status derivation
 			// uses the row's true, post-decrement total.
-			if _, err := txRepo.AdjustPickedQty(ctx, item.ID, lineReq.Quantity); err != nil {
+			if _, err := txRepo.AdjustPickedQty(ctx, tenantID, item.ID, lineReq.Quantity); err != nil {
 				return err
 			}
-			updated, err := txRepo.FindItemByID(ctx, item.ID)
+			updated, err := txRepo.FindItemByID(ctx, tenantID, item.ID)
 			if err != nil {
 				return err
 			}
 			updated.Status = itemStatus(updated.OrderedQty, updated.PickedQty, false)
-			if err := txRepo.UpdateItemAfterConfirm(ctx, updated); err != nil {
+			if err := txRepo.UpdateItemAfterConfirm(ctx, tenantID, updated); err != nil {
 				return err
 			}
 		}
 
-		allItems, err := txRepo.FindItemsByTask(ctx, taskID)
+		allItems, err := txRepo.FindItemsByTask(ctx, tenantID, taskID)
 		if err != nil {
 			return err
 		}
@@ -403,7 +442,7 @@ func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest,
 			now := time.Now().UTC()
 			task.CompletedAt = &now
 		}
-		return txRepo.UpdateTask(ctx, task)
+		return txRepo.UpdateTask(ctx, tenantID, task)
 	})
 	dbctx.LogTransaction(ctx, "picking.confirm", start, err)
 
@@ -411,12 +450,12 @@ func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest,
 		// Already processed by an earlier call with this same key —
 		// return the current (already-correct) state as a successful,
 		// idempotent no-op rather than an error or a second stock removal.
-		return s.Get(ctx, taskID)
+		return s.Get(ctx, tenantID, taskID)
 	}
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, taskID)
+	return s.Get(ctx, tenantID, taskID)
 }
 
 // Cancel is Phase 13's addition — the reservation-lifecycle counterpart
@@ -425,8 +464,10 @@ func (s *Service) Confirm(ctx context.Context, taskID int64, req ConfirmRequest,
 // mirror image of Create's ReserveStockTx call, releasing whatever a
 // task's still-open lines claimed without ever having drawn down real
 // stock for them. quantity itself is never touched, matching Phase 12's
-// own "reservation is a claim, not a movement" principle.
-func (s *Service) Cancel(ctx context.Context, taskID int64, req CancelRequest, userID int64) (*Response, error) {
+// own "reservation is a claim, not a movement" principle. Phase 30
+// Batch 2: tenantID is the caller's own verified tenant — see Confirm's
+// own doc above for the same IDOR-guard reasoning.
+func (s *Service) Cancel(ctx context.Context, tenantID, taskID int64, req CancelRequest, userID int64) (*Response, error) {
 	// This is the exact transaction shape Phase 8 hardened against
 	// client-disconnect orphaning — detach before opening it, from the
 	// start here, per the centralized policy (see PROJECT_STATUS.md).
@@ -435,12 +476,12 @@ func (s *Service) Cancel(ctx context.Context, taskID int64, req CancelRequest, u
 
 	start := time.Now()
 	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
-		// Confirm the task exists before deciding anything about it — the
-		// same existence-before-mutation ordering Phase 12's cross-package
-		// audit established as the correct pattern (see Confirm's own
-		// doc above), even though Cancel has no idempotency-guard INSERT
-		// to race against.
-		task, err := txRepo.FindTaskByID(ctx, taskID)
+		// Confirm the task exists (and belongs to tenantID) before
+		// deciding anything about it — the same existence-before-mutation
+		// ordering Phase 12's cross-package audit established as the
+		// correct pattern (see Confirm's own doc above), even though
+		// Cancel has no idempotency-guard INSERT to race against.
+		task, err := txRepo.FindTaskByID(ctx, tenantID, taskID)
 		if err != nil {
 			return err
 		}
@@ -457,7 +498,7 @@ func (s *Service) Cancel(ctx context.Context, taskID int64, req CancelRequest, u
 			return ErrNotCancellable
 		}
 
-		items, err := txRepo.FindItemsByTask(ctx, taskID)
+		items, err := txRepo.FindItemsByTask(ctx, tenantID, taskID)
 		if err != nil {
 			return err
 		}
@@ -479,10 +520,10 @@ func (s *Service) Cancel(ctx context.Context, taskID int64, req CancelRequest, u
 			if remaining <= 0 {
 				continue
 			}
-			// TenantID: inventory.UnverifiedCallerTenantID — see Create's
-			// own call site above for why.
+			// Phase 30 Batch 2: real verified tenantID, not
+			// inventory.UnverifiedCallerTenantID.
 			if _, err := s.inventory.ReleaseReservationTx(ctx, invRepo, inventory.ReserveRequest{
-				TenantID:  inventory.UnverifiedCallerTenantID,
+				TenantID:  tenantID,
 				ProductID: item.ProductID, LocationID: item.LocationID, LotNo: item.LotNo, Quantity: remaining,
 			}); err != nil {
 				return err
@@ -498,11 +539,11 @@ func (s *Service) Cancel(ctx context.Context, taskID int64, req CancelRequest, u
 		// Remark field — unlike Phase 13's original behavior, Cancel no
 		// longer clobbers whatever remark already existed on the task.
 		task.applyCancel(userID, req.Remark, time.Now().UTC())
-		return txRepo.CancelTask(ctx, task)
+		return txRepo.CancelTask(ctx, tenantID, task)
 	})
 	dbctx.LogTransaction(ctx, "picking.cancel", start, err)
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, taskID)
+	return s.Get(ctx, tenantID, taskID)
 }

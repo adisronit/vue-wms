@@ -33,8 +33,13 @@ type receivingSummarizer interface {
 
 // pickingSummarizer is the slice of picking.Service the dashboard
 // needs: just the open-task count for the "Pending Picking" card.
+// Phase 30 Batch 2 added a required tenantID parameter to CountOpen;
+// dashboard still has no verified per-request tenant context of its own
+// (not yet a scheduled Phase 30 batch), so it passes
+// inventory.UnverifiedCallerTenantID below, same as its own inventory
+// Summary() call already did.
 type pickingSummarizer interface {
-	CountOpen(ctx context.Context) (int64, error)
+	CountOpen(ctx context.Context, tenantID int64) (int64, error)
 }
 
 // inventorySummarizer is the slice of inventory.Service the dashboard
@@ -66,7 +71,10 @@ func (s *Service) Summary(ctx context.Context) (SummaryResponse, error) {
 		return SummaryResponse{}, err
 	}
 
-	pendingPicking, err := s.picking.CountOpen(ctx)
+	// TenantID: inventory.UnverifiedCallerTenantID — dashboard has no
+	// verified per-request tenant context of its own yet (not yet a
+	// scheduled Phase 30 batch; see that constant's own doc).
+	pendingPicking, err := s.picking.CountOpen(ctx, inventory.UnverifiedCallerTenantID)
 	if err != nil {
 		return SummaryResponse{}, err
 	}

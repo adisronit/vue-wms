@@ -276,7 +276,7 @@ func main() {
 
 	pickingRepo := picking.NewRepository(dbManager.DB())
 	pickingService := picking.NewService(pickingRepo, productRepo, warehouseRepo, inventoryService)
-	picking.NewHandler(pickingService).Register(v1, cfg.JWTSecret)
+	picking.NewHandler(pickingService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	shippingRepo := shipping.NewRepository(dbManager.DB())
 	shippingService := shipping.NewService(shippingRepo, pickingService)

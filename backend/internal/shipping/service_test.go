@@ -161,7 +161,7 @@ type fakePicking struct {
 	err  error
 }
 
-func (f *fakePicking) Get(context.Context, int64) (*picking.Response, error) {
+func (f *fakePicking) Get(context.Context, int64, int64) (*picking.Response, error) {
 	if f.err != nil {
 		return nil, f.err
 	}

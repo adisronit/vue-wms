@@ -36,21 +36,24 @@ func (r *Repository) Transaction(ctx context.Context, fn func(tx *gorm.DB, txRep
 	})
 }
 
-// CreateTask inserts the header, then derives pick_no from the new
-// IDENTITY id in the same transaction — the same race-free-by-
-// construction approach as receipts.receipt_no / putaway_tasks.putaway_no.
-func (r *Repository) CreateTask(ctx context.Context, task *Task) error {
+// CreateTask stamps tenantID onto the header, inserts it, then derives
+// pick_no from the new IDENTITY id in the same transaction — the same
+// race-free-by-construction approach as receipts.receipt_no /
+// putaway_tasks.putaway_no. Phase 30 Batch 2: tenantID must be the
+// caller's own verified tenant, never read from the request body.
+func (r *Repository) CreateTask(ctx context.Context, tenantID int64, task *Task) error {
+	task.TenantID = tenantID
 	if err := r.db.WithContext(ctx).Create(task).Error; err != nil {
 		return err
 	}
 	task.PickNo = fmt.Sprintf("PICK-%06d", task.ID)
-	return r.db.WithContext(ctx).Model(&Task{}).Where("id = ?", task.ID).
+	return r.db.WithContext(ctx).Model(&Task{}).Where("id = ? AND tenant_id = ?", task.ID, tenantID).
 		Update("pick_no", task.PickNo).Error
 }
 
-func (r *Repository) FindTaskByID(ctx context.Context, id int64) (*Task, error) {
+func (r *Repository) FindTaskByID(ctx context.Context, tenantID, id int64) (*Task, error) {
 	var task Task
-	err := r.db.WithContext(ctx).First(&task, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&task, "id = ? AND tenant_id = ?", id, tenantID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
 	}
@@ -86,7 +89,10 @@ type headerRow struct {
 // Confirm where the joined display fields aren't needed). The LEFT JOIN
 // to users (Phase 18) resolves cancelled_by to a display name, the same
 // pattern Phase 14 established for created_by_name on stock counts.
-func (r *Repository) FindTaskDetail(ctx context.Context, id int64) (*headerRow, error) {
+// Phase 30 Batch 2: scoped to tenantID — a cross-tenant id now returns
+// ErrNotFound exactly like a nonexistent one, closing the IDOR this
+// query previously had.
+func (r *Repository) FindTaskDetail(ctx context.Context, tenantID, id int64) (*headerRow, error) {
 	var row headerRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT pt.id AS id, pt.pick_no AS pick_no, pt.order_no AS order_no, pt.customer AS customer,
@@ -98,8 +104,8 @@ func (r *Repository) FindTaskDetail(ctx context.Context, id int64) (*headerRow, 
 		FROM picking_tasks pt
 		JOIN warehouses w ON w.id = pt.warehouse_id
 		LEFT JOIN users cu ON cu.id = pt.cancelled_by
-		WHERE pt.id = ?
-	`, id).Scan(&row).Error
+		WHERE pt.id = ? AND pt.tenant_id = ?
+	`, id, tenantID).Scan(&row).Error
 	if err != nil {
 		return nil, err
 	}
@@ -109,8 +115,13 @@ func (r *Repository) FindTaskDetail(ctx context.Context, id int64) (*headerRow, 
 	return &row, nil
 }
 
-func (r *Repository) UpdateTask(ctx context.Context, task *Task) error {
-	return r.db.WithContext(ctx).Model(&Task{}).Where("id = ?", task.ID).Updates(map[string]any{
+// UpdateTask is only ever called within a transaction that already
+// loaded task via a tenant-scoped FindTaskByID, so the extra predicate
+// here is defense in depth, not the primary guard — matching
+// internal/inventory's own Batch 1 precedent of scoping every write even
+// when an earlier read in the same transaction already proved ownership.
+func (r *Repository) UpdateTask(ctx context.Context, tenantID int64, task *Task) error {
+	return r.db.WithContext(ctx).Model(&Task{}).Where("id = ? AND tenant_id = ?", task.ID, tenantID).Updates(map[string]any{
 		"status":       task.Status,
 		"remark":       task.Remark,
 		"completed_at": task.CompletedAt,
@@ -123,8 +134,8 @@ func (r *Repository) UpdateTask(ctx context.Context, task *Task) error {
 // business ever touching cancellation columns). Never called except from
 // a Cancel that has already passed Status.CanCancel, so cancelled_at/
 // cancelled_by/cancel_remark are only ever written once per task.
-func (r *Repository) CancelTask(ctx context.Context, task *Task) error {
-	return r.db.WithContext(ctx).Model(&Task{}).Where("id = ?", task.ID).Updates(map[string]any{
+func (r *Repository) CancelTask(ctx context.Context, tenantID int64, task *Task) error {
+	return r.db.WithContext(ctx).Model(&Task{}).Where("id = ? AND tenant_id = ?", task.ID, tenantID).Updates(map[string]any{
 		"status":        task.Status,
 		"cancelled_at":  task.CancelledAt,
 		"cancelled_by":  task.CancelledBy,
@@ -149,15 +160,18 @@ type listRow struct {
 // List returns task-level rows matching PickingView.vue's table
 // directly (one row per task, with an aggregated item count and
 // progress percentage) — unlike Putaway's item-level list, since the
-// mock's own table is task-level here.
-func (r *Repository) List(ctx context.Context, params ListParams) ([]ListResponse, int64, error) {
+// mock's own table is task-level here. Phase 30 Batch 2: scoped to
+// tenantID so one tenant's picking history never leaks into another's
+// list/export.
+func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
 	base := `
 		FROM picking_tasks pt
 		JOIN warehouses w ON w.id = pt.warehouse_id
 		LEFT JOIN picking_task_items pti ON pti.picking_task_id = pt.id
 		LEFT JOIN products p ON p.id = pti.product_id
 	`
-	where := `WHERE (? = '' OR pt.pick_no LIKE ? OR pt.order_no LIKE ? OR pt.customer LIKE ? OR p.sku LIKE ? OR p.name LIKE ?)
+	where := `WHERE pt.tenant_id = ?
+		AND (? = '' OR pt.pick_no LIKE ? OR pt.order_no LIKE ? OR pt.customer LIKE ? OR p.sku LIKE ? OR p.name LIKE ?)
 		AND (? = '' OR pt.status = ?)
 		AND (? = '' OR pt.priority = ?)
 		AND (? = 0 OR pt.warehouse_id = ?)
@@ -165,6 +179,7 @@ func (r *Repository) List(ctx context.Context, params ListParams) ([]ListRespons
 
 	like := "%" + params.Search + "%"
 	args := []any{
+		tenantID,
 		params.Search, like, like, like, like, like,
 		string(params.Status), string(params.Status),
 		string(params.Priority), string(params.Priority),
@@ -234,16 +249,24 @@ type itemRow struct {
 // Status.CanConfirm() would accept (PENDING/IN_PROGRESS) — Phase 23's
 // Dashboard "Pending Picking" card. A single indexed COUNT(*)
 // (IX_picking_tasks_status), not a List() call, since the dashboard
-// only ever needs the number, never the rows.
-func (r *Repository) CountOpen(ctx context.Context) (int64, error) {
+// only ever needs the number, never the rows. Phase 30 Batch 2: scoped
+// to tenantID; Dashboard itself is not yet tenant-scoped, so it still
+// passes inventory.UnverifiedCallerTenantID here (see dashboard's own
+// service.go comment) — the gap is now explicit at every layer rather
+// than silently absent from this query.
+func (r *Repository) CountOpen(ctx context.Context, tenantID int64) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&Task{}).
-		Where("status IN ?", []string{string(StatusPending), string(StatusInProgress)}).
+		Where("tenant_id = ? AND status IN ?", tenantID, []string{string(StatusPending), string(StatusInProgress)}).
 		Count(&count).Error
 	return count, err
 }
 
-func (r *Repository) ListItems(ctx context.Context, taskID int64) ([]ItemResponse, error) {
+// ListItems is only ever called by Service.Get, right after a
+// tenant-scoped FindTaskDetail already proved taskID belongs to
+// tenantID — the tenant_id predicate here is defense in depth, matching
+// UpdateTask's own reasoning above.
+func (r *Repository) ListItems(ctx context.Context, tenantID, taskID int64) ([]ItemResponse, error) {
 	var rows []itemRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT pti.id AS id, pti.product_id AS product_id, p.sku AS sku, p.name AS product_name,
@@ -253,9 +276,9 @@ func (r *Repository) ListItems(ctx context.Context, taskID int64) ([]ItemRespons
 		FROM picking_task_items pti
 		JOIN products p ON p.id = pti.product_id
 		JOIN locations l ON l.id = pti.location_id
-		WHERE pti.picking_task_id = ?
+		WHERE pti.picking_task_id = ? AND pti.tenant_id = ?
 		ORDER BY pti.id ASC
-	`, taskID).Scan(&rows).Error
+	`, taskID, tenantID).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -272,13 +295,14 @@ func (r *Repository) ListItems(ctx context.Context, taskID int64) ([]ItemRespons
 	return items, nil
 }
 
-func (r *Repository) CreateItem(ctx context.Context, item *TaskItem) error {
+func (r *Repository) CreateItem(ctx context.Context, tenantID int64, item *TaskItem) error {
+	item.TenantID = tenantID
 	return r.db.WithContext(ctx).Create(item).Error
 }
 
-func (r *Repository) FindItemByID(ctx context.Context, id int64) (*TaskItem, error) {
+func (r *Repository) FindItemByID(ctx context.Context, tenantID, id int64) (*TaskItem, error) {
 	var item TaskItem
-	err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&item, "id = ? AND tenant_id = ?", id, tenantID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrItemNotFound
 	}
@@ -289,11 +313,14 @@ func (r *Repository) FindItemByID(ctx context.Context, id int64) (*TaskItem, err
 }
 
 // FindItemsByTask returns the raw TaskItem rows (not the joined response
-// shape) — used internally by Confirm to compute the header's new status
-// after applying deltas.
-func (r *Repository) FindItemsByTask(ctx context.Context, taskID int64) ([]TaskItem, error) {
+// shape) — used internally by Confirm/Cancel to compute the header's new
+// status after applying deltas. Scoped to tenantID even though the
+// caller already proved task ownership — the lines themselves must also
+// be verified, not just the header, since nothing stops a row-level
+// insertion bug elsewhere from mixing tenants on this table.
+func (r *Repository) FindItemsByTask(ctx context.Context, tenantID, taskID int64) ([]TaskItem, error) {
 	var items []TaskItem
-	err := r.db.WithContext(ctx).Where("picking_task_id = ?", taskID).Find(&items).Error
+	err := r.db.WithContext(ctx).Where("picking_task_id = ? AND tenant_id = ?", taskID, tenantID).Find(&items).Error
 	return items, err
 }
 
@@ -304,13 +331,17 @@ func (r *Repository) FindItemsByTask(ctx context.Context, taskID int64) ([]TaskI
 // start (see internal/receiving and internal/putaway's own Phase 9 fix
 // for the lost-update race this exact shape of code previously had on
 // their equivalent columns) rather than retrofitted — see
-// PROJECT_STATUS.md.
-func (r *Repository) AdjustPickedQty(ctx context.Context, itemID int64, delta float64) (int64, error) {
+// PROJECT_STATUS.md. Phase 30 Batch 2: tenant_id now lives directly in
+// this atomic UPDATE's WHERE clause (not a separate pre-check), the same
+// highest-risk fix Batch 1 applied to AdjustBalance/AdjustReservation —
+// a mismatched tenant_id here would otherwise corrupt quantity, not just
+// leak data.
+func (r *Repository) AdjustPickedQty(ctx context.Context, tenantID, itemID int64, delta float64) (int64, error) {
 	result := r.db.WithContext(ctx).Exec(`
 		UPDATE picking_task_items
 		SET picked_qty = picked_qty + ?, updated_at = SYSUTCDATETIME()
-		WHERE id = ?
-	`, delta, itemID)
+		WHERE id = ? AND tenant_id = ?
+	`, delta, itemID, tenantID)
 	return result.RowsAffected, result.Error
 }
 
@@ -319,8 +350,8 @@ func (r *Repository) AdjustPickedQty(ctx context.Context, itemID int64, delta fl
 // all) — deliberately excludes picked_qty itself so this write can never
 // clobber a concurrent transaction's own atomic increment with a value
 // computed from a stale read.
-func (r *Repository) UpdateItemAfterConfirm(ctx context.Context, item *TaskItem) error {
-	return r.db.WithContext(ctx).Model(&TaskItem{}).Where("id = ?", item.ID).Updates(map[string]any{
+func (r *Repository) UpdateItemAfterConfirm(ctx context.Context, tenantID int64, item *TaskItem) error {
+	return r.db.WithContext(ctx).Model(&TaskItem{}).Where("id = ? AND tenant_id = ?", item.ID, tenantID).Updates(map[string]any{
 		"status": item.Status,
 		"remark": item.Remark,
 	}).Error
@@ -329,8 +360,8 @@ func (r *Repository) UpdateItemAfterConfirm(ctx context.Context, item *TaskItem)
 // InsertConfirmation is the idempotency guard itself — see
 // migrations/0019's doc. Must be called inside the same transaction as
 // the stock mutations it's guarding.
-func (r *Repository) InsertConfirmation(ctx context.Context, idempotencyKey string, taskID int64) error {
-	err := r.db.WithContext(ctx).Create(&Confirmation{IdempotencyKey: idempotencyKey, PickingTaskID: taskID}).Error
+func (r *Repository) InsertConfirmation(ctx context.Context, tenantID int64, idempotencyKey string, taskID int64) error {
+	err := r.db.WithContext(ctx).Create(&Confirmation{TenantID: tenantID, IdempotencyKey: idempotencyKey, PickingTaskID: taskID}).Error
 	if err != nil && isUniqueViolation(err) {
 		return ErrDuplicateIdempotencyKey
 	}
@@ -349,15 +380,21 @@ type locationInfo struct {
 	Status      string
 }
 
-func (r *Repository) resolveLocation(ctx context.Context, locationID int64) (*locationInfo, error) {
+// resolveLocation is Picking's own location-ownership check — Phase 30
+// Batch 2 adds the tenant_id predicate directly to this existing joined
+// query rather than introducing a separate checker interface: a location
+// belonging to another tenant now simply doesn't match any row, so
+// WarehouseID stays 0 and ErrLocationNotFound is returned exactly as for
+// a nonexistent id, closing the Location-ownership gap item 4 calls for.
+func (r *Repository) resolveLocation(ctx context.Context, tenantID, locationID int64) (*locationInfo, error) {
 	var info locationInfo
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT w.id AS warehouse_id, l.status AS status
 		FROM locations l
 		JOIN zones z ON z.id = l.zone_id
 		JOIN warehouses w ON w.id = z.warehouse_id
-		WHERE l.id = ?
-	`, locationID).Scan(&info).Error
+		WHERE l.id = ? AND l.tenant_id = ?
+	`, locationID, tenantID).Scan(&info).Error
 	if err != nil {
 		return nil, err
 	}
