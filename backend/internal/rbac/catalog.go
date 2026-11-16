@@ -70,6 +70,22 @@ var Modules = []ModuleDef{
 	// PUTAWAY's RoleDefaultGrants if relocation duties are assigned to
 	// existing staff roles.
 	{Code: "relocation", Name: "Stock Relocation", Actions: []string{"view", "create", "update", "confirm", "approve"}},
+	// Phase 33C — Packing: "update" gates the packer's own routine
+	// execution actions (AssignPacker, CreateCarton/UpdateCarton,
+	// PackItem, FlagException); "confirm" gates the distinct, elevated
+	// second-person checker-verification action (CheckerConfirm, which
+	// marks a job COMPLETED) — a deliberately different split than
+	// receiving.confirm/quality_check.confirm/putaway.confirm/
+	// relocation.confirm/picking.confirm/order.confirm, which each gate
+	// their own module's primary stock-mutating action; Packing makes no
+	// inventory call at all, so "confirm" here instead marks the
+	// two-person-verification boundary specifically. "approve" gates
+	// Cancel, the same more-consequential/planning-level authority level
+	// picking.approve's own Cancel gate uses. No default grant for any
+	// operational staff role yet (matches relocation's own precedent) —
+	// only ADMIN (every code) and WAREHOUSE_MANAGER (every non-delete
+	// code) get it automatically.
+	{Code: "packing", Name: "Packing", Actions: []string{"view", "create", "update", "confirm", "approve"}},
 	{Code: "stock_inquiry", Name: "Stock Inquiry", Actions: []string{"view", "export"}},
 	{Code: "stock_adjustment", Name: "Stock Adjustment", Actions: []string{"view", "create", "update", "delete", "approve"}},
 	// "confirm" (Phase 33B) gates the stock-mutating/stock-adjacent
