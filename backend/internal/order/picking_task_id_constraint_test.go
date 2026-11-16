@@ -22,20 +22,19 @@ import (
 
 // createOrderWithRef is createOrder plus an explicit, caller-chosen
 // external_reference — needed whenever a test creates more than one
-// order for the SAME tenant. orders.external_reference has its own
-// separate, still-unfixed bug of the identical shape this file's own
-// migrations/0060 fix addresses for picking_task_id: migrations/0048's
-// "CONSTRAINT UQ_orders_tenant_external_reference UNIQUE (tenant_id,
-// external_reference)" is a plain (non-filtered) composite UNIQUE
+// order for the SAME tenant that must not rely on migrations/0061's own
+// fix (kept explicit here for clarity/isolation even though plain
+// createOrder would now work too — see external_reference_constraint_test.go
+// for the dedicated regression tests covering that fix directly).
+// orders.external_reference had its own separate bug of the identical
+// shape this file's own migrations/0060 fix addressed for
+// picking_task_id: migrations/0048's "CONSTRAINT
+// UQ_orders_tenant_external_reference UNIQUE (tenant_id,
+// external_reference)" was a plain (non-filtered) composite UNIQUE
 // constraint, and SQL Server compares the full key tuple including
 // NULLs — so two orders in the SAME tenant both leaving
-// external_reference unset (the normal case; createOrder's own
-// CreateRequest never sets it) collide exactly like the picking_task_id
-// bug did, confirmed directly against the disposable test database.
-// Out of scope for this fix (the reported issue and this migration are
-// about picking_task_id specifically) — reported, not silently worked
-// around without a trace, exactly like migrations/0060's own discovery
-// was handled in Phase 30 Batch 3.
+// external_reference unset collided exactly like the picking_task_id
+// bug did. Fixed by migrations/0061.
 func createOrderWithRef(t *testing.T, svc *Service, tenantID int64, f orderFixture, orderedQty float64, externalRef string) *Response {
 	t.Helper()
 	resp, err := svc.Create(context.Background(), tenantID, CreateRequest{
