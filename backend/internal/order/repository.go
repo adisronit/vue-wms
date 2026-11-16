@@ -136,30 +136,32 @@ func (r *Repository) DeleteItemsByOrder(ctx context.Context, tenantID, orderID i
 // workflow package's own write-layer precedent.
 func (r *Repository) UpdateHeader(ctx context.Context, tenantID int64, o *Order) error {
 	err := r.db.WithContext(ctx).Model(&Order{}).Where("id = ? AND tenant_id = ?", o.ID, tenantID).Updates(map[string]any{
-		"customer":               o.Customer,
-		"customer_id":            o.CustomerID,
-		"ship_to_id":             o.ShipToID,
-		"ship_to_name":           o.ShipToName,
-		"ship_to_address":        o.ShipToAddress,
-		"ship_to_province":       o.ShipToProvince,
-		"ship_to_district":       o.ShipToDistrict,
-		"ship_to_postal_code":    o.ShipToPostalCode,
-		"ship_to_contact_person": o.ShipToContactPerson,
-		"ship_to_contact_phone":  o.ShipToContactPhone,
-		"external_reference":     o.ExternalReference,
-		"order_type":             o.OrderType,
-		"priority":               o.Priority,
-		"picking_mode":           o.PickingMode,
-		"required_shipping_date": o.RequiredShippingDate,
-		"required_delivery_date": o.RequiredDeliveryDate,
-		"carrier":                o.Carrier,
-		"shipping_method":        o.ShippingMethod,
-		"delivery_instructions":  o.DeliveryInstructions,
-		"prepared_by":            o.PreparedBy,
-		"approved_by":            o.ApprovedBy,
-		"warehouse_id":           o.WarehouseID,
-		"remark":                 o.Remark,
-		"updated_at":             time.Now().UTC(),
+		"customer":                 o.Customer,
+		"customer_id":              o.CustomerID,
+		"ship_to_id":               o.ShipToID,
+		"ship_to_name":             o.ShipToName,
+		"ship_to_address":          o.ShipToAddress,
+		"ship_to_province":         o.ShipToProvince,
+		"ship_to_district":         o.ShipToDistrict,
+		"ship_to_postal_code":      o.ShipToPostalCode,
+		"ship_to_contact_person":   o.ShipToContactPerson,
+		"ship_to_contact_phone":    o.ShipToContactPhone,
+		"external_reference":       o.ExternalReference,
+		"order_type":               o.OrderType,
+		"destination_warehouse_id": o.DestinationWarehouseID,
+		"transfer_reference":       o.TransferReference,
+		"priority":                 o.Priority,
+		"picking_mode":             o.PickingMode,
+		"required_shipping_date":   o.RequiredShippingDate,
+		"required_delivery_date":   o.RequiredDeliveryDate,
+		"carrier":                  o.Carrier,
+		"shipping_method":          o.ShippingMethod,
+		"delivery_instructions":    o.DeliveryInstructions,
+		"prepared_by":              o.PreparedBy,
+		"approved_by":              o.ApprovedBy,
+		"warehouse_id":             o.WarehouseID,
+		"remark":                   o.Remark,
+		"updated_at":               time.Now().UTC(),
 	}).Error
 	return err
 }
@@ -261,50 +263,53 @@ func (r *Repository) CancelOrder(ctx context.Context, tenantID int64, o *Order) 
 // query shape, extended here per this phase's own orchestration-only
 // design (Order never stores picking/shipment state itself).
 type detailRow struct {
-	ID                   int64
-	OrderNo              string
-	OrderType            string
-	Priority             string
-	Customer             *string
-	CustomerID           *int64
-	ShipToID             *int64
-	ShipToName           *string
-	ShipToAddress        *string
-	ShipToProvince       *string
-	ShipToDistrict       *string
-	ShipToPostalCode     *string
-	ShipToContactPerson  *string
-	ShipToContactPhone   *string
-	ExternalReference    *string
-	RequiredShippingDate *time.Time
-	RequiredDeliveryDate *time.Time
-	Carrier              *string
-	ShippingMethod       *string
-	DeliveryInstructions *string
-	PreparedBy           *string
-	ApprovedBy           *string
-	WarehouseID          int64
-	WarehouseCode        string
-	PickingTaskID        *int64
-	PickNo               *string
-	PickingStatus        *string
-	ShipmentStatus       *string
-	PickingMode          string
-	PickingBatchID       *int64
-	Status               string
-	Remark               *string
-	ReleasedAt           *time.Time
-	ReleasedBy           *int64
-	ReleasedByName       *string
-	ShortageApproved     bool
-	CreatedBy            *int64
-	CreatedByName        *string
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
-	CancelledAt          *time.Time
-	CancelledBy          *int64
-	CancelledByName      *string
-	CancelRemark         *string
+	ID                       int64
+	OrderNo                  string
+	OrderType                string
+	Priority                 string
+	Customer                 *string
+	CustomerID               *int64
+	ShipToID                 *int64
+	ShipToName               *string
+	ShipToAddress            *string
+	ShipToProvince           *string
+	ShipToDistrict           *string
+	ShipToPostalCode         *string
+	ShipToContactPerson      *string
+	ShipToContactPhone       *string
+	ExternalReference        *string
+	RequiredShippingDate     *time.Time
+	RequiredDeliveryDate     *time.Time
+	Carrier                  *string
+	ShippingMethod           *string
+	DeliveryInstructions     *string
+	PreparedBy               *string
+	ApprovedBy               *string
+	WarehouseID              int64
+	WarehouseCode            string
+	DestinationWarehouseID   *int64
+	DestinationWarehouseCode *string
+	TransferReference        *string
+	PickingTaskID            *int64
+	PickNo                   *string
+	PickingStatus            *string
+	ShipmentStatus           *string
+	PickingMode              string
+	PickingBatchID           *int64
+	Status                   string
+	Remark                   *string
+	ReleasedAt               *time.Time
+	ReleasedBy               *int64
+	ReleasedByName           *string
+	ShortageApproved         bool
+	CreatedBy                *int64
+	CreatedByName            *string
+	CreatedAt                time.Time
+	UpdatedAt                time.Time
+	CancelledAt              *time.Time
+	CancelledBy              *int64
+	CancelledByName          *string
+	CancelRemark             *string
 }
 
 // FindDetail scopes to tenantID — Phase 30 Batch 3 closes the IDOR this
@@ -324,6 +329,8 @@ func (r *Repository) FindDetail(ctx context.Context, tenantID, id int64) (*detai
 			o.carrier AS carrier, o.shipping_method AS shipping_method, o.delivery_instructions AS delivery_instructions,
 			o.prepared_by AS prepared_by, o.approved_by AS approved_by,
 			o.warehouse_id AS warehouse_id, w.code AS warehouse_code,
+			o.destination_warehouse_id AS destination_warehouse_id, dw.code AS destination_warehouse_code,
+			o.transfer_reference AS transfer_reference,
 			o.picking_task_id AS picking_task_id, pt.pick_no AS pick_no, pt.status AS picking_status,
 			sh.status AS shipment_status,
 			o.picking_mode AS picking_mode, o.picking_batch_id AS picking_batch_id,
@@ -336,6 +343,7 @@ func (r *Repository) FindDetail(ctx context.Context, tenantID, id int64) (*detai
 			o.cancel_remark AS cancel_remark
 		FROM orders o
 		JOIN warehouses w ON w.id = o.warehouse_id
+		LEFT JOIN warehouses dw ON dw.id = o.destination_warehouse_id
 		LEFT JOIN picking_tasks pt ON pt.id = o.picking_task_id
 		LEFT JOIN shipments sh ON sh.picking_task_id = pt.id
 		LEFT JOIN users cu ON cu.id = o.created_by

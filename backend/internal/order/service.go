@@ -54,6 +54,13 @@ var (
 	// establishes (tenant-isolation-security.md §6).
 	ErrCustomerNotFound = errors.New("order: customer not found")
 	ErrShipToNotFound   = errors.New("order: ship-to location not found")
+	// ErrDestinationWarehouseNotFound (Phase 33E.1) covers both "doesn't
+	// exist at all" and "belongs to a different tenant" with the same
+	// 404 — the same not-found-equivalent treatment ErrCustomerNotFound/
+	// ErrShipToNotFound already establish (tenant-isolation-security.md
+	// §6): a cross-tenant destination_warehouse_id must never be
+	// distinguishable from a nonexistent one.
+	ErrDestinationWarehouseNotFound = errors.New("order: destination warehouse not found")
 )
 
 // productChecker is the narrow slice of internal/product's own
@@ -73,8 +80,16 @@ type productChecker interface {
 // here, exactly like internal/picking's own warehouseChecker (Batch 2).
 // Reported as a remaining gap, not silently treated as secure — see this
 // package's final Phase 30 Batch 3 report.
+// FindByIDForTenant (Phase 33E.1) is used ONLY for validating
+// destination_warehouse_id on an INTERNAL_TRANSFER order — a real
+// security boundary (no cross-tenant transfer), not just a data-
+// integrity check. The pre-existing, unscoped FindByID above is left
+// completely untouched for the SOURCE WarehouseID check: that gap is
+// documented, pre-existing, and out of scope for this batch — see its
+// own doc for why.
 type warehouseChecker interface {
 	FindByID(ctx context.Context, id int64) (*warehouse.Warehouse, error)
+	FindByIDForTenant(ctx context.Context, tenantID, id int64) (*warehouse.Warehouse, error)
 }
 
 // customerChecker is the narrow slice of internal/customer's own
@@ -331,7 +346,9 @@ func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error
 		Carrier: row.Carrier, ShippingMethod: row.ShippingMethod, DeliveryInstructions: row.DeliveryInstructions,
 		PreparedBy: row.PreparedBy, ApprovedBy: row.ApprovedBy,
 		WarehouseID: row.WarehouseID, WarehouseCode: row.WarehouseCode,
-		PickingTaskID: row.PickingTaskID, PickNo: row.PickNo,
+		DestinationWarehouseID: row.DestinationWarehouseID, DestinationWarehouseCode: row.DestinationWarehouseCode,
+		TransferReference: row.TransferReference,
+		PickingTaskID:     row.PickingTaskID, PickNo: row.PickNo,
 		PickingMode: PickingMode(row.PickingMode), PickingBatchID: row.PickingBatchID,
 		Status:            Status(row.Status),
 		FulfillmentStatus: deriveFulfillmentStatus(Status(row.Status), pickingStatus, shipmentStatus),
@@ -385,10 +402,15 @@ func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest,
 	if err != nil {
 		return nil, err
 	}
+	destWarehouseID, transferReference, err := s.validateTransferFields(ctx, tenantID, orderType, req.WarehouseID, req.DestinationWarehouseID, req.TransferReference)
+	if err != nil {
+		return nil, err
+	}
 
 	o := &Order{
 		Customer: req.Customer, ExternalReference: req.ExternalReference,
 		OrderType: orderType, Priority: priority, PickingMode: pickingMode,
+		DestinationWarehouseID: destWarehouseID, TransferReference: transferReference,
 		RequiredShippingDate: req.RequiredShippingDate, RequiredDeliveryDate: req.RequiredDeliveryDate,
 		Carrier: req.Carrier, ShippingMethod: req.ShippingMethod, DeliveryInstructions: req.DeliveryInstructions,
 		PreparedBy: req.PreparedBy, ApprovedBy: req.ApprovedBy,
@@ -499,6 +521,47 @@ func normalizePickingMode(mode string) (PickingMode, error) {
 	return m, nil
 }
 
+// validateTransferFields (Phase 33E.1) enforces the INTERNAL_TRANSFER/
+// SALES_ORDER field separation Create/Update both apply identically:
+//
+//   - SALES_ORDER (the default): destination_warehouse_id/
+//     transfer_reference must both be absent. Supplying either is
+//     rejected outright with a 422 — never silently ignored — so the
+//     two order shapes can never accidentally blend; a caller that
+//     meant to create a transfer but left order_type unset would
+//     otherwise get a confusing silent drop instead of a clear error.
+//
+//   - INTERNAL_TRANSFER: destination_warehouse_id is REQUIRED, must
+//     resolve via warehouseChecker.FindByIDForTenant (so a cross-
+//     tenant id is rejected exactly like a nonexistent one — the real
+//     security boundary CLAUDE.md's own tenant-isolation rules
+//     require), and must differ from sourceWarehouseID — a transfer
+//     can never name the same warehouse as both ends. transfer_
+//     reference is always optional, even for a transfer.
+//
+// transferReference is returned unchanged (never validated beyond
+// being optional free text) purely so both call sites can destructure
+// a single return tuple identically.
+func (s *Service) validateTransferFields(ctx context.Context, tenantID int64, orderType string, sourceWarehouseID int64, destWarehouseID *int64, transferReference *string) (*int64, *string, error) {
+	if orderType != "INTERNAL_TRANSFER" {
+		if destWarehouseID != nil || transferReference != nil {
+			return nil, nil, ErrValidation{Message: "destination_warehouse_id and transfer_reference are only allowed for INTERNAL_TRANSFER orders"}
+		}
+		return nil, nil, nil
+	}
+
+	if destWarehouseID == nil {
+		return nil, nil, ErrValidation{Message: "destination_warehouse_id is required for INTERNAL_TRANSFER orders"}
+	}
+	if *destWarehouseID == sourceWarehouseID {
+		return nil, nil, ErrValidation{Message: "destination_warehouse_id must differ from warehouse_id"}
+	}
+	if _, err := s.warehouses.FindByIDForTenant(ctx, tenantID, *destWarehouseID); err != nil {
+		return nil, nil, ErrDestinationWarehouseNotFound
+	}
+	return destWarehouseID, transferReference, nil
+}
+
 // Update replaces the header fields and every line at once — full-
 // replace, not a per-line diff, safe only because Status.CanUpdate
 // (PENDING) means CreatePickingTask has never reserved anything against
@@ -514,6 +577,10 @@ func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequ
 		return nil, err
 	}
 	pickingMode, err := normalizePickingMode(req.PickingMode)
+	if err != nil {
+		return nil, err
+	}
+	destWarehouseID, transferReference, err := s.validateTransferFields(ctx, tenantID, orderType, req.WarehouseID, req.DestinationWarehouseID, req.TransferReference)
 	if err != nil {
 		return nil, err
 	}
@@ -536,6 +603,8 @@ func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequ
 		o.OrderType = orderType
 		o.Priority = priority
 		o.PickingMode = pickingMode
+		o.DestinationWarehouseID = destWarehouseID
+		o.TransferReference = transferReference
 		o.RequiredShippingDate = req.RequiredShippingDate
 		o.RequiredDeliveryDate = req.RequiredDeliveryDate
 		o.Carrier = req.Carrier

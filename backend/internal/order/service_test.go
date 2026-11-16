@@ -101,6 +101,13 @@ func (f *fakeWarehouses) FindByID(context.Context, int64) (*warehouse.Warehouse,
 	return &warehouse.Warehouse{ID: 1}, nil
 }
 
+func (f *fakeWarehouses) FindByIDForTenant(_ context.Context, _ int64, id int64) (*warehouse.Warehouse, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return &warehouse.Warehouse{ID: id}, nil
+}
+
 func TestCreate_RejectsUnknownWarehouse(t *testing.T) {
 	svc := NewService(nil, nil, &fakeWarehouses{err: errors.New("not found")}, nil, nil, nil, nil, nil)
 

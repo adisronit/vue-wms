@@ -118,8 +118,15 @@ type Response struct {
 	ApprovedBy           *string    `json:"approved_by"`
 	WarehouseID          int64      `json:"warehouse_id,string" example:"1"`
 	WarehouseCode        string     `json:"warehouse_code" example:"WH-01"`
-	PickingTaskID        *int64     `json:"picking_task_id,string"`
-	PickNo               *string    `json:"pick_no"`
+	// DestinationWarehouseID/DestinationWarehouseCode/TransferReference
+	// (Phase 33E.1) are populated only for an INTERNAL_TRANSFER order --
+	// see Order.DestinationWarehouseID's own doc. nil/empty for a
+	// SALES_ORDER.
+	DestinationWarehouseID   *int64  `json:"destination_warehouse_id,string"`
+	DestinationWarehouseCode *string `json:"destination_warehouse_code"`
+	TransferReference        *string `json:"transfer_reference"`
+	PickingTaskID            *int64  `json:"picking_task_id,string"`
+	PickNo                   *string `json:"pick_no"`
 	// PickingMode/PickingBatchID (Phase 33C.1) — see Order.PickingMode's
 	// own doc. PickingBatchID is nil until internal/pickingbatch's own
 	// Service.Confirm has claimed this order into a consolidated task.
@@ -191,11 +198,22 @@ type CreateRequest struct {
 	CustomerID *int64 `json:"customer_id,string" example:"1"`
 	ShipToID   *int64 `json:"ship_to_id,string" example:"1"`
 	// OrderType defaults to SALES_ORDER when omitted. INTERNAL_TRANSFER
-	// is also accepted (CK_orders_order_type) but Phase 33A builds no
-	// transfer-specific behavior around it — see model.go's own
-	// Order.OrderType doc.
+	// is also accepted (CK_orders_order_type) -- Phase 33E.1 is the
+	// first batch to build real behavior around it: see Service.
+	// validateTransferFields' own doc for the DestinationWarehouseID/
+	// TransferReference rules this activates.
 	OrderType string `json:"order_type" example:"SALES_ORDER"`
-	Priority  string `json:"priority" example:"NORMAL"`
+	// DestinationWarehouseID/TransferReference (Phase 33E.1) apply ONLY
+	// to order_type = INTERNAL_TRANSFER: DestinationWarehouseID is
+	// REQUIRED (must exist, belong to the caller's own tenant, and
+	// differ from WarehouseID below); TransferReference is an optional
+	// free-text cross-warehouse reference number. Supplying either
+	// field on a SALES_ORDER request is rejected outright (422) rather
+	// than silently ignored -- see Service.validateTransferFields' own
+	// doc.
+	DestinationWarehouseID *int64  `json:"destination_warehouse_id,string" example:"2"`
+	TransferReference      *string `json:"transfer_reference" example:"TRF-000123"`
+	Priority               string  `json:"priority" example:"NORMAL"`
 	// PickingMode (Phase 33C.1) defaults to PICK_BY_ORDER when omitted —
 	// see Order.PickingMode's own doc. Setting PICK_BY_PRODUCT here does
 	// not do anything by itself; it only makes the order eligible for a
@@ -240,7 +258,12 @@ type UpdateRequest struct {
 	CustomerID *int64 `json:"customer_id,string" example:"1"`
 	ShipToID   *int64 `json:"ship_to_id,string" example:"1"`
 	OrderType  string `json:"order_type" example:"SALES_ORDER"`
-	Priority   string `json:"priority" example:"NORMAL"`
+	// DestinationWarehouseID/TransferReference: see CreateRequest's own
+	// doc — identical semantics, re-validated on every Update (full-
+	// replace, matching every other header field here).
+	DestinationWarehouseID *int64  `json:"destination_warehouse_id,string" example:"2"`
+	TransferReference      *string `json:"transfer_reference" example:"TRF-000123"`
+	Priority               string  `json:"priority" example:"NORMAL"`
 	// PickingMode: see CreateRequest's own doc — identical semantics,
 	// re-set on every Update (full-replace, matching every other header
 	// field here).

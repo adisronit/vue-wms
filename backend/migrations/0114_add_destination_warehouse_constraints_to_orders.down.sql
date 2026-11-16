@@ -1,0 +1,5 @@
+DROP INDEX IX_orders_destination_warehouse_id ON orders;
+
+ALTER TABLE orders DROP CONSTRAINT FK_orders_destination_warehouse_id;
+ALTER TABLE orders DROP CONSTRAINT CK_orders_destination_warehouse_not_source;
+ALTER TABLE orders DROP CONSTRAINT CK_orders_destination_warehouse_requires_transfer;
