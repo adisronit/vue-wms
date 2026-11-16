@@ -12,6 +12,7 @@
       :can-view-product-families="canViewProductFamilies"
       :can-view-replenishment="canViewReplenishment"
       :can-view-relocation="canViewRelocation"
+      :can-view-transfer-receipt="canViewTransferReceipt"
       :can-view-packing="canViewPacking"
       :can-view-loading="canViewLoading"
       :can-view-picking-batches="canViewPickingBatches"
@@ -162,6 +163,9 @@ export default {
     },
     canViewRelocation() {
       return hasPermission('relocation.view')
+    },
+    canViewTransferReceipt() {
+      return hasPermission('transfer_receipt.view')
     },
     canViewPacking() {
       return hasPermission('packing.view')

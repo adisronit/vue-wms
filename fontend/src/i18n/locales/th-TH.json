@@ -91,6 +91,7 @@
     "receiving": "รับสินค้า",
     "qualityCheck": "ตรวจสอบคุณภาพ",
     "putaway": "จัดเก็บสินค้า",
+    "transferReceiving": "รับสินค้าโอนย้าย",
     "sectionInventory": "คลังสินค้า",
     "stockInquiry": "ตรวจสอบสต็อก",
     "stockAdjustment": "ปรับปรุงสต็อก",
@@ -2885,6 +2886,68 @@
       "draftSaved": "บันทึกฉบับร่างงานย้ายสต็อกแล้ว",
       "markedReady": "บันทึกและทำเครื่องหมายงานย้ายสต็อกว่าพร้อมดำเนินการแล้ว",
       "confirmSubmitDialog": "การดำเนินการนี้จะบันทึกงานและทำเครื่องหมายว่าพร้อมดำเนินการ ดำเนินการต่อหรือไม่?"
+    }
+  },
+  "transferReceiving": {
+    "title": "รับสินค้าโอนย้ายระหว่างคลัง",
+    "subtitle": "รับสินค้าที่จัดส่งจากการโอนย้ายระหว่างคลังและเพิ่มสต็อกให้คลังปลายทาง",
+    "newButton": "+ ใบรับสินค้าใหม่",
+    "selectWarehouseFirst": "เลือกคลังปลายทางก่อน",
+    "selectWarehouseHint": "เลือกคลังปลายทางด้านบนเพื่อดูและสร้างใบรับสินค้าโอนย้าย",
+    "filters": {
+      "searchPlaceholder": "ค้นหาใบรับสินค้า, เลขที่จัดส่ง, เลขที่คำสั่ง...",
+      "allStatus": "ทุกสถานะ",
+      "selectDestinationWarehouse": "เลือกคลังปลายทาง"
+    },
+    "table": {
+      "receiptNo": "เลขที่ใบรับสินค้า",
+      "shipmentNo": "เลขที่จัดส่ง",
+      "orderNo": "เลขที่คำสั่ง",
+      "transferReference": "เลขที่อ้างอิงการโอนย้าย",
+      "destinationWarehouse": "คลังปลายทาง",
+      "lotNo": "เลขที่ลอต",
+      "action": "การดำเนินการ"
+    },
+    "loadingReceipts": "กำลังโหลดใบรับสินค้าโอนย้าย…",
+    "noReceipts": "ไม่พบใบรับสินค้าโอนย้าย",
+    "lineStatus": {
+      "discrepancy": "พบความคลาดเคลื่อน"
+    },
+    "drawer": {
+      "newReceiptTitle": "ใบรับสินค้าโอนย้ายใหม่",
+      "detailTitle": "ใบรับสินค้าโอนย้าย",
+      "sourceShipment": "การจัดส่งต้นทาง",
+      "selectSourceShipment": "เลือกการจัดส่งโอนย้ายที่จัดส่งแล้ว",
+      "noSourceShipments": "ไม่มีการจัดส่งโอนย้ายที่จัดส่งแล้วรอรับสำหรับคลังนี้",
+      "itemCountSuffix": "{count} รายการ",
+      "createButton": "สร้างใบรับสินค้า",
+      "receivedAt": "เวลารับสินค้า",
+      "receivedBy": "ผู้รับสินค้า",
+      "cancelledAt": "เวลายกเลิก",
+      "cancelledBy": "ยกเลิกโดย",
+      "cancellationRemark": "หมายเหตุการยกเลิก",
+      "lines": "รายการรับสินค้า",
+      "dispatchedReceived": "รับแล้ว / จัดส่งแล้ว",
+      "discrepancy": "ความคลาดเคลื่อน",
+      "selectStagingLocation": "เลือกตำแหน่งพักสินค้า",
+      "quantityPlaceholder": "จำนวนที่รับ",
+      "closeShortLabel": "ปิดรายการนี้แบบขาด/เสียหาย (ไม่คาดว่าจะได้รับเพิ่ม)",
+      "discrepancyReasonPlaceholder": "เหตุผลของการขาดหรือเสียหาย",
+      "receiveButton": "รับสินค้า",
+      "confirmButton": "ยืนยันใบรับสินค้า",
+      "cancelButton": "ยกเลิกใบรับสินค้า",
+      "notReadyToConfirm": "ทุกรายการต้องรับครบหรือปิดด้วยความคลาดเคลื่อนก่อนยืนยัน"
+    },
+    "messages": {
+      "selectSourceRequired": "กรุณาเลือกการจัดส่งต้นทาง",
+      "locationRequired": "กรุณาเลือกตำแหน่งพักสินค้า",
+      "quantityRequired": "กรุณาระบุจำนวน",
+      "discrepancyReasonRequired": "ต้องระบุเหตุผลความคลาดเคลื่อนเพื่อปิดรายการแบบขาด",
+      "receiptCreated": "สร้างใบรับสินค้าโอนย้ายแล้ว",
+      "itemReceived": "รับสินค้าแล้ว",
+      "receiptConfirmed": "ยืนยันใบรับสินค้าโอนย้ายแล้ว",
+      "receiptCancelled": "ยกเลิกใบรับสินค้าโอนย้ายแล้ว",
+      "confirmCancelReceipt": "ใบรับสินค้าโอนย้ายนี้จะถูกยกเลิก ดำเนินการต่อหรือไม่?"
     }
   },
   "sortation": {
