@@ -10,6 +10,7 @@ import (
 
 	"wms-backend/internal/customer"
 	"wms-backend/internal/customerdeliverylocation"
+	"wms-backend/internal/inventory"
 	"wms-backend/internal/picking"
 	"wms-backend/internal/platform/dbctx"
 	"wms-backend/internal/product"
@@ -30,6 +31,22 @@ var (
 	ErrNotEditable       = errors.New("order: order can no longer be edited")
 	ErrNotCancellable    = errors.New("order: order is not in a cancellable status")
 	ErrNotReleasable     = errors.New("order: order is not in a status that can create a picking task")
+	// ErrNotPending (Phase 33A) is Service.Release's own status guard —
+	// Release only ever runs from PENDING (Status.CanRelease), the one
+	// and only transition into RELEASED. Also covers a genuine concurrent
+	// double-click (Repository.ClaimForRelease's own atomic guarded
+	// UPDATE affecting 0 rows), the same "status check, then an atomic
+	// claim as the real race-free guard" shape CreatePickingTask's own
+	// ErrNotReleasable already establishes.
+	ErrNotPending = errors.New("order: order is not in a status that can be released")
+	// ErrShortageApprovalRequired (Phase 33A) is returned by Service.
+	// Release when its own availability check finds at least one line
+	// short and the caller did not set ReleaseRequest.ApproveShortage —
+	// the "Controlled shortage approval" gate. The caller is expected to
+	// have already called GET /orders/{id}/availability (the same
+	// computation, exposed read-only) to learn which lines are short
+	// before deciding whether to retry with the override.
+	ErrShortageApprovalRequired = errors.New("order: availability shortage found; resubmit with approve_shortage to proceed")
 	// ErrCustomerNotFound/ErrShipToNotFound cover both "doesn't exist at
 	// all" and "belongs to a different tenant/customer" with the same
 	// 404 — never distinguishing the two, the same convention
@@ -113,12 +130,23 @@ type shippingReader interface {
 	FindByPickingTaskID(ctx context.Context, tenantID, pickingTaskID int64) (*shipping.Response, error)
 }
 
+// availabilityChecker is the narrow, read-only slice of internal/
+// inventory's own Service this package needs for the Review & Release
+// step (Phase 33A) — a single SELECT-backed query, never a reservation
+// or any other mutation. See inventory.Service.
+// AvailabilityByProductWarehouse's own doc.
+type availabilityChecker interface {
+	AvailabilityByProductWarehouse(ctx context.Context, tenantID, productID, warehouseID int64) (inventory.ProductAvailability, error)
+}
+
 // Service holds Order Management's business rules — a lightweight
 // orchestration layer that never mutates inventory or writes an
 // inventory_transactions row itself. CreatePickingTask is the one point
 // this package ever calls into another workflow package's Service, and
 // only ever picking.Service.CreateTx — never AddStock/RemoveStock/
-// MoveStock, and never a second reservation mechanism.
+// MoveStock, and never a second reservation mechanism. Phase 33A's own
+// Release/CheckAvailability add a read-only dependency on inventory
+// (availabilityChecker) but introduce no new mutation path.
 type Service struct {
 	repo       *Repository
 	products   productChecker
@@ -127,10 +155,11 @@ type Service struct {
 	shipTos    shipToChecker
 	picking    pickingOrchestrator
 	shipping   shippingReader
+	inventory  availabilityChecker
 }
 
-func NewService(repo *Repository, products productChecker, warehouses warehouseChecker, customers customerChecker, shipTos shipToChecker, pickingSvc pickingOrchestrator, shippingSvc shippingReader) *Service {
-	return &Service{repo: repo, products: products, warehouses: warehouses, customers: customers, shipTos: shipTos, picking: pickingSvc, shipping: shippingSvc}
+func NewService(repo *Repository, products productChecker, warehouses warehouseChecker, customers customerChecker, shipTos shipToChecker, pickingSvc pickingOrchestrator, shippingSvc shippingReader, inventorySvc availabilityChecker) *Service {
+	return &Service{repo: repo, products: products, warehouses: warehouses, customers: customers, shipTos: shipTos, picking: pickingSvc, shipping: shippingSvc, inventory: inventorySvc}
 }
 
 // applyCustomerShipTo validates and snapshots a Create/Update request's
@@ -240,7 +269,7 @@ func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) (
 	for _, row := range rows {
 		fulfillment := deriveFulfillmentStatus(Status(row.Status), pickingStatusPtr(row.PickingStatus), shipmentStatusPtr(row.ShipmentStatus))
 		responses = append(responses, ListResponse{
-			ID: row.ID, OrderNo: row.OrderNo, Customer: row.Customer, ExternalReference: row.ExternalReference,
+			ID: row.ID, OrderNo: row.OrderNo, OrderType: row.OrderType, Customer: row.Customer, ExternalReference: row.ExternalReference,
 			WarehouseCode: row.WarehouseCode, ItemCount: row.ItemCount,
 			Status: Status(row.Status), FulfillmentStatus: fulfillment, CreatedAt: row.CreatedAt,
 		})
@@ -291,18 +320,24 @@ func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error
 	}
 
 	return &Response{
-		ID: row.ID, OrderNo: row.OrderNo, Customer: row.Customer, ExternalReference: row.ExternalReference,
+		ID: row.ID, OrderNo: row.OrderNo, OrderType: row.OrderType, Priority: row.Priority,
+		Customer: row.Customer, ExternalReference: row.ExternalReference,
 		CustomerID: row.CustomerID, ShipToID: row.ShipToID,
 		ShipToName: row.ShipToName, ShipToAddress: row.ShipToAddress,
 		ShipToProvince: row.ShipToProvince, ShipToDistrict: row.ShipToDistrict,
 		ShipToPostalCode:    row.ShipToPostalCode,
 		ShipToContactPerson: row.ShipToContactPerson, ShipToContactPhone: row.ShipToContactPhone,
+		RequiredShippingDate: row.RequiredShippingDate, RequiredDeliveryDate: row.RequiredDeliveryDate,
+		Carrier: row.Carrier, ShippingMethod: row.ShippingMethod, DeliveryInstructions: row.DeliveryInstructions,
+		PreparedBy: row.PreparedBy, ApprovedBy: row.ApprovedBy,
 		WarehouseID: row.WarehouseID, WarehouseCode: row.WarehouseCode,
 		PickingTaskID: row.PickingTaskID, PickNo: row.PickNo,
 		Status:            Status(row.Status),
 		FulfillmentStatus: deriveFulfillmentStatus(Status(row.Status), pickingStatus, shipmentStatus),
 		Remark:            row.Remark,
-		CreatedBy:         row.CreatedBy, CreatedByName: row.CreatedByName,
+		ReleasedAt:        row.ReleasedAt, ReleasedBy: row.ReleasedBy, ReleasedByName: row.ReleasedByName,
+		ShortageApproved: row.ShortageApproved,
+		CreatedBy:        row.CreatedBy, CreatedByName: row.CreatedByName,
 		CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
 		CancelledAt: row.CancelledAt, CancelledBy: row.CancelledBy, CancelledByName: row.CancelledByName,
 		CancelRemark: row.CancelRemark,
@@ -341,9 +376,17 @@ func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest,
 	if _, err := s.warehouses.FindByID(ctx, req.WarehouseID); err != nil {
 		return nil, ErrWarehouseNotFound
 	}
+	orderType, priority, err := normalizeOrderTypeAndPriority(req.OrderType, req.Priority)
+	if err != nil {
+		return nil, err
+	}
 
 	o := &Order{
 		Customer: req.Customer, ExternalReference: req.ExternalReference,
+		OrderType: orderType, Priority: priority,
+		RequiredShippingDate: req.RequiredShippingDate, RequiredDeliveryDate: req.RequiredDeliveryDate,
+		Carrier: req.Carrier, ShippingMethod: req.ShippingMethod, DeliveryInstructions: req.DeliveryInstructions,
+		PreparedBy: req.PreparedBy, ApprovedBy: req.ApprovedBy,
 		WarehouseID: req.WarehouseID, Status: StatusPending, Remark: req.Remark, CreatedBy: &userID,
 	}
 	if err := s.applyCustomerShipTo(ctx, tenantID, o, req.CustomerID, req.ShipToID); err != nil {
@@ -358,7 +401,7 @@ func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest,
 
 	var orderID int64
 	start := time.Now()
-	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
+	err = s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
 		if err := txRepo.CreateOrder(ctx, tenantID, o); err != nil {
 			if isUniqueViolation(err) {
 				return ErrDuplicateExternalReference
@@ -396,7 +439,43 @@ func (s *Service) createItem(ctx context.Context, tenantID int64, txRepo *Reposi
 	if uom == "" {
 		uom = string(p.BaseUOM)
 	}
-	return txRepo.CreateItem(ctx, tenantID, &Item{OrderID: orderID, ProductID: req.ProductID, OrderedQty: req.OrderedQty, UOM: uom})
+	// FEFOPreferred (Phase 33A) defaults to true (the same default
+	// migrations/0080's own DF_order_items_fefo_preferred applies at the
+	// column level) when the caller omits it entirely.
+	fefo := true
+	if req.FEFOPreferred != nil {
+		fefo = *req.FEFOPreferred
+	}
+	return txRepo.CreateItem(ctx, tenantID, &Item{
+		OrderID: orderID, ProductID: req.ProductID, OrderedQty: req.OrderedQty, UOM: uom,
+		PreferredLotNo: req.PreferredLotNo, FEFOPreferred: fefo, LineNotes: req.LineNotes,
+	})
+}
+
+// normalizeOrderTypeAndPriority defaults and validates Create/Update's
+// own order_type/priority — extracted as its own pure function so the
+// validation rules are unit-testable without a database, the same
+// "extract the pure part" precedent dto.go's deriveFulfillmentStatus doc
+// describes. Empty input defaults to SALES_ORDER/NORMAL; any non-empty
+// value must still be one of the CK_orders_order_type/CK_orders_priority
+// vocabularies — the database CHECK constraints would also refuse an
+// invalid value, but this gives a specific 422 instead of a raw
+// constraint-violation message, the same reasoning every other
+// service-layer IsValid() check in this codebase already follows.
+func normalizeOrderTypeAndPriority(orderType, priority string) (string, string, error) {
+	if orderType == "" {
+		orderType = "SALES_ORDER"
+	}
+	if orderType != "SALES_ORDER" && orderType != "INTERNAL_TRANSFER" {
+		return "", "", ErrValidation{Message: "order_type must be SALES_ORDER or INTERNAL_TRANSFER"}
+	}
+	if priority == "" {
+		priority = "NORMAL"
+	}
+	if priority != "LOW" && priority != "NORMAL" && priority != "HIGH" {
+		return "", "", ErrValidation{Message: "priority must be LOW, NORMAL, or HIGH"}
+	}
+	return orderType, priority, nil
 }
 
 // Update replaces the header fields and every line at once — full-
@@ -409,12 +488,16 @@ func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequ
 	if _, err := s.warehouses.FindByID(ctx, req.WarehouseID); err != nil {
 		return nil, ErrWarehouseNotFound
 	}
+	orderType, priority, err := normalizeOrderTypeAndPriority(req.OrderType, req.Priority)
+	if err != nil {
+		return nil, err
+	}
 
 	ctx, cancel := dbctx.Detach(ctx)
 	defer cancel()
 
 	start := time.Now()
-	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
+	err = s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
 		o, err := txRepo.FindByID(ctx, tenantID, id)
 		if err != nil {
 			return err
@@ -425,6 +508,15 @@ func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequ
 
 		o.Customer = req.Customer
 		o.ExternalReference = req.ExternalReference
+		o.OrderType = orderType
+		o.Priority = priority
+		o.RequiredShippingDate = req.RequiredShippingDate
+		o.RequiredDeliveryDate = req.RequiredDeliveryDate
+		o.Carrier = req.Carrier
+		o.ShippingMethod = req.ShippingMethod
+		o.DeliveryInstructions = req.DeliveryInstructions
+		o.PreparedBy = req.PreparedBy
+		o.ApprovedBy = req.ApprovedBy
 		o.WarehouseID = req.WarehouseID
 		o.Remark = req.Remark
 		if err := s.applyCustomerShipTo(ctx, tenantID, o, req.CustomerID, req.ShipToID); err != nil {
@@ -448,6 +540,127 @@ func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequ
 		return nil
 	})
 	dbctx.LogTransaction(ctx, "order.update", start, err)
+	if err != nil {
+		return nil, err
+	}
+	return s.Get(ctx, tenantID, id)
+}
+
+// CheckAvailability is the Review & Release screen's own read-only
+// preview (GET /orders/{id}/availability) — exactly the same
+// computation Release itself runs before deciding whether a PENDING ->
+// RELEASED transition may proceed, exposed separately so the frontend
+// can show the shortage table BEFORE the caller commits to a decision.
+// Never reserves or mutates inventory: only inventory.Service.
+// AvailabilityByProductWarehouse (a single SELECT) is called, once per
+// line. Callable at any order status — a stale/already-RELEASED order's
+// availability is still a meaningful, harmless thing to look at.
+func (s *Service) CheckAvailability(ctx context.Context, tenantID, id int64) (*AvailabilityCheckResponse, error) {
+	order, err := s.repo.FindByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.repo.FindItemsDetail(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.checkAvailability(ctx, tenantID, order, items)
+}
+
+// checkAvailability is CheckAvailability's/Release's shared core. A
+// line is short when OrderedQty exceeds the warehouse-wide AvailableQty
+// inventory.Service reports for that product — see inventory.Service.
+// AvailabilityByProductWarehouse's own doc for why this is a warehouse
+// total, not a specific location/lot (an order line is location-
+// agnostic until CreatePickingTask).
+func (s *Service) checkAvailability(ctx context.Context, tenantID int64, order *Order, items []ItemResponse) (*AvailabilityCheckResponse, error) {
+	resp := &AvailabilityCheckResponse{OrderID: order.ID}
+	for _, it := range items {
+		avail, err := s.inventory.AvailabilityByProductWarehouse(ctx, tenantID, it.ProductID, order.WarehouseID)
+		if err != nil {
+			return nil, err
+		}
+		shortfall := it.OrderedQty - avail.AvailableQty
+		hasShortage := shortfall > 0
+		if !hasShortage {
+			shortfall = 0
+		} else {
+			resp.HasShortage = true
+		}
+		resp.Lines = append(resp.Lines, AvailabilityLine{
+			OrderItemID: it.ID, ProductID: it.ProductID, SKU: it.SKU, ProductName: it.ProductName,
+			OrderedQty: it.OrderedQty, AvailableQty: avail.AvailableQty, ReservedQty: avail.ReservedQty, OnHandQty: avail.OnHandQty,
+			HasShortage: hasShortage, ShortfallQty: shortfall,
+		})
+	}
+	return resp, nil
+}
+
+// Release is the new Review & Release step (Phase 33A, POST /orders/
+// {id}/release): PENDING -> RELEASED, gated on the SAME availability
+// check CheckAvailability exposes read-only. If any line is short and
+// the caller did not set ReleaseRequest.ApproveShortage, this returns
+// ErrShortageApprovalRequired and leaves the order untouched — the
+// "Controlled shortage approval" override requires both this explicit
+// flag AND order.confirm (enforced by the route, not by this method),
+// never one alone. Writes shortage_flag/shortfall_qty onto every line
+// (even when there is no shortage at all — a line with no shortage is
+// written back as false/NULL, overwriting whatever a PRIOR Release
+// attempt may have stamped, though CanRelease means this only ever runs
+// once per order in practice). Still never calls into internal/picking
+// or reserves anything itself — that remains CreatePickingTask's own,
+// unchanged responsibility, now simply gated on RELEASED instead of
+// PENDING directly (see Status.CanCreatePickingTask's own doc).
+func (s *Service) Release(ctx context.Context, tenantID, id int64, req ReleaseRequest, userID int64) (*Response, error) {
+	order, err := s.repo.FindByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if !order.Status.CanRelease() {
+		return nil, ErrNotPending
+	}
+
+	items, err := s.repo.FindItemsDetail(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	if len(items) == 0 {
+		return nil, ErrValidation{Message: "order has no items"}
+	}
+
+	avail, err := s.checkAvailability(ctx, tenantID, order, items)
+	if err != nil {
+		return nil, err
+	}
+	if avail.HasShortage && !req.ApproveShortage {
+		return nil, ErrShortageApprovalRequired
+	}
+
+	ctx, cancel := dbctx.Detach(ctx)
+	defer cancel()
+
+	start := time.Now()
+	err = s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
+		rows, err := txRepo.ClaimForRelease(ctx, tenantID, id, userID, avail.HasShortage)
+		if err != nil {
+			return err
+		}
+		if rows == 0 {
+			// Covers "already RELEASED/PICKING/CANCELLED" (a prior call
+			// already succeeded, or is racing this one) and a cross-tenant
+			// orderID, the same uniform-409 reasoning ClaimForPickingTask's
+			// own doc gives.
+			return ErrNotPending
+		}
+		for _, line := range avail.Lines {
+			shortfall := line.ShortfallQty
+			if err := txRepo.UpdateItemShortage(ctx, tenantID, line.OrderItemID, line.HasShortage, shortfall); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	dbctx.LogTransaction(ctx, "order.release", start, err)
 	if err != nil {
 		return nil, err
 	}

@@ -472,3 +472,44 @@ func (r *Repository) CountByLocation(ctx context.Context, tenantID, locationID i
 		Count(&count).Error
 	return count, err
 }
+
+// availabilityRow is AvailabilityByProductWarehouse's scan target.
+type availabilityRow struct {
+	OnHandQty    float64
+	ReservedQty  float64
+	HoldQty      float64
+	AvailableQty float64
+}
+
+// AvailabilityByProductWarehouse sums every (location, lot) balance row
+// for productID across every location belonging to warehouseID — added
+// in Phase 33A so internal/order's new Review & Release step can show a
+// pure, read-only "how much of this SKU can this warehouse actually
+// fulfill right now" figure without reserving or mutating anything.
+// Deliberately warehouse-wide, not per-location/lot: an order line is
+// location-agnostic (see order.Item's own doc) until CreatePickingTask
+// picks a specific location/lot, so the figure that matters here is the
+// warehouse's own total available balance, the same aggregation
+// Summary's own SUM already uses, just scoped to one product and one
+// warehouse instead of the whole tenant. Returns all-zero (never
+// ErrNotFound) when no balance row exists at all for this
+// (tenant, product, warehouse) — "zero stock" is a valid, common
+// answer, not an error.
+func (r *Repository) AvailabilityByProductWarehouse(ctx context.Context, tenantID, productID, warehouseID int64) (float64, float64, float64, float64, error) {
+	var row availabilityRow
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT
+			COALESCE(SUM(inv.quantity), 0) AS on_hand_qty,
+			COALESCE(SUM(inv.reserved_quantity), 0) AS reserved_qty,
+			COALESCE(SUM(inv.hold_quantity), 0) AS hold_qty,
+			COALESCE(SUM(inv.quantity - inv.reserved_quantity - inv.hold_quantity), 0) AS available_qty
+		FROM inventory inv
+		JOIN locations l ON l.id = inv.location_id
+		JOIN zones z ON z.id = l.zone_id
+		WHERE inv.tenant_id = ? AND inv.product_id = ? AND z.warehouse_id = ?
+	`, tenantID, productID, warehouseID).Scan(&row).Error
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+	return row.AvailableQty, row.ReservedQty, row.HoldQty, row.OnHandQty, nil
+}

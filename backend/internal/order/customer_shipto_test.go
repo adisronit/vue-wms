@@ -334,6 +334,7 @@ func TestCreatePickingTask_PropagatesShipToSnapshot(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
+	releaseOrder(t, svc, a.tenantID, order.ID, false)
 	released, err := svc.CreatePickingTask(context.Background(), a.tenantID, order.ID, CreatePickingTaskRequest{
 		Items: []LocationAssignment{{OrderItemID: order.Items[0].ID, LocationID: a.locationID, LotNo: "LOT-A"}},
 	}, 1)

@@ -21,13 +21,15 @@ func writeTenantUnauthorized(c *gin.Context) {
 	apihttp.Fail(c, http.StatusUnauthorized, "tenant context required", "UNAUTHORIZED")
 }
 
-// Handler exposes Service over HTTP.
+// Handler exposes Service (and, for the Order document, PDFService)
+// over HTTP.
 type Handler struct {
 	service *Service
+	pdf     *PDFService
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, pdf *PDFService) *Handler {
+	return &Handler{service: service, pdf: pdf}
 }
 
 // Register mounts the Order Management endpoints on rg, using Phase 25's
@@ -50,8 +52,19 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChec
 	)
 	group.GET("", middleware.RequirePermission("order.view"), h.List)
 	group.GET("/:id", middleware.RequirePermission("order.view"), h.Get)
+	group.GET("/:id/availability", middleware.RequirePermission("order.view"), h.CheckAvailability)
+	group.GET("/:id/pdf", middleware.RequirePermission("order.view"), h.OrderDocument)
 	group.POST("", middleware.RequirePermission("order.create"), h.Create)
 	group.PUT("/:id", middleware.RequirePermission("order.update"), h.Update)
+	// Release (Phase 33A) gates CreatePickingTask — see Status.CanRelease/
+	// CanCreatePickingTask's own docs — and sits on the new order.confirm
+	// permission, the same confirm/approve split receiving.confirm/
+	// quality_check.confirm/putaway.confirm/relocation.confirm already
+	// established: ordinary order staff can confirm/release their own
+	// orders without also holding the separate, supervisor-level
+	// order.approve (reserved for Cancel, its pre-existing authority
+	// level).
+	group.POST("/:id/release", middleware.RequirePermission("order.confirm"), h.Release)
 	group.POST("/:id/create-picking-task", middleware.RequirePermission("order.update"), h.CreatePickingTask)
 	group.POST("/:id/cancel", middleware.RequirePermission("order.approve"), h.Cancel)
 }
@@ -231,6 +244,138 @@ func (h *Handler) Update(c *gin.Context) {
 	writeError(c, err)
 }
 
+// CheckAvailability godoc
+//
+//	@Summary		Check live inventory availability for an order's lines
+//	@Description	Read-only — the same computation Service.Release itself runs before deciding whether PENDING -> RELEASED may proceed, exposed separately so the Review & Release screen can show the shortage table before the caller commits to a decision. Never reserves or mutates inventory.
+//	@Tags			Orders
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		int	true	"Order ID"
+//	@Success		200	{object}	apihttp.SuccessResponse{data=AvailabilityCheckResponse}
+//	@Failure		401	{object}	apihttp.ErrorResponse
+//	@Failure		403	{object}	apihttp.ErrorResponse
+//	@Failure		404	{object}	apihttp.ErrorResponse
+//	@Router			/orders/{id}/availability [get]
+func (h *Handler) CheckAvailability(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid order id", "INVALID_REQUEST")
+		return
+	}
+	resp, err := h.service.CheckAvailability(c.Request.Context(), tenantID, id)
+	if err == nil {
+		apihttp.OK(c, resp, "")
+		return
+	}
+	writeError(c, err)
+}
+
+// Release godoc
+//
+//	@Summary		Review & Release an order (PENDING -> RELEASED)
+//	@Description	Runs the same availability check as GET /orders/{id}/availability. If any line is short, this is rejected with 422 unless approve_shortage is set — the "Controlled shortage approval" override; the caller must also hold order.confirm (enforced by this route). Never reserves or mutates inventory itself — CreatePickingTask (gated on RELEASED) remains the only orchestration call into internal/picking.
+//	@Tags			Orders
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int				true	"Order ID"
+//	@Param			request	body		ReleaseRequest	false	"Shortage approval override"
+//	@Success		200		{object}	apihttp.SuccessResponse{data=Response}
+//	@Failure		400		{object}	apihttp.ErrorResponse
+//	@Failure		401		{object}	apihttp.ErrorResponse
+//	@Failure		403		{object}	apihttp.ErrorResponse
+//	@Failure		404		{object}	apihttp.ErrorResponse
+//	@Failure		409		{object}	apihttp.ErrorResponse	"order is not in a status that can be released"
+//	@Failure		422		{object}	apihttp.ErrorResponse	"availability shortage found; resubmit with approve_shortage"
+//	@Router			/orders/{id}/release [post]
+func (h *Handler) Release(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid order id", "INVALID_REQUEST")
+		return
+	}
+	var req ReleaseRequest
+	if c.Request.ContentLength != 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			apihttp.Fail(c, http.StatusBadRequest, "invalid request body", "INVALID_REQUEST")
+			return
+		}
+	}
+	userID, _ := middleware.CurrentUserID(c)
+	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
+
+	resp, err := h.service.Release(ctx, tenantID, id, req, userID)
+	if err == nil {
+		apihttp.OK(c, resp, "order released")
+		return
+	}
+	writeError(c, err)
+}
+
+// servePDF writes data as a PDF response — inline by default (a "View
+// PDF" button can open it in a new tab without forcing a save dialog),
+// attachment when ?download=true, matching internal/relocation's own
+// servePDF helper exactly.
+func servePDF(c *gin.Context, data []byte, filename string) {
+	disposition := "inline"
+	if c.Query("download") == "true" {
+		disposition = "attachment"
+	}
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", disposition+"; filename=\""+filename+"\"")
+	c.Data(http.StatusOK, "application/pdf", data)
+}
+
+// OrderDocument godoc
+//
+//	@Summary		Download the Order document PDF
+//	@Description	Header plus its lines and status — synchronous, read-only — never mutates anything, so printing/reprinting is always safe. Gated on order.view.
+//	@Tags			Orders
+//	@Produce		application/pdf
+//	@Security		BearerAuth
+//	@Param			id			path	int		true	"Order ID"
+//	@Param			download	query	boolean	false	"true for a download, omitted for inline viewing"
+//	@Success		200			{file}	file
+//	@Failure		401			{object}	apihttp.ErrorResponse
+//	@Failure		403			{object}	apihttp.ErrorResponse
+//	@Failure		404			{object}	apihttp.ErrorResponse
+//	@Router			/orders/{id}/pdf [get]
+func (h *Handler) OrderDocument(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	userID, _ := middleware.CurrentUserID(c)
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid order id", "INVALID_REQUEST")
+		return
+	}
+
+	data, filename, err := h.pdf.RenderOrderDocument(c.Request.Context(), tenantID, userID, id)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			apihttp.Fail(c, http.StatusNotFound, "order not found", "NOT_FOUND")
+			return
+		}
+		apihttp.Fail(c, http.StatusInternalServerError, "failed to render order document", "INTERNAL_ERROR")
+		return
+	}
+	servePDF(c, data, filename)
+}
+
 // CreatePickingTask godoc
 //
 //	@Summary		Create a picking task from this order
@@ -351,6 +496,10 @@ func writeError(c *gin.Context, err error) {
 		apihttp.Fail(c, http.StatusConflict, "order is not in a cancellable status", "NOT_CANCELLABLE")
 	case errors.Is(err, ErrNotReleasable):
 		apihttp.Fail(c, http.StatusConflict, "order is not in a status that can create a picking task", "NOT_RELEASABLE")
+	case errors.Is(err, ErrNotPending):
+		apihttp.Fail(c, http.StatusConflict, "order is not in a status that can be released", "NOT_PENDING")
+	case errors.Is(err, ErrShortageApprovalRequired):
+		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "SHORTAGE_APPROVAL_REQUIRED")
 	case errors.Is(err, picking.ErrCrossWarehouse):
 		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "CROSS_WAREHOUSE")
 	case errors.Is(err, picking.ErrNoSourceStock):

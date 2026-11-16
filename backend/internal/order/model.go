@@ -11,43 +11,66 @@ package order
 
 import "time"
 
-// Status is the order's own explicit state machine — deliberately
-// narrow (3 states, only ever set by Order's own 3 actions). The
+// Status is the order's own explicit state machine. Phase 33A inserts
+// RELEASED between PENDING and PICKING: PENDING -> RELEASED (Service.
+// Release, the new Review & Release step: a read-only availability
+// check, gated on order.confirm, optionally overridden with a
+// "controlled shortage approval") -> PICKING (the existing
+// CreatePickingTask orchestration, now gated on RELEASED instead of
+// PENDING directly — see CanCreatePickingTask below) -> CANCELLED. The
 // richer PICKED/SHIPPING/DELIVERED states a real order lifecycle needs
-// are NOT stored here — see dto.go's FulfillmentStatus doc for why.
+// are still NOT stored here — see dto.go's FulfillmentStatus doc for
+// why.
 type Status string
 
 const (
 	StatusPending   Status = "PENDING"
+	StatusReleased  Status = "RELEASED"
 	StatusPicking   Status = "PICKING"
 	StatusCancelled Status = "CANCELLED"
 )
 
-// CanCreatePickingTask reports whether CreatePickingTask may run —
-// only ever the first and only orchestration call for this order
-// (picking_task_id is UNIQUE; a second call would violate it anyway,
-// but this status check gives a clean 409 instead of a raw constraint
-// error).
-func (s Status) CanCreatePickingTask() bool {
+// CanRelease reports whether Service.Release may run — only from
+// PENDING, the one and only transition into RELEASED. A second Release
+// call (already RELEASED/PICKING) is rejected with a clean 409 rather
+// than silently re-running the availability check and re-stamping
+// released_at/released_by.
+func (s Status) CanRelease() bool {
 	return s == StatusPending
 }
 
-// CanCancel reports whether Cancel may run — only before a picking
-// task has ever been created for this order. Once orchestration has
-// happened, cancelling the underlying picking task (via
-// internal/picking's own Cancel, which already releases its own
+// CanCreatePickingTask reports whether CreatePickingTask may run — only
+// once RELEASED (Service.Release has already run its availability check
+// and, if needed, recorded a controlled shortage approval). Phase 33A
+// moves this off PENDING directly: Release is now the one and only gate
+// in front of this orchestration call, never bypassable by going
+// straight from PENDING. picking_task_id is still UNIQUE, so a second
+// call would fail that constraint anyway, but this status check gives a
+// clean 409 instead of a raw constraint error — unchanged reasoning from
+// before Phase 33A, just evaluated against RELEASED now.
+func (s Status) CanCreatePickingTask() bool {
+	return s == StatusReleased
+}
+
+// CanCancel reports whether Cancel may run — before a picking task has
+// ever been created for this order, i.e. PENDING or RELEASED. Once
+// orchestration has happened, cancelling the underlying picking task
+// (via internal/picking's own Cancel, which already releases its own
 // reservation) is the correct action, not a second, competing cancel
 // path here.
 func (s Status) CanCancel() bool {
-	return s == StatusPending
+	return s == StatusPending || s == StatusReleased
 }
 
-// CanUpdate reports whether header/items may still be edited — same
-// condition as CanCreatePickingTask/CanCancel (only before a picking
-// task has ever been created), kept as its own named predicate so a
-// future business rule could diverge it without disturbing the other
-// two — the same reasoning internal/picking's own CanCancel doc gives
-// for not just reusing CanConfirm.
+// CanUpdate reports whether header/items may still be edited — only
+// PENDING, strictly narrower than CanCancel now: once Service.Release
+// has run (RELEASED), the header/lines a shortage decision was made
+// against must stay frozen — editing them after the fact would make
+// released_at/shortage_approved describe lines that no longer exist.
+// An order that needs changes after Release must be Cancelled and
+// recreated, the same "frozen once committed to its next real step"
+// precedent CanCreatePickingTask's own pre-33A PENDING-only gate already
+// established.
 func (s Status) CanUpdate() bool {
 	return s == StatusPending
 }
@@ -68,26 +91,47 @@ type Order struct {
 	// doc. Never re-synced if the source delivery location is edited
 	// afterward: an order's delivery details are frozen the moment the
 	// order itself was placed/edited, not a live view onto the master.
-	CustomerID          *int64     `gorm:"column:customer_id"`
-	ShipToID            *int64     `gorm:"column:ship_to_id"`
-	ShipToName          *string    `gorm:"column:ship_to_name"`
-	ShipToAddress       *string    `gorm:"column:ship_to_address"`
-	ShipToProvince      *string    `gorm:"column:ship_to_province"`
-	ShipToDistrict      *string    `gorm:"column:ship_to_district"`
-	ShipToPostalCode    *string    `gorm:"column:ship_to_postal_code"`
-	ShipToContactPerson *string    `gorm:"column:ship_to_contact_person"`
-	ShipToContactPhone  *string    `gorm:"column:ship_to_contact_phone"`
-	ExternalReference   *string    `gorm:"column:external_reference"`
-	WarehouseID         int64      `gorm:"column:warehouse_id"`
-	PickingTaskID       *int64     `gorm:"column:picking_task_id"`
-	Status              Status     `gorm:"column:status"`
-	Remark              *string    `gorm:"column:remark"`
-	CreatedBy           *int64     `gorm:"column:created_by"`
-	CreatedAt           time.Time  `gorm:"column:created_at"`
-	UpdatedAt           time.Time  `gorm:"column:updated_at"`
-	CancelledAt         *time.Time `gorm:"column:cancelled_at"`
-	CancelledBy         *int64     `gorm:"column:cancelled_by"`
-	CancelRemark        *string    `gorm:"column:cancel_remark"`
+	CustomerID          *int64  `gorm:"column:customer_id"`
+	ShipToID            *int64  `gorm:"column:ship_to_id"`
+	ShipToName          *string `gorm:"column:ship_to_name"`
+	ShipToAddress       *string `gorm:"column:ship_to_address"`
+	ShipToProvince      *string `gorm:"column:ship_to_province"`
+	ShipToDistrict      *string `gorm:"column:ship_to_district"`
+	ShipToPostalCode    *string `gorm:"column:ship_to_postal_code"`
+	ShipToContactPerson *string `gorm:"column:ship_to_contact_person"`
+	ShipToContactPhone  *string `gorm:"column:ship_to_contact_phone"`
+	ExternalReference   *string `gorm:"column:external_reference"`
+	WarehouseID         int64   `gorm:"column:warehouse_id"`
+	PickingTaskID       *int64  `gorm:"column:picking_task_id"`
+	Status              Status  `gorm:"column:status"`
+	Remark              *string `gorm:"column:remark"`
+	// OrderType (migrations/0079, Phase 33A) defaults to SALES_ORDER.
+	// INTERNAL_TRANSFER is also a valid value (CK_orders_order_type) so
+	// Phase 33E can reuse this same column later — nothing in this
+	// package's own Service builds any transfer-specific behavior around
+	// it yet (CLAUDE.md's own "do not build transfer logic now"
+	// instruction).
+	OrderType            string     `gorm:"column:order_type"`
+	Priority             string     `gorm:"column:priority"`
+	RequiredShippingDate *time.Time `gorm:"column:required_shipping_date"`
+	RequiredDeliveryDate *time.Time `gorm:"column:required_delivery_date"`
+	Carrier              *string    `gorm:"column:carrier"`
+	ShippingMethod       *string    `gorm:"column:shipping_method"`
+	DeliveryInstructions *string    `gorm:"column:delivery_instructions"`
+	PreparedBy           *string    `gorm:"column:prepared_by"`
+	ApprovedBy           *string    `gorm:"column:approved_by"`
+	// ReleasedAt/ReleasedBy/ShortageApproved (migrations/0079) are
+	// Service.Release's own write — see Status.CanRelease's doc and
+	// Release's own doc for the full Review & Release step.
+	ReleasedAt       *time.Time `gorm:"column:released_at"`
+	ReleasedBy       *int64     `gorm:"column:released_by"`
+	ShortageApproved bool       `gorm:"column:shortage_approved"`
+	CreatedBy        *int64     `gorm:"column:created_by"`
+	CreatedAt        time.Time  `gorm:"column:created_at"`
+	UpdatedAt        time.Time  `gorm:"column:updated_at"`
+	CancelledAt      *time.Time `gorm:"column:cancelled_at"`
+	CancelledBy      *int64     `gorm:"column:cancelled_by"`
+	CancelRemark     *string    `gorm:"column:cancel_remark"`
 }
 
 func (Order) TableName() string { return "orders" }
@@ -104,6 +148,18 @@ type Item struct {
 	ProductID  int64   `gorm:"column:product_id"`
 	OrderedQty float64 `gorm:"column:ordered_qty"`
 	UOM        string  `gorm:"column:uom"`
+	// PreferredLotNo/FEFOPreferred (migrations/0080, Phase 33A) are a
+	// picker HINT only — surfaced to whoever later fills in
+	// CreatePickingTaskRequest's own LocationAssignment.LotNo, never
+	// consulted by any inventory call Order itself makes. See
+	// migrations/0080's own doc.
+	PreferredLotNo *string `gorm:"column:preferred_lot_no"`
+	FEFOPreferred  bool    `gorm:"column:fefo_preferred"`
+	// ShortageFlag/ShortfallQty are written once, by Service.Release's
+	// own availability check — never by Create/Update.
+	ShortageFlag bool     `gorm:"column:shortage_flag"`
+	ShortfallQty *float64 `gorm:"column:shortfall_qty"`
+	LineNotes    *string  `gorm:"column:line_notes"`
 }
 
 func (Item) TableName() string { return "order_items" }
@@ -117,4 +173,15 @@ func (o *Order) applyCancel(userID int64, remark string, now time.Time) {
 	if remark != "" {
 		o.CancelRemark = &remark
 	}
+}
+
+// applyRelease populates the Review & Release audit columns and
+// transitions the header into RELEASED — called only after
+// Service.Release's own availability check has already decided this may
+// proceed (no shortage, or an explicit, order.confirm-gated override).
+func (o *Order) applyRelease(userID int64, shortageApproved bool, now time.Time) {
+	o.Status = StatusReleased
+	o.ReleasedAt = &now
+	o.ReleasedBy = &userID
+	o.ShortageApproved = shortageApproved
 }
