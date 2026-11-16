@@ -60,6 +60,9 @@
       <router-link to="/outbound/shipping" class="menu-item" active-class="menu-active">
         {{ $t('nav.shipping') }}
       </router-link>
+      <router-link v-if="canViewLoading" to="/outbound/loading" class="menu-item" active-class="menu-active">
+        {{ $t('nav.loading') }}
+      </router-link>
 
       <template v-if="canViewWarehouses || canViewProducts || canViewProductCategories || canViewCustomers || canViewSuppliers || canViewBrands || canViewProductFamilies">
         <p class="menu-title">{{ $t('nav.sectionMasterData') }}</p>
@@ -141,6 +144,7 @@ export default {
     canViewReplenishment: { type: Boolean, default: false },
     canViewRelocation: { type: Boolean, default: false },
     canViewPacking: { type: Boolean, default: false },
+    canViewLoading: { type: Boolean, default: false },
     canViewPickingBatches: { type: Boolean, default: false },
     canViewPlatformAdmin: { type: Boolean, default: false }
   },

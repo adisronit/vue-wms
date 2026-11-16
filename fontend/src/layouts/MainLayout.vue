@@ -13,6 +13,7 @@
       :can-view-replenishment="canViewReplenishment"
       :can-view-relocation="canViewRelocation"
       :can-view-packing="canViewPacking"
+      :can-view-loading="canViewLoading"
       :can-view-picking-batches="canViewPickingBatches"
       :can-view-platform-admin="canViewPlatformAdmin"
       @logout="logout"
@@ -164,6 +165,9 @@ export default {
     },
     canViewPacking() {
       return hasPermission('packing.view')
+    },
+    canViewLoading() {
+      return hasPermission('loading.view')
     },
     canViewPickingBatches() {
       return hasPermission('picking_batch.view')

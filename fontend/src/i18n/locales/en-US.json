@@ -102,6 +102,7 @@
     "pickingBatches": "Batch Picking",
     "packing": "Packing",
     "shipping": "Shipping",
+    "loading": "Loading",
     "sectionAdministration": "Administration",
     "userManagement": "User Management",
     "roles": "Roles & Permissions",
@@ -886,6 +887,104 @@
       "issueReported": "Shipping issue has been reported",
       "shipmentCancelled": "Shipment cancelled",
       "confirmCancelShipment": "This shipment will be cancelled and cannot be resumed. Continue?"
+    }
+  },
+  "loading": {
+    "title": "Loading",
+    "subtitle": "Plan vehicle loading trips, scan cartons as they are loaded, and confirm before dispatch",
+    "newTripButton": "+ New Loading Trip",
+    "summary": {
+      "planned": "Planned",
+      "loading": "Loading",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "filters": {
+      "searchPlaceholder": "Search Trip No., Vehicle No., Driver...",
+      "allStatus": "All Status"
+    },
+    "statusLabels": {
+      "planned": "Planned",
+      "loading": "Loading"
+    },
+    "table": {
+      "tripNo": "Trip No.",
+      "vehicleNo": "Vehicle No.",
+      "driver": "Driver",
+      "shipments": "Shipments",
+      "progress": "Progress",
+      "scheduled": "Scheduled"
+    },
+    "loadingTrips": "Loading trips…",
+    "noTrips": "No loading trips found",
+    "messages": {
+      "loadFailed": "Failed to load loading trips"
+    },
+    "create": {
+      "title": "New Loading Trip",
+      "vehicleNoPlaceholder": "Vehicle No.",
+      "driverNamePlaceholder": "Driver Name",
+      "carrierPlaceholder": "Select carrier...",
+      "dockPlaceholder": "Loading Dock",
+      "routePlaceholder": "Route / Destination",
+      "sealPlaceholder": "Vehicle Seal No.",
+      "remarkPlaceholder": "Remark (optional)",
+      "creating": "Creating...",
+      "createButton": "Create",
+      "createFailed": "Failed to create loading trip"
+    },
+    "detail": {
+      "subtitle": "Assign shipments, scan cartons as loaded, and confirm before dispatch",
+      "infoTitle": "Trip Information",
+      "shortSuffix": "short",
+      "carrierLabel": "Carrier",
+      "dockLabel": "Loading Dock",
+      "routeLabel": "Route",
+      "startedAtLabel": "Loading Started",
+      "endedAtLabel": "Loading Ended",
+      "sealLabel": "Vehicle Seal",
+      "shipmentsTitle": "Assigned Shipments",
+      "assignShipmentLabel": "Assign Shipment",
+      "selectShipment": "Select a shipment...",
+      "assignButton": "Assign",
+      "noShipments": "No shipments assigned yet",
+      "cartonsSuffix": "cartons",
+      "cartonsTitle": "Carton Worklist",
+      "scanTitle": "Scan to Load",
+      "scanPlaceholder": "Scan/enter carton LPN",
+      "scanning": "Scanning...",
+      "scanButton": "Scan Loaded",
+      "shortButton": "Flag Short",
+      "shortReasonPlaceholder": "Select reason...",
+      "shortRemarkPlaceholder": "Remark (optional)",
+      "submitShortButton": "Submit",
+      "lpnLabel": "LPN",
+      "detailLabel": "Detail",
+      "finishTitle": "Confirm Trip",
+      "confirmTripButton": "Confirm Trip (Complete Loading)",
+      "cancelTripButton": "Cancel Trip",
+      "confirmNote": "Every planned carton must be scanned loaded or flagged short before the trip can be confirmed.",
+      "plannedNote": "Scan at least one carton to begin loading.",
+      "cancelConfirmMessage": "This loading trip will be cancelled. Assigned shipments remain not-loaded and may be assigned to a new trip. Continue?",
+      "assignSuccess": "Shipment assigned to trip",
+      "assignFailed": "Failed to assign shipment",
+      "scanSuccess": "Carton scanned loaded",
+      "scanFailed": "Failed to scan carton",
+      "shortSuccess": "Carton flagged short",
+      "shortFailed": "Failed to flag carton short",
+      "confirmSuccess": "Loading trip completed — shipments are now ready to dispatch",
+      "confirmFailed": "Failed to confirm loading trip",
+      "cancelSuccess": "Loading trip cancelled"
+    },
+    "cartonStatus": {
+      "planned": "Planned",
+      "loaded": "Loaded",
+      "short": "Short"
+    },
+    "shortReason": {
+      "damaged": "Damaged",
+      "missing": "Missing",
+      "other": "Other"
     }
   },
   "qualityCheck": {
