@@ -111,6 +111,11 @@ func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error
 	}
 	return &Response{
 		ID: header.ID, PickNo: header.PickNo, OrderNo: header.OrderNo, Customer: header.Customer,
+		CustomerID: header.CustomerID, ShipToID: header.ShipToID,
+		ShipToName: header.ShipToName, ShipToAddress: header.ShipToAddress,
+		ShipToProvince: header.ShipToProvince, ShipToDistrict: header.ShipToDistrict,
+		ShipToPostalCode:    header.ShipToPostalCode,
+		ShipToContactPerson: header.ShipToContactPerson, ShipToContactPhone: header.ShipToContactPhone,
 		WarehouseID: header.WarehouseID, WarehouseCode: header.WarehouseCode,
 		Status: Status(header.Status), Priority: Priority(header.Priority), DueDate: header.DueDate,
 		Remark: header.Remark, CreatedAt: header.CreatedAt, UpdatedAt: header.UpdatedAt, CompletedAt: header.CompletedAt,
@@ -205,6 +210,13 @@ func (s *Service) validateCreate(ctx context.Context, req CreateRequest) (Priori
 func (s *Service) createCore(ctx context.Context, tenantID int64, txRepo *Repository, invRepo *inventory.Repository, req CreateRequest, priority Priority, userID int64) (int64, error) {
 	task := &Task{
 		OrderNo: req.OrderNo, Customer: req.Customer, WarehouseID: req.WarehouseID,
+		// CustomerID/ShipTo* are a one-way copy, never independently
+		// validated here — see CreateRequest's own doc.
+		CustomerID: req.CustomerID, ShipToID: req.ShipToID,
+		ShipToName: req.ShipToName, ShipToAddress: req.ShipToAddress,
+		ShipToProvince: req.ShipToProvince, ShipToDistrict: req.ShipToDistrict,
+		ShipToPostalCode:    req.ShipToPostalCode,
+		ShipToContactPerson: req.ShipToContactPerson, ShipToContactPhone: req.ShipToContactPhone,
 		Status: StatusPending, Priority: priority, DueDate: req.DueDate, Remark: req.Remark, CreatedBy: &userID,
 	}
 	if err := txRepo.CreateTask(ctx, tenantID, task); err != nil {

@@ -103,22 +103,36 @@ type Task struct {
 	ID int64 `gorm:"column:id;primaryKey"`
 	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
 	// internal/role.Role's own TenantID doc for the full rationale.
-	TenantID     int64      `gorm:"column:tenant_id;not null;default:1"`
-	PickNo       string     `gorm:"column:pick_no"`
-	OrderNo      string     `gorm:"column:order_no"`
-	Customer     *string    `gorm:"column:customer"`
-	WarehouseID  int64      `gorm:"column:warehouse_id"`
-	Status       Status     `gorm:"column:status"`
-	Priority     Priority   `gorm:"column:priority"`
-	DueDate      *time.Time `gorm:"column:due_date"`
-	Remark       *string    `gorm:"column:remark"`
-	CreatedBy    *int64     `gorm:"column:created_by"`
-	CreatedAt    time.Time  `gorm:"column:created_at"`
-	UpdatedAt    time.Time  `gorm:"column:updated_at"`
-	CompletedAt  *time.Time `gorm:"column:completed_at"`
-	CancelledAt  *time.Time `gorm:"column:cancelled_at"`
-	CancelledBy  *int64     `gorm:"column:cancelled_by"`
-	CancelRemark *string    `gorm:"column:cancel_remark"`
+	TenantID int64   `gorm:"column:tenant_id;not null;default:1"`
+	PickNo   string  `gorm:"column:pick_no"`
+	OrderNo  string  `gorm:"column:order_no"`
+	Customer *string `gorm:"column:customer"`
+	// CustomerID/ShipTo* (migrations/0062) are a one-way copy from
+	// internal/order's own CreatePickingTask — see that method's own doc
+	// and Service.createCore's own doc here. Never written by any other
+	// path in this package (Confirm/Cancel never touch them), matching
+	// Customer's own existing immutable-once-set convention.
+	CustomerID          *int64     `gorm:"column:customer_id"`
+	ShipToID            *int64     `gorm:"column:ship_to_id"`
+	ShipToName          *string    `gorm:"column:ship_to_name"`
+	ShipToAddress       *string    `gorm:"column:ship_to_address"`
+	ShipToProvince      *string    `gorm:"column:ship_to_province"`
+	ShipToDistrict      *string    `gorm:"column:ship_to_district"`
+	ShipToPostalCode    *string    `gorm:"column:ship_to_postal_code"`
+	ShipToContactPerson *string    `gorm:"column:ship_to_contact_person"`
+	ShipToContactPhone  *string    `gorm:"column:ship_to_contact_phone"`
+	WarehouseID         int64      `gorm:"column:warehouse_id"`
+	Status              Status     `gorm:"column:status"`
+	Priority            Priority   `gorm:"column:priority"`
+	DueDate             *time.Time `gorm:"column:due_date"`
+	Remark              *string    `gorm:"column:remark"`
+	CreatedBy           *int64     `gorm:"column:created_by"`
+	CreatedAt           time.Time  `gorm:"column:created_at"`
+	UpdatedAt           time.Time  `gorm:"column:updated_at"`
+	CompletedAt         *time.Time `gorm:"column:completed_at"`
+	CancelledAt         *time.Time `gorm:"column:cancelled_at"`
+	CancelledBy         *int64     `gorm:"column:cancelled_by"`
+	CancelRemark        *string    `gorm:"column:cancel_remark"`
 }
 
 func (Task) TableName() string { return "picking_tasks" }

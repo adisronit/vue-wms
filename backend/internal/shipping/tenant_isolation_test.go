@@ -544,6 +544,16 @@ func TestService_Confirm_ConcurrentSameIdempotencyKey_OnlyOneApplies(t *testing.
 		t.Fatalf("seed tenant: %v", err)
 	}
 	t.Cleanup(func() {
+		// inventory_transactions must be deleted before inventory/
+		// locations/products (FK_inventory_transactions_location/
+		// _product) — this Confirm(PICKED) call writes a ledger row via
+		// ConsumeReservationTx, so omitting this line (as this cleanup
+		// originally did) leaves every one of the DELETEs below it
+		// failing on an FK conflict and the whole tenant orphaned,
+		// colliding with this test's own hard-coded tenant slug on the
+		// next run — the same class of bug internal/order's own
+		// equivalent concurrency test cleanup was fixed for.
+		db.Exec("DELETE FROM inventory_transactions WHERE tenant_id = ?", tenantID)
 		db.Exec("DELETE FROM shipment_confirmations WHERE tenant_id = ?", tenantID)
 		db.Exec("DELETE FROM shipment_items WHERE tenant_id = ?", tenantID)
 		db.Exec("DELETE FROM shipments WHERE tenant_id = ?", tenantID)

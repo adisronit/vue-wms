@@ -8,6 +8,8 @@ import (
 
 	"gorm.io/gorm"
 
+	"wms-backend/internal/customer"
+	"wms-backend/internal/customerdeliverylocation"
 	"wms-backend/internal/picking"
 	"wms-backend/internal/platform/dbctx"
 	"wms-backend/internal/product"
@@ -28,6 +30,13 @@ var (
 	ErrNotEditable       = errors.New("order: order can no longer be edited")
 	ErrNotCancellable    = errors.New("order: order is not in a cancellable status")
 	ErrNotReleasable     = errors.New("order: order is not in a status that can create a picking task")
+	// ErrCustomerNotFound/ErrShipToNotFound cover both "doesn't exist at
+	// all" and "belongs to a different tenant/customer" with the same
+	// 404 — never distinguishing the two, the same convention
+	// internal/customerdeliverylocation's own ErrCustomerNotFound doc
+	// establishes (tenant-isolation-security.md §6).
+	ErrCustomerNotFound = errors.New("order: customer not found")
+	ErrShipToNotFound   = errors.New("order: ship-to location not found")
 )
 
 // productChecker is the narrow slice of internal/product's own
@@ -49,6 +58,26 @@ type productChecker interface {
 // package's final Phase 30 Batch 3 report.
 type warehouseChecker interface {
 	FindByID(ctx context.Context, id int64) (*warehouse.Warehouse, error)
+}
+
+// customerChecker is the narrow slice of internal/customer's own
+// Repository this package needs for the Customer Ship-to integration —
+// FindByID is already tenant-scoped (returns the same ErrNotFound for
+// "doesn't exist" and "belongs to another tenant", per that package's
+// own doc), so a customer_id belonging to another tenant is rejected
+// here exactly like a nonexistent one.
+type customerChecker interface {
+	FindByID(ctx context.Context, tenantID, id int64) (*customer.Customer, error)
+}
+
+// shipToChecker is the narrow slice of internal/customerdeliverylocation's
+// own Repository this package needs. FindByID is tenant-scoped the same
+// way customerChecker's is; FindDefaultForCustomer backs the "auto-select
+// the customer's own active default ship-to when none is explicitly
+// chosen" behavior Service.applyCustomerShipTo implements.
+type shipToChecker interface {
+	FindByID(ctx context.Context, tenantID, id int64) (*customerdeliverylocation.Location, error)
+	FindDefaultForCustomer(ctx context.Context, tenantID, customerID int64) (*customerdeliverylocation.Location, error)
 }
 
 // pickingOrchestrator is the narrow slice of internal/picking's own
@@ -94,12 +123,102 @@ type Service struct {
 	repo       *Repository
 	products   productChecker
 	warehouses warehouseChecker
+	customers  customerChecker
+	shipTos    shipToChecker
 	picking    pickingOrchestrator
 	shipping   shippingReader
 }
 
-func NewService(repo *Repository, products productChecker, warehouses warehouseChecker, pickingSvc pickingOrchestrator, shippingSvc shippingReader) *Service {
-	return &Service{repo: repo, products: products, warehouses: warehouses, picking: pickingSvc, shipping: shippingSvc}
+func NewService(repo *Repository, products productChecker, warehouses warehouseChecker, customers customerChecker, shipTos shipToChecker, pickingSvc pickingOrchestrator, shippingSvc shippingReader) *Service {
+	return &Service{repo: repo, products: products, warehouses: warehouses, customers: customers, shipTos: shipTos, picking: pickingSvc, shipping: shippingSvc}
+}
+
+// applyCustomerShipTo validates and snapshots a Create/Update request's
+// customer_id/ship_to_id onto o, in place. customerID == nil means no
+// customer link at all — o.Customer (whatever free text the caller set
+// on the struct literal beforehand) is left exactly as-is, and every
+// ship_to_* field is cleared (full-replace semantics, matching every
+// other header field Update already follows). shipToID set without
+// customerID is rejected outright: a ship-to is always resolved in the
+// context of a specific customer, never from the ship-to id alone.
+//
+// Ownership/state checks, in order: customerID must resolve via
+// customerChecker (tenant-scoped; cross-tenant is indistinguishable from
+// nonexistent — ErrCustomerNotFound either way). If shipToID is given,
+// it must resolve via shipToChecker (same tenant-scoping) AND its own
+// CustomerID must equal customerID — a cross-customer shipToID is
+// rejected as ErrShipToNotFound, the same not-found-equivalent treatment
+// as cross-tenant, never confirming that the id exists under a
+// different customer. Only once ownership is proven does INACTIVE get
+// its own distinct, more specific rejection (ErrValidation) — revealing
+// "this ship-to is inactive" is not an ownership leak once the caller
+// already holds proof the row belongs to their own customer.
+//
+// If shipToID is omitted, the customer's own ACTIVE default (if any) is
+// auto-selected; if no default exists, the order is simply left with a
+// customer link and no ship-to snapshot — not an error, since "auto-
+// select active default; allow override" never requires one to exist.
+func (s *Service) applyCustomerShipTo(ctx context.Context, tenantID int64, o *Order, customerID, shipToID *int64) error {
+	o.CustomerID = nil
+	o.ShipToID = nil
+	o.ShipToName = nil
+	o.ShipToAddress = nil
+	o.ShipToProvince = nil
+	o.ShipToDistrict = nil
+	o.ShipToPostalCode = nil
+	o.ShipToContactPerson = nil
+	o.ShipToContactPhone = nil
+
+	if customerID == nil {
+		if shipToID != nil {
+			return ErrValidation{Message: "ship_to_id requires customer_id"}
+		}
+		return nil
+	}
+
+	cust, err := s.customers.FindByID(ctx, tenantID, *customerID)
+	if err != nil {
+		return ErrCustomerNotFound
+	}
+	o.CustomerID = customerID
+	// The resolved customer's own display name is authoritative once a
+	// real customer is linked — overwrites whatever free-text Customer
+	// the caller may also have supplied in the same request, so the two
+	// can never silently disagree.
+	name := cust.CompanyName
+	o.Customer = &name
+
+	var shipTo *customerdeliverylocation.Location
+	if shipToID != nil {
+		shipTo, err = s.shipTos.FindByID(ctx, tenantID, *shipToID)
+		if err != nil {
+			return ErrShipToNotFound
+		}
+		if shipTo.CustomerID != *customerID {
+			return ErrShipToNotFound
+		}
+		if shipTo.Status != customerdeliverylocation.StatusActive {
+			return ErrValidation{Message: "ship-to location is inactive"}
+		}
+	} else {
+		def, err := s.shipTos.FindDefaultForCustomer(ctx, tenantID, *customerID)
+		if err != nil && !errors.Is(err, customerdeliverylocation.ErrNotFound) {
+			return err
+		}
+		shipTo = def
+	}
+
+	if shipTo != nil {
+		o.ShipToID = &shipTo.ID
+		o.ShipToName = &shipTo.Name
+		o.ShipToAddress = &shipTo.Address
+		o.ShipToProvince = &shipTo.Province
+		o.ShipToDistrict = &shipTo.District
+		o.ShipToPostalCode = &shipTo.PostalCode
+		o.ShipToContactPerson = &shipTo.ContactPerson
+		o.ShipToContactPhone = &shipTo.ContactPhone
+	}
+	return nil
 }
 
 func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
@@ -173,6 +292,11 @@ func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error
 
 	return &Response{
 		ID: row.ID, OrderNo: row.OrderNo, Customer: row.Customer, ExternalReference: row.ExternalReference,
+		CustomerID: row.CustomerID, ShipToID: row.ShipToID,
+		ShipToName: row.ShipToName, ShipToAddress: row.ShipToAddress,
+		ShipToProvince: row.ShipToProvince, ShipToDistrict: row.ShipToDistrict,
+		ShipToPostalCode:    row.ShipToPostalCode,
+		ShipToContactPerson: row.ShipToContactPerson, ShipToContactPhone: row.ShipToContactPhone,
 		WarehouseID: row.WarehouseID, WarehouseCode: row.WarehouseCode,
 		PickingTaskID: row.PickingTaskID, PickNo: row.PickNo,
 		Status:            Status(row.Status),
@@ -218,6 +342,14 @@ func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest,
 		return nil, ErrWarehouseNotFound
 	}
 
+	o := &Order{
+		Customer: req.Customer, ExternalReference: req.ExternalReference,
+		WarehouseID: req.WarehouseID, Status: StatusPending, Remark: req.Remark, CreatedBy: &userID,
+	}
+	if err := s.applyCustomerShipTo(ctx, tenantID, o, req.CustomerID, req.ShipToID); err != nil {
+		return nil, err
+	}
+
 	// Validation above has no durable side effect yet and is fine to
 	// abort with the caller; detach only now that a transaction is
 	// genuinely about to open — see internal/platform/dbctx's doc.
@@ -227,10 +359,6 @@ func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest,
 	var orderID int64
 	start := time.Now()
 	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
-		o := &Order{
-			Customer: req.Customer, ExternalReference: req.ExternalReference,
-			WarehouseID: req.WarehouseID, Status: StatusPending, Remark: req.Remark, CreatedBy: &userID,
-		}
 		if err := txRepo.CreateOrder(ctx, tenantID, o); err != nil {
 			if isUniqueViolation(err) {
 				return ErrDuplicateExternalReference
@@ -299,6 +427,9 @@ func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequ
 		o.ExternalReference = req.ExternalReference
 		o.WarehouseID = req.WarehouseID
 		o.Remark = req.Remark
+		if err := s.applyCustomerShipTo(ctx, tenantID, o, req.CustomerID, req.ShipToID); err != nil {
+			return err
+		}
 		if err := txRepo.UpdateHeader(ctx, tenantID, o); err != nil {
 			if isUniqueViolation(err) {
 				return ErrDuplicateExternalReference
@@ -394,6 +525,15 @@ func (s *Service) CreatePickingTask(ctx context.Context, tenantID, id int64, req
 		// own doc above.
 		pickingTaskID, err := s.picking.CreateTx(ctx, tenantID, tx, picking.CreateRequest{
 			OrderNo: order.OrderNo, Customer: order.Customer, WarehouseID: order.WarehouseID,
+			// One-way copy of this order's own already-validated/
+			// snapshotted ship-to fields — picking.Service never
+			// re-validates customer_id/ship_to_id ownership itself, see
+			// picking.CreateRequest's own doc.
+			CustomerID: order.CustomerID, ShipToID: order.ShipToID,
+			ShipToName: order.ShipToName, ShipToAddress: order.ShipToAddress,
+			ShipToProvince: order.ShipToProvince, ShipToDistrict: order.ShipToDistrict,
+			ShipToPostalCode:    order.ShipToPostalCode,
+			ShipToContactPerson: order.ShipToContactPerson, ShipToContactPhone: order.ShipToContactPhone,
 			Priority: picking.Priority(req.Priority), DueDate: req.DueDate, Remark: order.Remark, Items: pickingItems,
 		}, userID)
 		if err != nil {

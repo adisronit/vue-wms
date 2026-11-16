@@ -1,0 +1,19 @@
+ALTER TABLE picking_tasks DROP COLUMN ship_to_contact_phone;
+ALTER TABLE picking_tasks DROP COLUMN ship_to_contact_person;
+ALTER TABLE picking_tasks DROP COLUMN ship_to_postal_code;
+ALTER TABLE picking_tasks DROP COLUMN ship_to_district;
+ALTER TABLE picking_tasks DROP COLUMN ship_to_province;
+ALTER TABLE picking_tasks DROP COLUMN ship_to_address;
+ALTER TABLE picking_tasks DROP COLUMN ship_to_name;
+ALTER TABLE picking_tasks DROP COLUMN ship_to_id;
+ALTER TABLE picking_tasks DROP COLUMN customer_id;
+
+ALTER TABLE orders DROP COLUMN ship_to_contact_phone;
+ALTER TABLE orders DROP COLUMN ship_to_contact_person;
+ALTER TABLE orders DROP COLUMN ship_to_postal_code;
+ALTER TABLE orders DROP COLUMN ship_to_district;
+ALTER TABLE orders DROP COLUMN ship_to_province;
+ALTER TABLE orders DROP COLUMN ship_to_address;
+ALTER TABLE orders DROP COLUMN ship_to_name;
+ALTER TABLE orders DROP COLUMN ship_to_id;
+ALTER TABLE orders DROP COLUMN customer_id;

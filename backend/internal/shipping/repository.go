@@ -84,28 +84,37 @@ func (r *Repository) FindByPickingTaskID(ctx context.Context, tenantID, pickingT
 }
 
 type headerRow struct {
-	ID              int64
-	ShipmentNo      string
-	PickingTaskID   int64
-	PickNo          string
-	OrderNo         string
-	Customer        *string
-	Carrier         *string
-	TrackingNo      *string
-	Packages        int
-	Weight          *float64
-	ShipDate        *time.Time
-	Address         *string
-	Remark          *string
-	Status          string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	DispatchedAt    *time.Time
-	DeliveredAt     *time.Time
-	CancelledAt     *time.Time
-	CancelledBy     *int64
-	CancelledByName *string
-	CancelRemark    *string
+	ID                  int64
+	ShipmentNo          string
+	PickingTaskID       int64
+	PickNo              string
+	OrderNo             string
+	Customer            *string
+	CustomerID          *int64
+	ShipToID            *int64
+	ShipToName          *string
+	ShipToAddress       *string
+	ShipToProvince      *string
+	ShipToDistrict      *string
+	ShipToPostalCode    *string
+	ShipToContactPerson *string
+	ShipToContactPhone  *string
+	Carrier             *string
+	TrackingNo          *string
+	Packages            int
+	Weight              *float64
+	ShipDate            *time.Time
+	Address             *string
+	Remark              *string
+	Status              string
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	DispatchedAt        *time.Time
+	DeliveredAt         *time.Time
+	CancelledAt         *time.Time
+	CancelledBy         *int64
+	CancelledByName     *string
+	CancelRemark        *string
 }
 
 // FindDetail returns the header with the linked picking task's order_no/
@@ -122,6 +131,11 @@ func (r *Repository) FindDetail(ctx context.Context, tenantID, id int64) (*heade
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT s.id AS id, s.shipment_no AS shipment_no, s.picking_task_id AS picking_task_id,
 			pt.pick_no AS pick_no, pt.order_no AS order_no, pt.customer AS customer,
+			pt.customer_id AS customer_id, pt.ship_to_id AS ship_to_id,
+			pt.ship_to_name AS ship_to_name, pt.ship_to_address AS ship_to_address,
+			pt.ship_to_province AS ship_to_province, pt.ship_to_district AS ship_to_district,
+			pt.ship_to_postal_code AS ship_to_postal_code,
+			pt.ship_to_contact_person AS ship_to_contact_person, pt.ship_to_contact_phone AS ship_to_contact_phone,
 			s.carrier AS carrier, s.tracking_no AS tracking_no, s.packages AS packages, s.weight AS weight,
 			s.ship_date AS ship_date, s.address AS address, s.remark AS remark, s.status AS status,
 			s.created_at AS created_at, s.updated_at AS updated_at,

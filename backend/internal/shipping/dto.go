@@ -24,29 +24,38 @@ type ItemResponse struct {
 // all nil/null unless the shipment was actually cancelled — see
 // Service.Cancel's own doc.
 type Response struct {
-	ID              int64          `json:"id,string" example:"1"`
-	ShipmentNo      string         `json:"shipment_no" example:"SHP-000001"`
-	PickingTaskID   int64          `json:"picking_task_id,string" example:"1"`
-	PickNo          string         `json:"pick_no" example:"PICK-000001"`
-	OrderNo         string         `json:"order_no" example:"SO-20260608-001"`
-	Customer        *string        `json:"customer" example:"ABC Customer"`
-	Carrier         *string        `json:"carrier" example:"DHL"`
-	TrackingNo      *string        `json:"tracking_no" example:"DHL123456"`
-	Packages        int            `json:"packages" example:"2"`
-	Weight          *float64       `json:"weight" example:"18.5"`
-	ShipDate        *time.Time     `json:"ship_date"`
-	Address         *string        `json:"address"`
-	Remark          *string        `json:"remark"`
-	Status          Status         `json:"status" example:"READY"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
-	DispatchedAt    *time.Time     `json:"dispatched_at"`
-	DeliveredAt     *time.Time     `json:"delivered_at"`
-	CancelledAt     *time.Time     `json:"cancelled_at"`
-	CancelledBy     *int64         `json:"cancelled_by,string"`
-	CancelledByName *string        `json:"cancelled_by_name"`
-	CancelRemark    *string        `json:"cancel_remark"`
-	Items           []ItemResponse `json:"items"`
+	ID                  int64          `json:"id,string" example:"1"`
+	ShipmentNo          string         `json:"shipment_no" example:"SHP-000001"`
+	PickingTaskID       int64          `json:"picking_task_id,string" example:"1"`
+	PickNo              string         `json:"pick_no" example:"PICK-000001"`
+	OrderNo             string         `json:"order_no" example:"SO-20260608-001"`
+	Customer            *string        `json:"customer" example:"ABC Customer"`
+	CustomerID          *int64         `json:"customer_id,string"`
+	ShipToID            *int64         `json:"ship_to_id,string"`
+	ShipToName          *string        `json:"ship_to_name"`
+	ShipToAddress       *string        `json:"ship_to_address"`
+	ShipToProvince      *string        `json:"ship_to_province"`
+	ShipToDistrict      *string        `json:"ship_to_district"`
+	ShipToPostalCode    *string        `json:"ship_to_postal_code"`
+	ShipToContactPerson *string        `json:"ship_to_contact_person"`
+	ShipToContactPhone  *string        `json:"ship_to_contact_phone"`
+	Carrier             *string        `json:"carrier" example:"DHL"`
+	TrackingNo          *string        `json:"tracking_no" example:"DHL123456"`
+	Packages            int            `json:"packages" example:"2"`
+	Weight              *float64       `json:"weight" example:"18.5"`
+	ShipDate            *time.Time     `json:"ship_date"`
+	Address             *string        `json:"address"`
+	Remark              *string        `json:"remark"`
+	Status              Status         `json:"status" example:"READY"`
+	CreatedAt           time.Time      `json:"created_at"`
+	UpdatedAt           time.Time      `json:"updated_at"`
+	DispatchedAt        *time.Time     `json:"dispatched_at"`
+	DeliveredAt         *time.Time     `json:"delivered_at"`
+	CancelledAt         *time.Time     `json:"cancelled_at"`
+	CancelledBy         *int64         `json:"cancelled_by,string"`
+	CancelledByName     *string        `json:"cancelled_by_name"`
+	CancelRemark        *string        `json:"cancel_remark"`
+	Items               []ItemResponse `json:"items"`
 } //	@name	ShipmentResponse
 
 // ListResponse is one row of GET /shipping — matches ShippingView.vue's

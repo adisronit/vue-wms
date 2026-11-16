@@ -75,26 +75,35 @@ type ItemResponse struct {
 
 // Response is a full order with its lines — GET /orders/{id}.
 type Response struct {
-	ID                int64             `json:"id,string" example:"1"`
-	OrderNo           string            `json:"order_no" example:"ORD-000001"`
-	Customer          *string           `json:"customer"`
-	ExternalReference *string           `json:"external_reference"`
-	WarehouseID       int64             `json:"warehouse_id,string" example:"1"`
-	WarehouseCode     string            `json:"warehouse_code" example:"WH-01"`
-	PickingTaskID     *int64            `json:"picking_task_id,string"`
-	PickNo            *string           `json:"pick_no"`
-	Status            Status            `json:"status" example:"PENDING"`
-	FulfillmentStatus FulfillmentStatus `json:"fulfillment_status" example:"PENDING"`
-	Remark            *string           `json:"remark"`
-	CreatedBy         *int64            `json:"created_by,string"`
-	CreatedByName     *string           `json:"created_by_name"`
-	CreatedAt         time.Time         `json:"created_at"`
-	UpdatedAt         time.Time         `json:"updated_at"`
-	CancelledAt       *time.Time        `json:"cancelled_at"`
-	CancelledBy       *int64            `json:"cancelled_by,string"`
-	CancelledByName   *string           `json:"cancelled_by_name"`
-	CancelRemark      *string           `json:"cancel_remark"`
-	Items             []ItemResponse    `json:"items"`
+	ID                  int64             `json:"id,string" example:"1"`
+	OrderNo             string            `json:"order_no" example:"ORD-000001"`
+	Customer            *string           `json:"customer"`
+	CustomerID          *int64            `json:"customer_id,string"`
+	ShipToID            *int64            `json:"ship_to_id,string"`
+	ShipToName          *string           `json:"ship_to_name"`
+	ShipToAddress       *string           `json:"ship_to_address"`
+	ShipToProvince      *string           `json:"ship_to_province"`
+	ShipToDistrict      *string           `json:"ship_to_district"`
+	ShipToPostalCode    *string           `json:"ship_to_postal_code"`
+	ShipToContactPerson *string           `json:"ship_to_contact_person"`
+	ShipToContactPhone  *string           `json:"ship_to_contact_phone"`
+	ExternalReference   *string           `json:"external_reference"`
+	WarehouseID         int64             `json:"warehouse_id,string" example:"1"`
+	WarehouseCode       string            `json:"warehouse_code" example:"WH-01"`
+	PickingTaskID       *int64            `json:"picking_task_id,string"`
+	PickNo              *string           `json:"pick_no"`
+	Status              Status            `json:"status" example:"PENDING"`
+	FulfillmentStatus   FulfillmentStatus `json:"fulfillment_status" example:"PENDING"`
+	Remark              *string           `json:"remark"`
+	CreatedBy           *int64            `json:"created_by,string"`
+	CreatedByName       *string           `json:"created_by_name"`
+	CreatedAt           time.Time         `json:"created_at"`
+	UpdatedAt           time.Time         `json:"updated_at"`
+	CancelledAt         *time.Time        `json:"cancelled_at"`
+	CancelledBy         *int64            `json:"cancelled_by,string"`
+	CancelledByName     *string           `json:"cancelled_by_name"`
+	CancelRemark        *string           `json:"cancel_remark"`
+	Items               []ItemResponse    `json:"items"`
 } //	@name	OrderResponse
 
 // ListResponse is one row of GET /orders.
@@ -126,7 +135,20 @@ type ListParams struct {
 // CreateRequest is POST /orders. Never touches inventory — pure header
 // + lines persistence.
 type CreateRequest struct {
-	Customer          *string             `json:"customer"`
+	Customer *string `json:"customer"`
+	// CustomerID selects a tenant-scoped internal/customer master row —
+	// when set, Service.Create overwrites Customer above with that
+	// customer's own display name (the authoritative source once a real
+	// customer is linked) rather than trusting a possibly-stale free-text
+	// value in the same request. ShipToID optionally selects one of that
+	// customer's own internal/customerdeliverylocation rows; when
+	// omitted, Service.Create auto-selects that customer's own ACTIVE
+	// default ship-to, if one exists — see Service.resolveShipTo's own
+	// doc. ShipToID requires CustomerID in the same request (a ship-to
+	// always belongs to a specific customer, never resolved from the
+	// ship-to id alone).
+	CustomerID        *int64              `json:"customer_id,string" example:"1"`
+	ShipToID          *int64              `json:"ship_to_id,string" example:"1"`
 	ExternalReference *string             `json:"external_reference"`
 	WarehouseID       int64               `json:"warehouse_id,string" binding:"required" example:"1"`
 	Remark            *string             `json:"remark"`
@@ -143,7 +165,15 @@ type CreateItemRequest struct {
 // header and lines (see Service.Update's doc), only while the order is
 // still PENDING (Status.CanUpdate).
 type UpdateRequest struct {
-	Customer          *string             `json:"customer"`
+	Customer *string `json:"customer"`
+	// CustomerID/ShipToID: see CreateRequest's own doc — identical
+	// semantics, re-resolved and re-snapshotted on every Update
+	// (full-replace, matching every other header field here: omitting
+	// them clears the order's existing customer/ship-to link, the same
+	// convention Carrier/TrackingNo already follow in
+	// internal/shipping's own UpdateRequest).
+	CustomerID        *int64              `json:"customer_id,string" example:"1"`
+	ShipToID          *int64              `json:"ship_to_id,string" example:"1"`
 	ExternalReference *string             `json:"external_reference"`
 	WarehouseID       int64               `json:"warehouse_id,string" binding:"required" example:"1"`
 	Remark            *string             `json:"remark"`

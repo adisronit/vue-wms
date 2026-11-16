@@ -183,6 +183,11 @@
               <p class="detail-value">{{ selectedShipping.customer }}</p>
             </div>
 
+            <div v-if="selectedShipping.ship_to_name">
+              <p class="detail-label">{{ $t('shipping.drawer.shipToLabel') }}</p>
+              <p class="detail-value">{{ selectedShipping.ship_to_name }}</p>
+            </div>
+
             <div>
               <p class="detail-label">{{ $t('shipping.drawer.carrierLabel') }}</p>
               <p class="detail-value text-orange-600">{{ selectedShipping.carrier || '—' }}</p>
@@ -197,6 +202,13 @@
               <p class="detail-label">{{ $t('shipping.drawer.totalWeight') }}</p>
               <p class="detail-value">{{ selectedShipping.weight != null ? selectedShipping.weight + ' kg' : '—' }}</p>
             </div>
+          </div>
+
+          <div v-if="selectedShipping.ship_to_address" class="mt-4 pt-4 border-t border-slate-200">
+            <p class="detail-label">{{ $t('shipping.drawer.shipToAddressLabel') }}</p>
+            <p class="detail-value">
+              {{ selectedShipping.ship_to_address }}<template v-if="selectedShipping.ship_to_district">, {{ selectedShipping.ship_to_district }}</template><template v-if="selectedShipping.ship_to_province">, {{ selectedShipping.ship_to_province }}</template><template v-if="selectedShipping.ship_to_postal_code"> {{ selectedShipping.ship_to_postal_code }}</template>
+            </p>
           </div>
         </div>
 
