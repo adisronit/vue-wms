@@ -3,21 +3,36 @@ package packing
 import "time"
 
 // ItemResponse is one packing job line.
+//
+// PickingTaskItemID/LocationID/LocationCode (Phase 33D.1) resolve the
+// originating picking_task_items row this line was frozen from —
+// packing_job_items itself carries no location concept of its own (a
+// carton has no location either), but internal/shipping's own Create
+// needs the FROM-location for shipment_items.location_id (carried
+// forward purely for traceability, see migrations/0021's own doc) when
+// it builds a shipment's lines from a COMPLETED packing job's own items
+// rather than from picking_task_items directly. Exposing it here keeps
+// that lookup inside this package's own Response rather than requiring
+// internal/shipping to separately understand picking_task_items (or,
+// worse, batch-sourced sortation) just to resolve a location.
 type ItemResponse struct {
-	ID              int64      `json:"id,string" example:"1"`
-	ProductID       int64      `json:"product_id,string" example:"1"`
-	SKU             string     `json:"sku" example:"SKU-0001"`
-	ProductName     string     `json:"product_name" example:"Barcode Label Roll"`
-	LotNo           string     `json:"lot_no"`
-	OrderedQty      float64    `json:"ordered_qty" example:"20"`
-	PickedQty       float64    `json:"picked_qty" example:"20"`
-	PackedQty       float64    `json:"packed_qty" example:"0"`
-	UOM             string     `json:"uom" example:"PCS"`
-	Status          ItemStatus `json:"status" example:"PENDING"`
-	ExceptionFlag   bool       `json:"exception_flag" example:"false"`
-	ExceptionReason *string    `json:"exception_reason" example:"DAMAGED"`
-	ExceptionQty    *float64   `json:"exception_qty"`
-	Remark          *string    `json:"remark"`
+	ID                int64      `json:"id,string" example:"1"`
+	PickingTaskItemID int64      `json:"picking_task_item_id,string" example:"1"`
+	ProductID         int64      `json:"product_id,string" example:"1"`
+	SKU               string     `json:"sku" example:"SKU-0001"`
+	ProductName       string     `json:"product_name" example:"Barcode Label Roll"`
+	LotNo             string     `json:"lot_no"`
+	LocationID        int64      `json:"location_id,string" example:"1"`
+	LocationCode      string     `json:"location_code" example:"BIN-C01"`
+	OrderedQty        float64    `json:"ordered_qty" example:"20"`
+	PickedQty         float64    `json:"picked_qty" example:"20"`
+	PackedQty         float64    `json:"packed_qty" example:"0"`
+	UOM               string     `json:"uom" example:"PCS"`
+	Status            ItemStatus `json:"status" example:"PENDING"`
+	ExceptionFlag     bool       `json:"exception_flag" example:"false"`
+	ExceptionReason   *string    `json:"exception_reason" example:"DAMAGED"`
+	ExceptionQty      *float64   `json:"exception_qty"`
+	Remark            *string    `json:"remark"`
 	// CartonLPNs is the distinct set of carton LPNs this line has been
 	// packed into so far (empty until the first successful pack action)
 	// — resolved live from carton_contents, never stored on the line

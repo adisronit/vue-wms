@@ -18,14 +18,20 @@ type ItemResponse struct {
 } //	@name	ShipmentItemResponse
 
 // Response is a full shipment with its lines — GET /shipping/{id}.
-// OrderNo/Customer are resolved from the linked picking task, not
-// stored on shipments itself — see migrations/0020's doc.
+// OrderNo/Customer/ShipTo* (Phase 33D.1) are resolved from the linked
+// packing job's own order snapshot — not picking_tasks — so a batch-
+// sourced shipment correctly shows ITS OWN order, not whichever
+// (arbitrary) order the shared picking task happened to be created
+// under; see internal/packing's own Job.OrderNo doc (Phase 33C.2).
+// Neither is stored on shipments itself — see migrations/0020's doc.
 // CancelledAt/CancelledBy/CancelledByName/CancelRemark (Phase 18) are
 // all nil/null unless the shipment was actually cancelled — see
 // Service.Cancel's own doc.
 type Response struct {
 	ID                  int64          `json:"id,string" example:"1"`
 	ShipmentNo          string         `json:"shipment_no" example:"SHP-000001"`
+	PackingJobID        int64          `json:"packing_job_id,string" example:"1"`
+	JobNo               string         `json:"job_no" example:"PACK-000001"`
 	PickingTaskID       int64          `json:"picking_task_id,string" example:"1"`
 	PickNo              string         `json:"pick_no" example:"PICK-000001"`
 	OrderNo             string         `json:"order_no" example:"SO-20260608-001"`
@@ -74,35 +80,44 @@ type ListResponse struct {
 	Status     Status     `json:"status" example:"READY"`
 } //	@name	ShipmentListResponse
 
-// SourceResponse is one candidate picking task for GET
-// /shipping/sources — a completed (or partially-completed-with-some-
-// lines-done) picking task that has no shipment yet. Powers
-// ShippingView.vue's "+ New Shipment" flow with a real "Source Picking
-// Task" selector, the smallest functional addition needed to make
-// creation work through a real API — the mock itself has no way to
-// choose which order to ship at all (see internal/shipping's Create
-// doc).
+// SourceResponse is one candidate packing job for GET /shipping/sources
+// (Phase 33D.1) — a COMPLETED (two-person checker-verified, see
+// internal/packing's own Status doc) packing job that has no shipment
+// yet. Powers ShippingView.vue's "+ New Shipment" flow with a real
+// "Source Packing Job" selector. IsBatch/BatchNo mirror
+// packing.SourceResponse's own shape (Phase 33C.2) so the UI can show
+// "Order SO-001 (Batch WAVE-000001)" per job — IsBatch is true exactly
+// when the job's own order_id is set (i.e. it was created from one
+// order's own share of a batch-sourced picking task), and BatchNo is
+// only ever non-nil in that case.
 type SourceResponse struct {
+	PackingJobID  int64   `json:"packing_job_id,string" example:"1"`
+	JobNo         string  `json:"job_no" example:"PACK-000001"`
 	PickingTaskID int64   `json:"picking_task_id,string" example:"1"`
 	PickNo        string  `json:"pick_no" example:"PICK-000001"`
 	OrderNo       string  `json:"order_no" example:"SO-20260608-001"`
 	Customer      *string `json:"customer" example:"ABC Customer"`
 	ItemCount     int     `json:"item_count" example:"2"`
+	IsBatch       bool    `json:"is_batch" example:"false"`
+	BatchNo       *string `json:"batch_no,omitempty" example:"WAVE-000001"`
 } //	@name	ShipmentSourceResponse
 
-// CreateRequest is POST /shipping. Items are never accepted from the
-// client — they are always copied server-side from the linked picking
-// task's own picked lines (see Service.Create's doc), so there is no
-// way for a request to ask to ship more than was actually picked.
+// CreateRequest is POST /shipping. Phase 33D.1: re-keyed off
+// PackingJobID (a deliberate, documented breaking API change — see
+// Service.Create's own doc for why PickingTaskID could not simply stay
+// alongside it). Items are never accepted from the client — they are
+// always copied server-side from the linked, COMPLETED packing job's
+// own packed lines, so there is no way for a request to ask to ship
+// more than was actually packed into a carton.
 type CreateRequest struct {
-	PickingTaskID int64      `json:"picking_task_id,string" binding:"required" example:"1"`
-	Carrier       *string    `json:"carrier" example:"DHL"`
-	TrackingNo    *string    `json:"tracking_no" example:"DHL123456"`
-	Packages      int        `json:"packages" example:"2"`
-	Weight        *float64   `json:"weight" example:"18.5"`
-	ShipDate      *time.Time `json:"ship_date"`
-	Address       *string    `json:"address"`
-	Remark        *string    `json:"remark"`
+	PackingJobID int64      `json:"packing_job_id,string" binding:"required" example:"1"`
+	Carrier      *string    `json:"carrier" example:"DHL"`
+	TrackingNo   *string    `json:"tracking_no" example:"DHL123456"`
+	Packages     int        `json:"packages" example:"2"`
+	Weight       *float64   `json:"weight" example:"18.5"`
+	ShipDate     *time.Time `json:"ship_date"`
+	Address      *string    `json:"address"`
+	Remark       *string    `json:"remark"`
 } //	@name	CreateShipmentRequest
 
 // UpdateRequest is PUT /shipping/{id} — header fields only, and only

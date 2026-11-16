@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"wms-backend/internal/picking"
+	"wms-backend/internal/packing"
 )
 
 // --- pure state-machine tests (no DB, no fakes needed) ---
@@ -153,48 +153,49 @@ func TestCarrier_IsValid(t *testing.T) {
 // --- Create's validation-only paths: run before s.repo is ever touched
 // (see service.go's Create — the duplicate-shipment repo check happens
 // only after every pure validation step), so they're safe to test with
-// repo left nil, using a fake for the interface-typed pickingChecker
-// dependency. ---
+// repo left nil, using a fake for the interface-typed packingChecker
+// dependency (Phase 33D.1 — was pickingChecker before Create was
+// re-keyed off packing jobs). ---
 
-type fakePicking struct {
-	resp *picking.Response
+type fakePacking struct {
+	resp *packing.Response
 	err  error
 }
 
-func (f *fakePicking) Get(context.Context, int64, int64) (*picking.Response, error) {
+func (f *fakePacking) Get(context.Context, int64, int64) (*packing.Response, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
 	return f.resp, nil
 }
 
-func TestCreate_RejectsUnknownPickingTask(t *testing.T) {
-	svc := NewService(nil, &fakePicking{err: errors.New("not found")})
+func TestCreate_RejectsUnknownPackingJob(t *testing.T) {
+	svc := NewService(nil, &fakePacking{err: errors.New("not found")})
 
-	_, err := svc.Create(context.Background(), 1, CreateRequest{PickingTaskID: 999}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{PackingJobID: 999}, 1)
 
-	if !errors.Is(err, ErrPickingTaskNotFound) {
-		t.Fatalf("error = %v, want ErrPickingTaskNotFound", err)
+	if !errors.Is(err, ErrPackingJobNotFound) {
+		t.Fatalf("error = %v, want ErrPackingJobNotFound", err)
 	}
 }
 
-func TestCreate_RejectsNonShippableTask(t *testing.T) {
-	svc := NewService(nil, &fakePicking{resp: &picking.Response{ID: 1, Status: picking.StatusInProgress}})
+func TestCreate_RejectsNotYetCompletedJob(t *testing.T) {
+	svc := NewService(nil, &fakePacking{resp: &packing.Response{ID: 1, Status: packing.StatusInProgress}})
 
-	_, err := svc.Create(context.Background(), 1, CreateRequest{PickingTaskID: 1}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{PackingJobID: 1}, 1)
 
-	if !errors.Is(err, ErrNotShippable) {
-		t.Fatalf("error = %v, want ErrNotShippable", err)
+	if !errors.Is(err, ErrNotPacked) {
+		t.Fatalf("error = %v, want ErrNotPacked", err)
 	}
 }
 
-func TestCreate_RejectsTaskWithNoCompletedLines(t *testing.T) {
-	svc := NewService(nil, &fakePicking{resp: &picking.Response{
-		ID: 1, Status: picking.StatusShortPick,
-		Items: []picking.ItemResponse{{ID: 1, Status: picking.ItemStatusShort, PickedQty: 0}},
+func TestCreate_RejectsJobWithNoPackedLines(t *testing.T) {
+	svc := NewService(nil, &fakePacking{resp: &packing.Response{
+		ID: 1, Status: packing.StatusCompleted,
+		Items: []packing.ItemResponse{{ID: 1, Status: packing.ItemStatusException, PackedQty: 0}},
 	}})
 
-	_, err := svc.Create(context.Background(), 1, CreateRequest{PickingTaskID: 1}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{PackingJobID: 1}, 1)
 
 	if !errors.Is(err, ErrNoShippableItems) {
 		t.Fatalf("error = %v, want ErrNoShippableItems", err)
@@ -202,13 +203,13 @@ func TestCreate_RejectsTaskWithNoCompletedLines(t *testing.T) {
 }
 
 func TestCreate_RejectsInvalidCarrier(t *testing.T) {
-	svc := NewService(nil, &fakePicking{resp: &picking.Response{
-		ID: 1, Status: picking.StatusCompleted,
-		Items: []picking.ItemResponse{{ID: 1, Status: picking.ItemStatusCompleted, PickedQty: 10}},
+	svc := NewService(nil, &fakePacking{resp: &packing.Response{
+		ID: 1, Status: packing.StatusCompleted,
+		Items: []packing.ItemResponse{{ID: 1, Status: packing.ItemStatusPacked, PackedQty: 10}},
 	}})
 	badCarrier := "UPS"
 
-	_, err := svc.Create(context.Background(), 1, CreateRequest{PickingTaskID: 1, Carrier: &badCarrier}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{PackingJobID: 1, Carrier: &badCarrier}, 1)
 
 	var validationErr ErrValidation
 	if !errors.As(err, &validationErr) {

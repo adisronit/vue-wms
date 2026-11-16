@@ -1,17 +1,26 @@
 // Package shipping implements the fourth and final real transactional
-// workflow in the outbound flow: Picking Task -> Shipment -> Shipment
-// Items -> Confirm (Dispatch/Deliver/Issue). Unlike every prior
-// workflow, it performs NO inventory mutation of its own: Picking
+// workflow in the outbound flow: Picking Task -> Packing Job -> Shipment
+// -> Shipment Items -> Confirm (Dispatch/Deliver/Issue). Unlike every
+// prior workflow, it performs NO inventory mutation of its own: Picking
 // (Phase 9) already called RemoveStock and wrote the inventory ledger
 // when it picked the stock, so Shipping represents outbound completion
 // / dispatch confirmation only — it never calls AddStock, RemoveStock,
 // or MoveStock. Grepped to confirm: neither internal/inventory nor its
 // Service type is even imported by this package.
 //
+// Phase 33D.1 re-keys Create off a COMPLETED packing job (internal/
+// packing) rather than a picking task directly — see Shipment's own
+// PackingJobID doc. internal/picking is still a direct dependency (the
+// narrow pickingChecker interface) purely for display/traceability (the
+// linked picking task's own pick_no), never for the shippability gate
+// itself any more.
+//
 // Matches ShippingView.vue — a single list+drawer screen, the same
 // shape Picking (Phase 9) already established (there is no
 // NewShippingView.vue). See PROJECT_STATUS.md for the one-shipment-
-// per-picking-task, no-partial-shipment, and status-machine decisions.
+// per-picking-task, no-partial-shipment, and status-machine decisions
+// (one-shipment-per-picking-task itself was superseded by one-shipment-
+// per-packing-job in Phase 33D.1).
 package shipping
 
 import "time"
@@ -105,9 +114,23 @@ func (c Carrier) IsValid() bool {
 	}
 }
 
-// Shipment is the GORM model for the shipments table (migrations/0020).
-// CancelledAt/CancelledBy/CancelRemark (migrations/0032, Phase 18) are
-// nil until a successful Cancel — see Service.Cancel's own doc.
+// Shipment is the GORM model for the shipments table (migrations/0020,
+// extended by migrations/0105-0106, Phase 33D.1). CancelledAt/
+// CancelledBy/CancelRemark (migrations/0032, Phase 18) are nil until a
+// successful Cancel — see Service.Cancel's own doc.
+//
+// PackingJobID (Phase 33D.1) is the real uniqueness/pack-validation
+// gate as of this phase: Service.Create requires the linked packing job
+// to be COMPLETED (see pickingChecker's sibling packingChecker doc)
+// before a shipment can exist at all, and migrations/0106's own
+// UQ_shipments_packing_job_id enforces "at most one shipment per
+// packing job" at the database level, replacing the old bare
+// UQ_shipments_picking_task_id constraint that could not represent a
+// batch-sourced task's own multiple independent packing jobs (Phase
+// 33C.2). PickingTaskID is still populated (derived from the linked
+// packing job's own PickingTaskID at Create time, never from client
+// input) purely for display/JOIN continuity — see migrations/0106's own
+// doc for why the column stays but its old UNIQUE constraint does not.
 type Shipment struct {
 	ID int64 `gorm:"column:id;primaryKey"`
 	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
@@ -115,6 +138,7 @@ type Shipment struct {
 	TenantID      int64      `gorm:"column:tenant_id;not null;default:1"`
 	ShipmentNo    string     `gorm:"column:shipment_no"`
 	PickingTaskID int64      `gorm:"column:picking_task_id"`
+	PackingJobID  *int64     `gorm:"column:packing_job_id"`
 	Carrier       *string    `gorm:"column:carrier"`
 	TrackingNo    *string    `gorm:"column:tracking_no"`
 	Packages      int        `gorm:"column:packages"`
@@ -152,9 +176,12 @@ func (s *Shipment) applyCancel(userID int64, remark *string, now time.Time) {
 }
 
 // Item is the GORM model for the shipment_items table (migrations/0021)
-// — immutable once created: qty is copied from the source picking
-// task's picked_qty at shipment-creation time and never edited
-// afterward (see package doc).
+// — immutable once created. As of Phase 33D.1, qty is copied from the
+// source packing job's own packed_qty (the physical, carton-verified
+// quantity — see Service.Create's own doc), not picked_qty directly;
+// PickingTaskItemID/LocationID are still resolved (via packing's own
+// ItemResponse, Phase 33D.1) so this table's existing FK/traceability
+// shape toward picking_task_items is unchanged.
 type Item struct {
 	ID int64 `gorm:"column:id;primaryKey"`
 	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see

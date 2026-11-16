@@ -489,15 +489,17 @@ func TestRequirePermission_PickingConfirm_DeniedWithoutIt(t *testing.T) {
 	}
 }
 
-// Phase 10: Shipping reuses the existing "shipping" module — no new
-// permission codes. Unlike Picking, the SHIPPING role's own Phase 2/3
-// seed grants (internal/rbac/catalog.go) mirror RECEIVING/PUTAWAY's
-// shape exactly: view/create/update, no approve. shipping.create is
-// therefore allowed for a real SHIPPING-role-shaped token (they can
-// build shipments), and shipping.approve — which internal/shipping's
-// Confirm is gated on, the same significant-action permission
-// Receiving/Putaway use, not Picking's exception — is denied for that
-// same token and allowed for a WAREHOUSE_MANAGER-shaped one.
+// Phase 10: Shipping reuses the existing "shipping" module. The SHIPPING
+// role's own Phase 2/3 seed grants (internal/rbac/catalog.go) originally
+// mirrored RECEIVING/PUTAWAY's shape exactly: view/create/update, no
+// approve. shipping.create is allowed for a real SHIPPING-role-shaped
+// token (they can build shipments). shipping.approve itself remains in
+// the catalog (reserved, unused by any handler — see Phase 33D.1's own
+// confirm/approve split below) and is still denied for a plain
+// view/create/update-shaped token and allowed for a WAREHOUSE_MANAGER-
+// shaped one, since WAREHOUSE_MANAGER's own default grant is
+// "every code except delete" regardless of which handler actually uses
+// a given code.
 func TestRequirePermission_ShippingCreate_AllowedForShippingRole(t *testing.T) {
 	router := newPermissionTestRouter("test-secret", "shipping.create")
 	token := signTokenWithPermissions(t, "test-secret", []string{
@@ -568,6 +570,52 @@ func TestRequirePermission_ShippingUpdate_AllowedForShippingRole(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+}
+
+// Phase 33D.1: Confirm (POST /shipping/{id}/confirm — Dispatch/Deliver/
+// Issue) moves off shipping.approve onto the new shipping.confirm,
+// split out of shipping.approve the same way receiving.confirm/
+// quality_check.confirm/putaway.confirm/relocation.confirm/
+// picking.confirm/order.confirm/packing.confirm were each split before
+// it — see internal/rbac/catalog.go's own doc on the "shipping" module.
+// A real SHIPPING-role-shaped token (which the Phase 33D.1 catalog
+// grants shipping.confirm alongside its pre-existing shipping.update) is
+// allowed, while a token that still only carries the old shipping.
+// update/shipping.view/stock_inquiry.view shape (no shipping.confirm) is
+// denied, proving the permission actually moved rather than Confirm
+// silently still accepting the old shipping.approve code.
+func TestRequirePermission_ShippingConfirm_AllowedForShippingRoleShapedToken(t *testing.T) {
+	router := newPermissionTestRouter("test-secret", "shipping.confirm")
+	token := signTokenWithPermissions(t, "test-secret", []string{
+		"dashboard.view", "shipping.view", "shipping.create", "shipping.update", "shipping.confirm", "stock_inquiry.view",
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+}
+
+func TestRequirePermission_ShippingConfirm_DeniedWithoutIt(t *testing.T) {
+	router := newPermissionTestRouter("test-secret", "shipping.confirm")
+	token := signTokenWithPermissions(t, "test-secret", []string{
+		"dashboard.view", "shipping.view", "shipping.create", "shipping.update", "stock_inquiry.view",
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusForbidden, rec.Body.String())
 	}
 }
 

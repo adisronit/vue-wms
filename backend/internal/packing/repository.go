@@ -336,35 +336,45 @@ func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams
 }
 
 type itemRow struct {
-	ID              int64
-	ProductID       int64
-	SKU             string
-	ProductName     string
-	LotNo           string
-	OrderedQty      float64
-	PickedQty       float64
-	PackedQty       float64
-	UOM             string
-	Status          string
-	ExceptionFlag   bool
-	ExceptionReason *string
-	ExceptionQty    *float64
-	Remark          *string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID                int64
+	PickingTaskItemID int64
+	ProductID         int64
+	SKU               string
+	ProductName       string
+	LotNo             string
+	LocationID        int64
+	LocationCode      string
+	OrderedQty        float64
+	PickedQty         float64
+	PackedQty         float64
+	UOM               string
+	Status            string
+	ExceptionFlag     bool
+	ExceptionReason   *string
+	ExceptionQty      *float64
+	Remark            *string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
-// ListItems resolves display fields for one job's lines.
+// ListItems resolves display fields for one job's lines. Joins through
+// to picking_task_items/locations (Phase 33D.1) to resolve the FROM-
+// location a packing_job_items row itself has no concept of — see
+// ItemResponse's own doc.
 func (r *Repository) ListItems(ctx context.Context, tenantID, jobID int64) ([]ItemResponse, error) {
 	var rows []itemRow
 	err := r.db.WithContext(ctx).Raw(`
-		SELECT pji.id AS id, pji.product_id AS product_id, p.sku AS sku, p.name AS product_name, pji.lot_no AS lot_no,
+		SELECT pji.id AS id, pji.picking_task_item_id AS picking_task_item_id,
+			pji.product_id AS product_id, p.sku AS sku, p.name AS product_name, pji.lot_no AS lot_no,
+			pti.location_id AS location_id, l.code AS location_code,
 			pji.ordered_qty AS ordered_qty, pji.picked_qty AS picked_qty, pji.packed_qty AS packed_qty, pji.uom AS uom,
 			pji.status AS status, pji.exception_flag AS exception_flag, pji.exception_reason AS exception_reason,
 			pji.exception_qty AS exception_qty, pji.remark AS remark,
 			pji.created_at AS created_at, pji.updated_at AS updated_at
 		FROM packing_job_items pji
 		JOIN products p ON p.id = pji.product_id
+		JOIN picking_task_items pti ON pti.id = pji.picking_task_item_id
+		JOIN locations l ON l.id = pti.location_id
 		WHERE pji.packing_job_id = ? AND pji.tenant_id = ?
 		ORDER BY pji.id ASC
 	`, jobID, tenantID).Scan(&rows).Error
@@ -380,7 +390,9 @@ func (r *Repository) ListItems(ctx context.Context, tenantID, jobID int64) ([]It
 	items := make([]ItemResponse, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, ItemResponse{
-			ID: row.ID, ProductID: row.ProductID, SKU: row.SKU, ProductName: row.ProductName, LotNo: row.LotNo,
+			ID: row.ID, PickingTaskItemID: row.PickingTaskItemID,
+			ProductID: row.ProductID, SKU: row.SKU, ProductName: row.ProductName, LotNo: row.LotNo,
+			LocationID: row.LocationID, LocationCode: row.LocationCode,
 			OrderedQty: row.OrderedQty, PickedQty: row.PickedQty, PackedQty: row.PackedQty, UOM: row.UOM,
 			Status: ItemStatus(row.Status), ExceptionFlag: row.ExceptionFlag, ExceptionReason: row.ExceptionReason,
 			ExceptionQty: row.ExceptionQty, Remark: row.Remark,

@@ -1,11 +1,16 @@
 // Phase 33C.3 tests for the new Consolidated Batch Picking List PDF.
-package pickingbatch
+//
+// Phase 33D.1: moved to the external "pickingbatch_test" package
+// alongside service_test.go/sortation_test.go — see service_test.go's
+// own doc for why.
+package pickingbatch_test
 
 import (
 	"bytes"
 	"context"
 	"testing"
 
+	"wms-backend/internal/pickingbatch"
 	"wms-backend/internal/platform/testsupport"
 	"wms-backend/internal/tenant"
 	"wms-backend/internal/user"
@@ -23,7 +28,7 @@ func TestPDFService_RenderConsolidatedPickList_ProducesValidPDF(t *testing.T) {
 
 	tenantRepo := tenant.NewRepository(tx)
 	userRepo := user.NewRepository(tx)
-	pdfSvc := NewPDFService(st.batchSvc, st.pickingSvc, tenantRepo, userRepo)
+	pdfSvc := pickingbatch.NewPDFService(st.batchSvc, st.pickingSvc, tenantRepo, userRepo)
 
 	data, filename, err := pdfSvc.RenderConsolidatedPickList(context.Background(), f.tenantID, 1, batchID)
 	if err != nil {
@@ -50,7 +55,7 @@ func TestPDFService_RenderConsolidatedPickList_RejectsDraftBatch(t *testing.T) {
 	r1 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "A", 20)
 	r2 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "B", 30)
 
-	draft, err := st.batchSvc.Create(context.Background(), f.tenantID, CreateRequest{
+	draft, err := st.batchSvc.Create(context.Background(), f.tenantID, pickingbatch.CreateRequest{
 		WarehouseID: f.warehouseID, OrderIDs: []int64{r1.ID, r2.ID},
 	}, 1)
 	if err != nil {
@@ -59,10 +64,10 @@ func TestPDFService_RenderConsolidatedPickList_RejectsDraftBatch(t *testing.T) {
 
 	tenantRepo := tenant.NewRepository(tx)
 	userRepo := user.NewRepository(tx)
-	pdfSvc := NewPDFService(st.batchSvc, st.pickingSvc, tenantRepo, userRepo)
+	pdfSvc := pickingbatch.NewPDFService(st.batchSvc, st.pickingSvc, tenantRepo, userRepo)
 
-	if _, _, err := pdfSvc.RenderConsolidatedPickList(context.Background(), f.tenantID, 1, draft.ID); err != ErrBatchNotConfirmed {
-		t.Fatalf("RenderConsolidatedPickList(DRAFT batch) error = %v, want ErrBatchNotConfirmed", err)
+	if _, _, err := pdfSvc.RenderConsolidatedPickList(context.Background(), f.tenantID, 1, draft.ID); err != pickingbatch.ErrBatchNotConfirmed {
+		t.Fatalf("RenderConsolidatedPickList(DRAFT batch) error = %v, want pickingbatch.ErrBatchNotConfirmed", err)
 	}
 }
 
@@ -76,7 +81,7 @@ func TestPDFService_RenderConsolidatedPickList_RecordsDocumentHistory(t *testing
 
 	tenantRepo := tenant.NewRepository(tx)
 	userRepo := user.NewRepository(tx)
-	pdfSvc := NewPDFService(st.batchSvc, st.pickingSvc, tenantRepo, userRepo)
+	pdfSvc := pickingbatch.NewPDFService(st.batchSvc, st.pickingSvc, tenantRepo, userRepo)
 	recorder := &fakeBatchDocRecorder{}
 	pdfSvc.SetDocRender(recorder)
 

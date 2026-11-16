@@ -1,0 +1,20 @@
+-- Phase 33D.1 -- Shipping re-keyed off packing_job_id instead of
+-- picking_task_id directly. Today's shipments.picking_task_id (bare
+-- UNIQUE, migrations/0020 -- not even tenant-scoped, since 0048 only
+-- ever tenant-scoped shipment_no) lets Shipping.Create build its lines
+-- straight from picking_task_items.picked_qty with zero pack-validation
+-- gate, and cannot represent a batch-sourced task's own fan-out: one
+-- shared picking_task_id now legitimately feeds MULTIPLE independent
+-- packing jobs (one per order, Phase 33C.2), so "one shipment per
+-- picking task" is simply the wrong uniqueness rule any more -- the
+-- right one is "one shipment per packing job" (packing_jobs is already
+-- the order-scoped, two-person-checker-verified COMPLETED gate Shipping
+-- needs, for both the plain and batch case, with zero new batch-
+-- awareness code required here).
+--
+-- Bare ADD COLUMN only in this file -- see migrations/0092's own doc on
+-- the SQL Server same-batch ADD-COLUMN-then-ADD-CONSTRAINT bug. The FK,
+-- the new tenant-scoped filtered unique index, and the replacement of
+-- the old bare UQ_shipments_picking_task_id constraint all follow in
+-- their own transaction, migrations/0106.
+ALTER TABLE shipments ADD packing_job_id BIGINT NULL;

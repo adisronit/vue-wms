@@ -357,8 +357,14 @@ func main() {
 	packingPDFService.SetDocRender(docrenderService)
 	packing.NewHandler(packingService, packingPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
+	// Phase 33D.1 — Shipping re-keyed off packing_job_id instead of
+	// picking_task_id: Create's own pack-validation gate (the linked
+	// packing job must already be COMPLETED, i.e. checker-confirmed) now
+	// goes through packingService's own already-correct, order-scoped
+	// abstraction rather than pickingService directly — internal/shipping
+	// no longer depends on internal/picking at all.
 	shippingRepo := shipping.NewRepository(dbManager.DB())
-	shippingService := shipping.NewService(shippingRepo, pickingService)
+	shippingService := shipping.NewService(shippingRepo, packingService)
 	shipping.NewHandler(shippingService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	stockAdjustmentRepo := stockadjustment.NewRepository(dbManager.DB())

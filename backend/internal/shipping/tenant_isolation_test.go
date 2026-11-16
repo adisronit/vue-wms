@@ -2,10 +2,17 @@
 // internal/picking/tenant_isolation_test.go's own shape (Batch 2: fresh
 // tenant per test, real seeded rows, testsupport.ConnectDB +
 // BeginRollbackTx) but covers the surface unique to this package: IDOR
-// on shipment lookup/list/write, cross-tenant picking-task ownership
+// on shipment lookup/list/write, cross-tenant packing-job ownership
 // verification at shipment creation, the Confirm status-machine's
 // idempotency-guarded rollback, and concurrent Confirm calls sharing one
 // idempotency key.
+//
+// Phase 33D.1 re-keyed Shipping.Create off a COMPLETED packing job
+// rather than a picking task directly — every fixture below now runs a
+// picking task all the way through a real Packing Create -> CreateCarton
+// -> PackItem -> CheckerConfirm cycle (createCompletedPackingJob) before
+// handing the resulting packing_job_id to Shipping, exactly what a real
+// caller must do now.
 package shipping
 
 import (
@@ -18,6 +25,7 @@ import (
 
 	"wms-backend/internal/inventory"
 	"wms-backend/internal/location"
+	"wms-backend/internal/packing"
 	"wms-backend/internal/picking"
 	"wms-backend/internal/platform/testsupport"
 	"wms-backend/internal/product"
@@ -103,9 +111,10 @@ func seedShippingBalance(t *testing.T, tx *gorm.DB, f shippingFixture, lotNo str
 	}
 }
 
-// newPickingServiceForShipping wires the real picking stack shipping
-// depends on structurally (pickingChecker) — same construction
-// internal/picking's own tests use.
+// newPickingServiceForShipping wires the real picking stack this
+// package's own fixtures need to get a picking task to COMPLETED in the
+// first place, and packing.Service's own pickingChecker dependency —
+// same construction internal/picking's own tests use.
 func newPickingServiceForShipping(tx *gorm.DB) *picking.Service {
 	productRepo := product.NewRepository(tx)
 	warehouseRepo := warehouse.NewRepository(tx)
@@ -113,20 +122,29 @@ func newPickingServiceForShipping(tx *gorm.DB) *picking.Service {
 	return picking.NewService(picking.NewRepository(tx), productRepo, warehouseRepo, invSvc)
 }
 
+// newPackingServiceForShipping wires the real packing stack Shipping
+// depends on structurally (packingChecker, Phase 33D.1) — bound to the
+// same tx throughout.
+func newPackingServiceForShipping(tx *gorm.DB, pickingSvc *picking.Service) *packing.Service {
+	return packing.NewService(packing.NewRepository(tx), pickingSvc)
+}
+
 // newShippingServiceAndRepo wires the full real stack Shipping
-// orchestrates through — picking.Service (Get, Batch 2's own tenant
-// scoping) — bound to the same test transaction throughout, exactly the
-// dependency graph cmd/server/main.go wires in production.
+// orchestrates through — packing.Service (Get, Phase 33D.1's own
+// pack-validation gate) — bound to the same test transaction throughout,
+// exactly the dependency graph cmd/server/main.go wires in production.
 func newShippingServiceAndRepo(tx *gorm.DB) (*Service, *Repository) {
 	repo := NewRepository(tx)
 	pickingSvc := newPickingServiceForShipping(tx)
-	return NewService(repo, pickingSvc), repo
+	packingSvc := newPackingServiceForShipping(tx, pickingSvc)
+	return NewService(repo, packingSvc), repo
 }
 
 // createCompletedPickingTask runs a real picking task through
 // Create->Confirm(PICKED) to reach COMPLETED status with at least one
-// COMPLETED line (picked_qty > 0) — the only state Shipping.Create will
-// accept as a source. Returns the picking task's own ID.
+// COMPLETED line (picked_qty > 0) — the precondition
+// createCompletedPackingJob needs before it can even open a packing job.
+// Returns the picking task's own ID.
 func createCompletedPickingTask(t *testing.T, pickingSvc *picking.Service, tenantID int64, f shippingFixture, lotNo string, qty float64) int64 {
 	t.Helper()
 	resp, err := pickingSvc.Create(context.Background(), tenantID, picking.CreateRequest{
@@ -152,6 +170,42 @@ func createCompletedPickingTask(t *testing.T, pickingSvc *picking.Service, tenan
 	return resp.ID
 }
 
+// createCompletedPackingJob (Phase 33D.1) is the real precondition
+// Shipping.Create now requires: a picking task run all the way through
+// Create -> Confirm(PICKED) (createCompletedPickingTask), then a real
+// packing job run all the way through Create -> CreateCarton -> PackItem
+// (packing the line's own full picked_qty into one carton) ->
+// CheckerConfirm, reaching COMPLETED. Returns the packing job's own ID
+// — the only id Shipping.Create accepts as of this phase.
+func createCompletedPackingJob(t *testing.T, pickingSvc *picking.Service, packingSvc *packing.Service, tenantID int64, f shippingFixture, lotNo string, qty float64) int64 {
+	t.Helper()
+	taskID := createCompletedPickingTask(t, pickingSvc, tenantID, f, lotNo, qty)
+
+	job, err := packingSvc.Create(context.Background(), tenantID, packing.CreateRequest{PickingTaskID: taskID}, 1)
+	if err != nil {
+		t.Fatalf("createCompletedPackingJob: packing Create: %v", err)
+	}
+	carton, err := packingSvc.CreateCarton(context.Background(), tenantID, job.ID, packing.CreateCartonRequest{}, 1)
+	if err != nil {
+		t.Fatalf("createCompletedPackingJob: packing CreateCarton: %v", err)
+	}
+	packed, err := packingSvc.PackItem(context.Background(), tenantID, job.ID, packing.PackItemRequest{
+		IdempotencyKey: "pack-confirm-" + job.JobNo, ItemID: job.Items[0].ID, CartonID: carton.ID,
+		ScannedSKU: job.Items[0].SKU, Quantity: job.Items[0].PickedQty,
+	}, 1)
+	if err != nil {
+		t.Fatalf("createCompletedPackingJob: packing PackItem: %v", err)
+	}
+	confirmed, err := packingSvc.CheckerConfirm(context.Background(), tenantID, packed.ID, packing.CheckerConfirmRequest{}, 1)
+	if err != nil {
+		t.Fatalf("createCompletedPackingJob: packing CheckerConfirm: %v", err)
+	}
+	if confirmed.Status != packing.StatusCompleted {
+		t.Fatalf("createCompletedPackingJob: packing job status = %v, want COMPLETED", confirmed.Status)
+	}
+	return job.ID
+}
+
 // --- IDOR: read-side tenant scoping ---
 
 func TestRepository_FindByID_CrossTenant_NotFound(t *testing.T) {
@@ -163,10 +217,11 @@ func TestRepository_FindByID_CrossTenant_NotFound(t *testing.T) {
 	seedShippingBalance(t, tx, b, "LOT-B", 100, 0)
 
 	pickingSvc := newPickingServiceForShipping(tx)
+	packingSvc := newPackingServiceForShipping(tx, pickingSvc)
 	svc, repo := newShippingServiceAndRepo(tx)
-	taskID := createCompletedPickingTask(t, pickingSvc, b.tenantID, b, "LOT-B", 10)
+	jobID := createCompletedPackingJob(t, pickingSvc, packingSvc, b.tenantID, b, "LOT-B", 10)
 
-	resp, err := svc.Create(context.Background(), b.tenantID, CreateRequest{PickingTaskID: taskID}, 1)
+	resp, err := svc.Create(context.Background(), b.tenantID, CreateRequest{PackingJobID: jobID}, 1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -188,9 +243,10 @@ func TestRepository_FindDetail_CrossTenant_NotFound(t *testing.T) {
 	seedShippingBalance(t, tx, b, "LOT-B", 100, 0)
 
 	pickingSvc := newPickingServiceForShipping(tx)
+	packingSvc := newPackingServiceForShipping(tx, pickingSvc)
 	svc, repo := newShippingServiceAndRepo(tx)
-	taskID := createCompletedPickingTask(t, pickingSvc, b.tenantID, b, "LOT-B", 10)
-	resp, err := svc.Create(context.Background(), b.tenantID, CreateRequest{PickingTaskID: taskID}, 1)
+	jobID := createCompletedPackingJob(t, pickingSvc, packingSvc, b.tenantID, b, "LOT-B", 10)
+	resp, err := svc.Create(context.Background(), b.tenantID, CreateRequest{PackingJobID: jobID}, 1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -209,9 +265,10 @@ func TestService_Get_CrossTenant_NotFound(t *testing.T) {
 	seedShippingBalance(t, tx, b, "LOT-B", 100, 0)
 
 	pickingSvc := newPickingServiceForShipping(tx)
+	packingSvc := newPackingServiceForShipping(tx, pickingSvc)
 	svc, _ := newShippingServiceAndRepo(tx)
-	taskID := createCompletedPickingTask(t, pickingSvc, b.tenantID, b, "LOT-B", 10)
-	resp, err := svc.Create(context.Background(), b.tenantID, CreateRequest{PickingTaskID: taskID}, 1)
+	jobID := createCompletedPackingJob(t, pickingSvc, packingSvc, b.tenantID, b, "LOT-B", 10)
+	resp, err := svc.Create(context.Background(), b.tenantID, CreateRequest{PackingJobID: jobID}, 1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -231,13 +288,14 @@ func TestRepository_List_ScopedToTenant(t *testing.T) {
 	seedShippingBalance(t, tx, b, "LOT-B", 100, 0)
 
 	pickingSvc := newPickingServiceForShipping(tx)
+	packingSvc := newPackingServiceForShipping(tx, pickingSvc)
 	svc, repo := newShippingServiceAndRepo(tx)
-	taskA := createCompletedPickingTask(t, pickingSvc, a.tenantID, a, "LOT-A", 5)
-	taskB := createCompletedPickingTask(t, pickingSvc, b.tenantID, b, "LOT-B", 5)
-	if _, err := svc.Create(context.Background(), a.tenantID, CreateRequest{PickingTaskID: taskA}, 1); err != nil {
+	jobA := createCompletedPackingJob(t, pickingSvc, packingSvc, a.tenantID, a, "LOT-A", 5)
+	jobB := createCompletedPackingJob(t, pickingSvc, packingSvc, b.tenantID, b, "LOT-B", 5)
+	if _, err := svc.Create(context.Background(), a.tenantID, CreateRequest{PackingJobID: jobA}, 1); err != nil {
 		t.Fatalf("Create(tenantA): %v", err)
 	}
-	if _, err := svc.Create(context.Background(), b.tenantID, CreateRequest{PickingTaskID: taskB}, 1); err != nil {
+	if _, err := svc.Create(context.Background(), b.tenantID, CreateRequest{PackingJobID: jobB}, 1); err != nil {
 		t.Fatalf("Create(tenantB): %v", err)
 	}
 
@@ -250,9 +308,9 @@ func TestRepository_List_ScopedToTenant(t *testing.T) {
 	}
 }
 
-// --- Create: foreign picking-task ownership rejection ---
+// --- Create: foreign packing-job ownership rejection ---
 
-func TestService_Create_RejectsForeignTenantPickingTask(t *testing.T) {
+func TestService_Create_RejectsForeignTenantPackingJob(t *testing.T) {
 	db := testsupport.ConnectDB(t)
 	tx := testsupport.BeginRollbackTx(t, db)
 
@@ -261,12 +319,39 @@ func TestService_Create_RejectsForeignTenantPickingTask(t *testing.T) {
 	seedShippingBalance(t, tx, b, "LOT-B", 100, 0)
 
 	pickingSvc := newPickingServiceForShipping(tx)
+	packingSvc := newPackingServiceForShipping(tx, pickingSvc)
 	svc, _ := newShippingServiceAndRepo(tx)
-	taskID := createCompletedPickingTask(t, pickingSvc, b.tenantID, b, "LOT-B", 10)
+	jobID := createCompletedPackingJob(t, pickingSvc, packingSvc, b.tenantID, b, "LOT-B", 10)
 
-	_, err := svc.Create(context.Background(), a.tenantID, CreateRequest{PickingTaskID: taskID}, 1)
-	if !errors.Is(err, ErrPickingTaskNotFound) {
-		t.Fatalf("Create(tenantA, tenantB's picking_task_id) = %v, want ErrPickingTaskNotFound", err)
+	_, err := svc.Create(context.Background(), a.tenantID, CreateRequest{PackingJobID: jobID}, 1)
+	if !errors.Is(err, ErrPackingJobNotFound) {
+		t.Fatalf("Create(tenantA, tenantB's packing_job_id) = %v, want ErrPackingJobNotFound", err)
+	}
+}
+
+func TestService_Create_RejectsNotYetCompletedJob(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+
+	a := newShippingFixture(t, tx, "not-packed")
+	seedShippingBalance(t, tx, a, "LOT-A", 100, 0)
+
+	pickingSvc := newPickingServiceForShipping(tx)
+	packingSvc := newPackingServiceForShipping(tx, pickingSvc)
+	svc, _ := newShippingServiceAndRepo(tx)
+	taskID := createCompletedPickingTask(t, pickingSvc, a.tenantID, a, "LOT-A", 10)
+
+	// Deliberately stop short of CheckerConfirm — the job exists
+	// (DRAFT), real packing activity may even have happened, but it has
+	// not been checker-confirmed into COMPLETED yet.
+	job, err := packingSvc.Create(context.Background(), a.tenantID, packing.CreateRequest{PickingTaskID: taskID}, 1)
+	if err != nil {
+		t.Fatalf("packing Create: %v", err)
+	}
+
+	_, err = svc.Create(context.Background(), a.tenantID, CreateRequest{PackingJobID: job.ID}, 1)
+	if !errors.Is(err, ErrNotPacked) {
+		t.Fatalf("Create(not-yet-COMPLETED packing job) = %v, want ErrNotPacked", err)
 	}
 }
 
@@ -278,22 +363,26 @@ func TestService_Create_OwnTenant_Succeeds(t *testing.T) {
 	seedShippingBalance(t, tx, a, "LOT-A", 100, 0)
 
 	pickingSvc := newPickingServiceForShipping(tx)
+	packingSvc := newPackingServiceForShipping(tx, pickingSvc)
 	svc, _ := newShippingServiceAndRepo(tx)
-	taskID := createCompletedPickingTask(t, pickingSvc, a.tenantID, a, "LOT-A", 10)
+	jobID := createCompletedPackingJob(t, pickingSvc, packingSvc, a.tenantID, a, "LOT-A", 10)
 
-	resp, err := svc.Create(context.Background(), a.tenantID, CreateRequest{PickingTaskID: taskID}, 1)
+	resp, err := svc.Create(context.Background(), a.tenantID, CreateRequest{PackingJobID: jobID}, 1)
 	if err != nil {
 		t.Fatalf("Create(own tenant): %v", err)
 	}
 	if resp.Status != StatusReady || len(resp.Items) != 1 {
 		t.Fatalf("Create response = %+v, want 1 READY item", resp)
 	}
+	if resp.Items[0].Qty != 10 {
+		t.Errorf("Create response item qty = %v, want 10 (the packed_qty, not picked_qty)", resp.Items[0].Qty)
+	}
 
-	// A second shipment against the same picking task must be rejected —
-	// one shipment per picking task, regardless of tenant.
-	_, err = svc.Create(context.Background(), a.tenantID, CreateRequest{PickingTaskID: taskID}, 1)
+	// A second shipment against the same packing job must be rejected —
+	// one shipment per packing job, regardless of tenant.
+	_, err = svc.Create(context.Background(), a.tenantID, CreateRequest{PackingJobID: jobID}, 1)
 	if !errors.Is(err, ErrAlreadyShipped) {
-		t.Errorf("second Create(same picking task) = %v, want ErrAlreadyShipped", err)
+		t.Errorf("second Create(same packing job) = %v, want ErrAlreadyShipped", err)
 	}
 }
 
@@ -308,9 +397,10 @@ func TestService_Update_CrossTenant_NotFound(t *testing.T) {
 	seedShippingBalance(t, tx, b, "LOT-B", 100, 0)
 
 	pickingSvc := newPickingServiceForShipping(tx)
+	packingSvc := newPackingServiceForShipping(tx, pickingSvc)
 	svc, _ := newShippingServiceAndRepo(tx)
-	taskID := createCompletedPickingTask(t, pickingSvc, b.tenantID, b, "LOT-B", 10)
-	resp, err := svc.Create(context.Background(), b.tenantID, CreateRequest{PickingTaskID: taskID}, 1)
+	jobID := createCompletedPackingJob(t, pickingSvc, packingSvc, b.tenantID, b, "LOT-B", 10)
+	resp, err := svc.Create(context.Background(), b.tenantID, CreateRequest{PackingJobID: jobID}, 1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -341,9 +431,10 @@ func TestService_Confirm_CrossTenant_NotFound(t *testing.T) {
 	seedShippingBalance(t, tx, b, "LOT-B", 100, 0)
 
 	pickingSvc := newPickingServiceForShipping(tx)
+	packingSvc := newPackingServiceForShipping(tx, pickingSvc)
 	svc, _ := newShippingServiceAndRepo(tx)
-	taskID := createCompletedPickingTask(t, pickingSvc, b.tenantID, b, "LOT-B", 10)
-	resp, err := svc.Create(context.Background(), b.tenantID, CreateRequest{PickingTaskID: taskID}, 1)
+	jobID := createCompletedPackingJob(t, pickingSvc, packingSvc, b.tenantID, b, "LOT-B", 10)
+	resp, err := svc.Create(context.Background(), b.tenantID, CreateRequest{PackingJobID: jobID}, 1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -376,11 +467,12 @@ func TestService_Confirm_DispatchThenDeliver_OwnTenant_Succeeds(t *testing.T) {
 	seedShippingBalance(t, tx, a, "LOT-A", 100, 0)
 
 	pickingSvc := newPickingServiceForShipping(tx)
+	packingSvc := newPackingServiceForShipping(tx, pickingSvc)
 	svc, _ := newShippingServiceAndRepo(tx)
-	taskID := createCompletedPickingTask(t, pickingSvc, a.tenantID, a, "LOT-A", 10)
+	jobID := createCompletedPackingJob(t, pickingSvc, packingSvc, a.tenantID, a, "LOT-A", 10)
 	carrier, tracking := "DHL", "DHL123"
 	resp, err := svc.Create(context.Background(), a.tenantID, CreateRequest{
-		PickingTaskID: taskID, Carrier: &carrier, TrackingNo: &tracking,
+		PackingJobID: jobID, Carrier: &carrier, TrackingNo: &tracking,
 	}, 1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
@@ -422,10 +514,11 @@ func TestService_Confirm_InvalidTransition_RollsBackEverything(t *testing.T) {
 	seedShippingBalance(t, tx, a, "LOT-A", 100, 0)
 
 	pickingSvc := newPickingServiceForShipping(tx)
+	packingSvc := newPackingServiceForShipping(tx, pickingSvc)
 	svc, _ := newShippingServiceAndRepo(tx)
-	taskID := createCompletedPickingTask(t, pickingSvc, a.tenantID, a, "LOT-A", 10)
+	jobID := createCompletedPackingJob(t, pickingSvc, packingSvc, a.tenantID, a, "LOT-A", 10)
 	// Deliberately no carrier/tracking_no set.
-	resp, err := svc.Create(context.Background(), a.tenantID, CreateRequest{PickingTaskID: taskID}, 1)
+	resp, err := svc.Create(context.Background(), a.tenantID, CreateRequest{PackingJobID: jobID}, 1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -474,9 +567,10 @@ func TestService_Cancel_CrossTenant_NotFound(t *testing.T) {
 	seedShippingBalance(t, tx, b, "LOT-B", 100, 0)
 
 	pickingSvc := newPickingServiceForShipping(tx)
+	packingSvc := newPackingServiceForShipping(tx, pickingSvc)
 	svc, _ := newShippingServiceAndRepo(tx)
-	taskID := createCompletedPickingTask(t, pickingSvc, b.tenantID, b, "LOT-B", 10)
-	resp, err := svc.Create(context.Background(), b.tenantID, CreateRequest{PickingTaskID: taskID}, 1)
+	jobID := createCompletedPackingJob(t, pickingSvc, packingSvc, b.tenantID, b, "LOT-B", 10)
+	resp, err := svc.Create(context.Background(), b.tenantID, CreateRequest{PackingJobID: jobID}, 1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -503,9 +597,10 @@ func TestService_Cancel_OwnTenant_Succeeds(t *testing.T) {
 	seedShippingBalance(t, tx, a, "LOT-A", 100, 0)
 
 	pickingSvc := newPickingServiceForShipping(tx)
+	packingSvc := newPackingServiceForShipping(tx, pickingSvc)
 	svc, _ := newShippingServiceAndRepo(tx)
-	taskID := createCompletedPickingTask(t, pickingSvc, a.tenantID, a, "LOT-A", 10)
-	resp, err := svc.Create(context.Background(), a.tenantID, CreateRequest{PickingTaskID: taskID}, 1)
+	jobID := createCompletedPackingJob(t, pickingSvc, packingSvc, a.tenantID, a, "LOT-A", 10)
+	resp, err := svc.Create(context.Background(), a.tenantID, CreateRequest{PackingJobID: jobID}, 1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -552,11 +647,18 @@ func TestService_Confirm_ConcurrentSameIdempotencyKey_OnlyOneApplies(t *testing.
 		// failing on an FK conflict and the whole tenant orphaned,
 		// colliding with this test's own hard-coded tenant slug on the
 		// next run — the same class of bug internal/order's own
-		// equivalent concurrency test cleanup was fixed for.
+		// equivalent concurrency test cleanup was fixed for. Phase 33D.1
+		// adds packing's own tables to this same FK-ordered cleanup,
+		// since every shipment now has a real packing job behind it.
 		db.Exec("DELETE FROM inventory_transactions WHERE tenant_id = ?", tenantID)
 		db.Exec("DELETE FROM shipment_confirmations WHERE tenant_id = ?", tenantID)
 		db.Exec("DELETE FROM shipment_items WHERE tenant_id = ?", tenantID)
 		db.Exec("DELETE FROM shipments WHERE tenant_id = ?", tenantID)
+		db.Exec("DELETE FROM packing_confirmations WHERE tenant_id = ?", tenantID)
+		db.Exec("DELETE FROM carton_contents WHERE tenant_id = ?", tenantID)
+		db.Exec("DELETE FROM cartons WHERE tenant_id = ?", tenantID)
+		db.Exec("DELETE FROM packing_job_items WHERE tenant_id = ?", tenantID)
+		db.Exec("DELETE FROM packing_jobs WHERE tenant_id = ?", tenantID)
 		db.Exec("DELETE FROM picking_confirmations WHERE tenant_id = ?", tenantID)
 		db.Exec("DELETE FROM picking_task_items WHERE tenant_id = ?", tenantID)
 		db.Exec("DELETE FROM picking_tasks WHERE tenant_id = ?", tenantID)
@@ -605,11 +707,12 @@ func TestService_Confirm_ConcurrentSameIdempotencyKey_OnlyOneApplies(t *testing.
 	}
 
 	pickingSvc := newPickingServiceForShipping(db)
+	packingSvc := newPackingServiceForShipping(db, pickingSvc)
 	svc, _ := newShippingServiceAndRepo(db)
-	taskID := createCompletedPickingTask(t, pickingSvc, tenantID, f, "LOT-SCONC", 10)
+	jobID := createCompletedPackingJob(t, pickingSvc, packingSvc, tenantID, f, "LOT-SCONC", 10)
 	carrier, tracking := "DHL", "DHL-SCONC"
 	resp, err := svc.Create(context.Background(), tenantID, CreateRequest{
-		PickingTaskID: taskID, Carrier: &carrier, TrackingNo: &tracking,
+		PackingJobID: jobID, Carrier: &carrier, TrackingNo: &tracking,
 	}, 1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)

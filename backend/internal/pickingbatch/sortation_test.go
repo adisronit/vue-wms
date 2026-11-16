@@ -6,7 +6,10 @@
 // real unwrapped db.Raw-seeded fixture + manual cleanup for the one
 // genuine concurrency scenario, exactly the same shape Phase 33C.1's
 // own tests already established.
-package pickingbatch
+//
+// Phase 33D.1: moved to the external "pickingbatch_test" package
+// alongside service_test.go — see that file's own doc for why.
+package pickingbatch_test
 
 import (
 	"context"
@@ -18,6 +21,7 @@ import (
 
 	"wms-backend/internal/location"
 	"wms-backend/internal/picking"
+	"wms-backend/internal/pickingbatch"
 	"wms-backend/internal/platform/testsupport"
 	"wms-backend/internal/product"
 )
@@ -65,7 +69,7 @@ func buildSO001SO002SO003Batch(t *testing.T, tx *gorm.DB, label string) (st stac
 	r2 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "B", 30)
 	r3 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "C", 50)
 
-	draft, err := st.batchSvc.Create(context.Background(), f.tenantID, CreateRequest{
+	draft, err := st.batchSvc.Create(context.Background(), f.tenantID, pickingbatch.CreateRequest{
 		WarehouseID: f.warehouseID, OrderIDs: []int64{r1.ID, r2.ID, r3.ID},
 	}, 1)
 	if err != nil {
@@ -104,7 +108,7 @@ func orderNo(t *testing.T, tx *gorm.DB, tenantID, orderID int64) string {
 
 // TestService_Sortation_NotReadyBeforeTaskTerminal proves the gate: a
 // CONFIRMED batch whose task is still PENDING/IN_PROGRESS rejects every
-// sortation action with ErrSortationNotReady, and a never-confirmed
+// sortation action with pickingbatch.ErrSortationNotReady, and a never-confirmed
 // (DRAFT) batch does too.
 func TestService_Sortation_NotReadyBeforeTaskTerminal(t *testing.T) {
 	db := testsupport.ConnectDB(t)
@@ -117,22 +121,22 @@ func TestService_Sortation_NotReadyBeforeTaskTerminal(t *testing.T) {
 	so1 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "A", 20)
 	so2 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "B", 30)
 
-	draft, err := st.batchSvc.Create(context.Background(), f.tenantID, CreateRequest{
+	draft, err := st.batchSvc.Create(context.Background(), f.tenantID, pickingbatch.CreateRequest{
 		WarehouseID: f.warehouseID, OrderIDs: []int64{so1.ID, so2.ID},
 	}, 1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if _, err := st.batchSvc.GetSortation(context.Background(), f.tenantID, draft.ID); !errors.Is(err, ErrSortationNotReady) {
-		t.Fatalf("GetSortation on DRAFT batch: err = %v, want ErrSortationNotReady", err)
+	if _, err := st.batchSvc.GetSortation(context.Background(), f.tenantID, draft.ID); !errors.Is(err, pickingbatch.ErrSortationNotReady) {
+		t.Fatalf("GetSortation on DRAFT batch: err = %v, want pickingbatch.ErrSortationNotReady", err)
 	}
 
 	confirmed, err := st.batchSvc.Confirm(context.Background(), f.tenantID, draft.ID, 1)
 	if err != nil {
 		t.Fatalf("Confirm: %v", err)
 	}
-	if _, err := st.batchSvc.GetSortation(context.Background(), f.tenantID, draft.ID); !errors.Is(err, ErrSortationNotReady) {
-		t.Fatalf("GetSortation on CONFIRMED-but-not-terminal batch: err = %v, want ErrSortationNotReady", err)
+	if _, err := st.batchSvc.GetSortation(context.Background(), f.tenantID, draft.ID); !errors.Is(err, pickingbatch.ErrSortationNotReady) {
+		t.Fatalf("GetSortation on CONFIRMED-but-not-terminal batch: err = %v, want pickingbatch.ErrSortationNotReady", err)
 	}
 	_ = confirmed
 }
@@ -156,12 +160,12 @@ func TestService_Sortation_SO001SO002SO003_ScanConfirmsExactSplit(t *testing.T) 
 	if len(worklist.Lines) != 3 {
 		t.Fatalf("len(Lines) = %d, want 3", len(worklist.Lines))
 	}
-	if worklist.SortationStatus != SortationNotStarted {
+	if worklist.SortationStatus != pickingbatch.SortationNotStarted {
 		t.Fatalf("SortationStatus = %v, want NOT_STARTED", worklist.SortationStatus)
 	}
 
-	scan := func(orderID int64, qty float64) *SortationResponse {
-		resp, err := st.batchSvc.ScanSortation(context.Background(), f.tenantID, batchID, SortationScanRequest{
+	scan := func(orderID int64, qty float64) *pickingbatch.SortationResponse {
+		resp, err := st.batchSvc.ScanSortation(context.Background(), f.tenantID, batchID, pickingbatch.SortationScanRequest{
 			OrderBarcode: orderNo(t, tx, f.tenantID, orderID), SKU: sku, LotNo: "LOT-X", Quantity: qty,
 		}, 1)
 		if err != nil {
@@ -171,12 +175,12 @@ func TestService_Sortation_SO001SO002SO003_ScanConfirmsExactSplit(t *testing.T) 
 	}
 
 	r1 := scan(so1, 20)
-	if r1.SortationStatus != SortationInProgress {
+	if r1.SortationStatus != pickingbatch.SortationInProgress {
 		t.Errorf("after first scan, SortationStatus = %v, want IN_PROGRESS", r1.SortationStatus)
 	}
 	scan(so2, 30)
 	r3 := scan(so3, 50)
-	if r3.SortationStatus != SortationCompleted {
+	if r3.SortationStatus != pickingbatch.SortationCompleted {
 		t.Errorf("after all three scans, SortationStatus = %v, want COMPLETED", r3.SortationStatus)
 	}
 
@@ -190,10 +194,10 @@ func TestService_Sortation_SO001SO002SO003_ScanConfirmsExactSplit(t *testing.T) 
 	}
 
 	// Nothing left to sort for so1 -- even 1 more unit is rejected.
-	if _, err := st.batchSvc.ScanSortation(context.Background(), f.tenantID, batchID, SortationScanRequest{
+	if _, err := st.batchSvc.ScanSortation(context.Background(), f.tenantID, batchID, pickingbatch.SortationScanRequest{
 		OrderBarcode: orderNo(t, tx, f.tenantID, so1), SKU: sku, LotNo: "LOT-X", Quantity: 1,
-	}, 1); !errors.Is(err, ErrSortationOverAllocation) {
-		t.Fatalf("repeat scan after fully sorted: err = %v, want ErrSortationOverAllocation", err)
+	}, 1); !errors.Is(err, pickingbatch.ErrSortationOverAllocation) {
+		t.Fatalf("repeat scan after fully sorted: err = %v, want pickingbatch.ErrSortationOverAllocation", err)
 	}
 }
 
@@ -210,16 +214,16 @@ func TestService_Sortation_ScanMismatch(t *testing.T) {
 
 	cases := []struct {
 		name string
-		req  SortationScanRequest
+		req  pickingbatch.SortationScanRequest
 	}{
-		{"wrong order barcode", SortationScanRequest{OrderBarcode: "NO-SUCH-ORDER", SKU: sku, LotNo: "LOT-X", Quantity: 5}},
-		{"wrong sku", SortationScanRequest{OrderBarcode: so1No, SKU: "WRONG-SKU", LotNo: "LOT-X", Quantity: 5}},
-		{"wrong lot", SortationScanRequest{OrderBarcode: so1No, SKU: sku, LotNo: "WRONG-LOT", Quantity: 5}},
+		{"wrong order barcode", pickingbatch.SortationScanRequest{OrderBarcode: "NO-SUCH-ORDER", SKU: sku, LotNo: "LOT-X", Quantity: 5}},
+		{"wrong sku", pickingbatch.SortationScanRequest{OrderBarcode: so1No, SKU: "WRONG-SKU", LotNo: "LOT-X", Quantity: 5}},
+		{"wrong lot", pickingbatch.SortationScanRequest{OrderBarcode: so1No, SKU: sku, LotNo: "WRONG-LOT", Quantity: 5}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := st.batchSvc.ScanSortation(context.Background(), f.tenantID, batchID, tc.req, 1); !errors.Is(err, ErrSortationScanMismatch) {
-				t.Fatalf("err = %v, want ErrSortationScanMismatch", err)
+			if _, err := st.batchSvc.ScanSortation(context.Background(), f.tenantID, batchID, tc.req, 1); !errors.Is(err, pickingbatch.ErrSortationScanMismatch) {
+				t.Fatalf("err = %v, want pickingbatch.ErrSortationScanMismatch", err)
 			}
 		})
 	}
@@ -237,10 +241,10 @@ func TestService_Sortation_OverAllocationRejectedNotClamped(t *testing.T) {
 	sku := productSKU(t, tx, f.productID)
 	so1No := orderNo(t, tx, f.tenantID, so1)
 
-	if _, err := st.batchSvc.ScanSortation(context.Background(), f.tenantID, batchID, SortationScanRequest{
+	if _, err := st.batchSvc.ScanSortation(context.Background(), f.tenantID, batchID, pickingbatch.SortationScanRequest{
 		OrderBarcode: so1No, SKU: sku, LotNo: "LOT-X", Quantity: 25, // so1 is only allocated 20
-	}, 1); !errors.Is(err, ErrSortationOverAllocation) {
-		t.Fatalf("err = %v, want ErrSortationOverAllocation", err)
+	}, 1); !errors.Is(err, pickingbatch.ErrSortationOverAllocation) {
+		t.Fatalf("err = %v, want pickingbatch.ErrSortationOverAllocation", err)
 	}
 
 	worklist, err := st.batchSvc.GetSortation(context.Background(), f.tenantID, batchID)
@@ -278,7 +282,7 @@ func TestService_Sortation_FlagException(t *testing.T) {
 		t.Fatal("could not find so1's own allocation line")
 	}
 
-	resp, err := st.batchSvc.FlagSortationException(context.Background(), f.tenantID, batchID, SortationExceptionRequest{
+	resp, err := st.batchSvc.FlagSortationException(context.Background(), f.tenantID, batchID, pickingbatch.SortationExceptionRequest{
 		AllocationID: so1AllocID, ShortageQty: 20, Reason: "Found damaged while sorting",
 	}, 1)
 	if err != nil {
@@ -295,16 +299,16 @@ func TestService_Sortation_FlagException(t *testing.T) {
 		}
 	}
 
-	if _, err := st.batchSvc.FlagSortationException(context.Background(), f.tenantID, batchID, SortationExceptionRequest{
+	if _, err := st.batchSvc.FlagSortationException(context.Background(), f.tenantID, batchID, pickingbatch.SortationExceptionRequest{
 		AllocationID: so1AllocID, ShortageQty: 5, Reason: "second attempt",
-	}, 1); !errors.Is(err, ErrSortationAlreadyFlagged) {
-		t.Fatalf("re-flag: err = %v, want ErrSortationAlreadyFlagged", err)
+	}, 1); !errors.Is(err, pickingbatch.ErrSortationAlreadyFlagged) {
+		t.Fatalf("re-flag: err = %v, want pickingbatch.ErrSortationAlreadyFlagged", err)
 	}
 
 	// Scanning so2/so3 fully should now complete sortation (so1's own
 	// line is resolved via shortage, not sorting).
-	scan := func(orderID int64, qty float64) *SortationResponse {
-		r, err := st.batchSvc.ScanSortation(context.Background(), f.tenantID, batchID, SortationScanRequest{
+	scan := func(orderID int64, qty float64) *pickingbatch.SortationResponse {
+		r, err := st.batchSvc.ScanSortation(context.Background(), f.tenantID, batchID, pickingbatch.SortationScanRequest{
 			OrderBarcode: orderNo(t, tx, f.tenantID, orderID), SKU: sku, LotNo: "LOT-X", Quantity: qty,
 		}, 1)
 		if err != nil {
@@ -314,7 +318,7 @@ func TestService_Sortation_FlagException(t *testing.T) {
 	}
 	scan(so2, 30)
 	final := scan(so3, 50)
-	if final.SortationStatus != SortationCompleted {
+	if final.SortationStatus != pickingbatch.SortationCompleted {
 		t.Errorf("SortationStatus = %v, want COMPLETED (so1 resolved via shortage, so2/so3 fully scanned)", final.SortationStatus)
 	}
 }
@@ -328,7 +332,7 @@ func TestService_Sortation_AssignSortation(t *testing.T) {
 	st, f, batchID, _, _, _, _, _ := buildSO001SO002SO003Batch(t, tx, "sortassign")
 	station := "SORT-01"
 
-	resp, err := st.batchSvc.AssignSortation(context.Background(), f.tenantID, batchID, SortationAssignRequest{Station: &station})
+	resp, err := st.batchSvc.AssignSortation(context.Background(), f.tenantID, batchID, pickingbatch.SortationAssignRequest{Station: &station})
 	if err != nil {
 		t.Fatalf("AssignSortation: %v", err)
 	}
@@ -348,13 +352,13 @@ func TestService_Sortation_CrossTenantIsolation(t *testing.T) {
 	st, _, batchID, _, _, _, _, _ := buildSO001SO002SO003Batch(t, tx, "sorttenantA")
 	fB := newFixture(t, tx, "sorttenantB")
 
-	if _, err := st.batchSvc.GetSortation(context.Background(), fB.tenantID, batchID); !errors.Is(err, ErrNotFound) {
-		t.Fatalf("GetSortation cross-tenant: err = %v, want ErrNotFound", err)
+	if _, err := st.batchSvc.GetSortation(context.Background(), fB.tenantID, batchID); !errors.Is(err, pickingbatch.ErrNotFound) {
+		t.Fatalf("GetSortation cross-tenant: err = %v, want pickingbatch.ErrNotFound", err)
 	}
-	if _, err := st.batchSvc.ScanSortation(context.Background(), fB.tenantID, batchID, SortationScanRequest{
+	if _, err := st.batchSvc.ScanSortation(context.Background(), fB.tenantID, batchID, pickingbatch.SortationScanRequest{
 		OrderBarcode: "ANY", SKU: "ANY", Quantity: 1,
-	}, 1); !errors.Is(err, ErrNotFound) {
-		t.Fatalf("ScanSortation cross-tenant: err = %v, want ErrNotFound", err)
+	}, 1); !errors.Is(err, pickingbatch.ErrNotFound) {
+		t.Fatalf("ScanSortation cross-tenant: err = %v, want pickingbatch.ErrNotFound", err)
 	}
 }
 
@@ -434,7 +438,7 @@ func TestService_Sortation_ConcurrentScans_NeverOverAllocates(t *testing.T) {
 	so1 := createReleasedOrder(t, st.orderSvc, tenantID, f, "A", 20)
 	so2 := createReleasedOrder(t, st.orderSvc, tenantID, f, "B", 80)
 
-	draft, err := st.batchSvc.Create(context.Background(), tenantID, CreateRequest{
+	draft, err := st.batchSvc.Create(context.Background(), tenantID, pickingbatch.CreateRequest{
 		WarehouseID: warehouseID, OrderIDs: []int64{so1.ID, so2.ID},
 	}, 1)
 	if err != nil {
@@ -463,7 +467,7 @@ func TestService_Sortation_ConcurrentScans_NeverOverAllocates(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			_, err := st.batchSvc.ScanSortation(context.Background(), tenantID, draft.ID, SortationScanRequest{
+			_, err := st.batchSvc.ScanSortation(context.Background(), tenantID, draft.ID, pickingbatch.SortationScanRequest{
 				OrderBarcode: so1No, SKU: sku, LotNo: "LOT-SORTCONC", Quantity: perScan,
 			}, 1)
 			results[idx] = err
@@ -476,7 +480,7 @@ func TestService_Sortation_ConcurrentScans_NeverOverAllocates(t *testing.T) {
 		switch {
 		case err == nil:
 			successes++
-		case errors.Is(err, ErrSortationOverAllocation):
+		case errors.Is(err, pickingbatch.ErrSortationOverAllocation):
 			// expected for the losers
 		default:
 			t.Errorf("unexpected error: %v", err)

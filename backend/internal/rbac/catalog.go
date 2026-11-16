@@ -128,7 +128,19 @@ var Modules = []ModuleDef{
 	// every other module's own "view gates every read" convention.
 	{Code: "picking_batch", Name: "Batch Picking", Actions: []string{"view", "create", "confirm", "cancel", "sortation"}},
 	{Code: "replenishment", Name: "Replenishment", Actions: []string{"view", "create", "update", "approve"}},
-	{Code: "shipping", Name: "Shipping", Actions: []string{"view", "create", "update", "approve"}},
+	// "confirm" (Phase 33D.1) gates Confirm (the Dispatch/Deliver/Issue
+	// status transitions — the significant, caller-visible action this
+	// module's whole workflow exists for) — split out of "approve" the
+	// same way receiving.confirm/quality_check.confirm/putaway.confirm/
+	// relocation.confirm/picking.confirm/order.confirm/packing.confirm
+	// were each split before it. Before this split, Confirm was gated on
+	// "approve" directly (see Handler.Register's own doc for the
+	// historical reasoning); "approve" remains reserved, unused by any
+	// handler in this module, matching every other confirm/approve
+	// split's own "approve stays reserved for a future supervisor-level
+	// exception action" precedent. See RoleDefaultGrants' own doc for why
+	// SHIPPING now gets shipping.confirm by default.
+	{Code: "shipping", Name: "Shipping", Actions: []string{"view", "create", "update", "confirm", "approve"}},
 	// "confirm" (Phase 33A) gates the new Review & Release action
 	// (Service.Release: PENDING -> RELEASED, the availability-check +
 	// controlled-shortage-approval gate in front of the existing
@@ -271,7 +283,14 @@ var RoleDefaultGrants = map[string][]string{
 	},
 	"SHIPPING": {
 		"dashboard.view",
-		"shipping.view", "shipping.create", "shipping.update",
+		// shipping.confirm (Phase 33D.1) added alongside the pre-existing
+		// shipping.update so SHIPPING staff keep the ability to confirm
+		// dispatch/delivery/issue after Confirm moved off shipping.approve
+		// onto this new split code — see catalog's own doc on the
+		// "shipping" module above, the same shape receiving.confirm/
+		// putaway.confirm/picking.confirm already established for their
+		// own operational staff roles.
+		"shipping.view", "shipping.create", "shipping.update", "shipping.confirm",
 		"stock_inquiry.view",
 	},
 }

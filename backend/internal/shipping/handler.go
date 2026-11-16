@@ -31,16 +31,23 @@ func NewHandler(service *Service) *Handler {
 }
 
 // Register mounts the Shipping endpoints on rg. Permissions reuse the
-// existing "shipping" module from Phase 2's catalog exactly as-is — no
-// new codes. Unlike Picking (whose PICKING role has an unusual
-// view+update-only grant shape), the SHIPPING role's own Phase 2/3 seed
-// grants (internal/rbac/catalog.go) mirror RECEIVING/PUTAWAY exactly:
-// view/create/update, no approve. So Confirm (the action that actually
-// transitions a shipment — dispatch/deliver/issue) is gated on
-// shipping.approve, the same significant-action permission Receiving/
-// Putaway's own Confirm already uses — under current seed data only
-// ADMIN/WAREHOUSE_MANAGER have it, the same segregation-of-duties
-// consequence already established for those two modules.
+// existing "shipping" module from Phase 2's catalog — Phase 33D.1 adds
+// one new code, "shipping.confirm", splitting it out of "shipping.
+// approve" the same way receiving.confirm/quality_check.confirm/
+// putaway.confirm/relocation.confirm/picking.confirm/order.confirm/
+// packing.confirm were each split before it: Confirm (the action that
+// actually transitions a shipment — dispatch/deliver/issue) now gates
+// on shipping.confirm instead of shipping.approve, and the SHIPPING
+// role's own catalog default grants are extended with it (see
+// internal/rbac/catalog.go's own doc) so SHIPPING staff can confirm
+// their own dispatches without also being granted the separate,
+// supervisor-level "approve" permission — which remains reserved for a
+// future exception-handling action, matching every other confirm/
+// approve split's own reserved-approve precedent. Before this split,
+// Confirm was gated on shipping.approve directly (so only ADMIN/
+// WAREHOUSE_MANAGER could confirm under the old seed data, since
+// SHIPPING never had approve); shipping.approve itself is untouched and
+// still exists in the catalog, just no longer used by any handler here.
 // Phase 15's Cancel is gated on shipping.update, matching Receiving/
 // Putaway's own Cancel reasoning: it only ever runs pre-dispatch
 // (Status.CanCancel is READY-only, the same boundary Update's own
@@ -63,7 +70,7 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChec
 	shippingGroup.GET("/:id", middleware.RequirePermission("shipping.view"), h.Get)
 	shippingGroup.POST("", middleware.RequirePermission("shipping.create"), h.Create)
 	shippingGroup.PUT("/:id", middleware.RequirePermission("shipping.update"), h.Update)
-	shippingGroup.POST("/:id/confirm", middleware.RequirePermission("shipping.approve"), h.Confirm)
+	shippingGroup.POST("/:id/confirm", middleware.RequirePermission("shipping.confirm"), h.Confirm)
 	shippingGroup.POST("/:id/cancel", middleware.RequirePermission("shipping.update"), h.Cancel)
 }
 
@@ -185,8 +192,8 @@ func (h *Handler) Export(c *gin.Context) {
 
 // Sources godoc
 //
-//	@Summary		List completed picking tasks not yet shipped
-//	@Description	Powers ShippingView.vue's "+ New Shipment" flow with a real source picker — the mock itself has no way to choose which order to ship.
+//	@Summary		List completed packing jobs not yet shipped
+//	@Description	Powers ShippingView.vue's "+ New Shipment" flow with a real source picker (Phase 33D.1: packing jobs — the real pack-validation gate — not raw picking tasks) — the mock itself has no way to choose which order to ship.
 //	@Tags			Shipping
 //	@Produce		json
 //	@Security		BearerAuth
@@ -203,7 +210,7 @@ func (h *Handler) Sources(c *gin.Context) {
 
 	sources, err := h.service.Sources(c.Request.Context(), tenantID)
 	if err != nil {
-		apihttp.Fail(c, http.StatusInternalServerError, "failed to list shippable picking tasks", "INTERNAL_ERROR")
+		apihttp.Fail(c, http.StatusInternalServerError, "failed to list shippable packing jobs", "INTERNAL_ERROR")
 		return
 	}
 	apihttp.OK(c, sources, "")
@@ -248,8 +255,8 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Create godoc
 //
-//	@Summary		Create a shipment from a completed picking task
-//	@Description	Copies the linked picking task's already-picked lines verbatim (no item quantities are ever accepted from the client) — a new shipment always starts READY; use POST /shipping/{id}/confirm to dispatch/deliver/flag it. One shipment per picking task is enforced (409 if the task is already shipped).
+//	@Summary		Create a shipment from a completed (checker-confirmed) packing job
+//	@Description	Phase 33D.1: re-keyed off packing_job_id, not picking_task_id. Copies the linked packing job's own already-packed lines' packed_qty verbatim (no item quantities are ever accepted from the client) — the job must already be COMPLETED (internal/packing's own two-person checker-confirm), or 422 ErrNotPacked is returned. A new shipment always starts READY; use POST /shipping/{id}/confirm to dispatch/deliver/flag it. One shipment per packing job is enforced (409 if the job is already shipped).
 //	@Tags			Shipping
 //	@Accept			json
 //	@Produce		json
@@ -259,9 +266,9 @@ func (h *Handler) Get(c *gin.Context) {
 //	@Failure		400		{object}	apihttp.ErrorResponse
 //	@Failure		401		{object}	apihttp.ErrorResponse
 //	@Failure		403		{object}	apihttp.ErrorResponse
-//	@Failure		404		{object}	apihttp.ErrorResponse	"picking task does not exist"
-//	@Failure		409		{object}	apihttp.ErrorResponse	"picking task already has a shipment"
-//	@Failure		422		{object}	apihttp.ErrorResponse
+//	@Failure		404		{object}	apihttp.ErrorResponse	"packing job does not exist"
+//	@Failure		409		{object}	apihttp.ErrorResponse	"packing job already has a shipment"
+//	@Failure		422		{object}	apihttp.ErrorResponse	"packing job is not yet COMPLETED, or has no packed lines"
 //	@Router			/shipping [post]
 func (h *Handler) Create(c *gin.Context) {
 	tenantID, ok := middleware.EnforcedTenantID(c)
@@ -439,14 +446,14 @@ func writeError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, ErrNotFound):
 		apihttp.Fail(c, http.StatusNotFound, "shipment not found", "NOT_FOUND")
-	case errors.Is(err, ErrPickingTaskNotFound):
-		apihttp.Fail(c, http.StatusNotFound, "picking task not found", "PICKING_TASK_NOT_FOUND")
-	case errors.Is(err, ErrNotShippable):
-		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "NOT_SHIPPABLE")
+	case errors.Is(err, ErrPackingJobNotFound):
+		apihttp.Fail(c, http.StatusNotFound, "packing job not found", "PACKING_JOB_NOT_FOUND")
+	case errors.Is(err, ErrNotPacked):
+		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "NOT_PACKED")
 	case errors.Is(err, ErrNoShippableItems):
 		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "NO_SHIPPABLE_ITEMS")
 	case errors.Is(err, ErrAlreadyShipped):
-		apihttp.Fail(c, http.StatusConflict, "picking task already has a shipment", "ALREADY_SHIPPED")
+		apihttp.Fail(c, http.StatusConflict, "packing job already has a shipment", "ALREADY_SHIPPED")
 	case errors.Is(err, ErrNotEditable):
 		apihttp.Fail(c, http.StatusConflict, "shipment can no longer be edited", "NOT_EDITABLE")
 	case errors.Is(err, ErrInvalidTransition):

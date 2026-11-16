@@ -4,7 +4,21 @@
 // sequential scenarios, a real unwrapped db.Raw-seeded fixture + manual
 // cleanup for the one genuine concurrency scenario) rather than mocking
 // out GORM or internal/picking.
-package pickingbatch
+//
+// Phase 33D.1: built as an EXTERNAL test package ("pickingbatch_test",
+// not "pickingbatch") together with sortation_test.go/pdf_test.go
+// (which share this file's own fixture/stack helpers and so must move
+// together) — internal/shipping now imports internal/packing (its own
+// packingChecker), and internal/packing already imports internal/
+// pickingbatch (its own batchOrchestrator, Phase 33C.2), so importing
+// internal/order (which itself imports internal/shipping, order/dto.go)
+// from one of THIS package's own INTERNAL test files would be a real
+// import cycle: pickingbatch (test) -> order -> shipping -> packing ->
+// pickingbatch. An external test package has no such problem: nothing
+// imports pickingbatch_test, so pickingbatch_test -> {order,
+// pickingbatch, picking} is a one-directional, acyclic edge regardless
+// of what order/shipping/packing/pickingbatch import from each other.
+package pickingbatch_test
 
 import (
 	"context"
@@ -20,9 +34,9 @@ import (
 	"wms-backend/internal/location"
 	"wms-backend/internal/order"
 	"wms-backend/internal/picking"
+	"wms-backend/internal/pickingbatch"
 	"wms-backend/internal/platform/testsupport"
 	"wms-backend/internal/product"
-	"wms-backend/internal/shipping"
 	"wms-backend/internal/user"
 	"wms-backend/internal/warehouse"
 )
@@ -109,7 +123,7 @@ func seedBalance(t *testing.T, tx *gorm.DB, f fixture, lotNo string, quantity fl
 // throughout.
 type stack struct {
 	orderSvc   *order.Service
-	batchSvc   *Service
+	batchSvc   *pickingbatch.Service
 	pickingSvc *picking.Service
 }
 
@@ -126,12 +140,23 @@ func newStack(tx *gorm.DB) stack {
 	orderRepo := order.NewRepository(tx)
 	customerRepo := customer.NewRepository(tx)
 	shipToRepo := customerdeliverylocation.NewRepository(tx)
-	shippingRepo := shipping.NewRepository(tx)
-	shippingSvc := shipping.NewService(shippingRepo, pickingSvc)
-	orderSvc := order.NewService(orderRepo, productRepo, warehouseRepo, customerRepo, shipToRepo, pickingSvc, shippingSvc, invSvc)
+	// Phase 33D.1: order.NewService's own shipping dependency is passed
+	// as nil here — internal/shipping now imports internal/packing (for
+	// its own packingChecker), and internal/packing itself imports
+	// internal/pickingbatch (Phase 33C.2's batchOrchestrator), so merely
+	// importing internal/shipping from one of THIS package's own
+	// internal (non-"_test"-suffixed-package) test files would be a real
+	// import cycle: pickingbatch (test) -> shipping -> packing ->
+	// pickingbatch. nil is safe: this package's own tests only ever
+	// reach order.Service's shipping dependency through the read-only
+	// FindByPickingTaskID path inside Service.Get, which every order
+	// reaching this stack skips entirely — batch-picked orders never set
+	// picking_task_id at all (see migrations/0097's own doc; they carry
+	// picking_batch_id instead), so that branch is never taken here.
+	orderSvc := order.NewService(orderRepo, productRepo, warehouseRepo, customerRepo, shipToRepo, pickingSvc, nil, invSvc)
 
-	batchRepo := NewRepository(tx)
-	batchSvc := NewService(batchRepo, warehouseRepo, pickingSvc)
+	batchRepo := pickingbatch.NewRepository(tx)
+	batchSvc := pickingbatch.NewService(batchRepo, warehouseRepo, pickingSvc)
 
 	return stack{orderSvc: orderSvc, batchSvc: batchSvc, pickingSvc: pickingSvc}
 }
@@ -199,7 +224,7 @@ func seedPickerUser(t *testing.T, tx *gorm.DB, tenantID int64, label string) int
 	return userID
 }
 
-func allocatedQtyForOrder(line ConsolidatedLineResponse, orderID int64) float64 {
+func allocatedQtyForOrder(line pickingbatch.ConsolidatedLineResponse, orderID int64) float64 {
 	var total float64
 	for _, a := range line.Allocations {
 		if a.OrderID == orderID {
@@ -227,13 +252,13 @@ func TestService_Create_ConsolidatesSO001SO002SO003(t *testing.T) {
 	so2 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "Customer B", 30)
 	so3 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "Customer C", 50)
 
-	resp, err := st.batchSvc.Create(context.Background(), f.tenantID, CreateRequest{
+	resp, err := st.batchSvc.Create(context.Background(), f.tenantID, pickingbatch.CreateRequest{
 		WarehouseID: f.warehouseID, OrderIDs: []int64{so1.ID, so2.ID, so3.ID},
 	}, 1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if resp.Status != StatusDraft {
+	if resp.Status != pickingbatch.StatusDraft {
 		t.Errorf("Status = %v, want DRAFT", resp.Status)
 	}
 	if len(resp.Lines) != 1 {
@@ -272,7 +297,7 @@ func TestService_Create_DistinctCustomerShipToPreserved(t *testing.T) {
 	so1 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "Acme Co", 20)
 	so2 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "Widgets Inc", 30)
 
-	resp, err := st.batchSvc.Create(context.Background(), f.tenantID, CreateRequest{
+	resp, err := st.batchSvc.Create(context.Background(), f.tenantID, pickingbatch.CreateRequest{
 		WarehouseID: f.warehouseID, OrderIDs: []int64{so1.ID, so2.ID},
 	}, 1)
 	if err != nil {
@@ -307,7 +332,7 @@ func TestService_Create_SplitsAcrossMultipleLots(t *testing.T) {
 	so2 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "Customer B", 30)
 	so3 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "Customer C", 50)
 
-	resp, err := st.batchSvc.Create(context.Background(), f.tenantID, CreateRequest{
+	resp, err := st.batchSvc.Create(context.Background(), f.tenantID, pickingbatch.CreateRequest{
 		WarehouseID: f.warehouseID, OrderIDs: []int64{so1.ID, so2.ID, so3.ID},
 	}, 1)
 	if err != nil {
@@ -360,12 +385,12 @@ func TestService_Create_RejectsOrderNotReleased(t *testing.T) {
 	so1 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "A", 20)
 	so2 := createPendingOrder(t, st.orderSvc, f.tenantID, f, "PICK_BY_PRODUCT", 30) // still PENDING
 
-	_, err := st.batchSvc.Create(context.Background(), f.tenantID, CreateRequest{
+	_, err := st.batchSvc.Create(context.Background(), f.tenantID, pickingbatch.CreateRequest{
 		WarehouseID: f.warehouseID, OrderIDs: []int64{so1.ID, so2.ID},
 	}, 1)
-	var verr ErrValidation
+	var verr pickingbatch.ErrValidation
 	if !errors.As(err, &verr) {
-		t.Fatalf("Create = %v, want ErrValidation", err)
+		t.Fatalf("Create = %v, want pickingbatch.ErrValidation", err)
 	}
 	t.Logf("got expected validation error: %s", verr.Message)
 }
@@ -385,12 +410,12 @@ func TestService_Create_RejectsPickByOrderMode(t *testing.T) {
 		t.Fatalf("Release: %v", err)
 	}
 
-	_, err = st.batchSvc.Create(context.Background(), f.tenantID, CreateRequest{
+	_, err = st.batchSvc.Create(context.Background(), f.tenantID, pickingbatch.CreateRequest{
 		WarehouseID: f.warehouseID, OrderIDs: []int64{so1.ID, so2.ID},
 	}, 1)
-	var verr ErrValidation
+	var verr pickingbatch.ErrValidation
 	if !errors.As(err, &verr) {
-		t.Fatalf("Create = %v, want ErrValidation", err)
+		t.Fatalf("Create = %v, want pickingbatch.ErrValidation", err)
 	}
 }
 
@@ -421,12 +446,12 @@ func TestService_Create_RejectsCrossWarehouse(t *testing.T) {
 	// so2 belongs to a's own tenant but a's own warehouse (not warehouseID2)
 	so2 := createReleasedOrder(t, st.orderSvc, a.tenantID, a, "B", 30)
 
-	_, err := st.batchSvc.Create(context.Background(), a.tenantID, CreateRequest{
+	_, err := st.batchSvc.Create(context.Background(), a.tenantID, pickingbatch.CreateRequest{
 		WarehouseID: warehouseID2, OrderIDs: []int64{so1.ID, so2.ID},
 	}, 1)
-	var verr ErrValidation
+	var verr pickingbatch.ErrValidation
 	if !errors.As(err, &verr) {
-		t.Fatalf("Create = %v, want ErrValidation (cross warehouse)", err)
+		t.Fatalf("Create = %v, want pickingbatch.ErrValidation (cross warehouse)", err)
 	}
 }
 
@@ -443,12 +468,12 @@ func TestService_Create_RejectsCrossTenantOrder(t *testing.T) {
 	so1 := createReleasedOrder(t, st.orderSvc, a.tenantID, a, "A", 20)
 	so2 := createReleasedOrder(t, st.orderSvc, b.tenantID, b, "B", 30) // different tenant
 
-	_, err := st.batchSvc.Create(context.Background(), a.tenantID, CreateRequest{
+	_, err := st.batchSvc.Create(context.Background(), a.tenantID, pickingbatch.CreateRequest{
 		WarehouseID: a.warehouseID, OrderIDs: []int64{so1.ID, so2.ID},
 	}, 1)
-	var verr ErrValidation
+	var verr pickingbatch.ErrValidation
 	if !errors.As(err, &verr) {
-		t.Fatalf("Create = %v, want ErrValidation (cross tenant order not found)", err)
+		t.Fatalf("Create = %v, want pickingbatch.ErrValidation (cross tenant order not found)", err)
 	}
 }
 
@@ -464,7 +489,7 @@ func TestService_Create_RejectsOrderAlreadyInActiveBatch(t *testing.T) {
 	so2 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "B", 30)
 	so3 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "C", 50)
 
-	if _, err := st.batchSvc.Create(context.Background(), f.tenantID, CreateRequest{
+	if _, err := st.batchSvc.Create(context.Background(), f.tenantID, pickingbatch.CreateRequest{
 		WarehouseID: f.warehouseID, OrderIDs: []int64{so1.ID, so2.ID},
 	}, 1); err != nil {
 		t.Fatalf("first Create: %v", err)
@@ -472,12 +497,12 @@ func TestService_Create_RejectsOrderAlreadyInActiveBatch(t *testing.T) {
 
 	// so1 is now a member of an active (DRAFT) batch — a second batch
 	// reusing it must be rejected, not silently drop it.
-	_, err := st.batchSvc.Create(context.Background(), f.tenantID, CreateRequest{
+	_, err := st.batchSvc.Create(context.Background(), f.tenantID, pickingbatch.CreateRequest{
 		WarehouseID: f.warehouseID, OrderIDs: []int64{so1.ID, so3.ID},
 	}, 1)
-	var verr ErrValidation
+	var verr pickingbatch.ErrValidation
 	if !errors.As(err, &verr) {
-		t.Fatalf("second Create = %v, want ErrValidation (already in active batch)", err)
+		t.Fatalf("second Create = %v, want pickingbatch.ErrValidation (already in active batch)", err)
 	}
 }
 
@@ -492,12 +517,12 @@ func TestService_Create_RejectsInsufficientStock(t *testing.T) {
 	so1 := createReleasedOrderApprovingShortage(t, st.orderSvc, f.tenantID, f, "A", 20)
 	so2 := createReleasedOrderApprovingShortage(t, st.orderSvc, f.tenantID, f, "B", 30)
 
-	_, err := st.batchSvc.Create(context.Background(), f.tenantID, CreateRequest{
+	_, err := st.batchSvc.Create(context.Background(), f.tenantID, pickingbatch.CreateRequest{
 		WarehouseID: f.warehouseID, OrderIDs: []int64{so1.ID, so2.ID},
 	}, 1)
-	var verr ErrValidation
+	var verr pickingbatch.ErrValidation
 	if !errors.As(err, &verr) {
-		t.Fatalf("Create = %v, want ErrValidation (insufficient stock)", err)
+		t.Fatalf("Create = %v, want pickingbatch.ErrValidation (insufficient stock)", err)
 	}
 }
 
@@ -518,7 +543,7 @@ func TestService_Confirm_FullLifecycleThroughUnmodifiedPicking(t *testing.T) {
 	so2 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "B", 30)
 	so3 := createReleasedOrder(t, st.orderSvc, f.tenantID, f, "C", 50)
 
-	draft, err := st.batchSvc.Create(context.Background(), f.tenantID, CreateRequest{
+	draft, err := st.batchSvc.Create(context.Background(), f.tenantID, pickingbatch.CreateRequest{
 		WarehouseID: f.warehouseID, OrderIDs: []int64{so1.ID, so2.ID, so3.ID},
 	}, 1)
 	if err != nil {
@@ -529,7 +554,7 @@ func TestService_Confirm_FullLifecycleThroughUnmodifiedPicking(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Confirm: %v", err)
 	}
-	if confirmed.Status != StatusConfirmed {
+	if confirmed.Status != pickingbatch.StatusConfirmed {
 		t.Fatalf("Status = %v, want CONFIRMED", confirmed.Status)
 	}
 	if confirmed.PickingTaskID == nil {
@@ -626,7 +651,7 @@ func TestService_Confirm_FullLifecycleThroughUnmodifiedPicking(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get after completion: %v", err)
 	}
-	if finalBatch.Status != StatusCompleted {
+	if finalBatch.Status != pickingbatch.StatusCompleted {
 		t.Errorf("batch Status = %v, want COMPLETED (mirrored from the task)", finalBatch.Status)
 	}
 
@@ -728,7 +753,7 @@ func TestService_Confirm_ConcurrentConfirms_OnlyOneWins(t *testing.T) {
 	so1 := createReleasedOrder(t, st.orderSvc, tenantID, f, "A", 20)
 	so2 := createReleasedOrder(t, st.orderSvc, tenantID, f, "B", 30)
 
-	draft, err := st.batchSvc.Create(context.Background(), tenantID, CreateRequest{
+	draft, err := st.batchSvc.Create(context.Background(), tenantID, pickingbatch.CreateRequest{
 		WarehouseID: warehouseID, OrderIDs: []int64{so1.ID, so2.ID},
 	}, 1)
 	if err != nil {
@@ -753,7 +778,7 @@ func TestService_Confirm_ConcurrentConfirms_OnlyOneWins(t *testing.T) {
 		switch {
 		case err == nil:
 			successes++
-		case errors.Is(err, ErrConfirmConflict), errors.Is(err, ErrNotConfirmable):
+		case errors.Is(err, pickingbatch.ErrConfirmConflict), errors.Is(err, pickingbatch.ErrNotConfirmable):
 			conflicts++
 		default:
 			t.Errorf("concurrent Confirm returned unexpected error: %v", err)
