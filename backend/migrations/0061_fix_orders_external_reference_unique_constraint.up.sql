@@ -1,0 +1,23 @@
+-- Fixes a pre-existing bug in migrations/0048_tenant_scope_unique_constraints:
+-- orders.external_reference's own "CONSTRAINT
+-- UQ_orders_tenant_external_reference UNIQUE (tenant_id,
+-- external_reference)" is a plain composite UNIQUE constraint, not a
+-- filtered index. SQL Server compares the full key tuple including
+-- NULLs, so two orders in the SAME tenant that both leave
+-- external_reference unset (the normal case — nothing in
+-- order.CreateRequest requires it) collide with "Violation of UNIQUE
+-- KEY constraint 'UQ_orders_tenant_external_reference'... duplicate key
+-- value is (<tenant_id>, <NULL>)". Discovered while writing regression
+-- tests for migrations/0060's own, closely related fix on
+-- orders.picking_task_id (see that migration's own comment), confirmed
+-- directly against a real SQL Server.
+--
+-- Same fix 0008/0048/0060 already applied for the identical reason
+-- (products.barcode, orders.picking_task_id): swap the constraint for a
+-- filtered unique index that only enforces uniqueness across non-NULL
+-- values, preserving the original intent (within one tenant, a given
+-- external_reference may only ever be used by one order) while
+-- allowing any number of orders in the same tenant to simultaneously
+-- have no external_reference.
+ALTER TABLE orders DROP CONSTRAINT UQ_orders_tenant_external_reference;
+CREATE UNIQUE INDEX UQ_orders_tenant_external_reference ON orders(tenant_id, external_reference) WHERE external_reference IS NOT NULL;
