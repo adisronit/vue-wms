@@ -34,6 +34,7 @@ import (
 	"wms-backend/internal/health"
 	"wms-backend/internal/inbounddoc"
 	"wms-backend/internal/inventory"
+	"wms-backend/internal/loading"
 	"wms-backend/internal/location"
 	"wms-backend/internal/messaging/rabbitmq"
 	"wms-backend/internal/notification"
@@ -366,6 +367,20 @@ func main() {
 	shippingRepo := shipping.NewRepository(dbManager.DB())
 	shippingService := shipping.NewService(shippingRepo, packingService)
 	shipping.NewHandler(shippingService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 33D.2 — Loading: the "load" half of the dispatch
+	// re-sequencing gate. Depends on shippingService (read-only Get,
+	// plus the one narrow write — MarkLoaded) and packingService
+	// (read-only Get, to resolve a shipment's own packing job's
+	// cartons) — a strictly one-way dependency (loading -> shipping ->
+	// packing -> picking); shippingService itself is never modified to
+	// call into this package at all. See internal/loading's own package
+	// doc for the full reasoning and internal/shipping's own
+	// Service.MarkLoaded doc for why this is safe against an import
+	// cycle.
+	loadingRepo := loading.NewRepository(dbManager.DB())
+	loadingService := loading.NewService(loadingRepo, shippingService, packingService)
+	loading.NewHandler(loadingService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	stockAdjustmentRepo := stockadjustment.NewRepository(dbManager.DB())
 	stockAdjustmentService := stockadjustment.NewService(stockAdjustmentRepo, productRepo, locationUnscoped, inventoryService, cfg.StockAdjustmentPendingWarningHours)

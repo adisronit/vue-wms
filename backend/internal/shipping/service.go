@@ -36,6 +36,13 @@ var (
 	ErrNoShippableItems  = errors.New("shipping: packing job has no packed lines to ship")
 	ErrInvalidTransition = errors.New("shipping: shipment is not in a state that allows this action")
 	ErrNotEditable       = errors.New("shipping: shipment can no longer be edited")
+	// ErrNotLoaded (Phase 33D.2) is the real final dispatch gate this
+	// phase adds — a shipment can no longer be dispatched until its own
+	// cartons have actually been loaded onto a vehicle (internal/
+	// loading's own Service.ConfirmTrip, which alone calls
+	// Service.MarkLoaded below). See Service.Confirm's own DISPATCH
+	// branch for where this is checked.
+	ErrNotLoaded = errors.New("shipping: shipment has not been loaded onto a vehicle yet")
 )
 
 // packingChecker is the narrow slice of internal/packing's own Service
@@ -358,6 +365,15 @@ func (s *Service) Confirm(ctx context.Context, tenantID, id int64, req ConfirmRe
 			if !shipment.Status.CanDispatch() {
 				return ErrInvalidTransition
 			}
+			// Phase 33D.2 — the final dispatch gate: this shipment's own
+			// cartons must have actually been loaded onto a vehicle
+			// (internal/loading's own Confirm action, which alone calls
+			// Service.MarkLoaded below) before it may be dispatched. A
+			// shipment that was never assigned to any loading trip at
+			// all stays permanently blocked here — there is no backdoor.
+			if shipment.LoadedAt == nil {
+				return ErrNotLoaded
+			}
 			if shipment.Carrier == nil || *shipment.Carrier == "" {
 				return ErrValidation{Message: "carrier is required before dispatch"}
 			}
@@ -452,4 +468,45 @@ func (s *Service) Cancel(ctx context.Context, tenantID, id int64, req CancelRequ
 		return nil, err
 	}
 	return s.Get(ctx, tenantID, id)
+}
+
+// MarkLoaded (Phase 33D.2) is a pure, narrow mutator — it does nothing
+// but set loaded_at/loaded_by (migrations/0107-0108) on the named
+// shipment. It performs NO validation of its own about whether the
+// shipment's cartons were actually scanned, whether every carton is
+// resolved, or what trip/status Loading's own side is in — all of that
+// is internal/loading's own Service's responsibility entirely, BEFORE
+// it calls this method (see that package's own ConfirmTrip doc). This
+// method exists ONLY so Confirm's own DISPATCH branch can gate on a
+// plain local field (shipment.LoadedAt != nil) without internal/
+// shipping ever importing internal/loading — the reverse direction
+// (loading -> shipping) is the only one allowed, since internal/loading
+// itself already needs to resolve a shipment's own packing_job_id (via
+// shipping's own Get) to find its cartons. internal/shipping must
+// remain entirely unaware of trips, cartons, or scan state.
+//
+// internal/loading is the ONLY caller of this method — grepped to
+// confirm no other package invokes it. It is intentionally idempotent:
+// calling it twice for the same shipment simply re-stamps a newer
+// loaded_at/loaded_by, which is harmless (there is no quantity math or
+// side effect beyond these two columns), so internal/loading's own
+// Confirm action does not need its own idempotency-key guard around
+// this specific call either.
+func (s *Service) MarkLoaded(ctx context.Context, tenantID, id, userID int64) error {
+	ctx, cancel := dbctx.Detach(ctx)
+	defer cancel()
+
+	start := time.Now()
+	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
+		shipment, err := txRepo.FindByID(ctx, tenantID, id)
+		if err != nil {
+			return err
+		}
+		now := time.Now().UTC()
+		shipment.LoadedAt = &now
+		shipment.LoadedBy = &userID
+		return txRepo.MarkLoaded(ctx, tenantID, shipment)
+	})
+	dbctx.LogTransaction(ctx, "shipping.mark_loaded", start, err)
+	return err
 }

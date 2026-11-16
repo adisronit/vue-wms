@@ -342,7 +342,7 @@ func (h *Handler) Update(c *gin.Context) {
 // Confirm godoc
 //
 //	@Summary		Dispatch, deliver, or report an issue on a shipment
-//	@Description	Action DISPATCH requires carrier and tracking_no to already be set (via Create/Update) and moves READY -> DISPATCHED. Action DELIVER moves DISPATCHED -> DELIVERED. Action ISSUE requires a non-empty remark — either already set via Create/Update, or supplied directly in this request's remark field (needed because header edits are only allowed while READY, but an issue may legitimately be reported after DISPATCHED) — and moves READY or DISPATCHED -> ISSUE. No inventory mutation occurs here — Picking (Phase 9) already removed the stock; this only transitions the shipment's own status. idempotency_key must be a fresh UUID per click; resending the same key returns the shipment's current state instead of applying the transition twice.
+//	@Description	Action DISPATCH requires the shipment to have already been loaded onto a vehicle (internal/loading's own Confirm Trip action — 422 ErrNotLoaded otherwise) and carrier/tracking_no to already be set (via Create/Update), and moves READY -> DISPATCHED. Action DELIVER moves DISPATCHED -> DELIVERED. Action ISSUE requires a non-empty remark — either already set via Create/Update, or supplied directly in this request's remark field (needed because header edits are only allowed while READY, but an issue may legitimately be reported after DISPATCHED) — and moves READY or DISPATCHED -> ISSUE. No inventory mutation occurs here — Picking (Phase 9) already removed the stock; this only transitions the shipment's own status. idempotency_key must be a fresh UUID per click; resending the same key returns the shipment's current state instead of applying the transition twice.
 //	@Tags			Shipping
 //	@Accept			json
 //	@Produce		json
@@ -458,6 +458,8 @@ func writeError(c *gin.Context, err error) {
 		apihttp.Fail(c, http.StatusConflict, "shipment can no longer be edited", "NOT_EDITABLE")
 	case errors.Is(err, ErrInvalidTransition):
 		apihttp.Fail(c, http.StatusConflict, "shipment is not in a state that allows this action", "INVALID_TRANSITION")
+	case errors.Is(err, ErrNotLoaded):
+		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "NOT_LOADED")
 	case errors.As(err, &validationErr):
 		apihttp.Fail(c, http.StatusUnprocessableEntity, validationErr.Message, "VALIDATION_ERROR")
 	default:
