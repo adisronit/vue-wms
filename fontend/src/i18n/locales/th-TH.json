@@ -99,6 +99,7 @@
     "sectionOutbound": "ส่งสินค้าออก",
     "orders": "คำสั่งซื้อ",
     "picking": "หยิบสินค้า",
+    "pickingBatches": "หยิบสินค้าแบบชุด",
     "packing": "บรรจุหีบห่อ",
     "shipping": "จัดส่งสินค้า",
     "sectionAdministration": "การจัดการระบบ",
@@ -563,6 +564,90 @@
       "wrongLot": "ล็อตไม่ถูกต้อง",
       "miscount": "นับผิด",
       "other": "อื่นๆ"
+    }
+  },
+  "pickingBatches": {
+    "title": "หยิบสินค้าแบบชุด",
+    "subtitle": "รวมความต้องการจากหลายคำสั่งซื้อที่ปล่อยแล้วเป็นงานหยิบสินค้าเดียว ตามสินค้า/ตำแหน่ง/ล็อต",
+    "newButton": "+ สร้างชุดใหม่",
+    "loading": "กำลังโหลดชุดหยิบสินค้า…",
+    "noBatches": "ไม่พบชุดหยิบสินค้า",
+    "table": {
+      "batchNo": "เลขที่ชุด",
+      "warehouse": "คลังสินค้า",
+      "orders": "คำสั่งซื้อ",
+      "lines": "รายการ",
+      "pickNo": "เลขที่ใบหยิบ",
+      "status": "สถานะ",
+      "createdAt": "วันที่สร้าง",
+      "action": "การดำเนินการ"
+    },
+    "filters": {
+      "allStatus": "ทุกสถานะ",
+      "allWarehouses": "ทุกคลังสินค้า"
+    },
+    "statusLabels": {
+      "draft": "ฉบับร่าง",
+      "confirmed": "ยืนยันแล้ว",
+      "completed": "เสร็จสมบูรณ์",
+      "cancelled": "ยกเลิกแล้ว"
+    },
+    "new": {
+      "title": "สร้างชุดหยิบสินค้าใหม่",
+      "subtitle": "เลือกคำสั่งซื้อที่ปล่อยแล้วและรองรับการรวมชุดอย่างน้อยสองรายการ",
+      "backButton": "ย้อนกลับ",
+      "selectWarehouseLabel": "คลังสินค้า",
+      "selectWarehouse": "เลือกคลังสินค้า",
+      "availableOrdersTitle": "คำสั่งซื้อที่สามารถรวมได้",
+      "noAvailableOrders": "ไม่มีคำสั่งซื้อที่สามารถรวมได้ (ปล่อยแล้ว และรูปแบบการหยิบ = ตามสินค้า) ในคลังสินค้านี้",
+      "orderNo": "เลขที่คำสั่งซื้อ",
+      "customer": "ลูกค้า",
+      "shipTo": "ส่งไปยัง",
+      "items": "รายการ",
+      "selectedCount": "เลือกแล้ว {count} รายการ",
+      "minOrdersHint": "เลือกอย่างน้อยสองคำสั่งซื้อเพื่อรวมชุด",
+      "createButton": "สร้างตัวอย่างการรวมชุด",
+      "createSuccess": "สร้างชุดหยิบสินค้าแล้ว"
+    },
+    "detail": {
+      "backButton": "ย้อนกลับ",
+      "ordersTitle": "คำสั่งซื้อที่รวมอยู่",
+      "ordersTable": {
+        "orderNo": "เลขที่คำสั่งซื้อ",
+        "customer": "ลูกค้า",
+        "shipTo": "ส่งไปยัง",
+        "status": "สถานะ"
+      },
+      "linesTitle": "รายการที่รวมแล้ว",
+      "linesTable": {
+        "sku": "SKU",
+        "product": "สินค้า",
+        "lot": "เลขที่ล็อต",
+        "location": "ตำแหน่ง",
+        "qty": "จำนวน",
+        "uom": "หน่วย"
+      },
+      "allocationsTitle": "รายละเอียดการแบ่งสรรตามคำสั่งซื้อ",
+      "allocationsTable": {
+        "orderNo": "เลขที่คำสั่งซื้อ",
+        "qty": "จำนวนที่แบ่งสรร"
+      },
+      "confirmButton": "ยืนยันชุด",
+      "cancelButton": "ยกเลิกชุด",
+      "confirmSuccess": "ยืนยันชุดหยิบสินค้าแล้ว",
+      "cancelSuccess": "ยกเลิกชุดหยิบสินค้าแล้ว",
+      "confirmedNote": "ชุดนี้ได้รับการยืนยันเป็นงานหยิบสินค้าเดียวแล้ว จากนี้ให้ดำเนินการผ่านโมดูลหยิบสินค้า (หยิบ สแกน ยืนยัน)",
+      "goToPicking": "ไปที่หยิบสินค้า",
+      "confirmCancelMessage": "ยกเลิกชุดฉบับร่างนี้หรือไม่? คำสั่งซื้อในชุดนี้จะสามารถนำไปรวมชุดใหม่ได้"
+    },
+    "messages": {
+      "loadFailed": "โหลดชุดหยิบสินค้าไม่สำเร็จ",
+      "loadDetailFailed": "โหลดรายละเอียดชุดหยิบสินค้าไม่สำเร็จ",
+      "loadWarehousesFailed": "โหลดคลังสินค้าไม่สำเร็จ",
+      "loadAvailableOrdersFailed": "โหลดคำสั่งซื้อที่สามารถรวมได้ไม่สำเร็จ",
+      "createFailed": "สร้างชุดหยิบสินค้าไม่สำเร็จ",
+      "confirmFailed": "ยืนยันชุดหยิบสินค้าไม่สำเร็จ",
+      "cancelFailed": "ยกเลิกชุดหยิบสินค้าไม่สำเร็จ"
     }
   },
   "packing": {
@@ -1139,6 +1224,10 @@
       "orderTypeSales": "คำสั่งขาย",
       "orderTypeTransfer": "โอนย้ายภายใน",
       "priorityLabel": "ความสำคัญ",
+      "pickingModeLabel": "รูปแบบการหยิบสินค้า",
+      "pickingModeByOrder": "ตามคำสั่งซื้อ (หนึ่งงานต่อคำสั่งซื้อ)",
+      "pickingModeByProduct": "ตามสินค้า (รวมกลุ่มหยิบสินค้าได้)",
+      "pickingModeHint": "ตามสินค้าช่วยให้คำสั่งซื้อนี้ถูกรวมกับคำสั่งซื้ออื่นเป็นชุดหยิบสินค้าเดียวหลังจากปล่อยคำสั่งซื้อแล้ว",
       "requiredShippingDateLabel": "วันที่ต้องจัดส่ง",
       "requiredDeliveryDateLabel": "วันที่ต้องถึงปลายทาง",
       "carrierPlaceholder": "ผู้ให้บริการขนส่ง (ไม่บังคับ)",
