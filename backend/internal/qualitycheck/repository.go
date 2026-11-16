@@ -209,7 +209,8 @@ func (r *Repository) ListInspections(ctx context.Context, tenantID int64, params
 	where := `WHERE qi.tenant_id = ?
 		AND (? = '' OR qi.inspection_no LIKE ? OR rc.receipt_no LIKE ?)
 		AND (? = '' OR qi.status = ?)
-		AND (? = 0 OR qi.warehouse_id = ?)`
+		AND (? = 0 OR qi.warehouse_id = ?)
+		AND (? = 0 OR qi.receipt_id = ?)`
 
 	like := "%" + params.Search + "%"
 	args := []any{
@@ -217,6 +218,7 @@ func (r *Repository) ListInspections(ctx context.Context, tenantID int64, params
 		params.Search, like, like,
 		string(params.Status), string(params.Status),
 		params.WarehouseID, params.WarehouseID,
+		params.ReceiptID, params.ReceiptID,
 	}
 
 	var total int64

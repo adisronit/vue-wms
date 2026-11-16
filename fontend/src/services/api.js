@@ -192,3 +192,15 @@ export function triggerDownload(blob, filename) {
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
 }
+
+// openInNewTab is Phase 31D's "View PDF" counterpart to triggerDownload
+// — opens a fetched Blob in a new browser tab instead of saving it, for
+// the inbound documents' Content-Disposition: inline response. The
+// object URL is revoked after a short delay rather than immediately:
+// the new tab needs it to still resolve by the time it finishes
+// navigating to it.
+export function openInNewTab(blob) {
+  const url = URL.createObjectURL(blob)
+  window.open(url, '_blank')
+  setTimeout(() => URL.revokeObjectURL(url), 60000)
+}

@@ -138,6 +138,28 @@
           <button @click="selectedReceiving = null" class="text-slate-500 hover:text-red-600">✕</button>
         </div>
 
+        <!-- Phase 31D — inbound documents (synchronous, read-only PDFs). -->
+        <div class="flex flex-wrap gap-2 mb-6">
+          <button
+            @click="viewGRN"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm px-3 py-2 rounded-lg font-semibold"
+          >
+            📄 {{ $t('receiving.documents.viewGRN') }}
+          </button>
+          <button
+            @click="viewCompletionReport"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm px-3 py-2 rounded-lg font-semibold"
+          >
+            📄 {{ $t('receiving.documents.viewCompletion') }}
+          </button>
+          <button
+            @click="viewDiscrepancyReport"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm px-3 py-2 rounded-lg font-semibold"
+          >
+            📄 {{ $t('receiving.documents.viewDiscrepancy') }}
+          </button>
+        </div>
+
         <div class="space-y-4">
           <div class="detail-row">
             <span>{{ $t('receiving.detail.vendor') }}</span>
@@ -255,7 +277,17 @@
 </template>
 
 <script>
-import { listReceipts, getReceipt, confirmReceipt, cancelReceipt, newIdempotencyKey, exportReceipts } from '../../services/receiving'
+import {
+  listReceipts,
+  getReceipt,
+  confirmReceipt,
+  cancelReceipt,
+  newIdempotencyKey,
+  exportReceipts,
+  viewReceiptGRN,
+  viewReceiptCompletionReport,
+  viewReceiptDiscrepancyReport,
+} from '../../services/receiving'
 import { listZones, listLocations } from '../../services/warehouses'
 import { hasPermission } from '../../services/auth'
 import { showToast } from '../../services/toast'
@@ -457,6 +489,34 @@ export default {
         this.loadError = err.message
       } finally {
         this.exporting = false
+      }
+    },
+
+    // Phase 31D — each opens the receipt's own PDF in a new tab;
+    // showToast surfaces the one realistic failure (the receipt's
+    // underlying service call itself erroring), since there is no
+    // dedicated error banner inside the drawer for this action.
+    async viewGRN() {
+      try {
+        await viewReceiptGRN(this.selectedReceiving.id)
+      } catch (err) {
+        showToast(err.message, 'error')
+      }
+    },
+
+    async viewCompletionReport() {
+      try {
+        await viewReceiptCompletionReport(this.selectedReceiving.id)
+      } catch (err) {
+        showToast(err.message, 'error')
+      }
+    },
+
+    async viewDiscrepancyReport() {
+      try {
+        await viewReceiptDiscrepancyReport(this.selectedReceiving.id)
+      } catch (err) {
+        showToast(err.message, 'error')
       }
     },
 

@@ -106,6 +106,16 @@
           <button @click="closeDrawer" class="text-slate-500 hover:text-red-600 text-xl">✕</button>
         </div>
 
+        <!-- Phase 31D — synchronous, read-only PDF document. -->
+        <div class="mb-6">
+          <button
+            @click="viewQCReportPdf"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm px-3 py-2 rounded-lg font-semibold"
+          >
+            📄 {{ $t('qualityCheck.documents.viewReport') }}
+          </button>
+        </div>
+
         <div v-if="drawerError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm mb-4">
           {{ drawerError }}
         </div>
@@ -206,7 +216,7 @@
 </template>
 
 <script>
-import { listInspections, getInspection, confirmInspection, newIdempotencyKey } from '../../services/qualitycheck'
+import { listInspections, getInspection, confirmInspection, newIdempotencyKey, viewQCReport } from '../../services/qualitycheck'
 import { showToast } from '../../services/toast'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import FilterBar from '../../components/ui/FilterBar.vue'
@@ -330,6 +340,14 @@ export default {
 
     closeDrawer() {
       this.selected = null
+    },
+
+    async viewQCReportPdf() {
+      try {
+        await viewQCReport(this.selected.id)
+      } catch (err) {
+        showToast(err.message, 'error')
+      }
     },
 
     addPending(item) {

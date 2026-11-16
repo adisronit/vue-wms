@@ -141,10 +141,15 @@ type ConfirmDispositionRequest struct {
 
 // ListParams narrows GET /qc/inspections to the Quality Check screen's
 // search box plus status/warehouse filters, with pagination.
+// ReceiptID (Phase 31D) is not exposed on the screen's own filter bar —
+// it exists so internal/inbounddoc can find every inspection for one
+// receipt when composing the Inbound Completion Report, the same
+// zero-means-unfiltered convention WarehouseID already uses.
 type ListParams struct {
 	Search      string
 	Status      Status
 	WarehouseID int64
+	ReceiptID   int64
 	Page        int
 	Limit       int
 }
