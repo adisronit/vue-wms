@@ -147,15 +147,35 @@ type Order struct {
 	// package's own Service builds any transfer-specific behavior around
 	// it yet (CLAUDE.md's own "do not build transfer logic now"
 	// instruction).
-	OrderType            string     `gorm:"column:order_type"`
-	Priority             string     `gorm:"column:priority"`
-	RequiredShippingDate *time.Time `gorm:"column:required_shipping_date"`
-	RequiredDeliveryDate *time.Time `gorm:"column:required_delivery_date"`
-	Carrier              *string    `gorm:"column:carrier"`
-	ShippingMethod       *string    `gorm:"column:shipping_method"`
-	DeliveryInstructions *string    `gorm:"column:delivery_instructions"`
-	PreparedBy           *string    `gorm:"column:prepared_by"`
-	ApprovedBy           *string    `gorm:"column:approved_by"`
+	OrderType string `gorm:"column:order_type"`
+	// DestinationWarehouseID/TransferReference (migrations/0113-0114,
+	// Phase 33E.1) apply ONLY to an INTERNAL_TRANSFER order --
+	// WarehouseID above is that transfer's own SOURCE warehouse;
+	// DestinationWarehouseID is the warehouse stock is being moved TO.
+	// Both are NULL for a SALES_ORDER (CK_orders_destination_warehouse_
+	// requires_transfer enforces this at the database level; Service.
+	// Create/Update additionally reject a SALES_ORDER request that
+	// tries to set either field at all, rather than silently ignoring
+	// it). Deliberately NOT a materialized "in-transit" inventory
+	// balance: stock leaves WarehouseID's own ledger at Picking.
+	// Confirm(PICKED) time exactly as it would for a sales order (see
+	// internal/picking's own ConsumeReservationTx, untouched by this
+	// phase) -- "in transit" is tracked purely as this order's own
+	// status plus its linked shipment/loading records, never a
+	// queryable balance anywhere. A later phase (33E.2, not this one)
+	// adds Destination Receiving as a new action that credits
+	// DestinationWarehouseID via inventory.AddStockTx once goods
+	// physically arrive.
+	DestinationWarehouseID *int64     `gorm:"column:destination_warehouse_id"`
+	TransferReference      *string    `gorm:"column:transfer_reference"`
+	Priority               string     `gorm:"column:priority"`
+	RequiredShippingDate   *time.Time `gorm:"column:required_shipping_date"`
+	RequiredDeliveryDate   *time.Time `gorm:"column:required_delivery_date"`
+	Carrier                *string    `gorm:"column:carrier"`
+	ShippingMethod         *string    `gorm:"column:shipping_method"`
+	DeliveryInstructions   *string    `gorm:"column:delivery_instructions"`
+	PreparedBy             *string    `gorm:"column:prepared_by"`
+	ApprovedBy             *string    `gorm:"column:approved_by"`
 	// ReleasedAt/ReleasedBy/ShortageApproved (migrations/0079) are
 	// Service.Release's own write — see Status.CanRelease's doc and
 	// Release's own doc for the full Review & Release step.

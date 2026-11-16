@@ -1,0 +1,36 @@
+-- Phase 33E.1 -- Inter-Warehouse Transfer, step 1 of 2. Adds the two
+-- columns an INTERNAL_TRANSFER order needs that a SALES_ORDER never
+-- carries: destination_warehouse_id (the warehouse stock is being
+-- moved TO -- orders.warehouse_id, unchanged, already means the SOURCE
+-- warehouse for a transfer, exactly as it always has for a sales
+-- order) and transfer_reference (a free-text, human-facing cross-
+-- warehouse reference number -- e.g. a paper transfer slip number --
+-- distinct from external_reference, which already exists for a
+-- different purpose: a caller's own idempotency/ERP key).
+--
+-- Deliberately bare ADD COLUMN statements only, with NO constraint
+-- (CHECK/FK) in this file -- see migrations/0053's own note for the
+-- real SQL Server batch-compilation bug this split avoids ("Invalid
+-- column name" when a constraint in the same batch references a
+-- column added earlier in that same batch). Constraints follow in
+-- migrations/0114, its own transaction, mirroring the 0079/0081 and
+-- 0062/0063 precedents exactly.
+--
+-- Both columns are nullable: a SALES_ORDER (the default order_type)
+-- never sets either one -- see migrations/0114's own CK_orders_
+-- destination_warehouse_requires_transfer for the rule that makes that
+-- a database-enforced invariant, not just a service-layer convention.
+--
+-- No inventory/ledger impact whatsoever: this phase is schema +
+-- validation only. The existing pipeline (Release -> CreatePickingTask
+-- -> Picking -> Packing -> Shipping -> Loading -> Dispatch) is proven
+-- unmodified to already work correctly for an INTERNAL_TRANSFER order
+-- -- stock simply leaves the source warehouse's ledger at pick time,
+-- exactly as for a sales order ("in transit" is a pure status-window
+-- over the transfer order + its linked shipment/loading records, never
+-- a materialized balance). A later batch (33E.2) adds Destination
+-- Receiving as its own new action, crediting the destination warehouse
+-- via inventory.AddStockTx once goods physically arrive -- not built
+-- here.
+ALTER TABLE orders ADD destination_warehouse_id BIGINT NULL;
+ALTER TABLE orders ADD transfer_reference NVARCHAR(100) NULL;

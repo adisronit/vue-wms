@@ -162,7 +162,7 @@ func (h *Handler) Get(c *gin.Context) {
 // Create godoc
 //
 //	@Summary		Create an order (header + lines)
-//	@Description	Never touches inventory — pure header + lines persistence. Use POST /orders/{id}/create-picking-task to orchestrate a real picking task once locations/lots are chosen.
+//	@Description	Never touches inventory — pure header + lines persistence. Use POST /orders/{id}/create-picking-task to orchestrate a real picking task once locations/lots are chosen. order_type=INTERNAL_TRANSFER requires destination_warehouse_id (must exist, belong to the caller's own tenant, and differ from warehouse_id); supplying destination_warehouse_id/transfer_reference on a SALES_ORDER is rejected (422).
 //	@Tags			Orders
 //	@Accept			json
 //	@Produce		json
@@ -172,7 +172,7 @@ func (h *Handler) Get(c *gin.Context) {
 //	@Failure		400		{object}	apihttp.ErrorResponse
 //	@Failure		401		{object}	apihttp.ErrorResponse
 //	@Failure		403		{object}	apihttp.ErrorResponse
-//	@Failure		404		{object}	apihttp.ErrorResponse	"warehouse or product does not exist"
+//	@Failure		404		{object}	apihttp.ErrorResponse	"warehouse, destination warehouse, or product does not exist"
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Failure		409		{object}	apihttp.ErrorResponse	"external_reference already used by another order"
 //	@Router			/orders [post]
@@ -202,7 +202,7 @@ func (h *Handler) Create(c *gin.Context) {
 // Update godoc
 //
 //	@Summary		Update an order (header + lines, full replace)
-//	@Description	Only while the order is PENDING — once a picking task has been created for it (POST /orders/{id}/create-picking-task), header/lines are frozen.
+//	@Description	Only while the order is PENDING — once a picking task has been created for it (POST /orders/{id}/create-picking-task), header/lines are frozen. Same order_type/destination_warehouse_id/transfer_reference rules as Create — see its own description.
 //	@Tags			Orders
 //	@Accept			json
 //	@Produce		json
@@ -486,6 +486,8 @@ func writeError(c *gin.Context, err error) {
 		apihttp.Fail(c, http.StatusNotFound, "customer not found", "CUSTOMER_NOT_FOUND")
 	case errors.Is(err, ErrShipToNotFound):
 		apihttp.Fail(c, http.StatusNotFound, "ship-to location not found", "SHIP_TO_NOT_FOUND")
+	case errors.Is(err, ErrDestinationWarehouseNotFound):
+		apihttp.Fail(c, http.StatusNotFound, "destination warehouse not found", "DESTINATION_WAREHOUSE_NOT_FOUND")
 	case errors.Is(err, picking.ErrLocationNotFound):
 		apihttp.Fail(c, http.StatusNotFound, "location not found", "LOCATION_NOT_FOUND")
 	case errors.Is(err, ErrDuplicateExternalReference):

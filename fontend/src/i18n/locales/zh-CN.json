@@ -1342,6 +1342,9 @@
       "orderTypeLabel": "订单类型",
       "orderTypeSales": "销售订单",
       "orderTypeTransfer": "内部调拨",
+      "destinationWarehouseLabel": "目的仓库",
+      "selectDestinationWarehouse": "选择目的仓库",
+      "transferReferencePlaceholder": "调拨参考号（可选）",
       "priorityLabel": "优先级",
       "pickingModeLabel": "拣货模式",
       "pickingModeByOrder": "按订单（每个订单一个任务）",
@@ -1389,6 +1392,8 @@
       "shipToAddressLabel": "送货地址",
       "externalRefLabel": "外部参考号",
       "warehouseLabel": "仓库",
+      "destinationWarehouseLabel": "目的仓库",
+      "transferReferenceLabel": "调拨参考号",
       "pickingTaskLabel": "拣货任务",
       "remarkLabel": "备注",
       "cancelRemarkLabel": "取消备注",
@@ -1417,6 +1422,7 @@
     "review": {
       "title": "审核并释放",
       "subtitle": "订单 {orderNo} — 释放到拣货前确认库存可用性",
+      "transferSummary": "内部调拨 — 从 {source} 到 {destination}",
       "availabilityTitle": "库存可用性",
       "availabilityDescription": "仅供查看 — 每行的实时库存余量，不会产生任何预留。",
       "shortageWarning": "一个或多个行项目的订购数量超过当前可用库存。请在下方批准缺货后再释放，或先编辑订单。",
@@ -1462,7 +1468,8 @@
       "createPickingTaskFailed": "创建拣货任务失败",
       "lookupProductFailed": "查找产品失败",
       "orderNotEditable": "此订单已无法编辑",
-      "loadAvailabilityFailed": "加载库存可用性失败"
+      "loadAvailabilityFailed": "加载库存可用性失败",
+      "destinationWarehouseRequired": "内部调拨必须指定目的仓库"
     },
     "statusLabels": {
       "pending": "待处理",

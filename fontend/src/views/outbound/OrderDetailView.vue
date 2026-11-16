@@ -43,9 +43,17 @@
           <div><span class="field-label">{{ $t('orders.form.orderTypeLabel') }}:</span> {{ order.order_type }}</div>
           <div><span class="field-label">{{ $t('orders.form.priorityLabel') }}:</span> {{ order.priority }}</div>
           <div><span class="field-label">{{ $t('orders.detail.warehouseLabel') }}:</span> {{ order.warehouse_code }}</div>
-          <div><span class="field-label">{{ $t('orders.detail.customerLabel') }}:</span> {{ order.customer || '—' }}</div>
-          <div v-if="order.ship_to_name"><span class="field-label">{{ $t('orders.detail.shipToLabel') }}:</span> {{ order.ship_to_name }}</div>
-          <div v-if="order.ship_to_address"><span class="field-label">{{ $t('orders.detail.shipToAddressLabel') }}:</span> {{ order.ship_to_address }}</div>
+          <!-- INTERNAL_TRANSFER (Phase 33E.1): destination warehouse +
+               transfer reference instead of customer/ship-to. -->
+          <template v-if="order.order_type === 'INTERNAL_TRANSFER'">
+            <div><span class="field-label">{{ $t('orders.detail.destinationWarehouseLabel') }}:</span> {{ order.destination_warehouse_code || '—' }}</div>
+            <div><span class="field-label">{{ $t('orders.detail.transferReferenceLabel') }}:</span> {{ order.transfer_reference || '—' }}</div>
+          </template>
+          <template v-else>
+            <div><span class="field-label">{{ $t('orders.detail.customerLabel') }}:</span> {{ order.customer || '—' }}</div>
+            <div v-if="order.ship_to_name"><span class="field-label">{{ $t('orders.detail.shipToLabel') }}:</span> {{ order.ship_to_name }}</div>
+            <div v-if="order.ship_to_address"><span class="field-label">{{ $t('orders.detail.shipToAddressLabel') }}:</span> {{ order.ship_to_address }}</div>
+          </template>
           <div><span class="field-label">{{ $t('orders.detail.externalRefLabel') }}:</span> {{ order.external_reference || '—' }}</div>
           <div v-if="order.required_shipping_date"><span class="field-label">{{ $t('orders.form.requiredShippingDateLabel') }}:</span> {{ formatDate(order.required_shipping_date) }}</div>
           <div v-if="order.required_delivery_date"><span class="field-label">{{ $t('orders.form.requiredDeliveryDateLabel') }}:</span> {{ formatDate(order.required_delivery_date) }}</div>

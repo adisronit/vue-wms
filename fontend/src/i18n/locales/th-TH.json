@@ -1342,6 +1342,9 @@
       "orderTypeLabel": "ประเภทคำสั่งซื้อ",
       "orderTypeSales": "คำสั่งขาย",
       "orderTypeTransfer": "โอนย้ายภายใน",
+      "destinationWarehouseLabel": "คลังสินค้าปลายทาง",
+      "selectDestinationWarehouse": "เลือกคลังสินค้าปลายทาง",
+      "transferReferencePlaceholder": "เลขอ้างอิงการโอนย้าย (ไม่บังคับ)",
       "priorityLabel": "ความสำคัญ",
       "pickingModeLabel": "รูปแบบการหยิบสินค้า",
       "pickingModeByOrder": "ตามคำสั่งซื้อ (หนึ่งงานต่อคำสั่งซื้อ)",
@@ -1389,6 +1392,8 @@
       "shipToAddressLabel": "ที่อยู่จัดส่ง",
       "externalRefLabel": "เลขที่อ้างอิง",
       "warehouseLabel": "คลังสินค้า",
+      "destinationWarehouseLabel": "คลังสินค้าปลายทาง",
+      "transferReferenceLabel": "เลขอ้างอิงการโอนย้าย",
       "pickingTaskLabel": "งานหยิบสินค้า",
       "remarkLabel": "หมายเหตุ",
       "cancelRemarkLabel": "หมายเหตุการยกเลิก",
@@ -1417,6 +1422,7 @@
     "review": {
       "title": "ตรวจสอบและปล่อยคำสั่งซื้อ",
       "subtitle": "คำสั่งซื้อ {orderNo} — ตรวจสอบสต็อกที่พร้อมใช้งานก่อนปล่อยไปยังงานหยิบสินค้า",
+      "transferSummary": "โอนย้ายภายใน — จาก {source} ไปยัง {destination}",
       "availabilityTitle": "สต็อกที่พร้อมใช้งาน",
       "availabilityDescription": "แสดงผลเท่านั้น — ยอดสต็อกจริงต่อรายการ ไม่ใช่การจองสต็อก",
       "shortageWarning": "มีบางรายการที่จำนวนสั่งเกินสต็อกที่พร้อมใช้งาน อนุมัติการขาดสต็อกด้านล่างเพื่อปล่อยคำสั่งซื้อต่อไป หรือแก้ไขคำสั่งซื้อก่อน",
@@ -1462,7 +1468,8 @@
       "createPickingTaskFailed": "ไม่สามารถสร้างงานหยิบสินค้าได้",
       "lookupProductFailed": "ไม่สามารถค้นหาสินค้าได้",
       "orderNotEditable": "ไม่สามารถแก้ไขคำสั่งซื้อนี้ได้อีกต่อไป",
-      "loadAvailabilityFailed": "ไม่สามารถโหลดข้อมูลสต็อกที่พร้อมใช้งานได้"
+      "loadAvailabilityFailed": "ไม่สามารถโหลดข้อมูลสต็อกที่พร้อมใช้งานได้",
+      "destinationWarehouseRequired": "ต้องระบุคลังสินค้าปลายทางสำหรับการโอนย้ายภายใน"
     },
     "statusLabels": {
       "pending": "รอดำเนินการ",

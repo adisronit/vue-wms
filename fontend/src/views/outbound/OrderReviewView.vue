@@ -15,6 +15,15 @@
     <div v-else-if="loading" class="text-sm text-slate-400">{{ $t('orders.loadingOrders') }}</div>
 
     <template v-else-if="order && availability">
+      <!-- INTERNAL_TRANSFER (Phase 33E.1): the availability check below
+           always runs against the SOURCE warehouse (order.warehouse_code)
+           — surfaced here so a reviewer also sees where the stock is
+           headed. -->
+      <div v-if="order.order_type === 'INTERNAL_TRANSFER'" class="bg-sky-50 border border-sky-200 text-sky-700 rounded-xl p-4 text-sm font-semibold">
+        {{ $t('orders.review.transferSummary', { source: order.warehouse_code, destination: order.destination_warehouse_code || '—' }) }}
+        <span v-if="order.transfer_reference" class="font-normal"> · {{ $t('orders.detail.transferReferenceLabel') }}: {{ order.transfer_reference }}</span>
+      </div>
+
       <FormSection :title="$t('orders.review.availabilityTitle')" :description="$t('orders.review.availabilityDescription')">
         <div v-if="availability.has_shortage" class="bg-amber-50 border border-amber-300 text-amber-700 rounded-xl p-4 text-sm mb-4 font-semibold">
           {{ $t('orders.review.shortageWarning') }}
