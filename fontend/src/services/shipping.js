@@ -31,9 +31,11 @@ export function getShipment(id) {
   return apiGet(`/shipping/${id}`)
 }
 
-// Completed picking tasks with no shipment yet — powers the "+ New
-// Shipment" drawer's Source Picking Task selector (the mock itself has
-// no way to choose which order to ship at all).
+// Completed (checker-confirmed) packing jobs with no shipment yet —
+// powers the "+ New Shipment" drawer's Source Packing Job selector
+// (Phase 33D.1: re-keyed off packing jobs, not raw picking tasks, the
+// real pack-validation gate — the mock itself has no way to choose
+// which order to ship at all).
 export function listShippableSources() {
   return apiGet('/shipping/sources')
 }

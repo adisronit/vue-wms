@@ -161,17 +161,21 @@
           {{ drawerError }}
         </div>
 
-        <!-- New shipment: source picking task selector -->
+        <!-- New shipment: source packing job selector (Phase 33D.1 — a
+             shipment now requires a COMPLETED, checker-confirmed packing
+             job, not a raw picking task; is_batch/batch_no surface the
+             batch context the same way PackingView.vue's own "create job
+             from task" selector already does). -->
         <div v-if="isNewShipment" class="bg-slate-50 rounded-2xl p-5 mb-6">
-          <label class="label">{{ $t('shipping.drawer.sourcePickingTask') }}</label>
-          <select v-model="form.pickingTaskId" class="input">
-            <option value="">{{ $t('shipping.drawer.selectSourceTask') }}</option>
-            <option v-for="src in sources" :key="src.picking_task_id" :value="src.picking_task_id">
-              {{ src.pick_no }} / {{ src.order_no }} {{ $t('shipping.drawer.itemCountSuffix', { count: src.item_count, plural: src.item_count === 1 ? '' : 's' }) }}
+          <label class="label">{{ $t('shipping.drawer.sourcePackingJob') }}</label>
+          <select v-model="form.packingJobId" class="input">
+            <option value="">{{ $t('shipping.drawer.selectSourceJob') }}</option>
+            <option v-for="src in sources" :key="src.packing_job_id" :value="src.packing_job_id">
+              {{ src.job_no }} / {{ src.order_no }} {{ src.customer ? `(${src.customer})` : '' }} {{ $t('shipping.drawer.itemCountSuffix', { count: src.item_count, plural: src.item_count === 1 ? '' : 's' }) }}{{ src.is_batch ? $t('shipping.drawer.batchSourcedSuffix', { batchNo: src.batch_no }) : '' }}
             </option>
           </select>
           <p v-if="sources.length === 0" class="text-xs text-slate-400 mt-2">
-            {{ $t('shipping.drawer.noSourceTasks') }}
+            {{ $t('shipping.drawer.noSourceJobs') }}
           </p>
         </div>
 
@@ -474,7 +478,7 @@ function mapShipmentRow(r) {
 
 function emptyForm() {
   return {
-    pickingTaskId: '',
+    packingJobId: '',
     carrier: '',
     trackingNo: '',
     packages: 1,
@@ -536,11 +540,12 @@ export default {
     canEditHeader() {
       return hasPermission('shipping.update')
     },
-    // Confirm (dispatch/deliver/issue) is gated on shipping.approve on
-    // the backend, the same significant-action permission Receiving/
-    // Putaway's own Confirm uses — see internal/shipping/handler.go's doc.
+    // Confirm (dispatch/deliver/issue) is gated on shipping.confirm on
+    // the backend (Phase 33D.1 — split out of shipping.approve, the same
+    // confirm/approve split Receiving/Putaway/Picking/Packing each
+    // already established) — see internal/shipping/handler.go's doc.
     canConfirm() {
-      return hasPermission('shipping.approve')
+      return hasPermission('shipping.confirm')
     }
   },
 
@@ -647,7 +652,7 @@ export default {
           shipDate: res.data.ship_date ? res.data.ship_date.slice(0, 10) : ''
         }
         this.form = {
-          pickingTaskId: '',
+          packingJobId: '',
           carrier: res.data.carrier || '',
           trackingNo: res.data.tracking_no || '',
           packages: res.data.packages,
@@ -669,7 +674,7 @@ export default {
 
     async saveNewShipment() {
       this.drawerError = ''
-      if (!this.form.pickingTaskId) {
+      if (!this.form.packingJobId) {
         this.drawerError = this.$t('shipping.messages.selectSourceRequired')
         return
       }
@@ -677,7 +682,7 @@ export default {
       this.submitting = true
       try {
         await createShipment({
-          picking_task_id: this.form.pickingTaskId,
+          packing_job_id: this.form.packingJobId,
           carrier: this.form.carrier || null,
           tracking_no: this.form.trackingNo || null,
           packages: this.form.packages || 1,

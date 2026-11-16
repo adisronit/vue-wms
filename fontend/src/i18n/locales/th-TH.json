@@ -832,10 +832,11 @@
     "drawer": {
       "newShipmentTitle": "สร้างการจัดส่งใหม่",
       "detailTitle": "รายละเอียดการจัดส่ง",
-      "sourcePickingTask": "งานหยิบสินค้าต้นทาง",
-      "selectSourceTask": "เลือกงานหยิบสินค้าที่เสร็จสิ้นแล้ว",
+      "sourcePackingJob": "งานแพ็คสินค้าต้นทาง",
+      "selectSourceJob": "เลือกงานแพ็คสินค้าที่เสร็จสิ้นแล้ว",
       "itemCountSuffix": "({count} รายการ)",
-      "noSourceTasks": "ไม่มีงานหยิบสินค้าที่เสร็จสิ้นแล้วรอการจัดส่ง",
+      "batchSourcedSuffix": " (ชุดงาน {batchNo})",
+      "noSourceJobs": "ไม่มีงานแพ็คสินค้าที่เสร็จสิ้นแล้วรอการจัดส่ง",
       "customer": "ลูกค้า",
       "shipToLabel": "สถานที่จัดส่ง",
       "shipToAddressLabel": "ที่อยู่จัดส่ง",
@@ -877,7 +878,7 @@
       "issue": "มีปัญหา"
     },
     "messages": {
-      "selectSourceRequired": "กรุณาเลือกงานหยิบสินค้าต้นทาง",
+      "selectSourceRequired": "กรุณาเลือกงานแพ็คสินค้าต้นทาง",
       "shipmentCreated": "สร้างการจัดส่งสำเร็จ",
       "remarkRequiredForIssue": "กรุณากรอกหมายเหตุเพื่อรายงานปัญหา",
       "dispatchedSuccess": "นำส่งสินค้าสำเร็จ",

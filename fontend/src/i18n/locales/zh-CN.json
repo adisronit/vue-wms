@@ -832,10 +832,11 @@
     "drawer": {
       "newShipmentTitle": "新建发货单",
       "detailTitle": "发货详情",
-      "sourcePickingTask": "来源拣货任务",
-      "selectSourceTask": "选择已完成的拣货任务",
+      "sourcePackingJob": "来源打包任务",
+      "selectSourceJob": "选择已完成的打包任务",
       "itemCountSuffix": "（{count} 项）",
-      "noSourceTasks": "没有待发货的已完成拣货任务。",
+      "batchSourcedSuffix": "（批次 {batchNo}）",
+      "noSourceJobs": "没有待发货的已完成打包任务。",
       "customer": "客户",
       "shipToLabel": "收货地点",
       "shipToAddressLabel": "送货地址",
@@ -877,7 +878,7 @@
       "issue": "异常"
     },
     "messages": {
-      "selectSourceRequired": "请选择来源拣货任务",
+      "selectSourceRequired": "请选择来源打包任务",
       "shipmentCreated": "发货单创建成功",
       "remarkRequiredForIssue": "报告异常时必须填写备注",
       "dispatchedSuccess": "发货成功",

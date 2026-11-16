@@ -832,10 +832,11 @@
     "drawer": {
       "newShipmentTitle": "New Shipment",
       "detailTitle": "Shipping Detail",
-      "sourcePickingTask": "Source Picking Task",
-      "selectSourceTask": "Select a completed picking task",
+      "sourcePackingJob": "Source Packing Job",
+      "selectSourceJob": "Select a completed packing job",
       "itemCountSuffix": "({count} item{plural})",
-      "noSourceTasks": "No completed picking tasks are awaiting shipment.",
+      "batchSourcedSuffix": " (Batch {batchNo})",
+      "noSourceJobs": "No completed packing jobs are awaiting shipment.",
       "customer": "Customer",
       "shipToLabel": "Ship To",
       "shipToAddressLabel": "Delivery Address",
@@ -877,7 +878,7 @@
       "issue": "Issue"
     },
     "messages": {
-      "selectSourceRequired": "Please select a source picking task",
+      "selectSourceRequired": "Please select a source packing job",
       "shipmentCreated": "Shipment created successfully",
       "remarkRequiredForIssue": "A remark is required to report an issue",
       "dispatchedSuccess": "Shipment dispatched successfully",
