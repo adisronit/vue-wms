@@ -63,3 +63,64 @@ func minInt(a, b int) int {
 	}
 	return b
 }
+
+// TestDocument_MarkDraft_RendersWatermarkWithoutError is Phase 33C.3's
+// own smoke test for the DRAFT watermark primitive (the first caller is
+// internal/packing's Packing List, for a job not yet checker-confirmed)
+// — proves MarkDraft can be called immediately after NewDocument (i.e.
+// against the page NewDocument already added, before any caller code
+// runs) and after a later AddPage, without erroring, and that IsDraft
+// reports the flag back accurately. fpdf's own PDF stream is not
+// plaintext-searchable for "DRAFT" the way a plain-text format would
+// be (the string renders as glyph-positioning operators, not literal
+// bytes) — see internal/packing's own watermark test for how this
+// package instead asserts the draft/non-draft code path distinction via
+// byte-length and IsDraft rather than string-searching the PDF body.
+func TestDocument_MarkDraft_RendersWatermarkWithoutError(t *testing.T) {
+	doc := NewDocument(Meta{
+		CompanyName: "Test Co", DocTitle: "Test Document", DocNo: "DOC-0002",
+		GeneratedAt: time.Now(), GeneratedBy: "tester",
+	})
+	if doc.IsDraft() {
+		t.Fatal("IsDraft() = true before MarkDraft was ever called")
+	}
+
+	doc.MarkDraft()
+	if !doc.IsDraft() {
+		t.Fatal("IsDraft() = false immediately after MarkDraft")
+	}
+
+	// A second page must also pick up the watermark via drawHeader's own
+	// draft check, not just the page that existed when MarkDraft ran.
+	doc.AddPage()
+	doc.SectionTitle("Second Page")
+
+	data, err := doc.Bytes()
+	if err != nil {
+		t.Fatalf("Bytes: %v", err)
+	}
+	if len(data) == 0 || !bytes.HasPrefix(data, []byte("%PDF-")) {
+		t.Fatal("MarkDraft'd document did not finalize to a valid, non-empty PDF")
+	}
+}
+
+// TestDocument_MarkDraft_OnLabelDocument proves the same primitive works
+// against NewLabelDocument's compact/custom-size layout, not just A4 —
+// Carton Label's own small-format page must be able to use this too if
+// a future caller needs it, even though Phase 33C.3 itself only applies
+// MarkDraft to the A4 Packing List.
+func TestDocument_MarkDraft_OnLabelDocument(t *testing.T) {
+	doc := NewLabelDocument(Meta{
+		CompanyName: "Test Co", DocTitle: "Test Label", DocNo: "LBL-0001",
+		GeneratedAt: time.Now(), GeneratedBy: "tester",
+	}, 101.6, 152.4)
+	doc.MarkDraft()
+
+	data, err := doc.Bytes()
+	if err != nil {
+		t.Fatalf("Bytes: %v", err)
+	}
+	if len(data) == 0 || !bytes.HasPrefix(data, []byte("%PDF-")) {
+		t.Fatal("MarkDraft'd label document did not finalize to a valid, non-empty PDF")
+	}
+}

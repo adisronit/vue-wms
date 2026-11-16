@@ -14,8 +14,19 @@
         <button v-if="order" @click="downloadPdf" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold">
           {{ $t('orders.detailPage.downloadPdf') }}
         </button>
+        <button v-if="order" @click="showHistory = true" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold">
+          📜 {{ $t('orders.detailPage.historyButton') }}
+        </button>
       </template>
     </PageHeader>
+
+    <DocumentHistoryPanel
+      :open="showHistory"
+      document-type="ORDER"
+      :source-id="id"
+      :title="$t('orders.detailPage.historyButton')"
+      @close="showHistory = false"
+    />
 
     <div v-if="loadError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">{{ loadError }}</div>
     <div v-else-if="loading" class="text-sm text-slate-400">{{ $t('orders.loadingOrders') }}</div>
@@ -163,16 +174,18 @@ import FormSection from '../../components/ui/FormSection.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
+import DocumentHistoryPanel from '../../components/documents/DocumentHistoryPanel.vue'
 
 export default {
   name: 'OrderDetailView',
-  components: { PageHeader, FormSection, DataTable, StatusBadge, ConfirmDialog },
+  components: { PageHeader, FormSection, DataTable, StatusBadge, ConfirmDialog, DocumentHistoryPanel },
   props: { id: { type: [String, Number], required: true } },
   data() {
     return {
       loading: false,
       loadError: '',
       order: null,
+      showHistory: false,
 
       showCancelConfirm: false,
       actionBusy: false,

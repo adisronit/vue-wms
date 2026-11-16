@@ -20,8 +20,13 @@ vi.mock('../../../services/picking', async () => {
     scanConfirmPickingItem: vi.fn(),
     repickPickingItem: vi.fn(),
     viewPickList: vi.fn(),
+    viewConfirmationReport: vi.fn(),
     newIdempotencyKey: () => 'test-key'
   }
+})
+vi.mock('../../../services/documents', async () => {
+  const actual = await vi.importActual('../../../services/documents')
+  return { ...actual, getDocumentHistory: vi.fn() }
 })
 vi.mock('../../../services/warehouses', () => ({
   listWarehouses: vi.fn().mockResolvedValue({ data: [] }),
@@ -35,8 +40,9 @@ vi.mock('../../../services/toast', () => ({ showToast: vi.fn() }))
 
 import {
   listPicking, getPickingTask, confirmPickingTask, assignPicker,
-  scanConfirmPickingItem, repickPickingItem
+  scanConfirmPickingItem, repickPickingItem, viewConfirmationReport
 } from '../../../services/picking'
+import { getDocumentHistory } from '../../../services/documents'
 import { listUsers } from '../../../services/users'
 
 const globalMocks = { $t: (key, params) => (params ? `${key}:${JSON.stringify(params)}` : key), $d: (v) => String(v) }
@@ -198,5 +204,37 @@ describe('PickingView (Phase 33B)', () => {
 
     expect(repickPickingItem).toHaveBeenCalledWith(1, 10)
     expect(wrapper.vm.selectedPicking.status).toBe('IN_PROGRESS')
+  })
+
+  // Phase 33C.3 — Picking Confirmation Report + Document History.
+  it('prints the Confirmation Report for the selected task', async () => {
+    getPickingTask.mockResolvedValue({ data: { ...task } })
+    viewConfirmationReport.mockResolvedValue()
+
+    const wrapper = mount(PickingView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    await wrapper.vm.openPicking({ id: 1 })
+    await flushPromises()
+
+    await wrapper.vm.printConfirmationReport()
+
+    expect(viewConfirmationReport).toHaveBeenCalledWith(1)
+  })
+
+  it('opens the Document History panel for the selected task\'s Pick List', async () => {
+    getPickingTask.mockResolvedValue({ data: { ...task } })
+    getDocumentHistory.mockResolvedValue({ data: [{ id: 1, document_type: 'PICK_LIST', document_no: 'PICK-000001', rendered_at: '2026-01-01T00:00:00Z', is_draft: false, rendered_by_name: 'Jane' }] })
+
+    const wrapper = mount(PickingView, { global: { mocks: globalMocks } })
+    await flushPromises()
+    await wrapper.vm.openPicking({ id: 1 })
+    await flushPromises()
+
+    const historyBtn = wrapper.findAll('button').find((b) => b.text().includes('picking.documents.historyButton'))
+    expect(historyBtn).toBeTruthy()
+    await historyBtn.trigger('click')
+    await flushPromises()
+
+    expect(getDocumentHistory).toHaveBeenCalledWith('PICK_LIST', 1)
   })
 })

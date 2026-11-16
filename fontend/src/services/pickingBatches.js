@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut } from './api'
+import { apiGet, apiPost, apiPut, apiDownload, triggerDownload, openInNewTab } from './api'
 
 // Phase 33C.1 — Batch Picking / Wave Management. Mirrors services/
 // relocation.js's own list/get/create/confirm/cancel shape — a batch is
@@ -94,4 +94,19 @@ export function assignSortation(batchId, payload) {
     station: payload.station || undefined,
     user_id: payload.userId || undefined,
   })
+}
+
+// Phase 33C.3 — Consolidated Batch Picking List PDF. Only valid once
+// the batch is CONFIRMED (or COMPLETED, mirroring its own task's
+// terminal status) — a DRAFT batch has no real picking task yet (see
+// backend internal/pickingbatch/pdf.go's own RenderConsolidatedPickList
+// doc).
+export async function viewConsolidatedPickList(batchId) {
+  const { blob } = await apiDownload(`/picking-batches/${batchId}/pdf`)
+  openInNewTab(blob)
+}
+
+export async function downloadConsolidatedPickList(batchId) {
+  const { blob, filename } = await apiDownload(`/picking-batches/${batchId}/pdf?download=true`)
+  triggerDownload(blob, filename)
 }

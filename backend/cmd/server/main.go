@@ -30,6 +30,7 @@ import (
 	"wms-backend/internal/customer"
 	"wms-backend/internal/customerdeliverylocation"
 	"wms-backend/internal/dashboard"
+	"wms-backend/internal/docrender"
 	"wms-backend/internal/health"
 	"wms-backend/internal/inbounddoc"
 	"wms-backend/internal/inventory"
@@ -145,6 +146,17 @@ func main() {
 	userRepo := user.NewRepository(dbManager.DB())
 	userService := user.NewService(userRepo, roleRepo, warehouseRepo)
 	user.NewHandler(userService).Register(v1, cfg.JWTSecret)
+
+	// Phase 33C.3 -- Document History / Reprint. docrenderService is
+	// constructed early (same section as tenantRepo/userRepo above)
+	// because every PDF-rendering module below (order/picking/
+	// pickingbatch/packing) is wired with it via SetDocRender right
+	// after each of their own PDFService constructions -- see each
+	// one's own comment below for why that is additive, optional wiring
+	// rather than a constructor-signature change.
+	docrenderRepo := docrender.NewRepository(dbManager.DB())
+	docrenderService := docrender.NewService(docrenderRepo, userRepo)
+	docrender.NewHandler(docrenderService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// membershipService (WMS-29E) implements Tenant User & Membership
 	// Management's business rules, shared by both the Platform Admin and
@@ -326,6 +338,7 @@ func main() {
 	pickingService := picking.NewService(pickingRepo, productRepo, warehouseRepo, inventoryService)
 	pickingService.SetUsers(userRepo)
 	pickingPDFService := picking.NewPDFService(pickingService, tenantRepo, userRepo)
+	pickingPDFService.SetDocRender(docrenderService)
 	picking.NewHandler(pickingService, pickingPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Phase 33C — Packing: a pure physical-handling/traceability layer
@@ -340,6 +353,8 @@ func main() {
 	packingService := packing.NewService(packingRepo, pickingService)
 	packingService.SetUsers(userRepo)
 	packingPDFService := packing.NewPDFService(packingService, tenantRepo, userRepo)
+	packingPDFService.SetProductInfo(productRepo, brandRepo)
+	packingPDFService.SetDocRender(docrenderService)
 	packing.NewHandler(packingService, packingPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	shippingRepo := shipping.NewRepository(dbManager.DB())
@@ -377,6 +392,7 @@ func main() {
 	orderRepo := order.NewRepository(dbManager.DB())
 	orderService := order.NewService(orderRepo, productRepo, warehouseRepo, customerRepo, customerDeliveryLocationRepo, pickingService, shippingService, inventoryService)
 	orderPDFService := order.NewPDFService(orderService, tenantRepo, userRepo)
+	orderPDFService.SetDocRender(docrenderService)
 	order.NewHandler(orderService, orderPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Phase 33C.1 — Batch Picking / Wave Management. Shares the exact
@@ -386,7 +402,11 @@ func main() {
 	// inventoryService.
 	pickingBatchRepo := pickingbatch.NewRepository(dbManager.DB())
 	pickingBatchService := pickingbatch.NewService(pickingBatchRepo, warehouseRepo, pickingService)
-	pickingbatch.NewHandler(pickingBatchService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+	// Phase 33C.3 -- Consolidated Batch Picking List.
+	pickingBatchPDFService := pickingbatch.NewPDFService(pickingBatchService, pickingService, tenantRepo, userRepo)
+	pickingBatchPDFService.SetProductInfo(productRepo, brandRepo)
+	pickingBatchPDFService.SetDocRender(docrenderService)
+	pickingbatch.NewHandler(pickingBatchService, pickingBatchPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Phase 33C.2 — Sortation + Packing Integration. Wired AFTER
 	// pickingBatchService exists (SetBatches, not the constructor, the

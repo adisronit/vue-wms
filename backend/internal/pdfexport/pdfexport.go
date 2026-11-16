@@ -88,6 +88,11 @@ type Document struct {
 	// NewLabelDocument needs (no repeated company-name line, far smaller
 	// margins) — false for every NewDocument caller, unchanged.
 	compact bool
+	// draft (Phase 33C.3) flags this document as not-yet-final — see
+	// MarkDraft's own doc. False (no watermark) for every document that
+	// never calls MarkDraft, so every pre-existing caller's output is
+	// completely unchanged.
+	draft bool
 }
 
 // NewDocument starts a fresh A4 portrait document with meta's header
@@ -157,6 +162,9 @@ func (d *Document) drawHeader() {
 		pdf.CellFormat(0, 4, d.meta.DocTitle+" — "+d.meta.DocNo, "", 1, "L", false, 0, "")
 		pdf.SetDrawColor(120, 120, 120)
 		pdf.Line(d.marginSide, 11, d.pageWidth-d.marginSide, 11)
+		if d.draft {
+			d.drawWatermark()
+		}
 		return
 	}
 
@@ -174,6 +182,68 @@ func (d *Document) drawHeader() {
 
 	pdf.SetDrawColor(120, 120, 120)
 	pdf.Line(d.marginSide, 30, d.pageWidth-d.marginSide, 30)
+
+	if d.draft {
+		d.drawWatermark()
+	}
+}
+
+// MarkDraft (Phase 33C.3) flags this document as not yet final — a
+// diagonal "DRAFT" banner is drawn across every page, including the
+// page already added by NewDocument/NewLabelDocument before the caller
+// gets a chance to call this (drawn immediately, once, right here) and
+// every subsequent page (drawn automatically by drawHeader, which fpdf
+// already calls once per AddPage — see NewDocument's own doc). Added
+// for internal/packing's own Packing List: a job that has not yet
+// reached checker-confirmed COMPLETED must never be mistaken for the
+// FINAL document. Uses fpdf's own rotation/alpha-blending primitives
+// directly (TransformRotate + SetAlpha) rather than a pre-rendered
+// watermark image, so no extra asset is needed and the banner always
+// matches the page's own current size/orientation exactly.
+func (d *Document) MarkDraft() {
+	d.draft = true
+	d.drawWatermark()
+}
+
+// IsDraft reports whether MarkDraft has been called — callers use this
+// to decide what to record as document_renders.is_draft (see
+// internal/docrender's own doc) without having to track the same
+// boolean themselves a second time.
+func (d *Document) IsDraft() bool {
+	return d.draft
+}
+
+// drawWatermark renders one diagonal, semi-transparent "DRAFT" banner
+// across the CURRENT page only — called once immediately by MarkDraft
+// (for the page that already existed before MarkDraft was called) and
+// once per subsequent AddPage via drawHeader's own draft check.
+func (d *Document) drawWatermark() {
+	pdf := d.pdf
+	_, pageHeight := pdf.GetPageSize()
+	centerX := d.pageWidth / 2
+	centerY := pageHeight / 2
+
+	fontSize := 60.0
+	if d.compact {
+		fontSize = 22.0
+	}
+
+	alpha, blendMode := pdf.GetAlpha()
+	r, g, b := pdf.GetTextColor()
+	pdf.SetAlpha(0.22, "Normal")
+	pdf.SetTextColor(200, 30, 30)
+	pdf.SetFont(fontFamily, "B", fontSize)
+
+	const text = "DRAFT"
+	strWidth := pdf.GetStringWidth(text)
+	pdf.TransformBegin()
+	pdf.TransformRotate(45, centerX, centerY)
+	pdf.Text(centerX-strWidth/2, centerY, text)
+	pdf.TransformEnd()
+
+	pdf.SetAlpha(alpha, blendMode)
+	pdf.SetTextColor(r, g, b)
+	pdf.SetFont(fontFamily, "", 9)
 }
 
 func (d *Document) drawFooter() {

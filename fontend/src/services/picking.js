@@ -93,3 +93,18 @@ export async function downloadPickList(id) {
   const { blob, filename } = await apiDownload(`/picking/${id}/pdf?download=true`)
   triggerDownload(blob, filename)
 }
+
+// Phase 33C.3 — Picking Confirmation Report: ordered vs picked qty per
+// line, shortage/short-reason, and a scan-verification summary. Not
+// hard-blocked before the task reaches a terminal status — a report
+// generated earlier is honestly marked "IN PROGRESS" rather than FINAL
+// by the backend itself.
+export async function viewConfirmationReport(id) {
+  const { blob } = await apiDownload(`/picking/${id}/confirmation-report`)
+  openInNewTab(blob)
+}
+
+export async function downloadConfirmationReport(id) {
+  const { blob, filename } = await apiDownload(`/picking/${id}/confirmation-report?download=true`)
+  triggerDownload(blob, filename)
+}

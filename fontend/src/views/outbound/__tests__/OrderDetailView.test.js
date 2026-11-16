@@ -15,9 +15,14 @@ vi.mock('../../../services/warehouses', () => ({
 }))
 vi.mock('../../../services/auth', () => ({ hasPermission: vi.fn(() => true) }))
 vi.mock('../../../services/toast', () => ({ showToast: vi.fn() }))
+vi.mock('../../../services/documents', async () => {
+  const actual = await vi.importActual('../../../services/documents')
+  return { ...actual, getDocumentHistory: vi.fn() }
+})
 
 import { getOrder } from '../../../services/orders'
 import { hasPermission } from '../../../services/auth'
+import { getDocumentHistory } from '../../../services/documents'
 
 const globalMocks = { $t: (key, params) => (params ? `${key}:${JSON.stringify(params)}` : key), $d: (v) => String(v) }
 
@@ -78,5 +83,22 @@ describe('OrderDetailView', () => {
     const wrapper = mountDetail()
     await flushPromises()
     expect(wrapper.text()).toContain('orders.review.shortfallOf')
+  })
+
+  // Phase 33C.3 — Document History panel.
+  it('opens the Document History panel and loads this order\'s ORDER history', async () => {
+    getOrder.mockResolvedValue({ data: baseOrder() })
+    getDocumentHistory.mockResolvedValue({
+      data: [{ id: 1, document_type: 'ORDER', document_no: 'ORD-000001', rendered_at: '2026-01-01T00:00:00Z', is_draft: false, rendered_by_name: 'Bob' }]
+    })
+    const wrapper = mountDetail({ id: '1' })
+    await flushPromises()
+
+    const historyBtn = wrapper.findAll('button').find((b) => b.text().includes('orders.detailPage.historyButton'))
+    expect(historyBtn).toBeTruthy()
+    await historyBtn.trigger('click')
+    await flushPromises()
+
+    expect(getDocumentHistory).toHaveBeenCalledWith('ORDER', '1')
   })
 })

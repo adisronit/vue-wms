@@ -4,14 +4,23 @@ import PickingBatchDetailView from '../PickingBatchDetailView.vue'
 
 vi.mock('../../../services/pickingBatches', async () => {
   const actual = await vi.importActual('../../../services/pickingBatches')
-  return { ...actual, getPickingBatch: vi.fn(), confirmPickingBatch: vi.fn(), cancelPickingBatch: vi.fn() }
+  return {
+    ...actual,
+    getPickingBatch: vi.fn(), confirmPickingBatch: vi.fn(), cancelPickingBatch: vi.fn(),
+    viewConsolidatedPickList: vi.fn()
+  }
+})
+vi.mock('../../../services/documents', async () => {
+  const actual = await vi.importActual('../../../services/documents')
+  return { ...actual, getDocumentHistory: vi.fn() }
 })
 vi.mock('../../../services/auth', () => ({ hasPermission: vi.fn(() => true) }))
 vi.mock('../../../services/toast', () => ({ showToast: vi.fn() }))
 
-import { getPickingBatch, confirmPickingBatch } from '../../../services/pickingBatches'
+import { getPickingBatch, confirmPickingBatch, viewConsolidatedPickList } from '../../../services/pickingBatches'
+import { getDocumentHistory } from '../../../services/documents'
 
-const globalMocks = { $t: (key) => key }
+const globalMocks = { $t: (key, params) => (params ? `${key}:${JSON.stringify(params)}` : key) }
 
 function draftBatch() {
   return {
@@ -92,5 +101,44 @@ describe('PickingBatchDetailView', () => {
 
     const buttons = wrapper.findAll('button').map((b) => b.text())
     expect(buttons.some((t) => t.includes('pickingBatches.detail.goToSortation'))).toBe(false)
+  })
+
+  // Phase 33C.3 — Consolidated Batch Picking List PDF + Document History.
+  it('offers the Print Consolidated Pick List button only once CONFIRMED/COMPLETED, and wires it to viewConsolidatedPickList', async () => {
+    getPickingBatch.mockResolvedValue({ data: { ...draftBatch(), status: 'CONFIRMED', picking_task_id: 5 } })
+    viewConsolidatedPickList.mockResolvedValue()
+    const wrapper = mount(PickingBatchDetailView, { props: { id: 7 }, global: { mocks: globalMocks } })
+    await flushPromises()
+
+    const printBtn = wrapper.findAll('button').find((b) => b.text().includes('pickingBatches.detail.printPickListButton'))
+    expect(printBtn).toBeTruthy()
+    await printBtn.trigger('click')
+    expect(viewConsolidatedPickList).toHaveBeenCalledWith(7)
+  })
+
+  it('hides the Print Consolidated Pick List button while the batch is still DRAFT', async () => {
+    getPickingBatch.mockResolvedValue({ data: draftBatch() })
+    const wrapper = mount(PickingBatchDetailView, { props: { id: 7 }, global: { mocks: globalMocks } })
+    await flushPromises()
+
+    const buttons = wrapper.findAll('button').map((b) => b.text())
+    expect(buttons.some((t) => t.includes('pickingBatches.detail.printPickListButton'))).toBe(false)
+  })
+
+  it('opens the Document History panel and loads this batch\'s PICKING_BATCH_LIST history', async () => {
+    getPickingBatch.mockResolvedValue({ data: draftBatch() })
+    getDocumentHistory.mockResolvedValue({
+      data: [{ id: 1, document_type: 'PICKING_BATCH_LIST', document_no: 'BATCH-000007', rendered_at: '2026-01-01T00:00:00Z', is_draft: false, rendered_by_name: 'Alice' }]
+    })
+    const wrapper = mount(PickingBatchDetailView, { props: { id: 7 }, global: { mocks: globalMocks } })
+    await flushPromises()
+
+    const historyBtn = wrapper.findAll('button').find((b) => b.text().includes('pickingBatches.detail.historyButton'))
+    expect(historyBtn).toBeTruthy()
+    await historyBtn.trigger('click')
+    await flushPromises()
+
+    expect(getDocumentHistory).toHaveBeenCalledWith('PICKING_BATCH_LIST', 7)
+    expect(wrapper.text()).toContain('Alice')
   })
 })

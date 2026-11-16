@@ -14,16 +14,22 @@ vi.mock('../../../services/packing', () => ({
   newIdempotencyKey: vi.fn(() => 'idem-key-1'),
   viewPackingList: vi.fn(),
   downloadPackingList: vi.fn(),
-  viewCartonLabels: vi.fn()
+  viewCartonLabels: vi.fn(),
+  viewCartonLabelsA4: vi.fn()
 }))
 vi.mock('../../../services/users', () => ({ listUsers: vi.fn().mockResolvedValue({ data: [] }) }))
 vi.mock('../../../services/auth', () => ({ hasPermission: vi.fn(() => true) }))
 vi.mock('../../../services/toast', () => ({ showToast: vi.fn() }))
+vi.mock('../../../services/documents', async () => {
+  const actual = await vi.importActual('../../../services/documents')
+  return { ...actual, getDocumentHistory: vi.fn() }
+})
 
 import {
-  getPackingJob, packItem, flagPackingException, checkerConfirmPackingJob, cancelPackingJob
+  getPackingJob, packItem, flagPackingException, checkerConfirmPackingJob, cancelPackingJob, viewCartonLabelsA4
 } from '../../../services/packing'
 import { hasPermission } from '../../../services/auth'
+import { getDocumentHistory } from '../../../services/documents'
 
 const globalMocks = { $t: (key) => key, $d: (v) => String(v) }
 
@@ -182,5 +188,33 @@ describe('PackingDetailView', () => {
     const buttons = wrapper.findAll('button').map((b) => b.text())
     expect(buttons.some((t) => t.includes('packing.detail.packButton'))).toBe(false)
     expect(buttons.some((t) => t.includes('packing.detail.addCartonButton'))).toBe(false)
+  })
+
+  // Phase 33C.3 — A4 Carton Label fallback + Document History panel.
+  it('prints the A4 fallback label for a carton', async () => {
+    getPackingJob.mockResolvedValue({ data: baseJob() })
+    viewCartonLabelsA4.mockResolvedValue()
+    const wrapper = mountDetail()
+    await flushPromises()
+
+    const a4Btn = wrapper.findAll('button').find((b) => b.text().includes('packing.detail.printLabelA4'))
+    expect(a4Btn).toBeTruthy()
+    await a4Btn.trigger('click')
+
+    expect(viewCartonLabelsA4).toHaveBeenCalledWith(1, 100)
+  })
+
+  it('opens the Document History panel and loads this job\'s PACKING_LIST history', async () => {
+    getPackingJob.mockResolvedValue({ data: baseJob() })
+    getDocumentHistory.mockResolvedValue({ data: [] })
+    const wrapper = mountDetail({ id: '1' })
+    await flushPromises()
+
+    const historyBtn = wrapper.findAll('button').find((b) => b.text().includes('packing.detail.historyButton'))
+    expect(historyBtn).toBeTruthy()
+    await historyBtn.trigger('click')
+    await flushPromises()
+
+    expect(getDocumentHistory).toHaveBeenCalledWith('PACKING_LIST', '1')
   })
 })
