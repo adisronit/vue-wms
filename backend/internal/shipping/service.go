@@ -7,7 +7,6 @@ import (
 
 	"gorm.io/gorm"
 
-	"wms-backend/internal/inventory"
 	"wms-backend/internal/picking"
 	"wms-backend/internal/platform/csvexport"
 	"wms-backend/internal/platform/dbctx"
@@ -34,13 +33,13 @@ var (
 // narrow-interface pattern internal/putaway established for its own
 // receiptChecker dependency on internal/receiving.
 //
-// Phase 30 Batch 2 added a required tenantID parameter to Get;
-// internal/shipping is not itself tenant-scoped yet (Batch 3, explicitly
-// out of scope for Batch 2 — "No unrelated Order/Shipping refactor") and
-// has no verified per-request tenant context to hand down, so its call
-// site below passes inventory.UnverifiedCallerTenantID. This means the
-// Shipping->Picking boundary remains unverified until Shipping itself is
-// scoped — reported, not silently treated as secure.
+// Phase 30 Batch 4: internal/shipping is now itself tenant-scoped, so
+// Service.Create below passes the caller's own verified tenantID
+// instead of Batch 2's inventory.UnverifiedCallerTenantID placeholder —
+// Get verifies the linked picking task actually belongs to the caller's
+// tenant before any shipment can ever be created against it, closing
+// the Shipping->Picking boundary [[wms_30b_picking_tenant_isolation]]'s
+// own report flagged as deferred.
 type pickingChecker interface {
 	Get(ctx context.Context, tenantID, id int64) (*picking.Response, error)
 }
@@ -59,7 +58,7 @@ func NewService(repo *Repository, pickingSvc pickingChecker) *Service {
 	return &Service{repo: repo, picking: pickingSvc}
 }
 
-func (s *Service) List(ctx context.Context, params ListParams) ([]ListResponse, int64, error) {
+func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
 	page, limit := params.Page, params.Limit
 	if page < 1 {
 		page = 1
@@ -68,24 +67,24 @@ func (s *Service) List(ctx context.Context, params ListParams) ([]ListResponse, 
 		limit = 20
 	}
 	params.Page, params.Limit = page, limit
-	return s.repo.List(ctx, params)
+	return s.repo.List(ctx, tenantID, params)
 }
 
 // ListForExport is Phase 22's CSV-export path — see internal/receiving's
 // own ListForExport doc for the shared reasoning.
-func (s *Service) ListForExport(ctx context.Context, params ListParams) ([]ListResponse, error) {
+func (s *Service) ListForExport(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, error) {
 	params.Page = 1
 	params.Limit = csvexport.MaxExportRows
-	rows, _, err := s.repo.List(ctx, params)
+	rows, _, err := s.repo.List(ctx, tenantID, params)
 	return rows, err
 }
 
-func (s *Service) Get(ctx context.Context, id int64) (*Response, error) {
-	header, err := s.repo.FindDetail(ctx, id)
+func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error) {
+	header, err := s.repo.FindDetail(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
-	items, err := s.repo.ListItems(ctx, id)
+	items, err := s.repo.ListItems(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -103,28 +102,31 @@ func (s *Service) Get(ctx context.Context, id int64) (*Response, error) {
 }
 
 // FindByPickingTaskID returns the shipment already linked to a picking
-// task, or (nil, nil) if none exists yet — Phase 25's internal/order
-// uses this to derive an order's read-only fulfillment status ("has
-// this order's picking task been shipped, and if so, what's its
-// current shipping status") without internal/order ever storing or
-// syncing shipment state itself. Unlike Get, "not found" is not an
-// error here: a picking task legitimately having no shipment yet is
-// the normal, expected case for this caller.
-func (s *Service) FindByPickingTaskID(ctx context.Context, pickingTaskID int64) (*Response, error) {
-	shipment, err := s.repo.FindByPickingTaskID(ctx, pickingTaskID)
+// task, or (nil, nil) if none exists yet — internal/order uses this to
+// derive an order's read-only fulfillment status ("has this order's
+// picking task been shipped, and if so, what's its current shipping
+// status") without internal/order ever storing or syncing shipment
+// state itself. Unlike Get, "not found" is not an error here: a picking
+// task legitimately having no shipment yet is the normal, expected case
+// for this caller. Phase 30 Batch 4: tenantID is the caller's own
+// verified tenant — internal/order's own Service.Get now passes its own
+// verified tenantID here (previously no tenantID parameter existed at
+// all).
+func (s *Service) FindByPickingTaskID(ctx context.Context, tenantID, pickingTaskID int64) (*Response, error) {
+	shipment, err := s.repo.FindByPickingTaskID(ctx, tenantID, pickingTaskID)
 	if errors.Is(err, ErrNotFound) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, shipment.ID)
+	return s.Get(ctx, tenantID, shipment.ID)
 }
 
 // Sources returns completed picking tasks not yet shipped — see
 // Repository.Sources' doc.
-func (s *Service) Sources(ctx context.Context) ([]SourceResponse, error) {
-	return s.repo.Sources(ctx)
+func (s *Service) Sources(ctx context.Context, tenantID int64) ([]SourceResponse, error) {
+	return s.repo.Sources(ctx, tenantID)
 }
 
 // Create validates the linked picking task and copies its completed
@@ -135,10 +137,25 @@ func (s *Service) Sources(ctx context.Context) ([]SourceResponse, error) {
 // AddStock/RemoveStock/MoveStock: the stock was already removed by
 // Picking's own Confirm (Phase 9); this only records that it is now
 // being shipped.
-func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (*Response, error) {
-	// TenantID: inventory.UnverifiedCallerTenantID — see pickingChecker's
-	// own doc above for why.
-	task, err := s.picking.Get(ctx, inventory.UnverifiedCallerTenantID, req.PickingTaskID)
+//
+// Phase 30 Batch 4: tenantID is the caller's own verified tenant. It
+// verifies the linked picking task's ownership via pickingChecker.Get
+// (a cross-tenant picking_task_id is rejected as ErrPickingTaskNotFound,
+// exactly like a nonexistent one, never revealing whether the id exists
+// in another tenant) and is stamped onto the new shipment and every
+// line. Product/Location ownership for each shippable item is not
+// re-verified here — it was already verified when Picking itself
+// created those lines (Batch 2's own resolveLocation/FindByIDForTenant
+// checks) — items are copied verbatim from the already-tenant-scoped
+// picking task response, never from client input. Order ownership is
+// NOT verified here: picking_tasks carries order_no as free text only,
+// no order_id FK exists anywhere in this schema (see
+// [[wms_30b_picking_tenant_isolation]]'s own report) — the real
+// ownership boundary for "does this picking task belong to the order
+// that created it" is internal/order's own CreatePickingTask, one layer
+// up, not something Shipping can independently verify.
+func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest, userID int64) (*Response, error) {
+	task, err := s.picking.Get(ctx, tenantID, req.PickingTaskID)
 	if err != nil {
 		return nil, ErrPickingTaskNotFound
 	}
@@ -168,7 +185,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 	// The duplicate-shipment check is the first thing here that touches
 	// the database — everything above is pure validation against the
 	// already-fetched picking task and the request body.
-	if _, err := s.repo.FindByPickingTaskID(ctx, req.PickingTaskID); err == nil {
+	if _, err := s.repo.FindByPickingTaskID(ctx, tenantID, req.PickingTaskID); err == nil {
 		return nil, ErrAlreadyShipped
 	} else if !errors.Is(err, ErrNotFound) {
 		return nil, err
@@ -189,13 +206,13 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 			Packages: packages, Weight: req.Weight, ShipDate: req.ShipDate, Address: req.Address,
 			Remark: req.Remark, Status: StatusReady, CreatedBy: &userID,
 		}
-		if err := txRepo.CreateShipment(ctx, shipment); err != nil {
+		if err := txRepo.CreateShipment(ctx, tenantID, shipment); err != nil {
 			return err
 		}
 		shipmentID = shipment.ID
 
 		for _, it := range shippableItems {
-			if err := txRepo.CreateItem(ctx, &Item{
+			if err := txRepo.CreateItem(ctx, tenantID, &Item{
 				ShipmentID: shipment.ID, PickingTaskItemID: it.ID, ProductID: it.ProductID,
 				LotNo: it.LotNo, LocationID: it.LocationID, Qty: it.PickedQty, UOM: it.UOM,
 			}); err != nil {
@@ -212,13 +229,16 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 		return nil, err
 	}
 
-	return s.Get(ctx, shipmentID)
+	return s.Get(ctx, tenantID, shipmentID)
 }
 
 // Update edits header fields only while the shipment is still READY
-// (see Status.CanEdit) — mirrors Receiving's Update.
-func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Response, error) {
-	shipment, err := s.repo.FindByID(ctx, id)
+// (see Status.CanEdit) — mirrors Receiving's Update. Phase 30 Batch 4:
+// tenantID is the caller's own verified tenant — a cross-tenant id is
+// rejected by the tenant-scoped FindByID as ErrNotFound before any
+// write.
+func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequest) (*Response, error) {
+	shipment, err := s.repo.FindByID(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -242,10 +262,10 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Res
 	shipment.Address = req.Address
 	shipment.Remark = req.Remark
 
-	if err := s.repo.UpdateHeader(ctx, shipment); err != nil {
+	if err := s.repo.UpdateHeader(ctx, tenantID, shipment); err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, id)
+	return s.Get(ctx, tenantID, id)
 }
 
 // Confirm is the atomic core of this phase's status machine: validate
@@ -257,7 +277,15 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Res
 // migrations/0022's doc) so a duplicate DISPATCH/DELIVER/ISSUE click
 // can't apply the same transition twice or double-stamp
 // dispatched_at/delivered_at.
-func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, userID int64) (*Response, error) {
+//
+// Phase 30 Batch 4: tenantID is the caller's own verified tenant
+// (extracted by the handler from the authenticated request, never from
+// the request body) — the task exists-and-belongs-to-tenantID check
+// below is what actually protects this status transition against a
+// cross-tenant id; since Shipping mutates no stock at all, this status
+// machine is the full extent of what "protect against cross-tenant IDs"
+// means for Confirm.
+func (s *Service) Confirm(ctx context.Context, tenantID, id int64, req ConfirmRequest, userID int64) (*Response, error) {
 	// This is the exact transaction shape Phase 8 hardened against
 	// client-disconnect orphaning — detach before opening it, from the
 	// start here, per the centralized policy (see PROJECT_STATUS.md).
@@ -266,16 +294,18 @@ func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, use
 
 	start := time.Now()
 	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
-		// Confirm the shipment exists BEFORE claiming the idempotency key:
-		// shipment_confirmations.shipment_id is a real FK
-		// (migrations/0022), so inserting the guard for a nonexistent id
-		// would raise a raw FK-violation 500 instead of a clean 404 — a
-		// real bug found live during Phase 11's own testing (fixed there
-		// in internal/stockadjustment/internal/stockcount first, applied
-		// here identically per Phase 12's cross-package audit — see
-		// PROJECT_STATUS.md). This SELECT has no side effect, so moving it
-		// ahead of the INSERT does not weaken the idempotency guarantee.
-		shipment, err := txRepo.FindByID(ctx, id)
+		// Confirm the shipment exists (and belongs to tenantID) BEFORE
+		// claiming the idempotency key: shipment_confirmations.shipment_id
+		// is a real FK (migrations/0022), so inserting the guard for a
+		// nonexistent id would raise a raw FK-violation 500 instead of a
+		// clean 404 — a real bug found live during Phase 11's own testing
+		// (fixed there in internal/stockadjustment/internal/stockcount
+		// first, applied here identically per Phase 12's cross-package
+		// audit — see PROJECT_STATUS.md). This SELECT has no side effect,
+		// so moving it ahead of the INSERT does not weaken the idempotency
+		// guarantee. Phase 30 Batch 4: now also the shipment's IDOR guard
+		// — a cross-tenant id is rejected here as ErrNotFound.
+		shipment, err := txRepo.FindByID(ctx, tenantID, id)
 		if err != nil {
 			return err
 		}
@@ -283,7 +313,7 @@ func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, use
 		// Idempotency guard: if this key was already used, the INSERT
 		// fails on the PRIMARY KEY constraint and everything below is
 		// skipped and rolled back — see migrations/0022's doc.
-		if err := txRepo.InsertConfirmation(ctx, req.IdempotencyKey, id); err != nil {
+		if err := txRepo.InsertConfirmation(ctx, tenantID, req.IdempotencyKey, id); err != nil {
 			return err
 		}
 
@@ -328,7 +358,7 @@ func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, use
 			return ErrValidation{Message: "action must be one of DISPATCH, DELIVER, ISSUE"}
 		}
 
-		return txRepo.UpdateStatus(ctx, shipment)
+		return txRepo.UpdateStatus(ctx, tenantID, shipment)
 	})
 	dbctx.LogTransaction(ctx, "shipping.confirm", start, err)
 
@@ -336,12 +366,12 @@ func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, use
 		// Already processed by an earlier call with this same key —
 		// return the current (already-correct) state as a successful,
 		// idempotent no-op rather than an error or a second transition.
-		return s.Get(ctx, id)
+		return s.Get(ctx, tenantID, id)
 	}
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, id)
+	return s.Get(ctx, tenantID, id)
 }
 
 // Cancel is Phase 15's addition — allowed only from READY, i.e. before
@@ -350,14 +380,16 @@ func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, use
 // package doc), and per this phase's own instructions, the stock
 // Picking already removed when it picked these lines is never restored
 // here even after a cancel — a cancelled shipment simply never goes
-// out, it does not un-pick anything.
-func (s *Service) Cancel(ctx context.Context, id int64, req CancelRequest, userID int64) (*Response, error) {
+// out, it does not un-pick anything. Phase 30 Batch 4: tenantID is the
+// caller's own verified tenant — see Confirm's own doc above for the
+// same IDOR-guard reasoning.
+func (s *Service) Cancel(ctx context.Context, tenantID, id int64, req CancelRequest, userID int64) (*Response, error) {
 	ctx, cancel := dbctx.Detach(ctx)
 	defer cancel()
 
 	start := time.Now()
 	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
-		shipment, err := txRepo.FindByID(ctx, id)
+		shipment, err := txRepo.FindByID(ctx, tenantID, id)
 		if err != nil {
 			return err
 		}
@@ -377,11 +409,11 @@ func (s *Service) Cancel(ctx context.Context, id int64, req CancelRequest, userI
 		// own Remark field — unlike Phase 15's original behavior, Cancel no
 		// longer clobbers whatever remark already existed on the shipment.
 		shipment.applyCancel(userID, req.Remark, time.Now().UTC())
-		return txRepo.CancelShipment(ctx, shipment)
+		return txRepo.CancelShipment(ctx, tenantID, shipment)
 	})
 	dbctx.LogTransaction(ctx, "shipping.cancel", start, err)
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, id)
+	return s.Get(ctx, tenantID, id)
 }

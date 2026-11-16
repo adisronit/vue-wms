@@ -280,7 +280,7 @@ func main() {
 
 	shippingRepo := shipping.NewRepository(dbManager.DB())
 	shippingService := shipping.NewService(shippingRepo, pickingService)
-	shipping.NewHandler(shippingService).Register(v1, cfg.JWTSecret)
+	shipping.NewHandler(shippingService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	stockAdjustmentRepo := stockadjustment.NewRepository(dbManager.DB())
 	stockAdjustmentService := stockadjustment.NewService(stockAdjustmentRepo, productRepo, locationUnscoped, inventoryService, cfg.StockAdjustmentPendingWarningHours)

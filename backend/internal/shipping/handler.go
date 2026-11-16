@@ -14,6 +14,13 @@ import (
 	"wms-backend/internal/platform/middleware"
 )
 
+// writeTenantUnauthorized is shared by every handler method's
+// EnforcedTenantID guard below — same shape as internal/picking's own
+// (Batch 2) and internal/order's own (Batch 3).
+func writeTenantUnauthorized(c *gin.Context) {
+	apihttp.Fail(c, http.StatusUnauthorized, "tenant context required", "UNAUTHORIZED")
+}
+
 // Handler exposes Service over HTTP.
 type Handler struct {
 	service *Service
@@ -39,8 +46,17 @@ func NewHandler(service *Service) *Handler {
 // (Status.CanCancel is READY-only, the same boundary Update's own
 // CanEdit already uses), so it sits at editing's authority level, not
 // approve's dispatch-confirming level.
-func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
-	shippingGroup := rg.Group("/shipping", middleware.RequireJWT(jwtSecret))
+//
+// Phase 30 Batch 4 upgrades the chain from RequireJWT-only to
+// RequireJWT -> RequireTenantContext -> RequirePermission, matching
+// internal/picking's own Batch 2 chain and internal/order's own Batch 3
+// chain — every handler method below now extracts tenantID via
+// middleware.EnforcedTenantID and threads it through to Service.
+func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChecker middleware.MembershipChecker, membershipCacheTTL time.Duration) {
+	shippingGroup := rg.Group("/shipping",
+		middleware.RequireJWT(jwtSecret),
+		middleware.RequireTenantContext(membershipChecker, membershipCacheTTL),
+	)
 	shippingGroup.GET("", middleware.RequirePermission("shipping.view"), h.List)
 	shippingGroup.GET("/export", middleware.RequirePermission("shipping.view"), h.Export)
 	shippingGroup.GET("/sources", middleware.RequirePermission("shipping.view"), h.Sources)
@@ -69,6 +85,12 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
 //	@Failure		403			{object}	apihttp.ErrorResponse
 //	@Router			/shipping [get]
 func (h *Handler) List(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	page, _ := strconv.Atoi(c.Query("page"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
 
@@ -79,7 +101,7 @@ func (h *Handler) List(c *gin.Context) {
 		}
 	}
 
-	responses, total, err := h.service.List(c.Request.Context(), ListParams{
+	responses, total, err := h.service.List(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), Status: Status(c.Query("status")), Carrier: c.Query("carrier"),
 		Date: date, Page: page, Limit: limit,
 	})
@@ -121,6 +143,12 @@ func (h *Handler) List(c *gin.Context) {
 //	@Failure		403			{object}	apihttp.ErrorResponse
 //	@Router			/shipping/export [get]
 func (h *Handler) Export(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	var date *time.Time
 	if raw := c.Query("date"); raw != "" {
 		if parsed, err := time.Parse("2006-01-02", raw); err == nil {
@@ -128,7 +156,7 @@ func (h *Handler) Export(c *gin.Context) {
 		}
 	}
 
-	rows, err := h.service.ListForExport(c.Request.Context(), ListParams{
+	rows, err := h.service.ListForExport(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), Status: Status(c.Query("status")), Carrier: c.Query("carrier"), Date: date,
 	})
 	if err != nil {
@@ -167,7 +195,13 @@ func (h *Handler) Export(c *gin.Context) {
 //	@Failure		403	{object}	apihttp.ErrorResponse
 //	@Router			/shipping/sources [get]
 func (h *Handler) Sources(c *gin.Context) {
-	sources, err := h.service.Sources(c.Request.Context())
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
+	sources, err := h.service.Sources(c.Request.Context(), tenantID)
 	if err != nil {
 		apihttp.Fail(c, http.StatusInternalServerError, "failed to list shippable picking tasks", "INTERNAL_ERROR")
 		return
@@ -188,13 +222,19 @@ func (h *Handler) Sources(c *gin.Context) {
 //	@Failure		404	{object}	apihttp.ErrorResponse
 //	@Router			/shipping/{id} [get]
 func (h *Handler) Get(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid shipment id", "INVALID_REQUEST")
 		return
 	}
 
-	resp, err := h.service.Get(c.Request.Context(), id)
+	resp, err := h.service.Get(c.Request.Context(), tenantID, id)
 	if errors.Is(err, ErrNotFound) {
 		apihttp.Fail(c, http.StatusNotFound, "shipment not found", "NOT_FOUND")
 		return
@@ -224,6 +264,12 @@ func (h *Handler) Get(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/shipping [post]
 func (h *Handler) Create(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	var req CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid request body", "INVALID_REQUEST")
@@ -233,7 +279,7 @@ func (h *Handler) Create(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Create(ctx, req, userID)
+	resp, err := h.service.Create(ctx, tenantID, req, userID)
 	if err == nil {
 		apihttp.Status(c, http.StatusCreated, resp, "shipment created")
 		return
@@ -260,6 +306,12 @@ func (h *Handler) Create(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/shipping/{id} [put]
 func (h *Handler) Update(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid shipment id", "INVALID_REQUEST")
@@ -272,7 +324,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.Update(c.Request.Context(), id, req)
+	resp, err := h.service.Update(c.Request.Context(), tenantID, id, req)
 	if err == nil {
 		apihttp.OK(c, resp, "")
 		return
@@ -299,6 +351,12 @@ func (h *Handler) Update(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/shipping/{id}/confirm [post]
 func (h *Handler) Confirm(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid shipment id", "INVALID_REQUEST")
@@ -314,7 +372,7 @@ func (h *Handler) Confirm(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Confirm(ctx, id, req, userID)
+	resp, err := h.service.Confirm(ctx, tenantID, id, req, userID)
 	if err == nil {
 		apihttp.OK(c, resp, "shipment updated")
 		return
@@ -340,6 +398,12 @@ func (h *Handler) Confirm(c *gin.Context) {
 //	@Failure		409		{object}	apihttp.ErrorResponse	"shipment is not in a state that allows this action (already dispatched, delivered, issue-flagged, or cancelled)"
 //	@Router			/shipping/{id}/cancel [post]
 func (h *Handler) Cancel(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid shipment id", "INVALID_REQUEST")
@@ -357,7 +421,7 @@ func (h *Handler) Cancel(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Cancel(ctx, id, req, userID)
+	resp, err := h.service.Cancel(ctx, tenantID, id, req, userID)
 	if err == nil {
 		apihttp.OK(c, resp, "shipment cancelled")
 		return
