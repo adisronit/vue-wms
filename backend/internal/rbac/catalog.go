@@ -49,7 +49,12 @@ var Modules = []ModuleDef{
 	// quality_check.approve's own QC release, neither built in this
 	// phase. See RoleDefaultGrants' own doc.
 	{Code: "receiving", Name: "Receiving", Actions: []string{"view", "create", "update", "delete", "confirm", "approve"}},
-	{Code: "quality_check", Name: "Quality Check", Actions: []string{"view", "create", "update", "approve"}},
+	// "confirm" (Phase 31B) gates recording PASS/HOLD/REJECT dispositions
+	// — the stock-mutating action — split out of "approve" the same way
+	// receiving.confirm was, so QC staff can record their own inspection
+	// decisions. quality_check.approve stays reserved for a future
+	// supervisor-level exception action; none exists yet.
+	{Code: "quality_check", Name: "Quality Check", Actions: []string{"view", "create", "update", "confirm", "approve"}},
 	{Code: "putaway", Name: "Putaway", Actions: []string{"view", "create", "update", "approve"}},
 	{Code: "stock_inquiry", Name: "Stock Inquiry", Actions: []string{"view", "export"}},
 	{Code: "stock_adjustment", Name: "Stock Adjustment", Actions: []string{"view", "create", "update", "delete", "approve"}},
@@ -169,7 +174,7 @@ var RoleDefaultGrants = map[string][]string{
 	},
 	"QC": {
 		"dashboard.view",
-		"quality_check.view", "quality_check.create", "quality_check.update",
+		"quality_check.view", "quality_check.create", "quality_check.update", "quality_check.confirm",
 		"stock_inquiry.view",
 	},
 	"PUTAWAY": {

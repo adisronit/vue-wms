@@ -47,6 +47,7 @@ import (
 	"wms-backend/internal/productcategory"
 	"wms-backend/internal/productfamily"
 	"wms-backend/internal/putaway"
+	"wms-backend/internal/qualitycheck"
 	"wms-backend/internal/receiving"
 	"wms-backend/internal/replenishment"
 	"wms-backend/internal/report"
@@ -275,6 +276,14 @@ func main() {
 	receivingRepo := receiving.NewRepository(dbManager.DB())
 	receivingService := receiving.NewService(receivingRepo, productRepo, warehouseRepo, locationRepo, supplierRepo, inventoryService)
 	receiving.NewHandler(receivingService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 31B: qualitycheckService is tenant-scoped from day one (see
+	// its own package doc) — it reads receipts/receipt_item_splits
+	// directly via raw SQL rather than depending on receivingService's
+	// Go API, so it has no constructor dependency on it.
+	qualitycheckRepo := qualitycheck.NewRepository(dbManager.DB())
+	qualitycheckService := qualitycheck.NewService(qualitycheckRepo, warehouseRepo, inventoryService)
+	qualitycheck.NewHandler(qualitycheckService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	putawayRepo := putaway.NewRepository(dbManager.DB())
 	putawayService := putaway.NewService(putawayRepo, productRepo, warehouseRepo, receivingService, inventoryService)

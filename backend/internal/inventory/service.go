@@ -40,6 +40,15 @@ var ErrNoStock = errors.New("inventory: no stock at this location")
 // ErrInsufficientStock.
 var ErrReservationUnderflow = errors.New("inventory: cannot release or consume more than is currently reserved")
 
+// ErrHoldUnderflow is returned by ReleaseHoldTx/RejectHoldTx (Phase 31B)
+// when Quantity exceeds what's currently held at that (product,
+// location, lot) — AdjustHold's guarded UPDATE catches it first, the
+// same mechanism ErrReservationUnderflow above uses for reservations.
+// This is the authoritative guard against QC releasing or rejecting
+// more than inventory.HoldQuantity actually has, regardless of what the
+// caller's own bookkeeping believes.
+var ErrHoldUnderflow = errors.New("inventory: cannot release or reject more than is currently held")
+
 // ErrProductNotFound and ErrLocationNotFound (Phase 30 Batch 1) are
 // returned by verifyOwnership when ProductID/LocationID either doesn't
 // exist at all or exists under a different tenant — the two cases are
@@ -456,6 +465,101 @@ func (s *Service) ConsumeReservationTx(ctx context.Context, txRepo *Repository, 
 		return nil, ErrReservationUnderflow
 	}
 	return removeStockTx(ctx, txRepo, req)
+}
+
+// ReleaseHoldTx decreases hold_quantity at (ProductID, LocationID,
+// LotNo) by Quantity, without touching quantity or writing a ledger
+// row — QC's PASS disposition (Phase 31B): the units were already
+// counted in Quantity when Receiving posted them into Hold (see
+// Inventory.Available's own doc), so releasing a hold is not itself a
+// stock movement, the same reasoning ReleaseReservationTx already
+// applies to reservations. Reuses ReserveRequest's exact shape (same
+// fields, no new struct needed). Returns ErrNoStock if the tuple has no
+// balance row at all, ErrHoldUnderflow if Quantity exceeds what's
+// currently held.
+func (s *Service) ReleaseHoldTx(ctx context.Context, txRepo *Repository, req ReserveRequest) (*Inventory, error) {
+	if err := validateReserveRequest(req); err != nil {
+		return nil, err
+	}
+	if err := s.verifyOwnership(ctx, req.TenantID, req.ProductID, req.LocationID); err != nil {
+		return nil, err
+	}
+	rows, err := txRepo.AdjustHold(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo, -req.Quantity)
+	if err != nil {
+		return nil, err
+	}
+	if rows == 0 {
+		if _, ferr := txRepo.FindBalance(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo); errors.Is(ferr, ErrNotFound) {
+			return nil, ErrNoStock
+		}
+		return nil, ErrHoldUnderflow
+	}
+	return txRepo.FindBalance(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo)
+}
+
+// RejectHoldTx atomically deducts Quantity from BOTH the on-hand
+// Quantity and the HoldQuantity at (ProductID, LocationID, LotNo) — QC's
+// REJECT disposition (Phase 31B): rejected stock leaves the building
+// (or is otherwise written off) and must never remain counted as either
+// on-hand or held. Ignores req.Type — the ledger row this writes is
+// always TransactionReject, never spoofable by the caller, the one
+// property this dedicated method exists to guarantee. Writes exactly
+// one ledger row (a single signed quantity delta, the same shape every
+// other *Tx method's ledger write uses). Returns ErrNoStock if the
+// tuple has no balance row at all, ErrHoldUnderflow if Quantity exceeds
+// what's currently held — the authoritative guard: a caller can never
+// reject more than inventory.HoldQuantity actually has, regardless of
+// what QC's own bookkeeping believes.
+func (s *Service) RejectHoldTx(ctx context.Context, txRepo *Repository, req StockChangeRequest) (*Inventory, error) {
+	if req.TenantID == 0 {
+		return nil, ErrValidation{Message: "tenant_id is required"}
+	}
+	if req.ProductID == 0 || req.LocationID == 0 {
+		return nil, ErrValidation{Message: "product_id and location_id are required"}
+	}
+	if req.Quantity <= 0 {
+		return nil, ErrValidation{Message: "quantity must be greater than zero"}
+	}
+	if err := s.verifyOwnership(ctx, req.TenantID, req.ProductID, req.LocationID); err != nil {
+		return nil, err
+	}
+
+	holdRows, err := txRepo.AdjustHold(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo, -req.Quantity)
+	if err != nil {
+		return nil, err
+	}
+	if holdRows == 0 {
+		if _, ferr := txRepo.FindBalance(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo); errors.Is(ferr, ErrNotFound) {
+			return nil, ErrNoStock
+		}
+		return nil, ErrHoldUnderflow
+	}
+
+	// hold_quantity never exceeds quantity (CK_inventory_hold_quantity_
+	// not_exceeding_quantity), so a hold release of Quantity having just
+	// succeeded above guarantees quantity >= Quantity too — this can only
+	// fail if that invariant were somehow already broken, not a real
+	// expected path.
+	balRows, err := txRepo.AdjustBalance(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo, -req.Quantity)
+	if err != nil {
+		return nil, err
+	}
+	if balRows == 0 {
+		return nil, ErrInsufficientStock
+	}
+
+	inv, err := txRepo.FindBalance(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo)
+	if err != nil {
+		return nil, err
+	}
+	if err := txRepo.InsertTransaction(ctx, req.TenantID, &Transaction{
+		TransactionType: TransactionReject, ProductID: req.ProductID, LocationID: req.LocationID, LotNo: req.LotNo,
+		Quantity: -req.Quantity, ReferenceType: req.ReferenceType, ReferenceID: req.ReferenceID,
+		Reason: req.Reason, CreatedBy: req.CreatedBy,
+	}); err != nil {
+		return nil, err
+	}
+	return inv, nil
 }
 
 func validateReserveRequest(req ReserveRequest) error {
