@@ -133,6 +133,16 @@
           <button @click="selectedPutaway = null" class="text-slate-500 hover:text-red-600 text-xl">✕</button>
         </div>
 
+        <!-- Phase 31D — synchronous, read-only PDF document. -->
+        <div class="mb-6">
+          <button
+            @click="viewPutawayTaskSheetPdf"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm px-3 py-2 rounded-lg font-semibold"
+          >
+            📄 {{ $t('putaway.documents.viewTaskSheet') }}
+          </button>
+        </div>
+
         <div class="bg-slate-50 rounded-2xl p-5 mb-6">
           <div class="grid grid-cols-2 gap-4">
             <div>
@@ -263,7 +273,15 @@
 </template>
 
 <script>
-import { listPutaway, getPutawayTask, confirmPutawayTask, cancelPutawayTask, newIdempotencyKey, exportPutaway } from '../../services/putaway'
+import {
+  listPutaway,
+  getPutawayTask,
+  confirmPutawayTask,
+  cancelPutawayTask,
+  newIdempotencyKey,
+  exportPutaway,
+  viewPutawayTaskSheet,
+} from '../../services/putaway'
 import { listWarehouses, listZones, listLocations } from '../../services/warehouses'
 import { hasPermission } from '../../services/auth'
 import { showToast } from '../../services/toast'
@@ -494,6 +512,14 @@ export default {
         this.loadError = err.message
       } finally {
         this.exporting = false
+      }
+    },
+
+    async viewPutawayTaskSheetPdf() {
+      try {
+        await viewPutawayTaskSheet(this.selectedPutaway.taskId)
+      } catch (err) {
+        showToast(err.message, 'error')
       }
     },
 

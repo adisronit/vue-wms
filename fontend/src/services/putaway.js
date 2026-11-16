@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiDownload, triggerDownload } from './api'
+import { apiGet, apiPost, apiDownload, triggerDownload, openInNewTab } from './api'
 
 export function listPutaway(params = {}) {
   const query = new URLSearchParams()
@@ -53,4 +53,17 @@ export function cancelPutawayTask(id, payload) {
 // (putaway_confirmations), the same pattern services/receiving.js uses.
 export function newIdempotencyKey() {
   return crypto.randomUUID()
+}
+
+// Phase 31D — Putaway Task Sheet PDF. Read-only on the backend
+// (internal/inbounddoc) — viewing/downloading never changes the task's
+// own status or moves any stock.
+export async function viewPutawayTaskSheet(id) {
+  const { blob } = await apiDownload(`/putaway/${id}/pdf`)
+  openInNewTab(blob)
+}
+
+export async function downloadPutawayTaskSheet(id) {
+  const { blob, filename } = await apiDownload(`/putaway/${id}/pdf?download=true`)
+  triggerDownload(blob, filename)
 }

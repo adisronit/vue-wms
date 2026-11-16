@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut, apiDownload, triggerDownload } from './api'
+import { apiGet, apiPost, apiPut, apiDownload, triggerDownload, openInNewTab } from './api'
 
 export function listReceipts(params = {}) {
   const query = new URLSearchParams()
@@ -63,4 +63,39 @@ export function cancelReceipt(id, payload) {
 // served.
 export function newIdempotencyKey() {
   return crypto.randomUUID()
+}
+
+// Phase 31D — Goods Receiving Note / Inbound Completion Report /
+// Discrepancy-Damage Report PDFs, all keyed by receipt id. Every render
+// is read-only on the backend (internal/inbounddoc) — viewing or
+// downloading any number of times never changes the receipt's own
+// status or stock.
+export async function viewReceiptGRN(id) {
+  const { blob } = await apiDownload(`/receipts/${id}/pdf/grn`)
+  openInNewTab(blob)
+}
+
+export async function downloadReceiptGRN(id) {
+  const { blob, filename } = await apiDownload(`/receipts/${id}/pdf/grn?download=true`)
+  triggerDownload(blob, filename)
+}
+
+export async function viewReceiptCompletionReport(id) {
+  const { blob } = await apiDownload(`/receipts/${id}/pdf/completion`)
+  openInNewTab(blob)
+}
+
+export async function downloadReceiptCompletionReport(id) {
+  const { blob, filename } = await apiDownload(`/receipts/${id}/pdf/completion?download=true`)
+  triggerDownload(blob, filename)
+}
+
+export async function viewReceiptDiscrepancyReport(id) {
+  const { blob } = await apiDownload(`/receipts/${id}/pdf/discrepancy`)
+  openInNewTab(blob)
+}
+
+export async function downloadReceiptDiscrepancyReport(id) {
+  const { blob, filename } = await apiDownload(`/receipts/${id}/pdf/discrepancy?download=true`)
+  triggerDownload(blob, filename)
 }

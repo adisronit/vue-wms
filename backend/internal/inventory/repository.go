@@ -290,6 +290,25 @@ func (r *Repository) ListTransactionsForExport(ctx context.Context, tenantID int
 	return rows, nil
 }
 
+// ListTransactionsByReference returns every ledger row tagged with
+// referenceType/referenceID (e.g. "PUTAWAY"/task.PutawayNo) — added in
+// Phase 31D so internal/inbounddoc's Completion Report can discover
+// every distinct destination a putaway task's line actually moved
+// stock to over its lifetime. This is necessary, not cosmetic:
+// putaway_task_items.destination_location_id (Phase 31C's own
+// documented limitation) holds only the MOST RECENT destination for a
+// line confirmed across multiple destinations, silently losing earlier
+// ones — the ledger is the one place that history survives, since
+// MoveAvailableStockTx always writes one immutable row per leg.
+func (r *Repository) ListTransactionsByReference(ctx context.Context, tenantID int64, referenceType, referenceID string) ([]Transaction, error) {
+	var rows []Transaction
+	err := r.db.WithContext(ctx).
+		Where("tenant_id = ? AND reference_type = ? AND reference_id = ?", tenantID, referenceType, referenceID).
+		Order("id ASC").
+		Find(&rows).Error
+	return rows, err
+}
+
 func (r *Repository) findRaw(ctx context.Context, tenantID, id int64) (*Inventory, error) {
 	var inv Inventory
 	err := r.db.WithContext(ctx).First(&inv, "id = ? AND tenant_id = ?", id, tenantID).Error

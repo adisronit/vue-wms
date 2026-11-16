@@ -656,6 +656,12 @@ func (s *Service) FindBalance(ctx context.Context, tenantID, productID, location
 	return s.repo.FindBalance(ctx, tenantID, productID, locationID, lotNo)
 }
 
+// ListTransactionsByReference exposes Repository.ListTransactionsByReference
+// through Service — see that method's own doc.
+func (s *Service) ListTransactionsByReference(ctx context.Context, tenantID int64, referenceType, referenceID string) ([]Transaction, error) {
+	return s.repo.ListTransactionsByReference(ctx, tenantID, referenceType, referenceID)
+}
+
 func validateMoveStock(req MoveStockRequest) error {
 	if req.TenantID == 0 {
 		return ErrValidation{Message: "tenant_id is required"}

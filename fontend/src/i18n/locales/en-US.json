@@ -190,6 +190,11 @@
     "title": "Goods Receiving",
     "subtitle": "Manage inbound purchase orders and receiving tasks",
     "newButton": "+ New Receiving",
+    "documents": {
+      "viewGRN": "View GRN",
+      "viewCompletion": "View Completion Report",
+      "viewDiscrepancy": "View Discrepancy Report"
+    },
     "summary": {
       "waitingReceive": "Waiting Receive",
       "receiving": "Receiving",
@@ -565,6 +570,9 @@
     "title": "Quality Check",
     "subtitle": "Inspect received items before putaway process",
     "newButton": "+ New QC Task",
+    "documents": {
+      "viewReport": "View QC Report"
+    },
     "summary": {
       "pendingQc": "Pending QC",
       "passed": "Passed",
@@ -636,6 +644,9 @@
     "title": "Putaway",
     "subtitle": "Move inspected goods from staging area to storage locations",
     "newButton": "+ New Putaway Task",
+    "documents": {
+      "viewTaskSheet": "View Task Sheet"
+    },
     "summary": {
       "pendingPutaway": "Pending Putaway",
       "locationIssues": "Location Issues"

@@ -31,6 +31,7 @@ import (
 	"wms-backend/internal/customerdeliverylocation"
 	"wms-backend/internal/dashboard"
 	"wms-backend/internal/health"
+	"wms-backend/internal/inbounddoc"
 	"wms-backend/internal/inventory"
 	"wms-backend/internal/location"
 	"wms-backend/internal/messaging/rabbitmq"
@@ -293,6 +294,17 @@ func main() {
 	putawayRepo := putaway.NewRepository(dbManager.DB())
 	putawayService := putaway.NewService(putawayRepo, productRepo, warehouseRepo, receivingService, inventoryService)
 	putaway.NewHandler(putawayService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 31D: inbounddoc composes the three Services above (plus
+	// inventoryService for its own Final Stock Position section and
+	// tenantRepo/userRepo for the PDF header/footer) into read-only PDF
+	// generation — see its own package doc for why GRN/Completion/
+	// Discrepancy/QC Report/Putaway Task Sheet all live in one new
+	// package rather than split across receiving/qualitycheck/putaway's
+	// own handlers (receiving cannot import qualitycheck or putaway
+	// without a cycle).
+	inbounddocService := inbounddoc.NewService(receivingService, qualitycheckService, putawayService, inventoryService, locationRepo, tenantRepo, userRepo)
+	inbounddoc.NewHandler(inbounddocService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	pickingRepo := picking.NewRepository(dbManager.DB())
 	pickingService := picking.NewService(pickingRepo, productRepo, warehouseRepo, inventoryService)

@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut } from './api'
+import { apiGet, apiPost, apiPut, apiDownload, triggerDownload, openInNewTab } from './api'
 
 export function listInspections(params = {}) {
   const query = new URLSearchParams()
@@ -40,4 +40,17 @@ export function confirmInspection(inspectionId, payload) {
 // internal/receiving's own idempotency design.
 export function newIdempotencyKey() {
   return crypto.randomUUID()
+}
+
+// Phase 31D — QC Inspection Report PDF. Read-only on the backend
+// (internal/inbounddoc) — viewing/downloading never changes the
+// inspection's own status or any disposition.
+export async function viewQCReport(inspectionId) {
+  const { blob } = await apiDownload(`/qc/inspections/${inspectionId}/pdf`)
+  openInNewTab(blob)
+}
+
+export async function downloadQCReport(inspectionId) {
+  const { blob, filename } = await apiDownload(`/qc/inspections/${inspectionId}/pdf?download=true`)
+  triggerDownload(blob, filename)
 }

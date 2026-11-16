@@ -187,7 +187,8 @@ func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams
 		AND (? = '' OR pt.putaway_no LIKE ? OR rc.receipt_no LIKE ? OR p.sku LIKE ? OR p.name LIKE ? OR dl.code LIKE ?)
 		AND (? = '' OR pti.status = ?)
 		AND (? = 0 OR pt.warehouse_id = ?)
-		AND (? = 0 OR dl.zone_id = ?)`
+		AND (? = 0 OR dl.zone_id = ?)
+		AND (? = 0 OR pt.receipt_id = ?)`
 
 	like := "%" + params.Search + "%"
 	args := []any{
@@ -196,6 +197,7 @@ func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams
 		string(params.Status), string(params.Status),
 		params.WarehouseID, params.WarehouseID,
 		params.ZoneID, params.ZoneID,
+		params.ReceiptID, params.ReceiptID,
 	}
 
 	var total int64

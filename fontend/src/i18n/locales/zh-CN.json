@@ -190,6 +190,11 @@
     "title": "收货管理",
     "subtitle": "管理入库采购订单和收货任务",
     "newButton": "+ 新建收货",
+    "documents": {
+      "viewGRN": "查看收货单 (GRN)",
+      "viewCompletion": "查看入库完成报告",
+      "viewDiscrepancy": "查看差异/损坏报告"
+    },
     "summary": {
       "waitingReceive": "待收货",
       "receiving": "收货中",
@@ -565,6 +570,9 @@
     "title": "质量检查",
     "subtitle": "在上架前检查已收货的商品",
     "newButton": "+ 新建质检任务",
+    "documents": {
+      "viewReport": "查看质检报告"
+    },
     "summary": {
       "pendingQc": "待质检",
       "passed": "已通过",
@@ -636,6 +644,9 @@
     "title": "上架",
     "subtitle": "将已检查的货物从暂存区移动到存储货位",
     "newButton": "+ 新建上架任务",
+    "documents": {
+      "viewTaskSheet": "查看上架任务单"
+    },
     "summary": {
       "pendingPutaway": "待上架",
       "locationIssues": "货位问题"
