@@ -337,6 +337,10 @@ func writeError(c *gin.Context, err error) {
 		apihttp.Fail(c, http.StatusNotFound, "product not found", "PRODUCT_NOT_FOUND")
 	case errors.Is(err, ErrWarehouseNotFound):
 		apihttp.Fail(c, http.StatusNotFound, "warehouse not found", "WAREHOUSE_NOT_FOUND")
+	case errors.Is(err, ErrCustomerNotFound):
+		apihttp.Fail(c, http.StatusNotFound, "customer not found", "CUSTOMER_NOT_FOUND")
+	case errors.Is(err, ErrShipToNotFound):
+		apihttp.Fail(c, http.StatusNotFound, "ship-to location not found", "SHIP_TO_NOT_FOUND")
 	case errors.Is(err, picking.ErrLocationNotFound):
 		apihttp.Fail(c, http.StatusNotFound, "location not found", "LOCATION_NOT_FOUND")
 	case errors.Is(err, ErrDuplicateExternalReference):

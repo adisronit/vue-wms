@@ -17,6 +17,8 @@ import (
 
 	"gorm.io/gorm"
 
+	"wms-backend/internal/customer"
+	"wms-backend/internal/customerdeliverylocation"
 	"wms-backend/internal/inventory"
 	"wms-backend/internal/location"
 	"wms-backend/internal/picking"
@@ -124,7 +126,10 @@ func newOrderServiceAndRepo(tx *gorm.DB) (*Service, *Repository) {
 	shippingRepo := shipping.NewRepository(tx)
 	shippingSvc := shipping.NewService(shippingRepo, pickingSvc)
 
-	return NewService(repo, productRepo, warehouseRepo, pickingSvc, shippingSvc), repo
+	customerRepo := customer.NewRepository(tx)
+	shipToRepo := customerdeliverylocation.NewRepository(tx)
+
+	return NewService(repo, productRepo, warehouseRepo, customerRepo, shipToRepo, pickingSvc, shippingSvc), repo
 }
 
 // createOrder runs Service.Create end-to-end (through the real

@@ -91,6 +91,11 @@ func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error
 	return &Response{
 		ID: header.ID, ShipmentNo: header.ShipmentNo, PickingTaskID: header.PickingTaskID,
 		PickNo: header.PickNo, OrderNo: header.OrderNo, Customer: header.Customer,
+		CustomerID: header.CustomerID, ShipToID: header.ShipToID,
+		ShipToName: header.ShipToName, ShipToAddress: header.ShipToAddress,
+		ShipToProvince: header.ShipToProvince, ShipToDistrict: header.ShipToDistrict,
+		ShipToPostalCode:    header.ShipToPostalCode,
+		ShipToContactPerson: header.ShipToContactPerson, ShipToContactPhone: header.ShipToContactPhone,
 		Carrier: header.Carrier, TrackingNo: header.TrackingNo, Packages: header.Packages, Weight: header.Weight,
 		ShipDate: header.ShipDate, Address: header.Address, Remark: header.Remark, Status: Status(header.Status),
 		CreatedAt: header.CreatedAt, UpdatedAt: header.UpdatedAt,

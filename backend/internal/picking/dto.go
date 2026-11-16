@@ -27,24 +27,33 @@ type ItemResponse struct {
 // all nil/null unless the task was actually cancelled — see
 // Service.Cancel's own doc.
 type Response struct {
-	ID              int64          `json:"id,string" example:"1"`
-	PickNo          string         `json:"pick_no" example:"PICK-000001"`
-	OrderNo         string         `json:"order_no" example:"SO-20260608-001"`
-	Customer        *string        `json:"customer" example:"ABC Customer"`
-	WarehouseID     int64          `json:"warehouse_id,string" example:"1"`
-	WarehouseCode   string         `json:"warehouse_code" example:"WH-01"`
-	Status          Status         `json:"status" example:"PENDING"`
-	Priority        Priority       `json:"priority" example:"NORMAL"`
-	DueDate         *time.Time     `json:"due_date"`
-	Remark          *string        `json:"remark"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
-	CompletedAt     *time.Time     `json:"completed_at"`
-	CancelledAt     *time.Time     `json:"cancelled_at"`
-	CancelledBy     *int64         `json:"cancelled_by,string"`
-	CancelledByName *string        `json:"cancelled_by_name"`
-	CancelRemark    *string        `json:"cancel_remark"`
-	Items           []ItemResponse `json:"items"`
+	ID                  int64          `json:"id,string" example:"1"`
+	PickNo              string         `json:"pick_no" example:"PICK-000001"`
+	OrderNo             string         `json:"order_no" example:"SO-20260608-001"`
+	Customer            *string        `json:"customer" example:"ABC Customer"`
+	CustomerID          *int64         `json:"customer_id,string"`
+	ShipToID            *int64         `json:"ship_to_id,string"`
+	ShipToName          *string        `json:"ship_to_name"`
+	ShipToAddress       *string        `json:"ship_to_address"`
+	ShipToProvince      *string        `json:"ship_to_province"`
+	ShipToDistrict      *string        `json:"ship_to_district"`
+	ShipToPostalCode    *string        `json:"ship_to_postal_code"`
+	ShipToContactPerson *string        `json:"ship_to_contact_person"`
+	ShipToContactPhone  *string        `json:"ship_to_contact_phone"`
+	WarehouseID         int64          `json:"warehouse_id,string" example:"1"`
+	WarehouseCode       string         `json:"warehouse_code" example:"WH-01"`
+	Status              Status         `json:"status" example:"PENDING"`
+	Priority            Priority       `json:"priority" example:"NORMAL"`
+	DueDate             *time.Time     `json:"due_date"`
+	Remark              *string        `json:"remark"`
+	CreatedAt           time.Time      `json:"created_at"`
+	UpdatedAt           time.Time      `json:"updated_at"`
+	CompletedAt         *time.Time     `json:"completed_at"`
+	CancelledAt         *time.Time     `json:"cancelled_at"`
+	CancelledBy         *int64         `json:"cancelled_by,string"`
+	CancelledByName     *string        `json:"cancelled_by_name"`
+	CancelRemark        *string        `json:"cancel_remark"`
+	Items               []ItemResponse `json:"items"`
 } //	@name	PickingTaskResponse
 
 // ListResponse is one row of GET /picking — task-level, matching
@@ -68,13 +77,29 @@ type ListResponse struct {
 // always starts PENDING; use POST /picking/{id}/confirm to actually
 // remove stock.
 type CreateRequest struct {
-	OrderNo     string              `json:"order_no" binding:"required" example:"SO-20260608-005"`
-	Customer    *string             `json:"customer" example:"ABC Customer"`
-	WarehouseID int64               `json:"warehouse_id,string" binding:"required" example:"1"`
-	Priority    Priority            `json:"priority" example:"NORMAL"`
-	DueDate     *time.Time          `json:"due_date"`
-	Remark      *string             `json:"remark"`
-	Items       []CreateItemRequest `json:"items"`
+	OrderNo  string  `json:"order_no" binding:"required" example:"SO-20260608-005"`
+	Customer *string `json:"customer" example:"ABC Customer"`
+	// CustomerID/ShipTo* are set only by internal/order's own
+	// CreatePickingTask — a one-way copy of that order's own already-
+	// validated/snapshotted ship-to fields (see Service.createCore's own
+	// doc). A direct POST /picking caller may still set them, but
+	// nothing in this package re-validates customer_id/ship_to_id
+	// ownership itself: that verification happened once, in
+	// internal/order, before this request was ever built.
+	CustomerID          *int64              `json:"customer_id,string"`
+	ShipToID            *int64              `json:"ship_to_id,string"`
+	ShipToName          *string             `json:"ship_to_name"`
+	ShipToAddress       *string             `json:"ship_to_address"`
+	ShipToProvince      *string             `json:"ship_to_province"`
+	ShipToDistrict      *string             `json:"ship_to_district"`
+	ShipToPostalCode    *string             `json:"ship_to_postal_code"`
+	ShipToContactPerson *string             `json:"ship_to_contact_person"`
+	ShipToContactPhone  *string             `json:"ship_to_contact_phone"`
+	WarehouseID         int64               `json:"warehouse_id,string" binding:"required" example:"1"`
+	Priority            Priority            `json:"priority" example:"NORMAL"`
+	DueDate             *time.Time          `json:"due_date"`
+	Remark              *string             `json:"remark"`
+	Items               []CreateItemRequest `json:"items"`
 } //	@name	CreatePickingRequest
 
 // CreateItemRequest is one line within CreateRequest.Items — the

@@ -89,7 +89,31 @@
             <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
           </select>
 
-          <input v-model="form.customer" type="text" :placeholder="$t('orders.form.customerPlaceholder')" class="input" />
+          <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">{{ $t('orders.form.customerLabel') }}</label>
+            <SearchableSelect
+              v-model="form.customerId"
+              v-model:display-value="customerDisplayName"
+              :fetch-options="fetchCustomerOptions"
+              :placeholder="$t('orders.form.selectCustomer')"
+              @change="onCustomerChange"
+            />
+          </div>
+
+          <div v-if="form.customerId">
+            <label class="block text-xs font-semibold text-slate-500 mb-1">{{ $t('orders.form.shipToLabel') }}</label>
+            <select v-model="form.shipToId" class="input" :disabled="shipToLoading">
+              <option value="">{{ $t('orders.form.selectShipTo') }}</option>
+              <option v-for="s in shipToOptions" :key="s.id" :value="s.id">
+                {{ s.name }}{{ s.is_default ? ' ★' : '' }}
+              </option>
+            </select>
+            <p v-if="!shipToLoading && shipToOptions.length === 0" class="text-xs text-slate-400 mt-1">
+              {{ $t('orders.form.noShipToOptions') }}
+            </p>
+          </div>
+
+          <input v-if="!form.customerId" v-model="form.customer" type="text" :placeholder="$t('orders.form.customerPlaceholder')" class="input" />
 
           <input v-model="form.externalReference" type="text" :placeholder="$t('orders.form.externalReferencePlaceholder')" class="input" />
 
@@ -153,6 +177,8 @@
           <p><span class="text-slate-500">{{ $t('orders.detail.statusLabel') }}:</span> <StatusBadge :tone="statusTone(selectedOrder.status)">{{ statusLabel(selectedOrder.status) }}</StatusBadge></p>
           <p><span class="text-slate-500">{{ $t('orders.detail.fulfillmentLabel') }}:</span> <StatusBadge :tone="statusTone(selectedOrder.fulfillment_status)">{{ statusLabel(selectedOrder.fulfillment_status) }}</StatusBadge></p>
           <p><span class="text-slate-500">{{ $t('orders.detail.customerLabel') }}:</span> {{ selectedOrder.customer || '—' }}</p>
+          <p v-if="selectedOrder.ship_to_name"><span class="text-slate-500">{{ $t('orders.detail.shipToLabel') }}:</span> {{ selectedOrder.ship_to_name }}</p>
+          <p v-if="selectedOrder.ship_to_address"><span class="text-slate-500">{{ $t('orders.detail.shipToAddressLabel') }}:</span> {{ selectedOrder.ship_to_address }}<template v-if="selectedOrder.ship_to_district">, {{ selectedOrder.ship_to_district }}</template><template v-if="selectedOrder.ship_to_province">, {{ selectedOrder.ship_to_province }}</template><template v-if="selectedOrder.ship_to_postal_code"> {{ selectedOrder.ship_to_postal_code }}</template></p>
           <p><span class="text-slate-500">{{ $t('orders.detail.externalRefLabel') }}:</span> {{ selectedOrder.external_reference || '—' }}</p>
           <p><span class="text-slate-500">{{ $t('orders.detail.warehouseLabel') }}:</span> {{ selectedOrder.warehouse_code }}</p>
           <p v-if="selectedOrder.pick_no"><span class="text-slate-500">{{ $t('orders.detail.pickingTaskLabel') }}:</span> {{ selectedOrder.pick_no }}</p>
@@ -253,15 +279,18 @@ import {
 } from '../../services/orders'
 import { listWarehouses, listZones, listLocations } from '../../services/warehouses'
 import { listProducts } from '../../services/products'
+import { listCustomers } from '../../services/customers'
+import { listCustomerDeliveryLocations } from '../../services/customerDeliveryLocations'
 import { hasPermission } from '../../services/auth'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import FilterBar from '../../components/ui/FilterBar.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
+import SearchableSelect from '../../components/ui/SearchableSelect.vue'
 
 export default {
   name: 'OrderPage',
-  components: { PageHeader, FilterBar, DataTable, StatusBadge },
+  components: { PageHeader, FilterBar, DataTable, StatusBadge, SearchableSelect },
   data() {
     return {
       loading: false,
@@ -275,7 +304,13 @@ export default {
       editingOrderId: null,
       formError: '',
       submitting: false,
-      form: { warehouseId: '', customer: '', externalReference: '', remark: '', items: [] },
+      form: {
+        warehouseId: '', customer: '', customerId: null, shipToId: null,
+        externalReference: '', remark: '', items: []
+      },
+      customerDisplayName: '',
+      shipToOptions: [],
+      shipToLoading: false,
       itemDraft: { sku: '', orderedQty: null },
 
       selectedOrder: null,
@@ -362,18 +397,25 @@ export default {
       this.formMode = 'create'
       this.editingOrderId = null
       this.formError = ''
-      this.form = { warehouseId: '', customer: '', externalReference: '', remark: '', items: [] }
+      this.form = {
+        warehouseId: '', customer: '', customerId: null, shipToId: '',
+        externalReference: '', remark: '', items: []
+      }
+      this.customerDisplayName = ''
+      this.shipToOptions = []
       this.itemDraft = { sku: '', orderedQty: null }
       this.showForm = true
     },
 
-    openEditOrder() {
+    async openEditOrder() {
       this.formMode = 'edit'
       this.editingOrderId = this.selectedOrder.id
       this.formError = ''
       this.form = {
         warehouseId: this.selectedOrder.warehouse_id,
         customer: this.selectedOrder.customer || '',
+        customerId: this.selectedOrder.customer_id || null,
+        shipToId: this.selectedOrder.ship_to_id || '',
         externalReference: this.selectedOrder.external_reference || '',
         remark: this.selectedOrder.remark || '',
         items: this.selectedOrder.items.map((it) => ({
@@ -382,7 +424,57 @@ export default {
         }))
       }
       this.itemDraft = { sku: '', orderedQty: null }
+      if (this.form.customerId) {
+        this.customerDisplayName = this.selectedOrder.customer || ''
+        await this.loadShipToOptions(this.form.customerId)
+      } else {
+        this.customerDisplayName = ''
+        this.shipToOptions = []
+      }
       this.showForm = true
+    },
+
+    // fetchCustomerOptions backs the Customer SearchableSelect's remote
+    // search — only ACTIVE customers are offered, matching the task's
+    // own "tenant-scoped Customer ... selector" requirement (the backend
+    // itself re-verifies ownership regardless; this is just the picker).
+    async fetchCustomerOptions(search) {
+      try {
+        const res = await listCustomers({ search, status: 'ACTIVE', limit: 20 })
+        return res.data.map((c) => ({ value: c.id, label: `${c.code} — ${c.company_name}` }))
+      } catch {
+        return []
+      }
+    },
+
+    // loadShipToOptions only populates the dropdown's own option list —
+    // it never overwrites form.shipToId itself, so restoring an existing
+    // order's already-chosen ship-to (openEditOrder) never gets
+    // silently replaced by the customer's default.
+    async loadShipToOptions(customerId) {
+      this.shipToLoading = true
+      try {
+        const res = await listCustomerDeliveryLocations(customerId, { status: 'ACTIVE' })
+        this.shipToOptions = res.data
+      } catch {
+        this.shipToOptions = []
+      } finally {
+        this.shipToLoading = false
+      }
+    },
+
+    // onCustomerChange fires only when the user actively picks a
+    // different customer in the form (never during openEditOrder's own
+    // restore) — auto-selecting that customer's own default ship-to
+    // here matches "Auto-select active default Ship-to; allow override"
+    // exactly, while still leaving the dropdown open to override.
+    async onCustomerChange(opt) {
+      this.form.shipToId = ''
+      this.shipToOptions = []
+      if (!opt) return
+      await this.loadShipToOptions(opt.value)
+      const def = this.shipToOptions.find((s) => s.is_default)
+      if (def) this.form.shipToId = def.id
     },
 
     async addItem() {
@@ -422,7 +514,13 @@ export default {
 
       const payload = {
         warehouse_id: this.form.warehouseId,
-        customer: this.form.customer || undefined,
+        // When a Customer is linked, the backend overwrites customer
+        // (free text) with that customer's own resolved display name
+        // regardless — the free-text field is only meaningful when no
+        // customer_id is set at all.
+        customer: this.form.customerId ? undefined : (this.form.customer || undefined),
+        customer_id: this.form.customerId || undefined,
+        ship_to_id: this.form.customerId ? (this.form.shipToId || undefined) : undefined,
         external_reference: this.form.externalReference || undefined,
         remark: this.form.remark || undefined,
         items: this.form.items.map((it) => ({

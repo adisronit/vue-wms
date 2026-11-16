@@ -64,23 +64,32 @@ func (r *Repository) FindTaskByID(ctx context.Context, tenantID, id int64) (*Tas
 }
 
 type headerRow struct {
-	ID              int64
-	PickNo          string
-	OrderNo         string
-	Customer        *string
-	WarehouseID     int64
-	WarehouseCode   string
-	Status          string
-	Priority        string
-	DueDate         *time.Time
-	Remark          *string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	CompletedAt     *time.Time
-	CancelledAt     *time.Time
-	CancelledBy     *int64
-	CancelledByName *string
-	CancelRemark    *string
+	ID                  int64
+	PickNo              string
+	OrderNo             string
+	Customer            *string
+	CustomerID          *int64
+	ShipToID            *int64
+	ShipToName          *string
+	ShipToAddress       *string
+	ShipToProvince      *string
+	ShipToDistrict      *string
+	ShipToPostalCode    *string
+	ShipToContactPerson *string
+	ShipToContactPhone  *string
+	WarehouseID         int64
+	WarehouseCode       string
+	Status              string
+	Priority            string
+	DueDate             *time.Time
+	Remark              *string
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	CompletedAt         *time.Time
+	CancelledAt         *time.Time
+	CancelledBy         *int64
+	CancelledByName     *string
+	CancelRemark        *string
 }
 
 // FindTaskDetail returns the header with warehouse display fields
@@ -96,6 +105,11 @@ func (r *Repository) FindTaskDetail(ctx context.Context, tenantID, id int64) (*h
 	var row headerRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT pt.id AS id, pt.pick_no AS pick_no, pt.order_no AS order_no, pt.customer AS customer,
+			pt.customer_id AS customer_id, pt.ship_to_id AS ship_to_id,
+			pt.ship_to_name AS ship_to_name, pt.ship_to_address AS ship_to_address,
+			pt.ship_to_province AS ship_to_province, pt.ship_to_district AS ship_to_district,
+			pt.ship_to_postal_code AS ship_to_postal_code,
+			pt.ship_to_contact_person AS ship_to_contact_person, pt.ship_to_contact_phone AS ship_to_contact_phone,
 			pt.warehouse_id AS warehouse_id, w.code AS warehouse_code,
 			pt.status AS status, pt.priority AS priority, pt.due_date AS due_date, pt.remark AS remark,
 			pt.created_at AS created_at, pt.updated_at AS updated_at, pt.completed_at AS completed_at,

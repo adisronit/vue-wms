@@ -57,20 +57,37 @@ type Order struct {
 	ID int64 `gorm:"column:id;primaryKey"`
 	// TenantID (migrations/0044, 0048, Phase 29A) defaults to 1 — see
 	// internal/role.Role's own TenantID doc for the full rationale.
-	TenantID          int64      `gorm:"column:tenant_id;not null;default:1"`
-	OrderNo           string     `gorm:"column:order_no"`
-	Customer          *string    `gorm:"column:customer"`
-	ExternalReference *string    `gorm:"column:external_reference"`
-	WarehouseID       int64      `gorm:"column:warehouse_id"`
-	PickingTaskID     *int64     `gorm:"column:picking_task_id"`
-	Status            Status     `gorm:"column:status"`
-	Remark            *string    `gorm:"column:remark"`
-	CreatedBy         *int64     `gorm:"column:created_by"`
-	CreatedAt         time.Time  `gorm:"column:created_at"`
-	UpdatedAt         time.Time  `gorm:"column:updated_at"`
-	CancelledAt       *time.Time `gorm:"column:cancelled_at"`
-	CancelledBy       *int64     `gorm:"column:cancelled_by"`
-	CancelRemark      *string    `gorm:"column:cancel_remark"`
+	TenantID int64   `gorm:"column:tenant_id;not null;default:1"`
+	OrderNo  string  `gorm:"column:order_no"`
+	Customer *string `gorm:"column:customer"`
+	// CustomerID/ShipTo* (migrations/0062) are the Customer Ship-to
+	// integration: CustomerID links to internal/customer's own tenant-
+	// scoped master; ShipTo* is a server-generated snapshot of the
+	// chosen internal/customerdeliverylocation.Location's own fields at
+	// the moment Create/Update ran — see Service.resolveShipTo's own
+	// doc. Never re-synced if the source delivery location is edited
+	// afterward: an order's delivery details are frozen the moment the
+	// order itself was placed/edited, not a live view onto the master.
+	CustomerID          *int64     `gorm:"column:customer_id"`
+	ShipToID            *int64     `gorm:"column:ship_to_id"`
+	ShipToName          *string    `gorm:"column:ship_to_name"`
+	ShipToAddress       *string    `gorm:"column:ship_to_address"`
+	ShipToProvince      *string    `gorm:"column:ship_to_province"`
+	ShipToDistrict      *string    `gorm:"column:ship_to_district"`
+	ShipToPostalCode    *string    `gorm:"column:ship_to_postal_code"`
+	ShipToContactPerson *string    `gorm:"column:ship_to_contact_person"`
+	ShipToContactPhone  *string    `gorm:"column:ship_to_contact_phone"`
+	ExternalReference   *string    `gorm:"column:external_reference"`
+	WarehouseID         int64      `gorm:"column:warehouse_id"`
+	PickingTaskID       *int64     `gorm:"column:picking_task_id"`
+	Status              Status     `gorm:"column:status"`
+	Remark              *string    `gorm:"column:remark"`
+	CreatedBy           *int64     `gorm:"column:created_by"`
+	CreatedAt           time.Time  `gorm:"column:created_at"`
+	UpdatedAt           time.Time  `gorm:"column:updated_at"`
+	CancelledAt         *time.Time `gorm:"column:cancelled_at"`
+	CancelledBy         *int64     `gorm:"column:cancelled_by"`
+	CancelRemark        *string    `gorm:"column:cancel_remark"`
 }
 
 func (Order) TableName() string { return "orders" }

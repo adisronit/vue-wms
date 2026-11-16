@@ -137,6 +137,28 @@ func (r *Repository) List(ctx context.Context, tenantID int64, filter ListFilter
 	return locations, total, nil
 }
 
+// FindDefaultForCustomer returns the customer's own ACTIVE default
+// delivery location, or ErrNotFound if none exists (no locations at
+// all, or a default exists but is INACTIVE) — internal/order's own
+// Service.resolveShipTo uses this to auto-select a ship-to when a
+// request supplies customer_id but omits ship_to_id, matching the
+// "exactly one default, found via is_default" invariant Service.Create/
+// Update already enforce for writes.
+func (r *Repository) FindDefaultForCustomer(ctx context.Context, tenantID, customerID int64) (*Location, error) {
+	var l Location
+	err := r.db.WithContext(ctx).First(&l,
+		"tenant_id = ? AND customer_id = ? AND is_default = ? AND status = ?",
+		tenantID, customerID, true, StatusActive,
+	).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &l, nil
+}
+
 // CountByCustomer satisfies customer.deliveryLocationCounter — used to
 // refuse deleting a customer that still has delivery locations (any
 // status), and by Service.Create to detect "this is the customer's

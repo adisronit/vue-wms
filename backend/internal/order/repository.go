@@ -136,11 +136,20 @@ func (r *Repository) DeleteItemsByOrder(ctx context.Context, tenantID, orderID i
 // workflow package's own write-layer precedent.
 func (r *Repository) UpdateHeader(ctx context.Context, tenantID int64, o *Order) error {
 	err := r.db.WithContext(ctx).Model(&Order{}).Where("id = ? AND tenant_id = ?", o.ID, tenantID).Updates(map[string]any{
-		"customer":           o.Customer,
-		"external_reference": o.ExternalReference,
-		"warehouse_id":       o.WarehouseID,
-		"remark":             o.Remark,
-		"updated_at":         time.Now().UTC(),
+		"customer":               o.Customer,
+		"customer_id":            o.CustomerID,
+		"ship_to_id":             o.ShipToID,
+		"ship_to_name":           o.ShipToName,
+		"ship_to_address":        o.ShipToAddress,
+		"ship_to_province":       o.ShipToProvince,
+		"ship_to_district":       o.ShipToDistrict,
+		"ship_to_postal_code":    o.ShipToPostalCode,
+		"ship_to_contact_person": o.ShipToContactPerson,
+		"ship_to_contact_phone":  o.ShipToContactPhone,
+		"external_reference":     o.ExternalReference,
+		"warehouse_id":           o.WarehouseID,
+		"remark":                 o.Remark,
+		"updated_at":             time.Now().UTC(),
 	}).Error
 	return err
 }
@@ -202,26 +211,35 @@ func (r *Repository) CancelOrder(ctx context.Context, tenantID int64, o *Order) 
 // query shape, extended here per this phase's own orchestration-only
 // design (Order never stores picking/shipment state itself).
 type detailRow struct {
-	ID                int64
-	OrderNo           string
-	Customer          *string
-	ExternalReference *string
-	WarehouseID       int64
-	WarehouseCode     string
-	PickingTaskID     *int64
-	PickNo            *string
-	PickingStatus     *string
-	ShipmentStatus    *string
-	Status            string
-	Remark            *string
-	CreatedBy         *int64
-	CreatedByName     *string
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	CancelledAt       *time.Time
-	CancelledBy       *int64
-	CancelledByName   *string
-	CancelRemark      *string
+	ID                  int64
+	OrderNo             string
+	Customer            *string
+	CustomerID          *int64
+	ShipToID            *int64
+	ShipToName          *string
+	ShipToAddress       *string
+	ShipToProvince      *string
+	ShipToDistrict      *string
+	ShipToPostalCode    *string
+	ShipToContactPerson *string
+	ShipToContactPhone  *string
+	ExternalReference   *string
+	WarehouseID         int64
+	WarehouseCode       string
+	PickingTaskID       *int64
+	PickNo              *string
+	PickingStatus       *string
+	ShipmentStatus      *string
+	Status              string
+	Remark              *string
+	CreatedBy           *int64
+	CreatedByName       *string
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	CancelledAt         *time.Time
+	CancelledBy         *int64
+	CancelledByName     *string
+	CancelRemark        *string
 }
 
 // FindDetail scopes to tenantID — Phase 30 Batch 3 closes the IDOR this
@@ -231,6 +249,11 @@ func (r *Repository) FindDetail(ctx context.Context, tenantID, id int64) (*detai
 	var row detailRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT o.id AS id, o.order_no AS order_no, o.customer AS customer, o.external_reference AS external_reference,
+			o.customer_id AS customer_id, o.ship_to_id AS ship_to_id,
+			o.ship_to_name AS ship_to_name, o.ship_to_address AS ship_to_address,
+			o.ship_to_province AS ship_to_province, o.ship_to_district AS ship_to_district,
+			o.ship_to_postal_code AS ship_to_postal_code,
+			o.ship_to_contact_person AS ship_to_contact_person, o.ship_to_contact_phone AS ship_to_contact_phone,
 			o.warehouse_id AS warehouse_id, w.code AS warehouse_code,
 			o.picking_task_id AS picking_task_id, pt.pick_no AS pick_no, pt.status AS picking_status,
 			sh.status AS shipment_status,

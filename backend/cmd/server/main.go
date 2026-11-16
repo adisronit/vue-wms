@@ -311,7 +311,7 @@ func main() {
 	replenishment.NewHandler(replenishmentService).Register(v1, cfg.JWTSecret)
 
 	orderRepo := order.NewRepository(dbManager.DB())
-	orderService := order.NewService(orderRepo, productRepo, warehouseRepo, pickingService, shippingService)
+	orderService := order.NewService(orderRepo, productRepo, warehouseRepo, customerRepo, customerDeliveryLocationRepo, pickingService, shippingService)
 	order.NewHandler(orderService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	if cfg.SwaggerEnabled {
