@@ -73,6 +73,34 @@ describe('OrderReviewView', () => {
     expect(releaseBtn.attributes('disabled')).toBeDefined()
   })
 
+  // --- Phase 33E.1: INTERNAL_TRANSFER summary banner ---
+
+  it('shows a transfer summary banner (source -> destination) for an INTERNAL_TRANSFER order', async () => {
+    getOrder.mockResolvedValue({
+      data: {
+        id: 1, order_no: 'ORD-000001', status: 'PENDING', order_type: 'INTERNAL_TRANSFER',
+        warehouse_code: 'WH-01', destination_warehouse_code: 'WH-02', transfer_reference: 'TRF-0001'
+      }
+    })
+    getOrderAvailability.mockResolvedValue({ data: { order_id: 1, has_shortage: false, lines: [] } })
+    const wrapper = mountReview()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('orders.review.transferSummary')
+    expect(wrapper.text()).toContain('WH-01')
+    expect(wrapper.text()).toContain('WH-02')
+    expect(wrapper.text()).toContain('TRF-0001')
+  })
+
+  it('does not show the transfer summary banner for a SALES_ORDER', async () => {
+    getOrder.mockResolvedValue({ data: { id: 1, order_no: 'ORD-000001', status: 'PENDING', order_type: 'SALES_ORDER', warehouse_code: 'WH-01' } })
+    getOrderAvailability.mockResolvedValue({ data: { order_id: 1, has_shortage: false, lines: [] } })
+    const wrapper = mountReview()
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('orders.review.transferSummary')
+  })
+
   it('calls releaseOrder with approve_shortage and navigates back on success', async () => {
     getOrder.mockResolvedValue({ data: { id: 1, order_no: 'ORD-000001', status: 'PENDING' } })
     getOrderAvailability.mockResolvedValue({ data: { order_id: 1, has_shortage: false, lines: [] } })

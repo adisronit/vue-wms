@@ -50,27 +50,50 @@
             <p class="text-xs text-slate-400 mt-1">{{ $t('orders.form.pickingModeHint') }}</p>
           </div>
 
-          <div>
-            <label class="label">{{ $t('orders.form.customerLabel') }}</label>
-            <SearchableSelect
-              v-model="form.customerId"
-              v-model:display-value="customerDisplayName"
-              :fetch-options="fetchCustomerOptions"
-              :placeholder="$t('orders.form.selectCustomer')"
-              @change="onCustomerChange"
-            />
-          </div>
+          <!-- SALES_ORDER: Customer/Ship-to — unchanged from before Phase 33E.1. -->
+          <template v-if="form.orderType !== 'INTERNAL_TRANSFER'">
+            <div>
+              <label class="label">{{ $t('orders.form.customerLabel') }}</label>
+              <SearchableSelect
+                v-model="form.customerId"
+                v-model:display-value="customerDisplayName"
+                :fetch-options="fetchCustomerOptions"
+                :placeholder="$t('orders.form.selectCustomer')"
+                @change="onCustomerChange"
+              />
+            </div>
 
-          <div v-if="form.customerId">
-            <label class="label">{{ $t('orders.form.shipToLabel') }}</label>
-            <select v-model="form.shipToId" class="input" :disabled="shipToLoading">
-              <option value="">{{ $t('orders.form.selectShipTo') }}</option>
-              <option v-for="s in shipToOptions" :key="s.id" :value="s.id">
-                {{ s.name }}{{ s.is_default ? ' ★' : '' }}
-              </option>
-            </select>
-          </div>
-          <input v-else v-model="form.customer" type="text" :placeholder="$t('orders.form.customerPlaceholder')" class="input" />
+            <div v-if="form.customerId">
+              <label class="label">{{ $t('orders.form.shipToLabel') }}</label>
+              <select v-model="form.shipToId" class="input" :disabled="shipToLoading">
+                <option value="">{{ $t('orders.form.selectShipTo') }}</option>
+                <option v-for="s in shipToOptions" :key="s.id" :value="s.id">
+                  {{ s.name }}{{ s.is_default ? ' ★' : '' }}
+                </option>
+              </select>
+            </div>
+            <input v-else v-model="form.customer" type="text" :placeholder="$t('orders.form.customerPlaceholder')" class="input" />
+          </template>
+
+          <!-- INTERNAL_TRANSFER (Phase 33E.1): Destination Warehouse +
+               Transfer Reference replace Customer/Ship-to — a transfer
+               order has no customer/ship-to concept; the destination
+               warehouse fills that role instead. -->
+          <template v-else>
+            <div>
+              <label class="label">{{ $t('orders.form.destinationWarehouseLabel') }}</label>
+              <select v-model="form.destinationWarehouseId" class="input">
+                <option value="">{{ $t('orders.form.selectDestinationWarehouse') }}</option>
+                <option v-for="w in destinationWarehouseOptions" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
+              </select>
+            </div>
+            <input
+              v-model="form.transferReference"
+              type="text"
+              :placeholder="$t('orders.form.transferReferencePlaceholder')"
+              class="input"
+            />
+          </template>
 
           <input v-model="form.externalReference" type="text" :placeholder="$t('orders.form.externalReferencePlaceholder')" class="input" />
 
@@ -203,6 +226,10 @@ export default {
       form: {
         orderType: 'SALES_ORDER', priority: 'NORMAL', pickingMode: 'PICK_BY_ORDER', warehouseId: '',
         customer: '', customerId: null, shipToId: '',
+        // destinationWarehouseId/transferReference (Phase 33E.1) apply
+        // only when orderType === 'INTERNAL_TRANSFER' — see the template's
+        // own v-if/v-else split above.
+        destinationWarehouseId: '', transferReference: '',
         externalReference: '', requiredShippingDate: '', requiredDeliveryDate: '',
         carrier: '', shippingMethod: '', deliveryInstructions: '',
         preparedBy: '', approvedBy: '', remark: ''
@@ -217,6 +244,31 @@ export default {
   computed: {
     isEdit() {
       return !!this.id
+    },
+    // destinationWarehouseOptions (Phase 33E.1) excludes the already-
+    // selected source warehouse — the backend itself rejects
+    // destination_warehouse_id === warehouse_id, so it is never offered
+    // as a choice in the first place.
+    destinationWarehouseOptions() {
+      return this.warehouses.filter((w) => String(w.id) !== String(this.form.warehouseId))
+    }
+  },
+  watch: {
+    // Switching order_type clears the fields the OTHER shape owns —
+    // keeps a stray customer/ship-to value from a prior selection out
+    // of an INTERNAL_TRANSFER payload, and vice versa, matching the
+    // backend's own "explicit rejection, never silently blended" rule.
+    'form.orderType'(newType) {
+      if (newType === 'INTERNAL_TRANSFER') {
+        this.form.customer = ''
+        this.form.customerId = null
+        this.form.shipToId = ''
+        this.customerDisplayName = ''
+        this.shipToOptions = []
+      } else {
+        this.form.destinationWarehouseId = ''
+        this.form.transferReference = ''
+      }
     }
   },
   async mounted() {
@@ -252,6 +304,7 @@ export default {
           orderType: o.order_type || 'SALES_ORDER', priority: o.priority || 'NORMAL',
           pickingMode: o.picking_mode || 'PICK_BY_ORDER', warehouseId: o.warehouse_id,
           customer: o.customer || '', customerId: o.customer_id || null, shipToId: o.ship_to_id || '',
+          destinationWarehouseId: o.destination_warehouse_id || '', transferReference: o.transfer_reference || '',
           externalReference: o.external_reference || '',
           requiredShippingDate: (o.required_shipping_date || '').slice(0, 10),
           requiredDeliveryDate: (o.required_delivery_date || '').slice(0, 10),
@@ -378,6 +431,11 @@ export default {
         customer: this.form.customerId ? undefined : (this.form.customer || undefined),
         customer_id: this.form.customerId || undefined,
         ship_to_id: this.form.customerId ? (this.form.shipToId || undefined) : undefined,
+        // destination_warehouse_id/transfer_reference (Phase 33E.1) are
+        // only ever sent for an INTERNAL_TRANSFER order — the backend
+        // rejects either being set on a SALES_ORDER request.
+        destination_warehouse_id: this.form.orderType === 'INTERNAL_TRANSFER' ? (this.form.destinationWarehouseId || undefined) : undefined,
+        transfer_reference: this.form.orderType === 'INTERNAL_TRANSFER' ? (this.form.transferReference || undefined) : undefined,
         external_reference: this.form.externalReference || undefined,
         required_shipping_date: this.form.requiredShippingDate ? new Date(this.form.requiredShippingDate).toISOString() : undefined,
         required_delivery_date: this.form.requiredDeliveryDate ? new Date(this.form.requiredDeliveryDate).toISOString() : undefined,
@@ -402,6 +460,10 @@ export default {
       }
       if (this.items.length === 0) {
         this.formError = this.$t('orders.messages.atLeastOneItem')
+        return
+      }
+      if (this.form.orderType === 'INTERNAL_TRANSFER' && !this.form.destinationWarehouseId) {
+        this.formError = this.$t('orders.messages.destinationWarehouseRequired')
         return
       }
 

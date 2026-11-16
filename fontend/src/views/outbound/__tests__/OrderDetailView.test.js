@@ -101,4 +101,32 @@ describe('OrderDetailView', () => {
 
     expect(getDocumentHistory).toHaveBeenCalledWith('ORDER', '1')
   })
+
+  // --- Phase 33E.1: INTERNAL_TRANSFER display ---
+
+  it('shows the destination warehouse/transfer reference instead of customer for an INTERNAL_TRANSFER order', async () => {
+    getOrder.mockResolvedValue({
+      data: baseOrder({
+        order_type: 'INTERNAL_TRANSFER', customer: null,
+        destination_warehouse_code: 'WH-02', transfer_reference: 'TRF-0001'
+      })
+    })
+    const wrapper = mountDetail()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('WH-02')
+    expect(wrapper.text()).toContain('TRF-0001')
+    expect(wrapper.text()).toContain('orders.detail.destinationWarehouseLabel')
+    expect(wrapper.text()).toContain('orders.detail.transferReferenceLabel')
+    expect(wrapper.text()).not.toContain('orders.detail.customerLabel')
+  })
+
+  it('shows the customer (not destination warehouse) for a SALES_ORDER', async () => {
+    getOrder.mockResolvedValue({ data: baseOrder() })
+    const wrapper = mountDetail()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('orders.detail.customerLabel')
+    expect(wrapper.text()).not.toContain('orders.detail.destinationWarehouseLabel')
+  })
 })

@@ -1342,6 +1342,9 @@
       "orderTypeLabel": "Order Type",
       "orderTypeSales": "Sales Order",
       "orderTypeTransfer": "Internal Transfer",
+      "destinationWarehouseLabel": "Destination Warehouse",
+      "selectDestinationWarehouse": "Select destination warehouse",
+      "transferReferencePlaceholder": "Transfer Reference (optional)",
       "priorityLabel": "Priority",
       "pickingModeLabel": "Picking Mode",
       "pickingModeByOrder": "By Order (one task per order)",
@@ -1389,6 +1392,8 @@
       "shipToAddressLabel": "Delivery Address",
       "externalRefLabel": "External Ref",
       "warehouseLabel": "Warehouse",
+      "destinationWarehouseLabel": "Destination Warehouse",
+      "transferReferenceLabel": "Transfer Reference",
       "pickingTaskLabel": "Picking Task",
       "remarkLabel": "Remark",
       "cancelRemarkLabel": "Cancel Remark",
@@ -1417,6 +1422,7 @@
     "review": {
       "title": "Review & Release",
       "subtitle": "Order {orderNo} — confirm stock availability before releasing to Picking",
+      "transferSummary": "Internal Transfer — from {source} to {destination}",
       "availabilityTitle": "Stock Availability",
       "availabilityDescription": "Read-only — live inventory balance per line, never a reservation.",
       "shortageWarning": "One or more lines exceed the currently available stock. Approve the shortage below to release anyway, or edit the order first.",
@@ -1462,7 +1468,8 @@
       "createPickingTaskFailed": "Failed to create picking task",
       "lookupProductFailed": "Failed to look up product",
       "orderNotEditable": "This order can no longer be edited",
-      "loadAvailabilityFailed": "Failed to load stock availability"
+      "loadAvailabilityFailed": "Failed to load stock availability",
+      "destinationWarehouseRequired": "Destination warehouse is required for an internal transfer"
     },
     "statusLabels": {
       "pending": "Pending",
