@@ -40,11 +40,14 @@ type Response struct {
 	ExpiryDate    *time.Time `json:"expiry_date"`
 	AvailableQty  float64    `json:"available_qty" example:"120"`
 	ReservedQty   float64    `json:"reserved_qty" example:"20"`
-	OnHandQty     float64    `json:"on_hand_qty" example:"140"`
-	UOM           string     `json:"uom" example:"ROLL"`
-	Status        Status     `json:"status" example:"AVAILABLE"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
+	// HoldQty (Phase 31A) is the QC-held portion of OnHandQty — see
+	// inventory.Inventory.Available's own doc for the full formula.
+	HoldQty   float64   `json:"hold_qty" example:"0"`
+	OnHandQty float64   `json:"on_hand_qty" example:"140"`
+	UOM       string    `json:"uom" example:"ROLL"`
+	Status    Status    `json:"status" example:"AVAILABLE"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 } //	@name	InventoryResponse
 
 // SummaryResponse matches StockInquiryView.vue's four summary cards.

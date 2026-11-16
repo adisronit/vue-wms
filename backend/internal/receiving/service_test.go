@@ -177,7 +177,7 @@ type fakeWarehouses struct {
 	err error
 }
 
-func (f *fakeWarehouses) FindByID(context.Context, int64) (*warehouse.Warehouse, error) {
+func (f *fakeWarehouses) FindByIDForTenant(context.Context, int64, int64) (*warehouse.Warehouse, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -188,7 +188,7 @@ type fakeLocations struct {
 	err error
 }
 
-func (f *fakeLocations) FindByID(context.Context, int64) (*location.Location, error) {
+func (f *fakeLocations) FindByID(context.Context, int64, int64) (*location.Location, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -198,7 +198,7 @@ func (f *fakeLocations) FindByID(context.Context, int64) (*location.Location, er
 func TestCreate_RejectsInvalidReceivingType(t *testing.T) {
 	svc := &Service{}
 
-	_, err := svc.Create(context.Background(), CreateRequest{ReceivingType: "NOT_REAL"}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{ReceivingType: "NOT_REAL"}, 1)
 
 	var validationErr ErrValidation
 	if !errors.As(err, &validationErr) {
@@ -209,7 +209,7 @@ func TestCreate_RejectsInvalidReceivingType(t *testing.T) {
 func TestCreate_RejectsInvalidInitialStatus(t *testing.T) {
 	svc := &Service{}
 
-	_, err := svc.Create(context.Background(), CreateRequest{ReceivingType: TypePO, Status: StatusCompleted}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{ReceivingType: TypePO, Status: StatusCompleted}, 1)
 
 	var validationErr ErrValidation
 	if !errors.As(err, &validationErr) {
@@ -218,9 +218,9 @@ func TestCreate_RejectsInvalidInitialStatus(t *testing.T) {
 }
 
 func TestCreate_RejectsUnknownWarehouse(t *testing.T) {
-	svc := NewService(nil, nil, &fakeWarehouses{err: errors.New("not found")}, nil, nil)
+	svc := NewService(nil, nil, &fakeWarehouses{err: errors.New("not found")}, nil, nil, nil)
 
-	_, err := svc.Create(context.Background(), CreateRequest{ReceivingType: TypePO, WarehouseID: 999}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{ReceivingType: TypePO, WarehouseID: 999}, 1)
 
 	if !errors.Is(err, ErrWarehouseNotFound) {
 		t.Fatalf("error = %v, want ErrWarehouseNotFound", err)
@@ -228,9 +228,9 @@ func TestCreate_RejectsUnknownWarehouse(t *testing.T) {
 }
 
 func TestCreate_RejectsUnknownStagingLocation(t *testing.T) {
-	svc := NewService(nil, nil, &fakeWarehouses{}, &fakeLocations{err: errors.New("not found")}, nil)
+	svc := NewService(nil, nil, &fakeWarehouses{}, &fakeLocations{err: errors.New("not found")}, nil, nil)
 
-	_, err := svc.Create(context.Background(), CreateRequest{
+	_, err := svc.Create(context.Background(), 1, CreateRequest{
 		ReceivingType: TypePO, WarehouseID: 1, StagingLocationID: 999,
 	}, 1)
 
@@ -242,10 +242,70 @@ func TestCreate_RejectsUnknownStagingLocation(t *testing.T) {
 func TestConfirm_RejectsEmptyItems(t *testing.T) {
 	svc := &Service{}
 
-	_, err := svc.Confirm(context.Background(), 1, ConfirmRequest{IdempotencyKey: "key-1"}, 1)
+	_, err := svc.Confirm(context.Background(), 1, 1, ConfirmRequest{IdempotencyKey: "key-1"}, 1)
 
 	var validationErr ErrValidation
 	if !errors.As(err, &validationErr) {
 		t.Fatalf("error = %v, want ErrValidation", err)
+	}
+}
+
+// --- resolveSplits: pure logic, no DB needed ---
+
+func TestResolveSplits_ImplicitSingleSplit(t *testing.T) {
+	item := &ReceiptItem{LotNo: "LOT-OLD", LocationID: 5}
+	lineReq := ConfirmItemRequest{Quantity: 100, LotNo: "LOT-NEW", LocationID: 7}
+
+	splits, err := resolveSplits(lineReq, item)
+	if err != nil {
+		t.Fatalf("resolveSplits() error = %v", err)
+	}
+	if len(splits) != 1 {
+		t.Fatalf("len(splits) = %d, want 1", len(splits))
+	}
+	if splits[0].Quantity != 100 || splits[0].LotNo != "LOT-NEW" || splits[0].LocationID != 7 {
+		t.Errorf("splits[0] = %+v, want Quantity=100 LotNo=LOT-NEW LocationID=7", splits[0])
+	}
+}
+
+func TestResolveSplits_MultipleSplitsMustSumToQuantity(t *testing.T) {
+	item := &ReceiptItem{}
+	lineReq := ConfirmItemRequest{
+		Quantity: 100,
+		Splits: []ConfirmSplitRequest{
+			{Quantity: 40, LotNo: "LOT-A"},
+			{Quantity: 50, LotNo: "LOT-B"},
+		},
+	}
+
+	_, err := resolveSplits(lineReq, item)
+	var validationErr ErrValidation
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("error = %v, want ErrValidation (40+50 != 100)", err)
+	}
+}
+
+func TestResolveSplits_MultipleSplitsExactSum(t *testing.T) {
+	item := &ReceiptItem{LotNo: "LOT-DEFAULT", LocationID: 1}
+	lineReq := ConfirmItemRequest{
+		Quantity: 100,
+		Splits: []ConfirmSplitRequest{
+			{Quantity: 40, LotNo: "LOT-A", LocationID: 2},
+			{Quantity: 60, LotNo: "LOT-B"},
+		},
+	}
+
+	splits, err := resolveSplits(lineReq, item)
+	if err != nil {
+		t.Fatalf("resolveSplits() error = %v", err)
+	}
+	if len(splits) != 2 {
+		t.Fatalf("len(splits) = %d, want 2", len(splits))
+	}
+	if splits[0].LotNo != "LOT-A" || splits[0].LocationID != 2 {
+		t.Errorf("splits[0] = %+v, want LotNo=LOT-A LocationID=2", splits[0])
+	}
+	if splits[1].LotNo != "LOT-B" || splits[1].LocationID != 1 {
+		t.Errorf("splits[1] = %+v, want LotNo=LOT-B LocationID=1 (defaulted from item)", splits[1])
 	}
 }

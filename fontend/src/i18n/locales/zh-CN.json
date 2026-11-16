@@ -259,7 +259,10 @@
       "referenceNo": "参考编号",
       "referenceNoPlaceholder": "PO / ASN / 调拨单号",
       "receivingDate": "收货日期",
-      "vendor": "供应商",
+      "supplier": "供应商（主数据）",
+      "selectSupplier": "选择供应商",
+      "vendor": "供应商（自由文本）",
+      "vendorPlaceholder": "若无供应商主数据，可填写供应商名称",
       "selectVendor": "选择供应商",
       "warehouse": "仓库",
       "selectWarehouse": "选择仓库",
@@ -273,6 +276,42 @@
       "asn": "ASN",
       "return": "客户退货",
       "transfer": "仓库调拨"
+    },
+    "wizard": {
+      "step1": "单据信息",
+      "step2": "扫描与计数",
+      "step3": "审核",
+      "next": "下一步",
+      "back": "上一步"
+    },
+    "logistics": {
+      "title": "物流与单据详情",
+      "invoiceNo": "发票号",
+      "deliveryNoteNo": "送货单号",
+      "containerNo": "集装箱号",
+      "sealNo": "封条号",
+      "transportCompany": "运输公司",
+      "driverName": "司机姓名",
+      "vehicleRegNo": "车牌号",
+      "dockDoor": "月台 / 卸货口",
+      "arrivalTime": "到达时间",
+      "unloadingStartTime": "卸货开始时间",
+      "unloadingEndTime": "卸货结束时间",
+      "currency": "币种"
+    },
+    "splits": {
+      "manage": "批次/托盘拆分",
+      "hide": "隐藏拆分",
+      "title": "批号 / 有效期 / 托盘拆分",
+      "addSplit": "+ 添加拆分",
+      "none": "暂无拆分 — 此行将按单一批次/货位收货。",
+      "qty": "数量",
+      "palletId": "托盘 / LPN",
+      "cartonCount": "箱数",
+      "sumOfQty": "拆分合计：{sum} / {total}"
+    },
+    "review": {
+      "documentTitle": "单据摘要"
     },
     "itemsSection": {
       "title": "收货明细",
@@ -318,11 +357,13 @@
     "messages": {
       "referenceNoRequired": "请输入参考编号",
       "vendorRequired": "请选择供应商",
+      "supplierOrVendorRequired": "请选择供应商或填写供应商名称",
       "warehouseRequired": "请选择仓库",
       "stagingLocationRequired": "请选择暂存货位",
       "atLeastOneItem": "至少需要一个项目",
       "everyItemMustResolve": "每个项目必须匹配到已知产品 — 请检查 SKU/条码列",
       "everyItemMustHaveLocation": "每个项目都必须有货位",
+      "splitQtyMustMatch": "每行的拆分数量合计必须等于其收货数量",
       "enterReceiveQty": "请至少输入一项收货数量以确认收货",
       "noProductFound": "未找到 SKU/条码为“{value}”的产品",
       "barcodeRequired": "条码或 SKU 为必填项",
@@ -1013,6 +1054,7 @@
       "create": "创建",
       "edit": "编辑",
       "delete": "删除",
+      "confirm": "确认",
       "approve": "批准",
       "export": "导出",
       "suspend": "暂停"

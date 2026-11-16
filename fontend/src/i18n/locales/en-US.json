@@ -259,7 +259,10 @@
       "referenceNo": "Reference No.",
       "referenceNoPlaceholder": "PO / ASN / Transfer No.",
       "receivingDate": "Receiving Date",
-      "vendor": "Vendor",
+      "supplier": "Supplier",
+      "selectSupplier": "Select a supplier",
+      "vendor": "Vendor (free text)",
+      "vendorPlaceholder": "Vendor name, if no supplier record exists",
       "selectVendor": "Select vendor",
       "warehouse": "Warehouse",
       "selectWarehouse": "Select warehouse",
@@ -273,6 +276,42 @@
       "asn": "ASN",
       "return": "Customer Return",
       "transfer": "Warehouse Transfer"
+    },
+    "wizard": {
+      "step1": "Document",
+      "step2": "Scan & Count",
+      "step3": "Review",
+      "next": "Next",
+      "back": "Back"
+    },
+    "logistics": {
+      "title": "Logistics & Document Details",
+      "invoiceNo": "Invoice No.",
+      "deliveryNoteNo": "Delivery Note No.",
+      "containerNo": "Container No.",
+      "sealNo": "Seal No.",
+      "transportCompany": "Transport Company",
+      "driverName": "Driver Name",
+      "vehicleRegNo": "Vehicle Reg. No.",
+      "dockDoor": "Dock / Door",
+      "arrivalTime": "Arrival Time",
+      "unloadingStartTime": "Unloading Start",
+      "unloadingEndTime": "Unloading End",
+      "currency": "Currency"
+    },
+    "splits": {
+      "manage": "Lot/Pallet Splits",
+      "hide": "Hide Splits",
+      "title": "Lot / Expiry / Pallet Splits",
+      "addSplit": "+ Add Split",
+      "none": "No splits — this line will be received as a single lot/location.",
+      "qty": "Qty",
+      "palletId": "Pallet / LPN",
+      "cartonCount": "Cartons",
+      "sumOfQty": "Split total: {sum} / {total}"
+    },
+    "review": {
+      "documentTitle": "Document Summary"
     },
     "itemsSection": {
       "title": "Receiving Items",
@@ -318,11 +357,13 @@
     "messages": {
       "referenceNoRequired": "Reference No. is required",
       "vendorRequired": "Vendor is required",
+      "supplierOrVendorRequired": "Select a supplier or enter a vendor name",
       "warehouseRequired": "Warehouse is required",
       "stagingLocationRequired": "Staging location is required",
       "atLeastOneItem": "At least one item is required",
       "everyItemMustResolve": "Every item must resolve to a known product — check the SKU/barcode column",
       "everyItemMustHaveLocation": "Every item must have a location",
+      "splitQtyMustMatch": "Each line's split quantities must add up to its Receive Qty",
       "enterReceiveQty": "Enter at least one receive quantity to confirm receiving",
       "noProductFound": "No product found for SKU/barcode \"{value}\"",
       "barcodeRequired": "Barcode or SKU is required",
@@ -1013,6 +1054,7 @@
       "create": "Create",
       "edit": "Edit",
       "delete": "Delete",
+      "confirm": "Confirm",
       "approve": "Approve",
       "export": "Export",
       "suspend": "Suspend"

@@ -49,8 +49,15 @@ type warehouseChecker interface {
 	FindByID(ctx context.Context, id int64) (*warehouse.Warehouse, error)
 }
 
+// Phase 31A added a required tenantID parameter to receiving.Service.Get
+// (Receiving is now itself tenant-scoped); putaway still has no verified
+// per-request tenant context of its own yet (not yet a scheduled Phase
+// 30/31 batch), so its two call sites below pass
+// inventory.UnverifiedCallerTenantID, same bridging pattern
+// internal/dashboard's own receivingSummarizer interface uses for the
+// identical reason.
 type receiptChecker interface {
-	Get(ctx context.Context, id int64) (*receiving.Response, error)
+	Get(ctx context.Context, tenantID, id int64) (*receiving.Response, error)
 }
 
 // Service holds the Putaway workflow's business rules — the status
@@ -116,7 +123,7 @@ func (s *Service) Get(ctx context.Context, id int64) (*Response, error) {
 // NewPutawayView.vue's "Source Document" -> loadSourceItems() flow with
 // real data instead of its mockSourceItems object.
 func (s *Service) Sources(ctx context.Context, receiptID int64) ([]SourceLineResponse, error) {
-	if _, err := s.receipts.Get(ctx, receiptID); err != nil {
+	if _, err := s.receipts.Get(ctx, inventory.UnverifiedCallerTenantID, receiptID); err != nil {
 		return nil, ErrReceiptNotFound
 	}
 	return s.repo.SourceLines(ctx, receiptID)
@@ -128,7 +135,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 	}
 
 	if req.ReceiptID != nil {
-		receipt, err := s.receipts.Get(ctx, *req.ReceiptID)
+		receipt, err := s.receipts.Get(ctx, inventory.UnverifiedCallerTenantID, *req.ReceiptID)
 		if err != nil {
 			return nil, ErrReceiptNotFound
 		}

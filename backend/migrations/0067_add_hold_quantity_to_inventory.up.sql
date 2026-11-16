@@ -1,0 +1,28 @@
+-- Phase 31A — Receiving: inventory.hold_quantity is a SUBSET of
+-- quantity (never an addition to it), per the approved stock lifecycle:
+--
+--   Available = Quantity - ReservedQuantity - HoldQuantity
+--
+-- Receiving 100 QC-required units posts Quantity += 100 AND
+-- HoldQuantity += 100 in the same AddStockTx call (see
+-- internal/inventory's addStockTx), so Available is unchanged by the
+-- receipt until QC acts: a QC PASS (Phase 31B, not built here) releases
+-- the hold (HoldQuantity -= released amount, Quantity untouched — the
+-- units were already counted); a QC REJECT deducts both Quantity and
+-- HoldQuantity together with its own auditable ledger entry. This file
+-- only adds the mechanism's column; no QC endpoint or workflow exists
+-- yet (see this phase's own safety constraints).
+--
+-- NOT NULL with an inline DEFAULT, in one ADD COLUMN statement — the
+-- same single-statement shape migrations/0056 already proved safe
+-- against a non-empty table (ALTER TABLE suppliers ADD supplier_type
+-- ... NOT NULL CONSTRAINT DF_... DEFAULT (...)); every existing balance
+-- row gets hold_quantity = 0, meaning Available is unchanged for every
+-- row that exists before this migration runs.
+--
+-- Bare column only — no CHECK constraint in this file; see
+-- migrations/0053's own doc for the ADD-COLUMN-then-ADD-CONSTRAINT-in-
+-- one-batch gotcha this avoids. migrations/0068 adds the non-negative/
+-- not-exceeding-quantity CHECK against this same new column in its own,
+-- separate migration.
+ALTER TABLE inventory ADD hold_quantity DECIMAL(18,4) NOT NULL CONSTRAINT DF_inventory_hold_quantity DEFAULT (0);

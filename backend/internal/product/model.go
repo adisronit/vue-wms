@@ -161,14 +161,20 @@ type Product struct {
 	FamilyID   *int64 `gorm:"column:family_id"`
 	// VariantName distinguishes sellable SKUs within the same Family
 	// (e.g. Family "Cheddar Block" + VariantName "150g Block").
-	VariantName          string       `gorm:"column:variant_name"`
-	BaseUOM              UOM          `gorm:"column:base_uom"`
-	PackSize             int          `gorm:"column:pack_size"`
-	PackSizeUnit         string       `gorm:"column:pack_size_unit"`
-	Barcode              *string      `gorm:"column:barcode"`
-	LotRequired          bool         `gorm:"column:lot_required"`
-	SerialRequired       bool         `gorm:"column:serial_required"`
-	ExpiryRequired       bool         `gorm:"column:expiry_required"`
+	VariantName    string  `gorm:"column:variant_name"`
+	BaseUOM        UOM     `gorm:"column:base_uom"`
+	PackSize       int     `gorm:"column:pack_size"`
+	PackSizeUnit   string  `gorm:"column:pack_size_unit"`
+	Barcode        *string `gorm:"column:barcode"`
+	LotRequired    bool    `gorm:"column:lot_required"`
+	SerialRequired bool    `gorm:"column:serial_required"`
+	ExpiryRequired bool    `gorm:"column:expiry_required"`
+	// QCRequired (migrations/0064, Phase 31A) decides, at Receiving
+	// Confirm time, whether an incoming line's quantity is posted into
+	// inventory.hold_quantity instead of becoming immediately available
+	// — see internal/inventory's own hold_quantity doc for the full
+	// Quantity/Hold/Available model this flag feeds.
+	QCRequired           bool         `gorm:"column:qc_required"`
 	StorageType          StorageType  `gorm:"column:storage_type"`
 	RotationRule         RotationRule `gorm:"column:rotation_rule"`
 	DefaultSupplierID    *int64       `gorm:"column:default_supplier_id"`

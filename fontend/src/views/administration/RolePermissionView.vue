@@ -278,8 +278,8 @@ const MODULE_NAME_KEYS = {
   product: 'product',
   tenant_users: 'tenantUsers'
 }
-const ACTION_CODES = { View: 'view', Create: 'create', Edit: 'update', Delete: 'delete', Approve: 'approve', Export: 'export', Suspend: 'suspend' }
-const ACTION_LABEL_KEYS = { View: 'view', Create: 'create', Edit: 'edit', Delete: 'delete', Approve: 'approve', Export: 'export', Suspend: 'suspend' }
+const ACTION_CODES = { View: 'view', Create: 'create', Edit: 'update', Delete: 'delete', Confirm: 'confirm', Approve: 'approve', Export: 'export', Suspend: 'suspend' }
+const ACTION_LABEL_KEYS = { View: 'view', Create: 'create', Edit: 'edit', Delete: 'delete', Confirm: 'confirm', Approve: 'approve', Export: 'export', Suspend: 'suspend' }
 
 export default {
   name: 'RolePermissionView',
@@ -302,7 +302,7 @@ export default {
       warehousesLoading: false,
       warehousesError: '',
 
-      actions: ['View', 'Create', 'Edit', 'Delete', 'Approve', 'Export', 'Suspend'],
+      actions: ['View', 'Create', 'Edit', 'Delete', 'Confirm', 'Approve', 'Export', 'Suspend'],
       permissionModules: [],
       roles: [],
 

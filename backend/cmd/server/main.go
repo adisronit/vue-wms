@@ -266,9 +266,15 @@ func main() {
 	// location.UnscopedAdapter's own doc.
 	locationUnscoped := location.NewUnscopedAdapter(locationRepo)
 
+	// Phase 31A: receivingService is now itself tenant-scoped, so it uses
+	// productRepo/warehouseRepo/locationRepo's real tenant-scoped lookups
+	// (FindByIDForTenant/FindByIDForTenant/FindByID) directly, not
+	// locationUnscoped — see internal/receiving/service.go's own doc for
+	// why Receiving was the last inbound/outbound module on the old
+	// existence-only checks.
 	receivingRepo := receiving.NewRepository(dbManager.DB())
-	receivingService := receiving.NewService(receivingRepo, productRepo, warehouseRepo, locationUnscoped, inventoryService)
-	receiving.NewHandler(receivingService).Register(v1, cfg.JWTSecret)
+	receivingService := receiving.NewService(receivingRepo, productRepo, warehouseRepo, locationRepo, supplierRepo, inventoryService)
+	receiving.NewHandler(receivingService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	putawayRepo := putaway.NewRepository(dbManager.DB())
 	putawayService := putaway.NewService(putawayRepo, productRepo, warehouseRepo, receivingService, inventoryService)

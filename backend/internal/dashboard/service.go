@@ -25,10 +25,15 @@ const recentInboundLimit = 5
 
 // receivingSummarizer is the slice of receiving.Service the dashboard
 // needs: an open-task count for the "Pending Receiving" card and a
-// small recent-activity page for the panel below it.
+// small recent-activity page for the panel below it. Phase 31A added a
+// required tenantID parameter to both methods (Receiving is now itself
+// tenant-scoped); dashboard still has no verified per-request tenant
+// context of its own (not yet a scheduled Phase 30/31 batch), so it
+// passes inventory.UnverifiedCallerTenantID below, same as its own
+// pickingSummarizer/inventorySummarizer calls already do.
 type receivingSummarizer interface {
-	CountOpen(ctx context.Context) (int64, error)
-	List(ctx context.Context, params receiving.ListParams) ([]receiving.ListResponse, int64, error)
+	CountOpen(ctx context.Context, tenantID int64) (int64, error)
+	List(ctx context.Context, tenantID int64, params receiving.ListParams) ([]receiving.ListResponse, int64, error)
 }
 
 // pickingSummarizer is the slice of picking.Service the dashboard
@@ -66,7 +71,7 @@ func NewService(receivingSvc receivingSummarizer, pickingSvc pickingSummarizer, 
 
 // Summary answers GET /dashboard/summary.
 func (s *Service) Summary(ctx context.Context) (SummaryResponse, error) {
-	pendingReceiving, err := s.receiving.CountOpen(ctx)
+	pendingReceiving, err := s.receiving.CountOpen(ctx, inventory.UnverifiedCallerTenantID)
 	if err != nil {
 		return SummaryResponse{}, err
 	}
@@ -87,7 +92,7 @@ func (s *Service) Summary(ctx context.Context) (SummaryResponse, error) {
 		return SummaryResponse{}, err
 	}
 
-	recent, _, err := s.receiving.List(ctx, receiving.ListParams{Page: 1, Limit: recentInboundLimit})
+	recent, _, err := s.receiving.List(ctx, inventory.UnverifiedCallerTenantID, receiving.ListParams{Page: 1, Limit: recentInboundLimit})
 	if err != nil {
 		return SummaryResponse{}, err
 	}

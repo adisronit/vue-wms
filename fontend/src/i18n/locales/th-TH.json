@@ -259,7 +259,10 @@
       "referenceNo": "เลขที่อ้างอิง",
       "referenceNoPlaceholder": "เลขที่ PO / ASN / การโอนย้าย",
       "receivingDate": "วันที่รับสินค้า",
-      "vendor": "ผู้จำหน่าย",
+      "supplier": "ผู้จำหน่าย (รายการหลัก)",
+      "selectSupplier": "เลือกผู้จำหน่าย",
+      "vendor": "ผู้จำหน่าย (ข้อความอิสระ)",
+      "vendorPlaceholder": "ชื่อผู้จำหน่าย หากไม่มีข้อมูลในระบบ",
       "selectVendor": "เลือกผู้จำหน่าย",
       "warehouse": "คลังสินค้า",
       "selectWarehouse": "เลือกคลังสินค้า",
@@ -273,6 +276,42 @@
       "asn": "ASN",
       "return": "สินค้าตีคืนจากลูกค้า",
       "transfer": "โอนย้ายระหว่างคลัง"
+    },
+    "wizard": {
+      "step1": "เอกสาร",
+      "step2": "สแกนและนับจำนวน",
+      "step3": "ตรวจสอบ",
+      "next": "ถัดไป",
+      "back": "ย้อนกลับ"
+    },
+    "logistics": {
+      "title": "รายละเอียดการขนส่งและเอกสาร",
+      "invoiceNo": "เลขที่ใบแจ้งหนี้",
+      "deliveryNoteNo": "เลขที่ใบส่งสินค้า",
+      "containerNo": "เลขที่ตู้คอนเทนเนอร์",
+      "sealNo": "เลขที่ซีล",
+      "transportCompany": "บริษัทขนส่ง",
+      "driverName": "ชื่อผู้ขับ",
+      "vehicleRegNo": "ทะเบียนรถ",
+      "dockDoor": "ท่า / ประตู",
+      "arrivalTime": "เวลามาถึง",
+      "unloadingStartTime": "เริ่มขนถ่าย",
+      "unloadingEndTime": "สิ้นสุดการขนถ่าย",
+      "currency": "สกุลเงิน"
+    },
+    "splits": {
+      "manage": "แยกล็อต/พาเลท",
+      "hide": "ซ่อนการแยก",
+      "title": "แยกล็อต / วันหมดอายุ / พาเลท",
+      "addSplit": "+ เพิ่มการแยก",
+      "none": "ไม่มีการแยก — รายการนี้จะรับเป็นล็อต/ตำแหน่งเดียว",
+      "qty": "จำนวน",
+      "palletId": "พาเลท / LPN",
+      "cartonCount": "จำนวนลัง",
+      "sumOfQty": "รวมการแยก: {sum} / {total}"
+    },
+    "review": {
+      "documentTitle": "สรุปเอกสาร"
     },
     "itemsSection": {
       "title": "รายการสินค้ารับเข้า",
@@ -318,11 +357,13 @@
     "messages": {
       "referenceNoRequired": "กรุณากรอกเลขที่อ้างอิง",
       "vendorRequired": "กรุณาเลือกผู้จำหน่าย",
+      "supplierOrVendorRequired": "เลือกผู้จำหน่ายหรือกรอกชื่อผู้จำหน่าย",
       "warehouseRequired": "กรุณาเลือกคลังสินค้า",
       "stagingLocationRequired": "กรุณาเลือกตำแหน่งพักสินค้า",
       "atLeastOneItem": "ต้องมีรายการสินค้าอย่างน้อยหนึ่งรายการ",
       "everyItemMustResolve": "ทุกรายการต้องตรงกับสินค้าที่มีอยู่ — ตรวจสอบคอลัมน์ SKU/บาร์โค้ด",
       "everyItemMustHaveLocation": "ทุกรายการต้องมีตำแหน่งจัดเก็บ",
+      "splitQtyMustMatch": "ยอดรวมของการแยกต้องเท่ากับจำนวนที่รับของรายการนั้น",
       "enterReceiveQty": "กรุณากรอกจำนวนรับสินค้าอย่างน้อยหนึ่งรายการเพื่อยืนยัน",
       "noProductFound": "ไม่พบสินค้าสำหรับ SKU/บาร์โค้ด \"{value}\"",
       "barcodeRequired": "กรุณากรอกบาร์โค้ดหรือ SKU",
@@ -1013,6 +1054,7 @@
       "create": "สร้าง",
       "edit": "แก้ไข",
       "delete": "ลบ",
+      "confirm": "ยืนยัน",
       "approve": "อนุมัติ",
       "export": "ส่งออก",
       "suspend": "ระงับ"

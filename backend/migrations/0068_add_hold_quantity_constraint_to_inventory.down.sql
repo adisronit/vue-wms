@@ -1,0 +1,2 @@
+ALTER TABLE inventory DROP CONSTRAINT CK_inventory_hold_quantity_not_exceeding_quantity;
+ALTER TABLE inventory DROP CONSTRAINT CK_inventory_hold_quantity_non_negative;
