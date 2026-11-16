@@ -12,49 +12,37 @@
     </PageHeader>
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
       <div class="summary-card">
         <p class="summary-label">{{ $t('qualityCheck.summary.pendingQc') }}</p>
-        <h2 class="summary-value">9</h2>
+        <h2 class="summary-value">{{ statusCounts.PENDING }}</h2>
       </div>
 
       <div class="summary-card">
         <p class="summary-label">{{ $t('common.status.inProgress') }}</p>
-        <h2 class="summary-value">4</h2>
+        <h2 class="summary-value">{{ statusCounts.IN_PROGRESS }}</h2>
       </div>
 
       <div class="summary-card">
-        <p class="summary-label">{{ $t('qualityCheck.summary.passed') }}</p>
-        <h2 class="summary-value">21</h2>
-      </div>
-
-      <div class="summary-card">
-        <p class="summary-label">{{ $t('qualityCheck.summary.rejected') }}</p>
-        <h2 class="summary-value text-red-600">2</h2>
+        <p class="summary-label">{{ $t('common.status.completed') }}</p>
+        <h2 class="summary-value text-green-600">{{ statusCounts.COMPLETED }}</h2>
       </div>
     </div>
 
     <FilterBar>
       <input
-        v-model="filters.keyword"
+        v-model="filters.search"
         type="text"
         :placeholder="$t('qualityCheck.filters.searchPlaceholder')"
         class="input"
+        @keyup.enter="fetchInspections"
       />
 
-      <select v-model="filters.status" class="input">
+      <select v-model="filters.status" class="input" @change="fetchInspections">
         <option value="">{{ $t('qualityCheck.filters.allStatus') }}</option>
         <option value="PENDING">{{ $t('common.status.pending') }}</option>
         <option value="IN_PROGRESS">{{ $t('common.status.inProgress') }}</option>
-        <option value="PASSED">{{ $t('qualityCheck.summary.passed') }}</option>
-        <option value="REJECTED">{{ $t('qualityCheck.summary.rejected') }}</option>
-      </select>
-
-      <select v-model="filters.result" class="input">
-        <option value="">{{ $t('qualityCheck.filters.allResult') }}</option>
-        <option value="PASS">{{ $t('qualityCheck.results.pass') }}</option>
-        <option value="FAIL">{{ $t('qualityCheck.results.fail') }}</option>
-        <option value="HOLD">{{ $t('qualityCheck.results.hold') }}</option>
+        <option value="COMPLETED">{{ $t('common.status.completed') }}</option>
       </select>
 
       <button
@@ -65,50 +53,41 @@
       </button>
     </FilterBar>
 
+    <div v-if="loadError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
+      {{ loadError }}
+    </div>
+
     <DataTable
-      :is-empty="filteredQcList.length === 0"
-      :empty-text="$t('common.pagination.noData')"
-      :colspan="10"
-      min-width="1100px"
+      :is-empty="inspections.length === 0"
+      :empty-text="loading ? $t('common.buttons.loading') : $t('common.pagination.noData')"
+      :colspan="7"
+      min-width="1000px"
     >
       <template #head>
         <tr>
           <th class="table-th">{{ $t('qualityCheck.table.qcNo') }}</th>
           <th class="table-th">{{ $t('qualityCheck.table.poNo') }}</th>
-          <th class="table-th">{{ $t('qualityCheck.table.sku') }}</th>
-          <th class="table-th">{{ $t('qualityCheck.table.productName') }}</th>
-          <th class="table-th text-right">{{ $t('qualityCheck.table.receivedQty') }}</th>
-          <th class="table-th text-right">{{ $t('qualityCheck.table.sampleQty') }}</th>
-          <th class="table-th text-right">{{ $t('qualityCheck.table.defectQty') }}</th>
-          <th class="table-th">{{ $t('qualityCheck.table.result') }}</th>
+          <th class="table-th">{{ $t('newReceiving.fields.warehouse') }}</th>
+          <th class="table-th">{{ $t('newQualityCheck.fields.qcType') }}</th>
+          <th class="table-th text-right">{{ $t('newQualityCheck.summary.totalLines') }}</th>
           <th class="table-th">{{ $t('common.labels.status') }}</th>
           <th class="table-th text-right">{{ $t('qualityCheck.table.action') }}</th>
         </tr>
       </template>
 
-      <tr
-        v-for="item in filteredQcList"
-        :key="item.id"
-        class="border-t hover:bg-orange-50"
-      >
-        <td class="table-td font-semibold text-slate-800">{{ item.qcNo }}</td>
-        <td class="table-td">{{ item.poNo }}</td>
-        <td class="table-td">{{ item.sku }}</td>
-        <td class="table-td">{{ item.productName }}</td>
-        <td class="table-td text-right">{{ item.receivedQty }}</td>
-        <td class="table-td text-right">{{ item.sampleQty }}</td>
-        <td class="table-td text-right">{{ item.defectQty }}</td>
-
-        <td class="table-td">
-          <StatusBadge :tone="resultTone(item.result)">{{ resultLabel(item.result) }}</StatusBadge>
-        </td>
+      <tr v-for="item in inspections" :key="item.id" class="border-t hover:bg-orange-50">
+        <td class="table-td font-semibold text-slate-800">{{ item.inspection_no }}</td>
+        <td class="table-td">{{ item.receipt_no }}</td>
+        <td class="table-td">{{ item.warehouse_code }}</td>
+        <td class="table-td">{{ item.qc_type }}</td>
+        <td class="table-td text-right tabular-nums">{{ item.item_count }}</td>
 
         <td class="table-td">
           <StatusBadge :tone="statusTone(item.status)">{{ statusLabel(item.status) }}</StatusBadge>
         </td>
 
         <td class="table-td text-right">
-          <button @click="openQc(item)" class="text-orange-600 hover:text-orange-700 font-semibold">
+          <button @click="openInspection(item)" class="text-orange-600 hover:text-orange-700 font-semibold">
             {{ $t('qualityCheck.table.inspect') }}
           </button>
         </td>
@@ -116,303 +95,299 @@
     </DataTable>
 
     <!-- QC Drawer -->
-    <div v-if="selectedQc" class="fixed inset-0 bg-black/40 flex justify-end z-50">
-      <div class="w-full max-w-2xl bg-white h-full p-6 overflow-y-auto">
+    <div v-if="selected" class="fixed inset-0 bg-black/40 flex justify-end z-50">
+      <div class="w-full max-w-3xl bg-white h-full p-6 overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
           <div>
             <h2 class="text-xl font-bold text-slate-800">{{ $t('qualityCheck.drawer.title') }}</h2>
-            <p class="text-slate-500">{{ selectedQc.qcNo }} / {{ selectedQc.sku }}</p>
+            <p class="text-slate-500">{{ selected.inspection_no }} / {{ selected.receipt_no }}</p>
           </div>
 
-          <button @click="selectedQc = null" class="text-slate-500 hover:text-red-600 text-xl">✕</button>
+          <button @click="closeDrawer" class="text-slate-500 hover:text-red-600 text-xl">✕</button>
         </div>
 
-        <!-- Item Info -->
-        <div class="bg-slate-50 rounded-2xl p-5 mb-6">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <p class="detail-label">{{ $t('qualityCheck.drawer.product') }}</p>
-              <p class="detail-value">{{ selectedQc.productName }}</p>
+        <div v-if="drawerError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm mb-4">
+          {{ drawerError }}
+        </div>
+
+        <div class="space-y-5">
+          <div v-for="item in selected.items" :key="item.id" class="bg-slate-50 rounded-2xl p-5">
+            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+              <p class="font-bold text-slate-800">{{ item.sku }} — {{ item.product_name }}</p>
+              <StatusBadge :tone="itemStatusTone(item.status)">{{ item.status }}</StatusBadge>
             </div>
 
-            <div>
-              <p class="detail-label">{{ $t('qualityCheck.table.poNo') }}</p>
-              <p class="detail-value">{{ selectedQc.poNo }}</p>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm mb-4">
+              <div><p class="detail-label">{{ $t('qualityCheck.drawer.lotNo') }}</p><p class="detail-value">{{ item.lot_no || '—' }}</p></div>
+              <div><p class="detail-label">{{ $t('newReceiving.table.expiryDate') }}</p><p class="detail-value">{{ $d(item.expiry_date) }}</p></div>
+              <div><p class="detail-label">{{ $t('newReceiving.table.location') }}</p><p class="detail-value">{{ item.location_code }}</p></div>
+              <div><p class="detail-label">{{ $t('qualityCheck.drawer.remainingHeldQty') }}</p><p class="detail-value tabular-nums">{{ item.remaining_held_qty }}</p></div>
             </div>
 
-            <div>
-              <p class="detail-label">{{ $t('qualityCheck.table.receivedQty') }}</p>
-              <p class="detail-value tabular-nums">{{ selectedQc.receivedQty }}</p>
+            <!-- Disposition history -->
+            <div v-if="item.dispositions && item.dispositions.length" class="mb-4">
+              <p class="detail-label mb-2">{{ $t('qualityCheck.drawer.dispositionHistory') }}</p>
+              <ul class="space-y-1 text-sm">
+                <li v-for="d in item.dispositions" :key="d.id" class="flex justify-between bg-white rounded-lg px-3 py-2 border border-slate-200">
+                  <span>
+                    <StatusBadge :tone="resultTone(d.disposition)">{{ d.disposition }}</StatusBadge>
+                    <span class="ml-2 tabular-nums">{{ d.quantity }}</span>
+                    <span v-if="d.defect_code" class="ml-2 text-slate-500">({{ d.defect_code }})</span>
+                  </span>
+                  <span class="text-slate-400">{{ d.decided_by_name || '—' }}</span>
+                </li>
+              </ul>
             </div>
 
-            <div>
-              <p class="detail-label">{{ $t('qualityCheck.drawer.lotNo') }}</p>
-              <p class="detail-value">{{ selectedQc.lotNo }}</p>
+            <!-- Pending disposition entries for this item -->
+            <div v-if="item.remaining_held_qty > 0">
+              <p class="detail-label mb-2">{{ $t('qualityCheck.drawer.addDisposition') }}</p>
+
+              <div v-for="(p, pIdx) in pendingByItem[item.id]" :key="pIdx" class="flex items-center gap-2 mb-2">
+                <StatusBadge :tone="resultTone(p.disposition)">{{ p.disposition }}</StatusBadge>
+                <span class="tabular-nums text-sm">{{ p.quantity }}</span>
+                <span v-if="p.defectCode" class="text-sm text-slate-500">({{ p.defectCode }})</span>
+                <button @click="removePending(item.id, pIdx)" class="text-red-600 hover:text-red-700 text-sm font-semibold ml-auto">
+                  {{ $t('common.buttons.remove') }}
+                </button>
+              </div>
+
+              <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                <select v-model="draft[item.id].disposition" class="input bg-white">
+                  <option value="PASS">{{ $t('qualityCheck.results.pass') }}</option>
+                  <option value="HOLD">{{ $t('qualityCheck.results.hold') }}</option>
+                  <option value="REJECT">{{ $t('qualityCheck.results.fail') }}</option>
+                </select>
+                <input v-model.number="draft[item.id].quantity" type="number" class="input bg-white input-number" :placeholder="$t('qualityCheck.table.sampleQty')" />
+                <select v-model="draft[item.id].defectCode" class="input bg-white">
+                  <option value="">{{ $t('qualityCheck.defectReasons.none') }}</option>
+                  <option value="DAMAGED">{{ $t('qualityCheck.defectReasons.damaged') }}</option>
+                  <option value="WRONG_ITEM">{{ $t('qualityCheck.defectReasons.wrongItem') }}</option>
+                  <option value="EXPIRED">{{ $t('qualityCheck.defectReasons.expired') }}</option>
+                  <option value="SHORTAGE">{{ $t('qualityCheck.defectReasons.shortage') }}</option>
+                  <option value="PACKAGING_ISSUE">{{ $t('qualityCheck.defectReasons.packagingIssue') }}</option>
+                </select>
+                <input v-model="draft[item.id].evidenceReference" class="input bg-white" :placeholder="$t('qualityCheck.drawer.evidenceReference')" />
+                <button @click="addPending(item)" class="bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-semibold">
+                  {{ $t('common.buttons.add') }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- QC Form -->
-        <div class="space-y-4">
-          <div>
-            <label class="label">{{ $t('qualityCheck.table.sampleQty') }}</label>
-            <input v-model="qcForm.sampleQty" type="number" class="input" :placeholder="$t('qualityCheck.drawer.sampleQtyPlaceholder')" />
-          </div>
-
-          <div>
-            <label class="label">{{ $t('qualityCheck.table.defectQty') }}</label>
-            <input v-model="qcForm.defectQty" type="number" class="input" :placeholder="$t('qualityCheck.drawer.defectQtyPlaceholder')" />
-          </div>
-
-          <div>
-            <label class="label">{{ $t('qualityCheck.drawer.inspectionResult') }}</label>
-            <select v-model="qcForm.result" class="input">
-              <option value="">{{ $t('qualityCheck.drawer.selectResult') }}</option>
-              <option value="PASS">{{ $t('qualityCheck.results.pass') }}</option>
-              <option value="FAIL">{{ $t('qualityCheck.results.fail') }}</option>
-              <option value="HOLD">{{ $t('qualityCheck.results.hold') }}</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="label">{{ $t('qualityCheck.drawer.defectReason') }}</label>
-            <select v-model="qcForm.defectReason" class="input">
-              <option value="">{{ $t('qualityCheck.defectReasons.none') }}</option>
-              <option value="DAMAGED">{{ $t('qualityCheck.defectReasons.damaged') }}</option>
-              <option value="WRONG_ITEM">{{ $t('qualityCheck.defectReasons.wrongItem') }}</option>
-              <option value="EXPIRED">{{ $t('qualityCheck.defectReasons.expired') }}</option>
-              <option value="SHORTAGE">{{ $t('qualityCheck.defectReasons.shortage') }}</option>
-              <option value="PACKAGING_ISSUE">{{ $t('qualityCheck.defectReasons.packagingIssue') }}</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="label">{{ $t('common.labels.remark') }}</label>
-            <textarea v-model="qcForm.remark" rows="4" class="input" :placeholder="$t('qualityCheck.drawer.remarkPlaceholder')"></textarea>
-          </div>
-
-          <div v-if="formError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
-            {{ formError }}
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-4">
-            <button @click="submitQc('PASS')" class="bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold">
-              {{ $t('qualityCheck.drawer.pass') }}
-            </button>
-
-            <button @click="submitQc('HOLD')" class="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold">
-              {{ $t('qualityCheck.drawer.hold') }}
-            </button>
-
-            <button @click="submitQc('FAIL')" class="bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-semibold">
-              {{ $t('qualityCheck.drawer.reject') }}
-            </button>
-          </div>
+        <div class="flex justify-end gap-3 mt-6 sticky bottom-0 bg-white pt-4 border-t">
+          <button @click="closeDrawer" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold">
+            {{ $t('common.buttons.cancel') }}
+          </button>
+          <button
+            @click="confirmClick"
+            :disabled="confirming || totalPendingCount === 0"
+            class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold disabled:opacity-60"
+          >
+            {{ confirming ? $t('newReceiving.actions.submitting') : $t('qualityCheck.drawer.confirmDispositions') }}
+          </button>
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      :open="showConfirmDialog"
+      :title="$t('qualityCheck.drawer.confirmDispositions')"
+      :message="$t('newQualityCheck.messages.confirmSubmitDialog')"
+      :confirm-label="$t('qualityCheck.drawer.confirmDispositions')"
+      :cancel-label="$t('common.buttons.cancel')"
+      :loading="confirming"
+      :error-message="confirmError"
+      @cancel="showConfirmDialog = false"
+      @confirm="submitConfirm"
+    />
   </div>
 </template>
 
 <script>
+import { listInspections, getInspection, confirmInspection, newIdempotencyKey } from '../../services/qualitycheck'
 import { showToast } from '../../services/toast'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import FilterBar from '../../components/ui/FilterBar.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
+import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
 import i18n from '../../i18n'
 
 const { t } = i18n.global
 
-function resultLabel(result) {
-  switch (result) {
-    case 'PASS': return t('qualityCheck.results.pass')
-    case 'FAIL': return t('qualityCheck.results.fail')
-    case 'HOLD': return t('qualityCheck.results.hold')
-    case 'WAITING': return t('qualityCheck.results.waiting')
-    default: return result
-  }
-}
-
-function resultTone(result) {
-  if (result === 'PASS') return 'green'
-  if (result === 'FAIL') return 'red'
-  if (result === 'HOLD') return 'blue'
-  return 'gray'
-}
-
-// Called from the template (methods.statusLabel below), not cached
-// onto a qcList row, so the displayed label stays reactive to the
-// active locale — switching language must not require a remount.
 function statusLabel(status) {
   switch (status) {
-    case 'PASSED': return t('qualityCheck.statusLabels.passed')
-    case 'IN_PROGRESS': return t('qualityCheck.statusLabels.inProgress')
-    case 'REJECTED': return t('qualityCheck.statusLabels.rejected')
-    case 'PENDING': return t('qualityCheck.statusLabels.pending')
+    case 'PENDING': return t('common.status.pending')
+    case 'IN_PROGRESS': return t('common.status.inProgress')
+    case 'COMPLETED': return t('common.status.completed')
     default: return status
   }
 }
 
 function statusTone(status) {
   if (status === 'IN_PROGRESS') return 'orange'
-  if (status === 'PASSED') return 'green'
-  if (status === 'REJECTED') return 'red'
+  if (status === 'COMPLETED') return 'green'
+  return 'gray'
+}
+
+function resultTone(disposition) {
+  if (disposition === 'PASS') return 'green'
+  if (disposition === 'REJECT') return 'red'
+  if (disposition === 'HOLD') return 'blue'
   return 'gray'
 }
 
 export default {
   name: 'QualityCheckView',
 
-  components: { PageHeader, FilterBar, DataTable, StatusBadge },
+  components: { PageHeader, FilterBar, DataTable, StatusBadge, ConfirmDialog },
 
   data() {
     return {
-      selectedQc: null,
-      formError: '',
+      inspections: [],
+      loading: false,
+      loadError: '',
 
-      filters: {
-        keyword: '',
-        status: '',
-        result: ''
-      },
+      filters: { search: '', status: '' },
 
-      qcForm: {
-        sampleQty: '',
-        defectQty: '',
-        result: '',
-        defectReason: '',
-        remark: ''
-      },
-
-      // Phase 1 scope note: there is no quality_check backend module in
-      // this codebase yet (only the permission catalog entries exist —
-      // see internal/rbac/catalog.go's quality_check.* codes with no
-      // matching internal/qualitycheck package). This screen's data has
-      // always been local-only; this redesign restyles the markup
-      // without inventing an API integration that does not exist, per
-      // CLAUDE.md's "Do not invent missing functions or use mock data
-      // in production" — the correct response to that rule here is to
-      // leave the known-mock data exactly as it already was, not to
-      // fabricate a fake backend call.
-      qcList: [
-        {
-          id: 1,
-          qcNo: 'QC-20260608-001',
-          poNo: 'PO-20260608-001',
-          sku: 'SKU-0001',
-          productName: 'Barcode Label Roll',
-          receivedQty: 100,
-          sampleQty: 10,
-          defectQty: 0,
-          lotNo: 'LOT-0001',
-          result: 'PASS',
-          status: 'PASSED'
-        },
-        {
-          id: 2,
-          qcNo: 'QC-20260608-002',
-          poNo: 'PO-20260608-002',
-          sku: 'SKU-0002',
-          productName: 'Packing Box Size M',
-          receivedQty: 250,
-          sampleQty: 20,
-          defectQty: 3,
-          lotNo: 'LOT-0002',
-          result: 'HOLD',
-          status: 'IN_PROGRESS'
-        },
-        {
-          id: 3,
-          qcNo: 'QC-20260608-003',
-          poNo: 'PO-20260608-003',
-          sku: 'SKU-0003',
-          productName: 'RFID Tag',
-          receivedQty: 500,
-          sampleQty: 30,
-          defectQty: 8,
-          lotNo: 'LOT-0003',
-          result: 'FAIL',
-          status: 'REJECTED'
-        },
-        {
-          id: 4,
-          qcNo: 'QC-20260608-004',
-          poNo: 'PO-20260608-004',
-          sku: 'SKU-0004',
-          productName: 'Carton Box Large',
-          receivedQty: 300,
-          sampleQty: 0,
-          defectQty: 0,
-          lotNo: 'LOT-0004',
-          result: 'WAITING',
-          status: 'PENDING'
-        }
-      ]
+      selected: null,
+      drawerError: '',
+      draft: {},
+      pendingByItem: {},
+      confirming: false,
+      showConfirmDialog: false,
+      confirmError: ''
     }
   },
 
   computed: {
-    filteredQcList() {
-      return this.qcList.filter((item) => {
-        const keyword = this.filters.keyword.toLowerCase()
+    statusCounts() {
+      const counts = { PENDING: 0, IN_PROGRESS: 0, COMPLETED: 0 }
+      for (const item of this.inspections) {
+        if (counts[item.status] !== undefined) counts[item.status]++
+      }
+      return counts
+    },
 
-        const matchKeyword =
-          item.qcNo.toLowerCase().includes(keyword) ||
-          item.poNo.toLowerCase().includes(keyword) ||
-          item.sku.toLowerCase().includes(keyword) ||
-          item.productName.toLowerCase().includes(keyword)
-
-        const matchStatus =
-          !this.filters.status || item.status === this.filters.status
-
-        const matchResult =
-          !this.filters.result || item.result === this.filters.result
-
-        return matchKeyword && matchStatus && matchResult
-      })
+    totalPendingCount() {
+      return Object.values(this.pendingByItem).reduce((sum, list) => sum + list.length, 0)
     }
   },
 
+  mounted() {
+    this.fetchInspections()
+  },
+
   methods: {
-    resultLabel,
-    resultTone,
     statusLabel,
     statusTone,
+    resultTone,
 
-    openQc(item) {
-      this.selectedQc = item
-      this.formError = ''
+    itemStatusTone(status) {
+      if (status === 'IN_PROGRESS') return 'orange'
+      if (status === 'COMPLETED') return 'green'
+      return 'gray'
+    },
 
-      this.qcForm.sampleQty = item.sampleQty
-      this.qcForm.defectQty = item.defectQty
-      this.qcForm.result = item.result === 'WAITING' ? '' : item.result
-      this.qcForm.defectReason = ''
-      this.qcForm.remark = ''
+    async fetchInspections() {
+      this.loading = true
+      this.loadError = ''
+      try {
+        const res = await listInspections({
+          search: this.filters.search, status: this.filters.status, limit: 100
+        })
+        this.inspections = res.data
+      } catch (err) {
+        this.loadError = err.message
+      } finally {
+        this.loading = false
+      }
     },
 
     clearFilter() {
-      this.filters.keyword = ''
+      this.filters.search = ''
       this.filters.status = ''
-      this.filters.result = ''
+      this.fetchInspections()
     },
 
-    submitQc(result) {
-      this.qcForm.result = result
-      this.formError = ''
+    async openInspection(row) {
+      this.drawerError = ''
+      try {
+        const res = await getInspection(row.id)
+        this.selected = res.data
+        this.draft = {}
+        this.pendingByItem = {}
+        for (const item of this.selected.items) {
+          this.draft[item.id] = { disposition: 'PASS', quantity: item.remaining_held_qty, defectCode: '', evidenceReference: '' }
+          this.pendingByItem[item.id] = []
+        }
+      } catch (err) {
+        this.loadError = err.message
+      }
+    },
 
-      if (!this.qcForm.sampleQty) {
-        this.formError = this.$t('qualityCheck.messages.sampleQtyRequired')
+    closeDrawer() {
+      this.selected = null
+    },
+
+    addPending(item) {
+      const d = this.draft[item.id]
+      if (!d.quantity || d.quantity <= 0) {
+        this.drawerError = this.$t('qualityCheck.messages.sampleQtyRequired')
         return
       }
-
-      if (result === 'FAIL' && !this.qcForm.defectReason) {
-        this.formError = this.$t('qualityCheck.messages.defectReasonRequired')
+      if (d.disposition === 'REJECT' && !d.defectCode) {
+        this.drawerError = this.$t('qualityCheck.messages.defectReasonRequired')
         return
       }
+      this.drawerError = ''
+      this.pendingByItem[item.id].push({ ...d })
+      this.draft[item.id] = { disposition: 'PASS', quantity: 0, defectCode: '', evidenceReference: '' }
+    },
 
-      showToast(this.$t('qualityCheck.messages.qcSaved', { result: resultLabel(result) }), 'success')
-      this.selectedQc = null
+    removePending(itemId, index) {
+      this.pendingByItem[itemId].splice(index, 1)
+    },
+
+    confirmClick() {
+      if (this.totalPendingCount === 0) return
+      this.confirmError = ''
+      this.showConfirmDialog = true
+    },
+
+    async submitConfirm() {
+      this.confirming = true
+      this.confirmError = ''
+      try {
+        const dispositions = []
+        for (const [itemId, list] of Object.entries(this.pendingByItem)) {
+          for (const p of list) {
+            dispositions.push({
+              item_id: itemId,
+              disposition: p.disposition,
+              quantity: Number(p.quantity),
+              defect_code: p.defectCode || '',
+              evidence_reference: p.evidenceReference || ''
+            })
+          }
+        }
+
+        await confirmInspection(this.selected.id, {
+          idempotency_key: newIdempotencyKey(),
+          dispositions
+        })
+
+        this.showConfirmDialog = false
+        showToast(this.$t('qualityCheck.messages.qcSaved', { result: '' }), 'success')
+        this.selected = null
+        await this.fetchInspections()
+      } catch (err) {
+        this.confirmError = err.message
+      } finally {
+        this.confirming = false
+      }
     }
   }
 }
@@ -432,12 +407,9 @@ export default {
   box-shadow: 0 0 0 2px #fed7aa;
 }
 
-.label {
-  display: block;
-  margin-bottom: 8px;
-  color: #334155;
-  font-weight: var(--fw-label);
-  font-size: var(--fs-label);
+.input-number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .summary-card {

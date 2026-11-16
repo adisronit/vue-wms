@@ -29,12 +29,17 @@ const (
 	TransactionAdjust  TransactionType = "ADJUST"
 	TransactionReturn  TransactionType = "RETURN"
 	TransactionCount   TransactionType = "COUNT"
+	// TransactionReject (migrations/0074, Phase 31B) is QC's REJECT
+	// disposition — the ledger entry written when RejectHoldTx deducts
+	// both Quantity and HoldQuantity together. See RejectHoldTx's own
+	// doc for the full QC PASS/HOLD/REJECT model.
+	TransactionReject TransactionType = "REJECT"
 )
 
 func (t TransactionType) IsValid() bool {
 	switch t {
 	case TransactionReceive, TransactionPutaway, TransactionMove, TransactionPick,
-		TransactionShip, TransactionAdjust, TransactionReturn, TransactionCount:
+		TransactionShip, TransactionAdjust, TransactionReturn, TransactionCount, TransactionReject:
 		return true
 	default:
 		return false

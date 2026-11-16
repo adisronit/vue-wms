@@ -599,7 +599,12 @@
       "remarkPlaceholder": "输入检查备注",
       "pass": "通过",
       "hold": "暂缓",
-      "reject": "拒收"
+      "reject": "拒收",
+      "remainingHeldQty": "剩余待处理数量",
+      "dispositionHistory": "处置历史",
+      "addDisposition": "记录处置",
+      "evidenceReference": "证据参考（可选）",
+      "confirmDispositions": "确认处置"
     },
     "defectReasons": {
       "none": "无",
@@ -760,7 +765,8 @@
       "passRate": "通过率"
     },
     "actions": {
-      "confirmQc": "确认质检"
+      "confirmQc": "创建检查单",
+      "submitting": "创建中…"
     },
     "messages": {
       "barcodeRequired": "条码或 SKU 为必填项",
@@ -769,8 +775,9 @@
       "warehouseRequired": "请选择仓库",
       "atLeastOneItem": "至少需要一个质检项目",
       "defectReasonRequiredForFail": "不通过的项目必须填写不良原因",
-      "qcConfirmed": "质检确认成功",
-      "confirmSubmitDialog": "此操作将保存这些项目的质检结果。是否继续？"
+      "qcConfirmed": "检查单创建成功",
+      "confirmSubmitDialog": "此操作将保存这些项目的质检结果。是否继续？",
+      "noEligibleLines": "此收货单没有需要质检且仍有库存被暂扣的行"
     }
   },
   "newPutaway": {
