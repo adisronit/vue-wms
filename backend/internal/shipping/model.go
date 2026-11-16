@@ -155,6 +155,20 @@ type Shipment struct {
 	CancelledAt   *time.Time `gorm:"column:cancelled_at"`
 	CancelledBy   *int64     `gorm:"column:cancelled_by"`
 	CancelRemark  *string    `gorm:"column:cancel_remark"`
+	// LoadedAt/LoadedBy (migrations/0107-0108, Phase 33D.2) are the real
+	// dispatch-gate fields Confirm's own DISPATCH branch now checks
+	// (Status.CanDispatch alone is no longer sufficient — see that
+	// branch's own doc). Written ONLY by Service.MarkLoaded, itself
+	// called ONLY by internal/loading's own Confirm action, once every
+	// carton belonging to this shipment's own packing job has actually
+	// been scanned loaded (or flagged short) onto a vehicle and that
+	// trip is itself confirmed COMPLETED. Deliberately plain columns,
+	// not a cross-package query at Confirm time — internal/shipping
+	// must never import internal/loading (loading -> shipping is the
+	// only allowed direction; the reverse would be a real Go import
+	// cycle).
+	LoadedAt *time.Time `gorm:"column:loaded_at"`
+	LoadedBy *int64     `gorm:"column:loaded_by"`
 }
 
 func (Shipment) TableName() string { return "shipments" }

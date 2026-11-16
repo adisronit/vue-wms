@@ -236,6 +236,19 @@ func (r *Repository) CancelShipment(ctx context.Context, tenantID int64, s *Ship
 	}).Error
 }
 
+// MarkLoaded writes only loaded_at/loaded_by (migrations/0107-0108,
+// Phase 33D.2) — deliberately excludes every other column, mirroring
+// UpdateStatus's own field-scoped-write discipline, so this call can
+// never clobber a concurrent header edit or status transition. Scoped
+// to tenantID as defense in depth — Service.MarkLoaded's own FindByID
+// already proved ownership.
+func (r *Repository) MarkLoaded(ctx context.Context, tenantID int64, s *Shipment) error {
+	return r.db.WithContext(ctx).Model(&Shipment{}).Where("id = ? AND tenant_id = ?", s.ID, tenantID).Updates(map[string]any{
+		"loaded_at": s.LoadedAt,
+		"loaded_by": s.LoadedBy,
+	}).Error
+}
+
 type listRow struct {
 	ID         int64
 	ShipmentNo string

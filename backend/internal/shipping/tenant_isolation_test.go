@@ -478,6 +478,17 @@ func TestService_Confirm_DispatchThenDeliver_OwnTenant_Succeeds(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
+	// Phase 33D.2's own dispatch gate — a shipment must have gone
+	// through internal/loading's own Confirm Trip action (which alone
+	// calls this) before DISPATCH is allowed. This test is about the
+	// DISPATCH -> DELIVER status machine itself, not the gate, so it is
+	// satisfied directly here rather than running a full Loading cycle
+	// — see internal/loading's own tests for coverage of the gate
+	// itself.
+	if err := svc.MarkLoaded(context.Background(), a.tenantID, resp.ID, 1); err != nil {
+		t.Fatalf("MarkLoaded (simulating a completed Loading cycle): %v", err)
+	}
+
 	dispatched, err := svc.Confirm(context.Background(), a.tenantID, resp.ID, ConfirmRequest{
 		IdempotencyKey: "key-dispatch-1", Action: "DISPATCH",
 	}, 1)
@@ -521,6 +532,13 @@ func TestService_Confirm_InvalidTransition_RollsBackEverything(t *testing.T) {
 	resp, err := svc.Create(context.Background(), a.tenantID, CreateRequest{PackingJobID: jobID}, 1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
+	}
+	// Phase 33D.2's own dispatch gate is satisfied directly (see
+	// TestService_Confirm_DispatchThenDeliver_OwnTenant_Succeeds' own
+	// doc) — this test is specifically about the carrier/tracking
+	// validation rejection, not the loading gate.
+	if err := svc.MarkLoaded(context.Background(), a.tenantID, resp.ID, 1); err != nil {
+		t.Fatalf("MarkLoaded (simulating a completed Loading cycle): %v", err)
 	}
 
 	_, err = svc.Confirm(context.Background(), a.tenantID, resp.ID, ConfirmRequest{
@@ -716,6 +734,11 @@ func TestService_Confirm_ConcurrentSameIdempotencyKey_OnlyOneApplies(t *testing.
 	}, 1)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
+	}
+	// Phase 33D.2's own dispatch gate, satisfied directly — this test
+	// is about the idempotency-guard race, not the loading gate.
+	if err := svc.MarkLoaded(context.Background(), tenantID, resp.ID, 1); err != nil {
+		t.Fatalf("MarkLoaded (simulating a completed Loading cycle): %v", err)
 	}
 
 	const attempts = 10

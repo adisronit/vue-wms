@@ -102,6 +102,7 @@
     "pickingBatches": "批量拣货",
     "packing": "打包",
     "shipping": "发货",
+    "loading": "装车",
     "sectionAdministration": "系统管理",
     "userManagement": "用户管理",
     "roles": "角色与权限",
@@ -886,6 +887,104 @@
       "issueReported": "已报告发货异常",
       "shipmentCancelled": "发货单已取消",
       "confirmCancelShipment": "此发货单将被取消且无法恢复，是否继续？"
+    }
+  },
+  "loading": {
+    "title": "装车",
+    "subtitle": "规划车辆装车行程，扫描已装载的纸箱，并在发货前确认",
+    "newTripButton": "+ 新建装车行程",
+    "summary": {
+      "planned": "已计划",
+      "loading": "装车中",
+      "completed": "已完成",
+      "cancelled": "已取消"
+    },
+    "filters": {
+      "searchPlaceholder": "搜索行程编号、车牌号、司机...",
+      "allStatus": "全部状态"
+    },
+    "statusLabels": {
+      "planned": "已计划",
+      "loading": "装车中"
+    },
+    "table": {
+      "tripNo": "行程编号",
+      "vehicleNo": "车牌号",
+      "driver": "司机",
+      "shipments": "发货单",
+      "progress": "进度",
+      "scheduled": "计划时间"
+    },
+    "loadingTrips": "正在加载行程…",
+    "noTrips": "未找到装车行程",
+    "messages": {
+      "loadFailed": "加载装车行程失败"
+    },
+    "create": {
+      "title": "新建装车行程",
+      "vehicleNoPlaceholder": "车牌号",
+      "driverNamePlaceholder": "司机姓名",
+      "carrierPlaceholder": "选择承运商...",
+      "dockPlaceholder": "装车月台",
+      "routePlaceholder": "路线 / 目的地",
+      "sealPlaceholder": "车辆封条编号",
+      "remarkPlaceholder": "备注（可选）",
+      "creating": "正在创建...",
+      "createButton": "创建",
+      "createFailed": "创建装车行程失败"
+    },
+    "detail": {
+      "subtitle": "分配发货单，扫描已装载的纸箱，并在发货前确认",
+      "infoTitle": "行程信息",
+      "shortSuffix": "缺失",
+      "carrierLabel": "承运商",
+      "dockLabel": "装车月台",
+      "routeLabel": "路线",
+      "startedAtLabel": "开始装车时间",
+      "endedAtLabel": "装车结束时间",
+      "sealLabel": "车辆封条",
+      "shipmentsTitle": "已分配的发货单",
+      "assignShipmentLabel": "分配发货单",
+      "selectShipment": "选择发货单...",
+      "assignButton": "分配",
+      "noShipments": "尚未分配发货单",
+      "cartonsSuffix": "箱",
+      "cartonsTitle": "装车纸箱清单",
+      "scanTitle": "扫描装车",
+      "scanPlaceholder": "扫描/输入纸箱 LPN",
+      "scanning": "正在扫描...",
+      "scanButton": "扫描为已装载",
+      "shortButton": "标记缺失",
+      "shortReasonPlaceholder": "选择原因...",
+      "shortRemarkPlaceholder": "备注（可选）",
+      "submitShortButton": "提交",
+      "lpnLabel": "LPN",
+      "detailLabel": "详情",
+      "finishTitle": "确认行程",
+      "confirmTripButton": "确认行程（完成装车）",
+      "cancelTripButton": "取消行程",
+      "confirmNote": "所有计划的纸箱必须先扫描为已装载或标记为缺失，才能确认行程。",
+      "plannedNote": "请至少扫描一个纸箱以开始装车。",
+      "cancelConfirmMessage": "此装车行程将被取消。已分配的发货单将保持未装载状态，并可重新分配给新的行程。是否继续？",
+      "assignSuccess": "发货单已分配至行程",
+      "assignFailed": "分配发货单失败",
+      "scanSuccess": "纸箱已扫描为已装载",
+      "scanFailed": "扫描纸箱失败",
+      "shortSuccess": "纸箱已标记为缺失",
+      "shortFailed": "标记纸箱缺失失败",
+      "confirmSuccess": "装车行程已完成 — 发货单现已可发货",
+      "confirmFailed": "确认装车行程失败",
+      "cancelSuccess": "装车行程已取消"
+    },
+    "cartonStatus": {
+      "planned": "已计划",
+      "loaded": "已装载",
+      "short": "缺失"
+    },
+    "shortReason": {
+      "damaged": "损坏",
+      "missing": "丢失",
+      "other": "其他"
     }
   },
   "qualityCheck": {

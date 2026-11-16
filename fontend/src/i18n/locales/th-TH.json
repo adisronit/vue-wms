@@ -102,6 +102,7 @@
     "pickingBatches": "หยิบสินค้าแบบชุด",
     "packing": "บรรจุหีบห่อ",
     "shipping": "จัดส่งสินค้า",
+    "loading": "การโหลดสินค้า",
     "sectionAdministration": "การจัดการระบบ",
     "userManagement": "จัดการผู้ใช้งาน",
     "roles": "สิทธิ์และบทบาท",
@@ -886,6 +887,104 @@
       "issueReported": "รายงานปัญหาการจัดส่งแล้ว",
       "shipmentCancelled": "ยกเลิกการจัดส่งแล้ว",
       "confirmCancelShipment": "การจัดส่งนี้จะถูกยกเลิกและไม่สามารถดำเนินการต่อได้ ต้องการดำเนินการต่อหรือไม่?"
+    }
+  },
+  "loading": {
+    "title": "การโหลดสินค้า",
+    "subtitle": "วางแผนทริปโหลดสินค้าขึ้นรถ สแกนกล่องขณะโหลด และยืนยันก่อนจัดส่ง",
+    "newTripButton": "+ สร้างทริปโหลดสินค้าใหม่",
+    "summary": {
+      "planned": "วางแผนแล้ว",
+      "loading": "กำลังโหลด",
+      "completed": "เสร็จสมบูรณ์",
+      "cancelled": "ยกเลิกแล้ว"
+    },
+    "filters": {
+      "searchPlaceholder": "ค้นหาเลขทริป, ทะเบียนรถ, คนขับ...",
+      "allStatus": "สถานะทั้งหมด"
+    },
+    "statusLabels": {
+      "planned": "วางแผนแล้ว",
+      "loading": "กำลังโหลด"
+    },
+    "table": {
+      "tripNo": "เลขทริป",
+      "vehicleNo": "ทะเบียนรถ",
+      "driver": "คนขับ",
+      "shipments": "การจัดส่ง",
+      "progress": "ความคืบหน้า",
+      "scheduled": "กำหนดเวลา"
+    },
+    "loadingTrips": "กำลังโหลดทริป…",
+    "noTrips": "ไม่พบทริปโหลดสินค้า",
+    "messages": {
+      "loadFailed": "ไม่สามารถโหลดทริปได้"
+    },
+    "create": {
+      "title": "สร้างทริปโหลดสินค้าใหม่",
+      "vehicleNoPlaceholder": "ทะเบียนรถ",
+      "driverNamePlaceholder": "ชื่อคนขับ",
+      "carrierPlaceholder": "เลือกผู้ขนส่ง...",
+      "dockPlaceholder": "ท่าขนถ่ายสินค้า",
+      "routePlaceholder": "เส้นทาง / ปลายทาง",
+      "sealPlaceholder": "เลขซีลรถ",
+      "remarkPlaceholder": "หมายเหตุ (ไม่บังคับ)",
+      "creating": "กำลังสร้าง...",
+      "createButton": "สร้าง",
+      "createFailed": "ไม่สามารถสร้างทริปโหลดสินค้าได้"
+    },
+    "detail": {
+      "subtitle": "มอบหมายการจัดส่ง สแกนกล่องขณะโหลด และยืนยันก่อนจัดส่ง",
+      "infoTitle": "ข้อมูลทริป",
+      "shortSuffix": "ขาด",
+      "carrierLabel": "ผู้ขนส่ง",
+      "dockLabel": "ท่าขนถ่ายสินค้า",
+      "routeLabel": "เส้นทาง",
+      "startedAtLabel": "เริ่มโหลดเมื่อ",
+      "endedAtLabel": "โหลดเสร็จเมื่อ",
+      "sealLabel": "เลขซีลรถ",
+      "shipmentsTitle": "การจัดส่งที่มอบหมาย",
+      "assignShipmentLabel": "มอบหมายการจัดส่ง",
+      "selectShipment": "เลือกการจัดส่ง...",
+      "assignButton": "มอบหมาย",
+      "noShipments": "ยังไม่มีการจัดส่งที่มอบหมาย",
+      "cartonsSuffix": "กล่อง",
+      "cartonsTitle": "รายการกล่องที่ต้องโหลด",
+      "scanTitle": "สแกนเพื่อโหลด",
+      "scanPlaceholder": "สแกน/กรอกหมายเลข LPN ของกล่อง",
+      "scanning": "กำลังสแกน...",
+      "scanButton": "สแกนโหลดแล้ว",
+      "shortButton": "แจ้งขาด/เสียหาย",
+      "shortReasonPlaceholder": "เลือกสาเหตุ...",
+      "shortRemarkPlaceholder": "หมายเหตุ (ไม่บังคับ)",
+      "submitShortButton": "ยืนยัน",
+      "lpnLabel": "LPN",
+      "detailLabel": "รายละเอียด",
+      "finishTitle": "ยืนยันทริป",
+      "confirmTripButton": "ยืนยันทริป (โหลดเสร็จสมบูรณ์)",
+      "cancelTripButton": "ยกเลิกทริป",
+      "confirmNote": "ทุกกล่องที่วางแผนไว้ต้องถูกสแกนว่าโหลดแล้วหรือแจ้งขาด ก่อนจึงจะยืนยันทริปได้",
+      "plannedNote": "สแกนกล่องอย่างน้อยหนึ่งกล่องเพื่อเริ่มการโหลด",
+      "cancelConfirmMessage": "ทริปโหลดสินค้านี้จะถูกยกเลิก การจัดส่งที่มอบหมายไว้จะยังไม่ถูกโหลดและสามารถมอบหมายให้ทริปใหม่ได้ ดำเนินการต่อหรือไม่?",
+      "assignSuccess": "มอบหมายการจัดส่งให้ทริปแล้ว",
+      "assignFailed": "ไม่สามารถมอบหมายการจัดส่งได้",
+      "scanSuccess": "สแกนกล่องว่าโหลดแล้ว",
+      "scanFailed": "ไม่สามารถสแกนกล่องได้",
+      "shortSuccess": "แจ้งกล่องขาด/เสียหายแล้ว",
+      "shortFailed": "ไม่สามารถแจ้งกล่องขาดได้",
+      "confirmSuccess": "ทริปโหลดสินค้าเสร็จสมบูรณ์ — พร้อมจัดส่งแล้ว",
+      "confirmFailed": "ไม่สามารถยืนยันทริปโหลดสินค้าได้",
+      "cancelSuccess": "ยกเลิกทริปโหลดสินค้าแล้ว"
+    },
+    "cartonStatus": {
+      "planned": "วางแผนแล้ว",
+      "loaded": "โหลดแล้ว",
+      "short": "ขาด/เสียหาย"
+    },
+    "shortReason": {
+      "damaged": "เสียหาย",
+      "missing": "สูญหาย",
+      "other": "อื่นๆ"
     }
   },
   "qualityCheck": {

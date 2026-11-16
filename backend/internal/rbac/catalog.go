@@ -141,6 +141,29 @@ var Modules = []ModuleDef{
 	// exception action" precedent. See RoleDefaultGrants' own doc for why
 	// SHIPPING now gets shipping.confirm by default.
 	{Code: "shipping", Name: "Shipping", Actions: []string{"view", "create", "update", "confirm", "approve"}},
+	// Phase 33D.2 — Loading: the "load" half of the dispatch
+	// re-sequencing gate (33D.1 already added the "pack" half). Kept as
+	// its own module rather than folded into "shipping" — a loading
+	// trip is its own header/workflow object (vehicle/driver/dock,
+	// multi-shipment/multi-drop, its own scan-to-load worklist) distinct
+	// from a shipment's own status machine, the same reasoning
+	// relocation/packing/picking_batch each got their own module
+	// instead of folding into an existing one. "update" gates the
+	// ordinary loading-dock execution actions (AssignShipment/
+	// ScanCarton/ShortCarton); "confirm" gates ConfirmTrip — the action
+	// that transitions the trip to COMPLETED and calls shipping.
+	// Service.MarkLoaded for every shipment on it, the real dispatch-
+	// gate payoff, at the same elevated authority level receiving.
+	// confirm/picking.confirm/packing.confirm/shipping.confirm already
+	// established for their own module's primary significant action;
+	// "approve" gates CancelTrip, matching picking.approve/packing.
+	// approve's own Cancel gate. No default grant for any operational
+	// staff role yet (matches relocation/packing/picking_batch's own
+	// precedent) — only ADMIN (every code) and WAREHOUSE_MANAGER (every
+	// non-delete code) get it automatically; a future phase could
+	// extend SHIPPING's own RoleDefaultGrants if loading-dock duties are
+	// assigned to existing shipping staff.
+	{Code: "loading", Name: "Loading & Dispatch Verification", Actions: []string{"view", "create", "update", "confirm", "approve"}},
 	// "confirm" (Phase 33A) gates the new Review & Release action
 	// (Service.Release: PENDING -> RELEASED, the availability-check +
 	// controlled-shortage-approval gate in front of the existing

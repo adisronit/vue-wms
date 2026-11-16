@@ -21,6 +21,8 @@ import SortationView from '../views/outbound/SortationView.vue'
 import PackingView from '../views/outbound/PackingView.vue'
 import PackingDetailView from '../views/outbound/PackingDetailView.vue'
 import ShippingView from '../views/outbound/ShippingView.vue'
+import LoadingView from '../views/outbound/LoadingView.vue'
+import LoadingTripDetailView from '../views/outbound/LoadingTripDetailView.vue'
 import UserManagementView from '../views/administration/UserManagementView.vue'
 import RolePermissionView from '../views/administration/RolePermissionView.vue'
 import WarehouseView from '../views/administration/WarehouseView.vue'
@@ -154,6 +156,17 @@ const routes = [
         path: 'outbound/shipping',
         name: 'Shipping',
         component: ShippingView,
+      },
+      {
+        path: 'outbound/loading',
+        name: 'Loading',
+        component: LoadingView,
+      },
+      {
+        path: 'outbound/loading/:id',
+        name: 'LoadingTripDetail',
+        component: LoadingTripDetailView,
+        props: true,
       },
       {
         path: 'administration/user-management',
