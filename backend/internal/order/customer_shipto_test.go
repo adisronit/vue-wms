@@ -19,6 +19,7 @@ import (
 	"wms-backend/internal/customerdeliverylocation"
 	"wms-backend/internal/inventory"
 	"wms-backend/internal/location"
+	"wms-backend/internal/packing"
 	"wms-backend/internal/picking"
 	"wms-backend/internal/platform/testsupport"
 	"wms-backend/internal/product"
@@ -361,8 +362,10 @@ func TestCreatePickingTask_PropagatesShipToSnapshot(t *testing.T) {
 	}
 
 	// Shipping's own Get, through the normal Create flow, must show the
-	// identical snapshot — read purely via the picking_tasks JOIN,
-	// confirming the pipeline Order -> Picking -> Shipping end to end.
+	// identical snapshot — as of Phase 33D.1, resolved via the linked
+	// packing job's own order/ship-to snapshot (itself copied from the
+	// picking task at job-creation time), confirming the pipeline
+	// Order -> Picking -> Packing -> Shipping end to end.
 	confirmed, err := pickingSvc.Confirm(context.Background(), a.tenantID, *released.PickingTaskID, picking.ConfirmRequest{
 		IdempotencyKey: "propagate-pick-confirm",
 		Items:          []picking.ConfirmItemRequest{{ItemID: pickingResp.Items[0].ID, Action: "PICKED", Quantity: 10}},
@@ -374,10 +377,40 @@ func TestCreatePickingTask_PropagatesShipToSnapshot(t *testing.T) {
 		t.Fatalf("picking task status = %v, want COMPLETED", confirmed.Status)
 	}
 
-	shippingRepo := shipping.NewRepository(tx)
-	shippingSvc := shipping.NewService(shippingRepo, pickingSvc)
-	shipmentResp, err := shippingSvc.Create(context.Background(), a.tenantID, shipping.CreateRequest{
+	// Phase 33D.1: Shipping.Create now requires a COMPLETED packing job,
+	// not a picking task directly — run the picked task through a real
+	// Packing Create -> CreateCarton -> PackItem -> CheckerConfirm cycle
+	// first, exactly as a real caller must, before Shipping can see it at
+	// all via packing_jobs' own order/ship-to snapshot (copied from the
+	// picking task at job-creation time, same propagation chain this
+	// test is proving end to end).
+	packingRepo := packing.NewRepository(tx)
+	packingSvc := packing.NewService(packingRepo, pickingSvc)
+	jobResp, err := packingSvc.Create(context.Background(), a.tenantID, packing.CreateRequest{
 		PickingTaskID: *released.PickingTaskID,
+	}, 1)
+	if err != nil {
+		t.Fatalf("packing Create: %v", err)
+	}
+	carton, err := packingSvc.CreateCarton(context.Background(), a.tenantID, jobResp.ID, packing.CreateCartonRequest{}, 1)
+	if err != nil {
+		t.Fatalf("packing CreateCarton: %v", err)
+	}
+	packedJob, err := packingSvc.PackItem(context.Background(), a.tenantID, jobResp.ID, packing.PackItemRequest{
+		IdempotencyKey: "propagate-pack-1", ItemID: jobResp.Items[0].ID, CartonID: carton.ID,
+		ScannedSKU: jobResp.Items[0].SKU, Quantity: jobResp.Items[0].PickedQty,
+	}, 1)
+	if err != nil {
+		t.Fatalf("packing PackItem: %v", err)
+	}
+	if _, err := packingSvc.CheckerConfirm(context.Background(), a.tenantID, packedJob.ID, packing.CheckerConfirmRequest{}, 1); err != nil {
+		t.Fatalf("packing CheckerConfirm: %v", err)
+	}
+
+	shippingRepo := shipping.NewRepository(tx)
+	shippingSvc := shipping.NewService(shippingRepo, packingSvc)
+	shipmentResp, err := shippingSvc.Create(context.Background(), a.tenantID, shipping.CreateRequest{
+		PackingJobID: jobResp.ID,
 	}, 1)
 	if err != nil {
 		t.Fatalf("shipping Create: %v", err)

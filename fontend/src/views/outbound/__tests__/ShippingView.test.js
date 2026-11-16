@@ -4,13 +4,20 @@ import ShippingView from '../ShippingView.vue'
 
 vi.mock('../../../services/shipping', async () => {
   const actual = await vi.importActual('../../../services/shipping')
-  return { ...actual, listShipments: vi.fn(), getShipment: vi.fn(), cancelShipment: vi.fn() }
+  return {
+    ...actual,
+    listShipments: vi.fn(),
+    getShipment: vi.fn(),
+    cancelShipment: vi.fn(),
+    listShippableSources: vi.fn(),
+    createShipment: vi.fn()
+  }
 })
 vi.mock('../../../services/auth', () => ({ hasPermission: vi.fn(() => true) }))
 
-import { listShipments, getShipment, cancelShipment } from '../../../services/shipping'
+import { listShipments, getShipment, cancelShipment, listShippableSources, createShipment } from '../../../services/shipping'
 
-const globalMocks = { $t: (key) => key, $d: (v) => String(v) }
+const globalMocks = { $t: (key, params) => (params ? `${key}:${JSON.stringify(params)}` : key), $d: (v) => String(v) }
 
 function page(rows) {
   return { success: true, data: rows, meta: { page: 1, limit: 100, total: rows.length, total_pages: 1 } }
@@ -19,6 +26,13 @@ function page(rows) {
 const shipment = {
   id: 1, shipment_no: 'SHP-001', order_no: 'ORD-001', customer: 'Acme',
   carrier: 'DHL', tracking_no: 'TRK1', packages: 2, weight: 5, ship_date: '2026-01-01', status: 'READY'
+}
+
+// Phase 33D.1 — a source row is now a completed packing job, not a raw
+// picking task (packing_job_id/job_no replace picking_task_id/pick_no).
+const packingJobSource = {
+  packing_job_id: 7, job_no: 'PACK-000007', picking_task_id: 3, pick_no: 'PICK-000003',
+  order_no: 'SO-001', customer: 'Acme', item_count: 2, is_batch: false, batch_no: null
 }
 
 describe('ShippingView', () => {
@@ -46,5 +60,55 @@ describe('ShippingView', () => {
 
     await wrapper.vm.cancelSelectedShipment()
     expect(cancelShipment).toHaveBeenCalledTimes(1)
+  })
+
+  // Phase 33D.1: the "+ New Shipment" drawer now selects a completed
+  // packing job, not a raw picking task.
+  it('loads packing-job sources when opening the new-shipment drawer', async () => {
+    listShipments.mockResolvedValue(page([shipment]))
+    listShippableSources.mockResolvedValue({ success: true, data: [packingJobSource] })
+    const wrapper = mount(ShippingView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    await wrapper.vm.openShipping(null)
+    await flushPromises()
+
+    expect(listShippableSources).toHaveBeenCalledTimes(1)
+    expect(wrapper.vm.sources).toEqual([packingJobSource])
+    expect(wrapper.vm.isNewShipment).toBe(true)
+  })
+
+  it('creates a shipment with packing_job_id, not picking_task_id', async () => {
+    listShipments.mockResolvedValue(page([shipment]))
+    listShippableSources.mockResolvedValue({ success: true, data: [packingJobSource] })
+    createShipment.mockResolvedValue({ success: true, data: { id: 99 } })
+    const wrapper = mount(ShippingView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    await wrapper.vm.openShipping(null)
+    await flushPromises()
+
+    wrapper.vm.form.packingJobId = packingJobSource.packing_job_id
+    await wrapper.vm.saveNewShipment()
+
+    expect(createShipment).toHaveBeenCalledTimes(1)
+    const payload = createShipment.mock.calls[0][0]
+    expect(payload.packing_job_id).toBe(packingJobSource.packing_job_id)
+    expect(payload.picking_task_id).toBeUndefined()
+  })
+
+  it('requires a source packing job before submitting a new shipment', async () => {
+    listShipments.mockResolvedValue(page([shipment]))
+    listShippableSources.mockResolvedValue({ success: true, data: [] })
+    const wrapper = mount(ShippingView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    await wrapper.vm.openShipping(null)
+    await flushPromises()
+
+    await wrapper.vm.saveNewShipment()
+
+    expect(createShipment).not.toHaveBeenCalled()
+    expect(wrapper.vm.drawerError).toBeTruthy()
   })
 })

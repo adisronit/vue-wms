@@ -21,6 +21,7 @@ import (
 	"wms-backend/internal/customerdeliverylocation"
 	"wms-backend/internal/inventory"
 	"wms-backend/internal/location"
+	"wms-backend/internal/packing"
 	"wms-backend/internal/picking"
 	"wms-backend/internal/platform/testsupport"
 	"wms-backend/internal/product"
@@ -112,7 +113,13 @@ func seedOrderBalance(t *testing.T, tx *gorm.DB, f orderFixture, lotNo string, q
 // picking.Service (CreateTx/Get, Batch 2's own tenant scoping), and
 // shipping.Service (FindByPickingTaskID) — exactly the dependency graph
 // cmd/server/main.go wires in production, bound to the same test
-// transaction throughout.
+// transaction throughout. Phase 33D.1: shipping.Service's own second
+// dependency is now packing.Service, not picking.Service directly (see
+// internal/shipping's own packingChecker doc) — wired here purely so
+// this package's own tests keep compiling against the real production
+// dependency graph; this package's own tests never call
+// shippingSvc.Create directly, only the read-only FindByPickingTaskID
+// path order.Service itself uses.
 func newOrderServiceAndRepo(tx *gorm.DB) (*Service, *Repository) {
 	repo := NewRepository(tx)
 	productRepo := product.NewRepository(tx)
@@ -123,8 +130,11 @@ func newOrderServiceAndRepo(tx *gorm.DB) (*Service, *Repository) {
 	pickingRepo := picking.NewRepository(tx)
 	pickingSvc := picking.NewService(pickingRepo, productRepo, warehouseRepo, invSvc)
 
+	packingRepo := packing.NewRepository(tx)
+	packingSvc := packing.NewService(packingRepo, pickingSvc)
+
 	shippingRepo := shipping.NewRepository(tx)
-	shippingSvc := shipping.NewService(shippingRepo, pickingSvc)
+	shippingSvc := shipping.NewService(shippingRepo, packingSvc)
 
 	customerRepo := customer.NewRepository(tx)
 	shipToRepo := customerdeliverylocation.NewRepository(tx)

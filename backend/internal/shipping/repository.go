@@ -64,13 +64,14 @@ func (r *Repository) FindByID(ctx context.Context, tenantID, id int64) (*Shipmen
 }
 
 // FindByPickingTaskID returns the shipment already linked to a picking
-// task, if any — used by Create for a friendly pre-check ahead of the
-// UNIQUE constraint (migrations/0020) that makes "one shipment per
-// picking task" authoritative regardless. Phase 30 Batch 4: scoped to
-// tenantID — internal/order's own Service.Get (the other caller, via
-// FindByPickingTaskID at the Service layer) now also passes its own
-// verified tenantID, closing the Order->Shipping boundary [[wms_30c_order_tenant_isolation]]'s
-// own report flagged as deferred until Shipping itself was scoped.
+// task, if any — kept read-only for internal/order's own display-only
+// "has this order's picking task been shipped" lookup (Service.
+// FindByPickingTaskID). Phase 33D.1: no longer the uniqueness/
+// idempotency guard for Create — see FindByPackingJobID, which replaced
+// it in that role, and migrations/0106's own doc for why the old bare
+// UNIQUE constraint this pre-check used to sit ahead of is gone. Still
+// scoped to tenantID (Phase 30 Batch 4) — internal/order's own
+// Service.Get passes its own verified tenantID here.
 func (r *Repository) FindByPickingTaskID(ctx context.Context, tenantID, pickingTaskID int64) (*Shipment, error) {
 	var s Shipment
 	err := r.db.WithContext(ctx).First(&s, "picking_task_id = ? AND tenant_id = ?", pickingTaskID, tenantID).Error
@@ -83,9 +84,28 @@ func (r *Repository) FindByPickingTaskID(ctx context.Context, tenantID, pickingT
 	return &s, nil
 }
 
+// FindByPackingJobID returns the shipment already linked to a packing
+// job, if any — Phase 33D.1's replacement for FindByPickingTaskID's own
+// former role: Create's pre-check ahead of migrations/0106's own
+// UQ_shipments_packing_job_id, the real uniqueness guard. Scoped to
+// tenantID.
+func (r *Repository) FindByPackingJobID(ctx context.Context, tenantID, packingJobID int64) (*Shipment, error) {
+	var s Shipment
+	err := r.db.WithContext(ctx).First(&s, "packing_job_id = ? AND tenant_id = ?", packingJobID, tenantID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
 type headerRow struct {
 	ID                  int64
 	ShipmentNo          string
+	PackingJobID        int64
+	JobNo               string
 	PickingTaskID       int64
 	PickNo              string
 	OrderNo             string
@@ -117,25 +137,36 @@ type headerRow struct {
 	CancelRemark        *string
 }
 
-// FindDetail returns the header with the linked picking task's order_no/
-// customer/pick_no resolved, for GET /shipping/{id}'s response — a
-// separate query from FindByID (which returns the plain GORM model,
-// used internally by Update/Confirm where the joined display fields
-// aren't needed). The LEFT JOIN to users (Phase 18) resolves
-// cancelled_by to a display name, the same pattern Phase 14 established
-// for created_by_name on stock counts. Phase 30 Batch 4: scoped to
-// tenantID on the shipment's own row — a cross-tenant id now returns
-// ErrNotFound exactly like a nonexistent one.
+// FindDetail returns the header with the linked packing job's own
+// order/customer/ship-to snapshot and the linked picking task's
+// pick_no resolved, for GET /shipping/{id}'s response — a separate
+// query from FindByID (which returns the plain GORM model, used
+// internally by Update/Confirm where the joined display fields aren't
+// needed). The LEFT JOIN to users (Phase 18) resolves cancelled_by to a
+// display name, the same pattern Phase 14 established for
+// created_by_name on stock counts.
+//
+// Phase 33D.1: order_no/customer/ship_to* now come from packing_jobs
+// (pj), not picking_tasks (pt) — pj already carries the correct,
+// order-scoped snapshot for a batch-sourced job (Phase 33C.2's own
+// Job.OrderNo doc); picking_tasks' own order_no/customer would be
+// whichever (arbitrary) order the shared task happened to be created
+// under, wrong for every batch-sourced shipment. pt is still joined
+// (via s.picking_task_id, unaffected by this change) purely for
+// pick_no. Phase 30 Batch 4: scoped to tenantID on the shipment's own
+// row — a cross-tenant id now returns ErrNotFound exactly like a
+// nonexistent one.
 func (r *Repository) FindDetail(ctx context.Context, tenantID, id int64) (*headerRow, error) {
 	var row headerRow
 	err := r.db.WithContext(ctx).Raw(`
-		SELECT s.id AS id, s.shipment_no AS shipment_no, s.picking_task_id AS picking_task_id,
-			pt.pick_no AS pick_no, pt.order_no AS order_no, pt.customer AS customer,
-			pt.customer_id AS customer_id, pt.ship_to_id AS ship_to_id,
-			pt.ship_to_name AS ship_to_name, pt.ship_to_address AS ship_to_address,
-			pt.ship_to_province AS ship_to_province, pt.ship_to_district AS ship_to_district,
-			pt.ship_to_postal_code AS ship_to_postal_code,
-			pt.ship_to_contact_person AS ship_to_contact_person, pt.ship_to_contact_phone AS ship_to_contact_phone,
+		SELECT s.id AS id, s.shipment_no AS shipment_no, s.packing_job_id AS packing_job_id, pj.job_no AS job_no,
+			s.picking_task_id AS picking_task_id,
+			pt.pick_no AS pick_no, pj.order_no AS order_no, pj.customer AS customer,
+			pj.customer_id AS customer_id, pj.ship_to_id AS ship_to_id,
+			pj.ship_to_name AS ship_to_name, pj.ship_to_address AS ship_to_address,
+			pj.ship_to_province AS ship_to_province, pj.ship_to_district AS ship_to_district,
+			pj.ship_to_postal_code AS ship_to_postal_code,
+			pj.ship_to_contact_person AS ship_to_contact_person, pj.ship_to_contact_phone AS ship_to_contact_phone,
 			s.carrier AS carrier, s.tracking_no AS tracking_no, s.packages AS packages, s.weight AS weight,
 			s.ship_date AS ship_date, s.address AS address, s.remark AS remark, s.status AS status,
 			s.created_at AS created_at, s.updated_at AS updated_at,
@@ -143,6 +174,7 @@ func (r *Repository) FindDetail(ctx context.Context, tenantID, id int64) (*heade
 			s.cancelled_at AS cancelled_at, s.cancelled_by AS cancelled_by, cu.full_name AS cancelled_by_name,
 			s.cancel_remark AS cancel_remark
 		FROM shipments s
+		JOIN packing_jobs pj ON pj.id = s.packing_job_id
 		JOIN picking_tasks pt ON pt.id = s.picking_task_id
 		LEFT JOIN users cu ON cu.id = s.cancelled_by
 		WHERE s.id = ? AND s.tenant_id = ?
@@ -217,17 +249,18 @@ type listRow struct {
 	Status     string
 }
 
-// List returns shipment-level rows joined with the linked picking
-// task's order_no/customer — matches ShippingView.vue's table directly.
-// Phase 30 Batch 4: scoped to tenantID so one tenant's shipping history
-// never leaks into another's list/export.
+// List returns shipment-level rows joined with the linked packing
+// job's own order_no/customer snapshot (Phase 33D.1 — see FindDetail's
+// own doc for why pj, not pt) — matches ShippingView.vue's table
+// directly. Phase 30 Batch 4: scoped to tenantID so one tenant's
+// shipping history never leaks into another's list/export.
 func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
 	base := `
 		FROM shipments s
-		JOIN picking_tasks pt ON pt.id = s.picking_task_id
+		JOIN packing_jobs pj ON pj.id = s.packing_job_id
 	`
 	where := `WHERE s.tenant_id = ?
-		AND (? = '' OR s.shipment_no LIKE ? OR pt.order_no LIKE ? OR pt.customer LIKE ? OR s.tracking_no LIKE ?)
+		AND (? = '' OR s.shipment_no LIKE ? OR pj.order_no LIKE ? OR pj.customer LIKE ? OR s.tracking_no LIKE ?)
 		AND (? = '' OR s.status = ?)
 		AND (? = '' OR s.carrier = ?)
 		AND (? IS NULL OR s.ship_date = ?)`
@@ -249,7 +282,7 @@ func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams
 
 	offset := (params.Page - 1) * params.Limit
 	listSQL := `
-		SELECT s.id AS id, s.shipment_no AS shipment_no, pt.order_no AS order_no, pt.customer AS customer,
+		SELECT s.id AS id, s.shipment_no AS shipment_no, pj.order_no AS order_no, pj.customer AS customer,
 			s.carrier AS carrier, s.tracking_no AS tracking_no, s.packages AS packages, s.weight AS weight,
 			s.ship_date AS ship_date, s.status AS status
 	` + base + where + `
@@ -323,35 +356,50 @@ func (r *Repository) CreateItem(ctx context.Context, tenantID int64, item *Item)
 }
 
 type sourceRow struct {
+	PackingJobID  int64
+	JobNo         string
 	PickingTaskID int64
 	PickNo        string
 	OrderNo       string
 	Customer      *string
 	ItemCount     int
+	IsBatch       bool
+	BatchNo       *string
 }
 
-// Sources returns completed (or partially-completed, i.e. SHORT_PICK
-// with at least one COMPLETED line) picking tasks that have no shipment
-// yet — powers GET /shipping/sources, replacing ShippingView.vue's lack
-// of any source picker at all (see dto.go's SourceResponse doc). Phase
-// 30 Batch 4: scoped to tenantID on the picking task itself — the
-// correlated NOT EXISTS subquery needs no separate tenant_id predicate
-// since a shipment can only ever be linked to a picking task that
-// shares its own tenant (shipments.picking_task_id -> picking_tasks.id
-// is a 1:1 FK, and Service.Create verifies the picking task's tenant
-// via pickingChecker.Get before ever creating one).
+// Sources returns COMPLETED packing jobs that have no shipment yet —
+// Phase 33D.1's replacement for the old raw-picking-task listing, now
+// requiring the real pack-validation gate (internal/packing's own two-
+// person checker-confirm) before a job is even eligible to ship. Powers
+// GET /shipping/sources, mirroring packing.Repository.Sources' own
+// query shape (NOT EXISTS against this package's own join table) for
+// the ordinary (non-batch) case.
+//
+// IsBatch/BatchNo (mirroring packing.SourceResponse's own shape) are
+// derived from pj.order_id being set (Phase 33C.2: a batch-sourced job
+// always has order_id, an ordinary job never does) and a LEFT JOIN to
+// picking_batches on the shared picking_task_id — a batch-sourced
+// source task can surface more than one packing job here (one per
+// order), each becoming its own independent Sources row and,
+// eventually, its own independent shipment. Scoped to tenantID
+// throughout; the correlated NOT EXISTS subquery needs no separate
+// predicate since a shipment can only ever be linked to a packing job
+// that shares its own tenant (migrations/0106's own FK_shipments_packing_job).
 func (r *Repository) Sources(ctx context.Context, tenantID int64) ([]SourceResponse, error) {
 	var rows []sourceRow
 	err := r.db.WithContext(ctx).Raw(`
-		SELECT pt.id AS picking_task_id, pt.pick_no AS pick_no, pt.order_no AS order_no, pt.customer AS customer,
-			COUNT(pti.id) AS item_count
-		FROM picking_tasks pt
-		JOIN picking_task_items pti ON pti.picking_task_id = pt.id AND pti.status = 'COMPLETED'
-		WHERE pt.tenant_id = ?
-			AND pt.status IN ('COMPLETED', 'SHORT_PICK')
-			AND NOT EXISTS (SELECT 1 FROM shipments sh WHERE sh.picking_task_id = pt.id)
-		GROUP BY pt.id, pt.pick_no, pt.order_no, pt.customer
-		ORDER BY pt.id DESC
+		SELECT pj.id AS packing_job_id, pj.job_no AS job_no, pj.picking_task_id AS picking_task_id, pt.pick_no AS pick_no,
+			pj.order_no AS order_no, pj.customer AS customer, COUNT(pji.id) AS item_count,
+			CASE WHEN pj.order_id IS NOT NULL THEN 1 ELSE 0 END AS is_batch, pb.batch_no AS batch_no
+		FROM packing_jobs pj
+		JOIN picking_tasks pt ON pt.id = pj.picking_task_id
+		JOIN packing_job_items pji ON pji.packing_job_id = pj.id
+		LEFT JOIN picking_batches pb ON pb.picking_task_id = pj.picking_task_id AND pb.tenant_id = pj.tenant_id
+		WHERE pj.tenant_id = ?
+			AND pj.status = 'COMPLETED'
+			AND NOT EXISTS (SELECT 1 FROM shipments sh WHERE sh.packing_job_id = pj.id)
+		GROUP BY pj.id, pj.job_no, pj.picking_task_id, pt.pick_no, pj.order_no, pj.customer, pj.order_id, pb.batch_no
+		ORDER BY pj.id DESC
 	`, tenantID).Scan(&rows).Error
 	if err != nil {
 		return nil, err
@@ -360,8 +408,9 @@ func (r *Repository) Sources(ctx context.Context, tenantID int64) ([]SourceRespo
 	sources := make([]SourceResponse, 0, len(rows))
 	for _, row := range rows {
 		sources = append(sources, SourceResponse{
-			PickingTaskID: row.PickingTaskID, PickNo: row.PickNo, OrderNo: row.OrderNo, Customer: row.Customer,
-			ItemCount: row.ItemCount,
+			PackingJobID: row.PackingJobID, JobNo: row.JobNo, PickingTaskID: row.PickingTaskID, PickNo: row.PickNo,
+			OrderNo: row.OrderNo, Customer: row.Customer, ItemCount: row.ItemCount,
+			IsBatch: row.IsBatch, BatchNo: row.BatchNo,
 		})
 	}
 	return sources, nil

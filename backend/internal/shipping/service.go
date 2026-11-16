@@ -7,7 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"wms-backend/internal/picking"
+	"wms-backend/internal/packing"
 	"wms-backend/internal/platform/csvexport"
 	"wms-backend/internal/platform/dbctx"
 )
@@ -20,28 +20,43 @@ type ErrValidation struct {
 func (e ErrValidation) Error() string { return e.Message }
 
 var (
-	ErrPickingTaskNotFound = errors.New("shipping: picking task not found")
-	ErrNotShippable        = errors.New("shipping: picking task is not in a shippable state")
-	ErrAlreadyShipped      = errors.New("shipping: picking task already has a shipment")
-	ErrNoShippableItems    = errors.New("shipping: picking task has no completed lines to ship")
-	ErrInvalidTransition   = errors.New("shipping: shipment is not in a state that allows this action")
-	ErrNotEditable         = errors.New("shipping: shipment can no longer be edited")
+	ErrPackingJobNotFound = errors.New("shipping: packing job not found")
+	// ErrNotPacked (Phase 33D.1) is the real pack-validation gate this
+	// phase adds — a shipment can no longer be created straight from a
+	// picking task that was never packed into any carton at all; the
+	// linked packing job must already be COMPLETED (internal/packing's
+	// own two-person checker-confirm, never auto-derived — see
+	// packing.Status's own doc). Replaces the old, picking-task-level
+	// ErrNotShippable.
+	ErrNotPacked = errors.New("shipping: packing job is not completed (not yet checker-confirmed)")
+	// ErrAlreadyShipped now means "this packing job already has a
+	// shipment" — migrations/0106's own UQ_shipments_packing_job_id is
+	// the authoritative guard this pre-checks ahead of.
+	ErrAlreadyShipped    = errors.New("shipping: packing job already has a shipment")
+	ErrNoShippableItems  = errors.New("shipping: packing job has no packed lines to ship")
+	ErrInvalidTransition = errors.New("shipping: shipment is not in a state that allows this action")
+	ErrNotEditable       = errors.New("shipping: shipment can no longer be edited")
 )
 
-// pickingChecker is the narrow slice of Phase 9's picking.Service this
-// package needs — satisfied structurally by *picking.Service, the same
-// narrow-interface pattern internal/putaway established for its own
-// receiptChecker dependency on internal/receiving.
+// packingChecker is the narrow slice of internal/packing's own Service
+// this package needs — satisfied structurally by *packing.Service, the
+// same narrow-interface pattern this package's own (now-removed)
+// pickingChecker established, and the same one-way-dependency shape
+// internal/packing itself uses toward internal/pickingbatch (Phase
+// 33C.2's batchOrchestrator): Shipping depends on packing's own already-
+// correct, order-scoped abstraction instead of reaching past it into
+// internal/pickingbatch or internal/picking directly — zero new batch-
+// awareness code is needed here as a result, since a batch-sourced
+// job's own packing.Response is indistinguishable in shape from an
+// ordinary job's.
 //
-// Phase 30 Batch 4: internal/shipping is now itself tenant-scoped, so
-// Service.Create below passes the caller's own verified tenantID
-// instead of Batch 2's inventory.UnverifiedCallerTenantID placeholder —
-// Get verifies the linked picking task actually belongs to the caller's
-// tenant before any shipment can ever be created against it, closing
-// the Shipping->Picking boundary [[wms_30b_picking_tenant_isolation]]'s
-// own report flagged as deferred.
-type pickingChecker interface {
-	Get(ctx context.Context, tenantID, id int64) (*picking.Response, error)
+// Phase 33D.1 is also why this package no longer depends on
+// internal/picking at all (grepped to confirm) — Create's own gate and
+// item-copy both move onto packing.Service.Get below; the linked
+// picking task's own pick_no is still resolved for display, but via a
+// plain SQL JOIN in Repository.FindDetail, not a second service call.
+type packingChecker interface {
+	Get(ctx context.Context, tenantID, id int64) (*packing.Response, error)
 }
 
 // Service holds the Shipping workflow's business rules. It deliberately
@@ -51,11 +66,11 @@ type pickingChecker interface {
 // own status machine. See package doc.
 type Service struct {
 	repo    *Repository
-	picking pickingChecker
+	packing packingChecker
 }
 
-func NewService(repo *Repository, pickingSvc pickingChecker) *Service {
-	return &Service{repo: repo, picking: pickingSvc}
+func NewService(repo *Repository, packingSvc packingChecker) *Service {
+	return &Service{repo: repo, packing: packingSvc}
 }
 
 func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
@@ -89,8 +104,9 @@ func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error
 		return nil, err
 	}
 	return &Response{
-		ID: header.ID, ShipmentNo: header.ShipmentNo, PickingTaskID: header.PickingTaskID,
-		PickNo: header.PickNo, OrderNo: header.OrderNo, Customer: header.Customer,
+		ID: header.ID, ShipmentNo: header.ShipmentNo, PackingJobID: header.PackingJobID, JobNo: header.JobNo,
+		PickingTaskID: header.PickingTaskID,
+		PickNo:        header.PickNo, OrderNo: header.OrderNo, Customer: header.Customer,
 		CustomerID: header.CustomerID, ShipToID: header.ShipToID,
 		ShipToName: header.ShipToName, ShipToAddress: header.ShipToAddress,
 		ShipToProvince: header.ShipToProvince, ShipToDistrict: header.ShipToDistrict,
@@ -128,49 +144,63 @@ func (s *Service) FindByPickingTaskID(ctx context.Context, tenantID, pickingTask
 	return s.Get(ctx, tenantID, shipment.ID)
 }
 
-// Sources returns completed picking tasks not yet shipped — see
-// Repository.Sources' doc.
+// Sources returns COMPLETED packing jobs not yet shipped (Phase 33D.1)
+// — see Repository.Sources' doc.
 func (s *Service) Sources(ctx context.Context, tenantID int64) ([]SourceResponse, error) {
 	return s.repo.Sources(ctx, tenantID)
 }
 
-// Create validates the linked picking task and copies its completed
-// lines' already-picked quantities verbatim — the client never supplies
-// a per-line quantity at all (CreateRequest has no Items field), so
-// "shipment quantity does not exceed picked quantity" is enforced by
+// Create validates the linked packing job and copies its already-
+// packed lines' packed_qty verbatim — the client never supplies a
+// per-line quantity at all (CreateRequest has no Items field), so
+// "shipment quantity does not exceed packed quantity" is enforced by
 // construction, not by a range check on client input. Never calls
 // AddStock/RemoveStock/MoveStock: the stock was already removed by
 // Picking's own Confirm (Phase 9); this only records that it is now
 // being shipped.
 //
-// Phase 30 Batch 4: tenantID is the caller's own verified tenant. It
-// verifies the linked picking task's ownership via pickingChecker.Get
-// (a cross-tenant picking_task_id is rejected as ErrPickingTaskNotFound,
-// exactly like a nonexistent one, never revealing whether the id exists
-// in another tenant) and is stamped onto the new shipment and every
-// line. Product/Location ownership for each shippable item is not
-// re-verified here — it was already verified when Picking itself
-// created those lines (Batch 2's own resolveLocation/FindByIDForTenant
-// checks) — items are copied verbatim from the already-tenant-scoped
-// picking task response, never from client input. Order ownership is
-// NOT verified here: picking_tasks carries order_no as free text only,
-// no order_id FK exists anywhere in this schema (see
-// [[wms_30b_picking_tenant_isolation]]'s own report) — the real
-// ownership boundary for "does this picking task belong to the order
-// that created it" is internal/order's own CreatePickingTask, one layer
-// up, not something Shipping can independently verify.
+// Phase 33D.1: re-keyed off req.PackingJobID (a deliberate, documented
+// breaking API change from the old req.PickingTaskID — see dto.go's own
+// CreateRequest doc). The gate is job.Status == packing.StatusCompleted
+// (ErrNotPacked otherwise) — packing's own two-person checker-confirm,
+// never auto-derived — rather than picking's own COMPLETED/SHORT_PICK,
+// so a shipment can no longer be created from a picking task that was
+// never packed into any carton at all. Lines are built from
+// packed_qty, the physical, carton-verified quantity, not picked_qty
+// directly — a line that was picked but never actually packed (or only
+// partially packed) ships only what was actually boxed. PickingTaskID
+// is still populated (from job.PickingTaskID) for display continuity
+// only; OrderNo/Customer/ShipTo* are resolved at display time from the
+// linked packing job's own order snapshot (FindDetail/List), not
+// re-derived or stored here.
+//
+// Zero new batch-awareness code: whether job came from an ordinary
+// PICK_BY_ORDER task or is one of a batch-sourced task's own per-order
+// jobs (Phase 33C.2), job.Items already carries exactly that order's own
+// packed quantities — Create treats both identically.
+//
+// tenantID is the caller's own verified tenant (Phase 30 Batch 4's own
+// discipline, carried forward). It verifies the linked packing job's
+// ownership via packingChecker.Get (a cross-tenant packing_job_id is
+// rejected as ErrPackingJobNotFound, exactly like a nonexistent one,
+// never revealing whether the id exists in another tenant) and is
+// stamped onto the new shipment and every line. Product/Location
+// ownership for each shippable item is not re-verified here — it was
+// already verified when Picking/Packing created those lines — items are
+// copied verbatim from the already-tenant-scoped packing job response,
+// never from client input.
 func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest, userID int64) (*Response, error) {
-	task, err := s.picking.Get(ctx, tenantID, req.PickingTaskID)
+	job, err := s.packing.Get(ctx, tenantID, req.PackingJobID)
 	if err != nil {
-		return nil, ErrPickingTaskNotFound
+		return nil, ErrPackingJobNotFound
 	}
-	if task.Status != picking.StatusCompleted && task.Status != picking.StatusShortPick {
-		return nil, ErrNotShippable
+	if job.Status != packing.StatusCompleted {
+		return nil, ErrNotPacked
 	}
 
-	var shippableItems []picking.ItemResponse
-	for _, it := range task.Items {
-		if it.Status == picking.ItemStatusCompleted && it.PickedQty > 0 {
+	var shippableItems []packing.ItemResponse
+	for _, it := range job.Items {
+		if it.PackedQty > 0 {
 			shippableItems = append(shippableItems, it)
 		}
 	}
@@ -189,8 +219,8 @@ func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest,
 
 	// The duplicate-shipment check is the first thing here that touches
 	// the database — everything above is pure validation against the
-	// already-fetched picking task and the request body.
-	if _, err := s.repo.FindByPickingTaskID(ctx, tenantID, req.PickingTaskID); err == nil {
+	// already-fetched packing job and the request body.
+	if _, err := s.repo.FindByPackingJobID(ctx, tenantID, req.PackingJobID); err == nil {
 		return nil, ErrAlreadyShipped
 	} else if !errors.Is(err, ErrNotFound) {
 		return nil, err
@@ -204,10 +234,11 @@ func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest,
 	defer cancel()
 
 	var shipmentID int64
+	packingJobID := req.PackingJobID
 	start := time.Now()
 	err = s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
 		shipment := &Shipment{
-			PickingTaskID: req.PickingTaskID, Carrier: req.Carrier, TrackingNo: req.TrackingNo,
+			PackingJobID: &packingJobID, PickingTaskID: job.PickingTaskID, Carrier: req.Carrier, TrackingNo: req.TrackingNo,
 			Packages: packages, Weight: req.Weight, ShipDate: req.ShipDate, Address: req.Address,
 			Remark: req.Remark, Status: StatusReady, CreatedBy: &userID,
 		}
@@ -218,8 +249,8 @@ func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest,
 
 		for _, it := range shippableItems {
 			if err := txRepo.CreateItem(ctx, tenantID, &Item{
-				ShipmentID: shipment.ID, PickingTaskItemID: it.ID, ProductID: it.ProductID,
-				LotNo: it.LotNo, LocationID: it.LocationID, Qty: it.PickedQty, UOM: it.UOM,
+				ShipmentID: shipment.ID, PickingTaskItemID: it.PickingTaskItemID, ProductID: it.ProductID,
+				LotNo: it.LotNo, LocationID: it.LocationID, Qty: it.PackedQty, UOM: it.UOM,
 			}); err != nil {
 				return err
 			}
