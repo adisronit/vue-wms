@@ -197,7 +197,25 @@ func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams
 	where := `WHERE tr.tenant_id = ?
 		AND (? = '' OR tr.receipt_no LIKE ? OR s.shipment_no LIKE ? OR o.order_no LIKE ?)
 		AND (? = '' OR tr.status = ?)
-		AND (? = 0 OR tr.destination_warehouse_id = ?)`
+		AND (? = 0 OR tr.destination_warehouse_id = ?)
+		AND (? = 0 OR EXISTS (
+			SELECT 1 FROM transfer_receipt_items tri
+			WHERE tri.transfer_receipt_id = tr.id AND tri.tenant_id = tr.tenant_id
+				AND tri.discrepancy_qty IS NOT NULL AND tri.discrepancy_qty <> 0
+		))`
+
+	// hasDiscrepancyFlag (Phase 33E.3) drives the "? = 0 OR EXISTS (...)"
+	// clause above using the exact same int-flag-over-a-bool-param shape
+	// DestinationWarehouseID's own "? = 0 OR ..." clause already uses --
+	// SQL Server's raw driver has no native bool bind for a literal "0 OR
+	// 1" comparison in this position, so every other optional filter in
+	// this query already goes through either a string or an int,
+	// matching that precedent rather than introducing a new parameter
+	// type for this one clause.
+	hasDiscrepancyFlag := 0
+	if params.HasDiscrepancy {
+		hasDiscrepancyFlag = 1
+	}
 
 	like := "%" + params.Search + "%"
 	args := []any{
@@ -205,6 +223,7 @@ func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams
 		params.Search, like, like, like,
 		string(params.Status), string(params.Status),
 		params.DestinationWarehouseID, params.DestinationWarehouseID,
+		hasDiscrepancyFlag,
 	}
 
 	var total int64

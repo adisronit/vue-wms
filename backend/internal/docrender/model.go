@@ -44,6 +44,11 @@ const (
 	// respective new PDFs, closing out Phase 33D's outbound chain.
 	TypeDeliveryNote    = "DELIVERY_NOTE"
 	TypeLoadingManifest = "LOADING_MANIFEST"
+	// TypeTransferNote (Phase 33E.3, migrations/0119 widens this table's
+	// own CK_document_renders_document_type to allow it) is internal/
+	// transferreceipt's own new PDF -- the closing document of Phase
+	// 33E's inter-warehouse transfer chain.
+	TypeTransferNote = "TRANSFER_NOTE"
 )
 
 // DocumentRender is the GORM model for the document_renders table

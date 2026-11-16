@@ -12,7 +12,13 @@ vi.mock('../../../services/transferReceipts', async () => {
     createTransferReceipt: vi.fn(),
     receiveTransferReceiptItem: vi.fn(),
     confirmTransferReceipt: vi.fn(),
-    cancelTransferReceipt: vi.fn()
+    cancelTransferReceipt: vi.fn(),
+    // Phase 33E.3 — reconciliation summary + Transfer Note PDF.
+    getTransferReceiptReconciliation: vi.fn().mockResolvedValue({
+      data: { receipt_id: 10, receipt_no: 'TRC-000001', status: 'DRAFT', total_dispatched_qty: 40, total_received_qty: 0, total_discrepancy_qty: 0, fully_reconciled: false, reconciliation_status: 'PENDING', lines: [] }
+    }),
+    viewTransferNote: vi.fn().mockResolvedValue(undefined),
+    downloadTransferNote: vi.fn().mockResolvedValue(undefined)
   }
 })
 vi.mock('../../../services/warehouses', () => ({
@@ -27,7 +33,10 @@ import {
   getTransferReceipt,
   confirmTransferReceipt,
   cancelTransferReceipt,
-  receiveTransferReceiptItem
+  receiveTransferReceiptItem,
+  getTransferReceiptReconciliation,
+  viewTransferNote,
+  downloadTransferNote
 } from '../../../services/transferReceipts'
 
 const globalMocks = { $t: (key) => key, $d: (v) => String(v) }
@@ -174,5 +183,89 @@ describe('TransferReceivingView', () => {
 
     await wrapper.vm.cancelDrawerReceipt()
     expect(cancelTransferReceipt).toHaveBeenCalledTimes(1)
+  })
+
+  // Phase 33E.3 — reconciliation summary + Transfer Note PDF.
+
+  it('fetches and displays the reconciliation summary when opening a receipt', async () => {
+    getTransferReceipt.mockResolvedValue({ data: receiptDetail() })
+    getTransferReceiptReconciliation.mockResolvedValue({
+      data: {
+        receipt_id: 10, receipt_no: 'TRC-000001', status: 'DRAFT',
+        total_dispatched_qty: 40, total_received_qty: 10, total_discrepancy_qty: 5,
+        fully_reconciled: false, reconciliation_status: 'PENDING',
+        lines: [{ item_id: 1, fully_reconciled: false, discrepancy_qty: 5, discrepancy_reason: 'short' }]
+      }
+    })
+    const wrapper = mount(TransferReceivingView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    await wrapper.vm.openReceipt({ id: 10 })
+    await flushPromises()
+
+    expect(getTransferReceiptReconciliation).toHaveBeenCalledWith(10)
+    expect(wrapper.vm.reconciliation.reconciliation_status).toBe('PENDING')
+    expect(wrapper.vm.reconciliationLineMap[1].fully_reconciled).toBe(false)
+    expect(wrapper.text()).toContain('transferReceiving.reconciliation.title')
+  })
+
+  it('does not block the drawer when the reconciliation lookup fails', async () => {
+    getTransferReceipt.mockResolvedValue({ data: receiptDetail() })
+    getTransferReceiptReconciliation.mockRejectedValue(new Error('boom'))
+    const wrapper = mount(TransferReceivingView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    await wrapper.vm.openReceipt({ id: 10 })
+    await flushPromises()
+
+    expect(wrapper.vm.selectedReceipt.receipt_no).toBe('TRC-000001')
+    expect(wrapper.vm.reconciliation).toBeNull()
+  })
+
+  it('resets reconciliation state when the drawer is closed', async () => {
+    getTransferReceipt.mockResolvedValue({ data: receiptDetail() })
+    getTransferReceiptReconciliation.mockResolvedValue({
+      data: { receipt_id: 10, receipt_no: 'TRC-000001', status: 'DRAFT', total_dispatched_qty: 40, total_received_qty: 0, total_discrepancy_qty: 0, fully_reconciled: false, reconciliation_status: 'PENDING', lines: [] }
+    })
+    const wrapper = mount(TransferReceivingView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    await wrapper.vm.openReceipt({ id: 10 })
+    await flushPromises()
+    expect(wrapper.vm.reconciliation).not.toBeNull()
+
+    wrapper.vm.closeDrawer()
+    expect(wrapper.vm.reconciliation).toBeNull()
+    expect(wrapper.vm.showHistory).toBe(false)
+  })
+
+  it('views and downloads the Transfer Note PDF for the open receipt', async () => {
+    getTransferReceipt.mockResolvedValue({ data: receiptDetail() })
+    const wrapper = mount(TransferReceivingView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    await wrapper.vm.openReceipt({ id: 10 })
+    await flushPromises()
+
+    await wrapper.vm.viewTransferNotePdf()
+    expect(viewTransferNote).toHaveBeenCalledWith(10)
+
+    await wrapper.vm.downloadTransferNotePdf()
+    expect(downloadTransferNote).toHaveBeenCalledWith(10)
+  })
+
+  it('refetches the list with has_discrepancy when the follow-up filter is checked', async () => {
+    listTransferReceipts.mockResolvedValue(page([row]))
+    const wrapper = mount(TransferReceivingView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    wrapper.vm.filters.destinationWarehouseId = 2
+    await flushPromises()
+    listTransferReceipts.mockClear()
+
+    wrapper.vm.filters.hasDiscrepancy = true
+    await flushPromises()
+
+    expect(listTransferReceipts).toHaveBeenCalledWith(expect.objectContaining({ hasDiscrepancy: true }))
   })
 })

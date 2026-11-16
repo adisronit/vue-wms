@@ -2897,7 +2897,8 @@
     "filters": {
       "searchPlaceholder": "ค้นหาใบรับสินค้า, เลขที่จัดส่ง, เลขที่คำสั่ง...",
       "allStatus": "ทุกสถานะ",
-      "selectDestinationWarehouse": "เลือกคลังปลายทาง"
+      "selectDestinationWarehouse": "เลือกคลังปลายทาง",
+      "hasDiscrepancyOnly": "ต้องติดตาม (มีความคลาดเคลื่อน)"
     },
     "table": {
       "receiptNo": "เลขที่ใบรับสินค้า",
@@ -2912,6 +2913,19 @@
     "noReceipts": "ไม่พบใบรับสินค้าโอนย้าย",
     "lineStatus": {
       "discrepancy": "พบความคลาดเคลื่อน"
+    },
+    "reconciliation": {
+      "title": "การกระทบยอด",
+      "status": {
+        "pending": "รอดำเนินการ",
+        "reconciled": "กระทบยอดแล้ว",
+        "discrepancy": "พบความคลาดเคลื่อน"
+      },
+      "totalDispatched": "ยอดจัดส่งรวม",
+      "totalReceived": "ยอดรับรวม",
+      "totalDiscrepancy": "ยอดความคลาดเคลื่อนรวม",
+      "fullyReconciled": "กระทบยอดครบถ้วน",
+      "notFullyReconciled": "กระทบยอดไม่ครบถ้วน"
     },
     "drawer": {
       "newReceiptTitle": "ใบรับสินค้าโอนย้ายใหม่",
@@ -2936,7 +2950,10 @@
       "receiveButton": "รับสินค้า",
       "confirmButton": "ยืนยันใบรับสินค้า",
       "cancelButton": "ยกเลิกใบรับสินค้า",
-      "notReadyToConfirm": "ทุกรายการต้องรับครบหรือปิดด้วยความคลาดเคลื่อนก่อนยืนยัน"
+      "notReadyToConfirm": "ทุกรายการต้องรับครบหรือปิดด้วยความคลาดเคลื่อนก่อนยืนยัน",
+      "viewTransferNote": "ดูใบโอนย้ายสินค้า",
+      "downloadTransferNote": "ดาวน์โหลดใบโอนย้ายสินค้า",
+      "historyButton": "ประวัติเอกสาร"
     },
     "messages": {
       "selectSourceRequired": "กรุณาเลือกการจัดส่งต้นทาง",
@@ -2947,7 +2964,8 @@
       "itemReceived": "รับสินค้าแล้ว",
       "receiptConfirmed": "ยืนยันใบรับสินค้าโอนย้ายแล้ว",
       "receiptCancelled": "ยกเลิกใบรับสินค้าโอนย้ายแล้ว",
-      "confirmCancelReceipt": "ใบรับสินค้าโอนย้ายนี้จะถูกยกเลิก ดำเนินการต่อหรือไม่?"
+      "confirmCancelReceipt": "ใบรับสินค้าโอนย้ายนี้จะถูกยกเลิก ดำเนินการต่อหรือไม่?",
+      "pdfFailed": "ไม่สามารถสร้างใบโอนย้ายสินค้าได้"
     }
   },
   "sortation": {

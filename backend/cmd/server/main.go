@@ -434,7 +434,16 @@ func main() {
 	// existing pipeline, it never orchestrates any part of it.
 	transferReceiptRepo := transferreceipt.NewRepository(dbManager.DB())
 	transferReceiptService := transferreceipt.NewService(transferReceiptRepo, shippingService, orderRepo, inventoryService)
-	transferreceipt.NewHandler(transferReceiptService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+	// Phase 33E.3 -- Reconciliation + Inter-Warehouse Transfer Note PDF.
+	// shippingService/orderRepo/warehouseRepo are the exact same
+	// instances already wired above -- this PDF generator never opens a
+	// second dependency graph, only reads through the same already-
+	// correct services/repositories every other module already shares.
+	transferReceiptPDFService := transferreceipt.NewPDFService(transferReceiptService, shippingService, orderRepo, warehouseRepo, tenantRepo, userRepo)
+	transferReceiptPDFService.SetProductInfo(productRepo, brandRepo)
+	transferReceiptPDFService.SetExpiryInfo(pickingService)
+	transferReceiptPDFService.SetDocRender(docrenderService)
+	transferreceipt.NewHandler(transferReceiptService, transferReceiptPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Phase 33C.1 — Batch Picking / Wave Management. Shares the exact
 	// same pickingService (and its own CreateTx/SuggestLots/Get) every

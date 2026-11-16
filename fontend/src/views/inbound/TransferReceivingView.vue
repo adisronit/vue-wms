@@ -55,6 +55,11 @@
         <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }}</option>
       </select>
 
+      <label class="flex items-center gap-2 text-sm text-slate-600 whitespace-nowrap">
+        <input type="checkbox" v-model="filters.hasDiscrepancy" />
+        {{ $t('transferReceiving.filters.hasDiscrepancyOnly') }}
+      </label>
+
       <button
         @click="clearFilter"
         class="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold"
@@ -121,11 +126,57 @@
             </p>
           </div>
 
+          <div v-if="!isNewReceipt" class="flex gap-2 items-center">
+            <button @click="viewTransferNotePdf" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-semibold">
+              {{ $t('transferReceiving.drawer.viewTransferNote') }}
+            </button>
+            <button @click="downloadTransferNotePdf" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-semibold">
+              {{ $t('transferReceiving.drawer.downloadTransferNote') }}
+            </button>
+            <button @click="showHistory = true" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-semibold">
+              📜 {{ $t('transferReceiving.drawer.historyButton') }}
+            </button>
+          </div>
+
           <button @click="closeDrawer" class="text-slate-500 hover:text-red-600 text-xl">✕</button>
         </div>
 
+        <DocumentHistoryPanel
+          v-if="!isNewReceipt"
+          :open="showHistory"
+          document-type="TRANSFER_NOTE"
+          :source-id="selectedReceipt.id"
+          :title="$t('transferReceiving.drawer.historyButton')"
+          @close="showHistory = false"
+        />
+
         <div v-if="!isNewReceipt" class="mb-6">
           <StatusBadge :tone="statusTone(selectedReceipt.status)">{{ statusText(selectedReceipt.status) }}</StatusBadge>
+        </div>
+
+        <div v-if="!isNewReceipt && reconciliation" class="bg-slate-50 rounded-2xl p-5 mb-6">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-slate-800">{{ $t('transferReceiving.reconciliation.title') }}</h3>
+            <StatusBadge :tone="reconciliationStatusTone(reconciliation.reconciliation_status)">
+              {{ reconciliationStatusText(reconciliation.reconciliation_status) }}
+            </StatusBadge>
+          </div>
+          <div class="grid grid-cols-3 gap-4">
+            <div>
+              <p class="detail-label">{{ $t('transferReceiving.reconciliation.totalDispatched') }}</p>
+              <p class="detail-value">{{ reconciliation.total_dispatched_qty }}</p>
+            </div>
+            <div>
+              <p class="detail-label">{{ $t('transferReceiving.reconciliation.totalReceived') }}</p>
+              <p class="detail-value">{{ reconciliation.total_received_qty }}</p>
+            </div>
+            <div>
+              <p class="detail-label">{{ $t('transferReceiving.reconciliation.totalDiscrepancy') }}</p>
+              <p class="detail-value" :class="{ 'text-red-600': reconciliation.total_discrepancy_qty > 0 }">
+                {{ reconciliation.total_discrepancy_qty }}
+              </p>
+            </div>
+          </div>
         </div>
 
         <div v-if="drawerError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm mb-4">
@@ -221,7 +272,18 @@
             >
               <div class="flex items-center justify-between mb-2">
                 <p class="font-semibold text-slate-800">{{ line.sku }} — {{ line.product_name }}</p>
-                <StatusBadge :tone="lineStatusTone(line.status)">{{ lineStatusText(line.status) }}</StatusBadge>
+                <div class="flex items-center gap-2">
+                  <span
+                    v-if="reconciliationLineMap[line.id]"
+                    class="text-xs font-bold px-2 py-0.5 rounded"
+                    :class="reconciliationLineMap[line.id].fully_reconciled ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50'"
+                  >
+                    {{ reconciliationLineMap[line.id].fully_reconciled
+                      ? $t('transferReceiving.reconciliation.fullyReconciled')
+                      : $t('transferReceiving.reconciliation.notFullyReconciled') }}
+                  </span>
+                  <StatusBadge :tone="lineStatusTone(line.status)">{{ lineStatusText(line.status) }}</StatusBadge>
+                </div>
               </div>
               <p class="text-sm text-slate-500 mb-3">
                 {{ $t('transferReceiving.drawer.dispatchedReceived') }}: {{ line.received_qty }} / {{ line.dispatched_qty }} {{ line.uom }}
@@ -316,6 +378,9 @@ import {
   confirmTransferReceipt,
   cancelTransferReceipt,
   newIdempotencyKey,
+  getTransferReceiptReconciliation,
+  viewTransferNote,
+  downloadTransferNote,
 } from '../../services/transferReceipts'
 import { listWarehouses, listLocations, listZones } from '../../services/warehouses'
 import { hasPermission } from '../../services/auth'
@@ -325,6 +390,7 @@ import FilterBar from '../../components/ui/FilterBar.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
+import DocumentHistoryPanel from '../../components/documents/DocumentHistoryPanel.vue'
 import i18n from '../../i18n'
 
 const { t } = i18n.global
@@ -364,10 +430,29 @@ function lineStatusTone(status) {
   return 'gray'
 }
 
+// Phase 33E.3 — the reconciliation summary's own overall verdict
+// (PENDING/RECONCILED/DISCREPANCY, see Service.Reconciliation's own
+// doc).
+function reconciliationStatusText(status) {
+  switch (status) {
+    case 'PENDING': return t('transferReceiving.reconciliation.status.pending')
+    case 'RECONCILED': return t('transferReceiving.reconciliation.status.reconciled')
+    case 'DISCREPANCY': return t('transferReceiving.reconciliation.status.discrepancy')
+    default: return status
+  }
+}
+
+function reconciliationStatusTone(status) {
+  if (status === 'PENDING') return 'gray'
+  if (status === 'RECONCILED') return 'green'
+  if (status === 'DISCREPANCY') return 'red'
+  return 'gray'
+}
+
 export default {
   name: 'TransferReceivingView',
 
-  components: { PageHeader, FilterBar, DataTable, StatusBadge, ConfirmDialog },
+  components: { PageHeader, FilterBar, DataTable, StatusBadge, ConfirmDialog, DocumentHistoryPanel },
 
   data() {
     return {
@@ -386,11 +471,17 @@ export default {
       receiveForms: {},
       submitting: false,
       showCancelConfirm: false,
+      showHistory: false,
+      // Phase 33E.3 — the reconciliation summary for the currently open
+      // receipt, re-fetched every time the receipt is (re)loaded so it
+      // always reflects the latest Receive/Confirm action.
+      reconciliation: null,
 
       filters: {
         keyword: '',
         status: '',
-        destinationWarehouseId: ''
+        destinationWarehouseId: '',
+        hasDiscrepancy: false
       }
     }
   },
@@ -417,6 +508,17 @@ export default {
     allLinesSettled() {
       const items = (this.selectedReceipt && this.selectedReceipt.items) || []
       return items.length > 0 && items.every((it) => it.status === 'COMPLETED' || it.status === 'DISCREPANCY')
+    },
+    // Phase 33E.3 — item_id -> reconciliation line, for the per-line
+    // "Fully Reconciled" badge rendered alongside each line's existing
+    // status badge.
+    reconciliationLineMap() {
+      const map = {}
+      const lines = (this.reconciliation && this.reconciliation.lines) || []
+      for (const line of lines) {
+        map[line.item_id] = line
+      }
+      return map
     }
   },
 
@@ -426,6 +528,9 @@ export default {
       searchDebounce = setTimeout(() => this.fetchReceipts(), 300)
     },
     'filters.status'() {
+      this.fetchReceipts()
+    },
+    'filters.hasDiscrepancy'() {
       this.fetchReceipts()
     },
     'filters.destinationWarehouseId'() {
@@ -443,6 +548,8 @@ export default {
     statusTone,
     lineStatusText,
     lineStatusTone,
+    reconciliationStatusText,
+    reconciliationStatusTone,
 
     async fetchReceipts() {
       if (!this.filters.destinationWarehouseId) {
@@ -456,6 +563,7 @@ export default {
           search: this.filters.keyword,
           status: this.filters.status,
           destinationWarehouseId: this.filters.destinationWarehouseId,
+          hasDiscrepancy: this.filters.hasDiscrepancy,
           limit: 100
         })
         this.receiptList = res.data
@@ -492,6 +600,7 @@ export default {
       this.filters.keyword = ''
       this.filters.status = ''
       this.filters.destinationWarehouseId = ''
+      this.filters.hasDiscrepancy = false
       this.receiptList = []
       this.allReceipts = []
     },
@@ -532,15 +641,32 @@ export default {
           this.receiveForms[line.id] = { locationId: '', quantity: line.dispatched_qty - line.received_qty, closeShort: false, discrepancyReason: '' }
         }
         await this.fetchLocationsForWarehouse(res.data.destination_warehouse_id)
+        await this.fetchReconciliation(item.id)
       } catch (err) {
         this.drawerError = err.message
         this.selectedReceipt = null
       }
     },
 
+    // Phase 33E.3 — read-only reconciliation summary for the currently
+    // open receipt. Non-critical: a lookup failure here must never
+    // block viewing/working the receipt itself, so it simply leaves the
+    // reconciliation panel hidden.
+    async fetchReconciliation(id) {
+      this.reconciliation = null
+      try {
+        const res = await getTransferReceiptReconciliation(id)
+        this.reconciliation = res.data
+      } catch {
+        // Non-critical — see this method's own doc above.
+      }
+    },
+
     closeDrawer() {
       this.selectedReceipt = null
       this.isNewReceipt = false
+      this.showHistory = false
+      this.reconciliation = null
     },
 
     async fetchLocationsForWarehouse(warehouseId) {
@@ -657,6 +783,25 @@ export default {
     formatDateTime(isoString) {
       if (!isoString) return '—'
       return this.$d(new Date(isoString), 'long')
+    },
+
+    // Phase 33E.3 — Inter-Warehouse Transfer Note PDF. Mirrors
+    // ShippingView.vue's own viewDeliveryNotePdf/downloadDeliveryNotePdf
+    // shape exactly.
+    async viewTransferNotePdf() {
+      try {
+        await viewTransferNote(this.selectedReceipt.id)
+      } catch (err) {
+        showToast(err.message || this.$t('transferReceiving.messages.pdfFailed'), 'error')
+      }
+    },
+
+    async downloadTransferNotePdf() {
+      try {
+        await downloadTransferNote(this.selectedReceipt.id)
+      } catch (err) {
+        showToast(err.message || this.$t('transferReceiving.messages.pdfFailed'), 'error')
+      }
     }
   }
 }

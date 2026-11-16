@@ -2897,7 +2897,8 @@
     "filters": {
       "searchPlaceholder": "搜索收货单号、发运单号、订单号...",
       "allStatus": "全部状态",
-      "selectDestinationWarehouse": "选择目的仓库"
+      "selectDestinationWarehouse": "选择目的仓库",
+      "hasDiscrepancyOnly": "待跟进（存在差异）"
     },
     "table": {
       "receiptNo": "收货单号",
@@ -2912,6 +2913,19 @@
     "noReceipts": "未找到调拨收货单",
     "lineStatus": {
       "discrepancy": "存在差异"
+    },
+    "reconciliation": {
+      "title": "对账",
+      "status": {
+        "pending": "待处理",
+        "reconciled": "已对账",
+        "discrepancy": "存在差异"
+      },
+      "totalDispatched": "发运总量",
+      "totalReceived": "收货总量",
+      "totalDiscrepancy": "差异总量",
+      "fullyReconciled": "已完全对账",
+      "notFullyReconciled": "尚未完全对账"
     },
     "drawer": {
       "newReceiptTitle": "新建调拨收货单",
@@ -2936,7 +2950,10 @@
       "receiveButton": "收货",
       "confirmButton": "确认收货单",
       "cancelButton": "取消收货单",
-      "notReadyToConfirm": "每条明细必须已全部收货或已记录差异原因才能确认"
+      "notReadyToConfirm": "每条明细必须已全部收货或已记录差异原因才能确认",
+      "viewTransferNote": "查看调拨单",
+      "downloadTransferNote": "下载调拨单",
+      "historyButton": "文档历史"
     },
     "messages": {
       "selectSourceRequired": "请选择来源发运单",
@@ -2947,7 +2964,8 @@
       "itemReceived": "已收货",
       "receiptConfirmed": "调拨收货单已确认",
       "receiptCancelled": "调拨收货单已取消",
-      "confirmCancelReceipt": "此调拨收货单将被取消，是否继续？"
+      "confirmCancelReceipt": "此调拨收货单将被取消，是否继续？",
+      "pdfFailed": "生成调拨单失败"
     }
   },
   "sortation": {
