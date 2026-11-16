@@ -320,26 +320,31 @@ func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams
 }
 
 type itemRow struct {
-	ID           int64
-	ProductID    int64
-	SKU          string
-	ProductName  string
-	LotNo        string
-	LocationID   int64
-	LocationCode string
-	Qty          float64
-	UOM          string
-	CreatedAt    time.Time
+	ID                int64
+	PickingTaskItemID int64
+	ProductID         int64
+	SKU               string
+	ProductName       string
+	LotNo             string
+	LocationID        int64
+	LocationCode      string
+	Qty               float64
+	UOM               string
+	CreatedAt         time.Time
 }
 
 // ListItems is only ever called right after a tenant-scoped FindDetail
 // already proved shipmentID belongs to tenantID, but the tenant_id
 // predicate here is defense in depth, matching internal/picking's own
 // ListItems precedent (Batch 2).
+//
+// picking_task_item_id (Phase 33D.3) is selected purely for the
+// Delivery Note PDF's own carton-LPN join — see ItemResponse's own doc.
 func (r *Repository) ListItems(ctx context.Context, tenantID, shipmentID int64) ([]ItemResponse, error) {
 	var rows []itemRow
 	err := r.db.WithContext(ctx).Raw(`
-		SELECT si.id AS id, si.product_id AS product_id, p.sku AS sku, p.name AS product_name,
+		SELECT si.id AS id, si.picking_task_item_id AS picking_task_item_id, si.product_id AS product_id,
+			p.sku AS sku, p.name AS product_name,
 			si.lot_no AS lot_no, si.location_id AS location_id, l.code AS location_code,
 			si.qty AS qty, si.uom AS uom, si.created_at AS created_at
 		FROM shipment_items si
@@ -355,7 +360,8 @@ func (r *Repository) ListItems(ctx context.Context, tenantID, shipmentID int64) 
 	items := make([]ItemResponse, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, ItemResponse{
-			ID: row.ID, ProductID: row.ProductID, SKU: row.SKU, ProductName: row.ProductName, LotNo: row.LotNo,
+			ID: row.ID, PickingTaskItemID: row.PickingTaskItemID, ProductID: row.ProductID, SKU: row.SKU,
+			ProductName: row.ProductName, LotNo: row.LotNo,
 			LocationID: row.LocationID, LocationCode: row.LocationCode, Qty: row.Qty, UOM: row.UOM,
 			CreatedAt: row.CreatedAt,
 		})

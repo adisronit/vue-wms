@@ -10,12 +10,22 @@ vi.mock('../../../services/shipping', async () => {
     getShipment: vi.fn(),
     cancelShipment: vi.fn(),
     listShippableSources: vi.fn(),
-    createShipment: vi.fn()
+    createShipment: vi.fn(),
+    viewDeliveryNote: vi.fn(),
+    downloadDeliveryNote: vi.fn()
   }
 })
 vi.mock('../../../services/auth', () => ({ hasPermission: vi.fn(() => true) }))
+vi.mock('../../../services/documents', async () => {
+  const actual = await vi.importActual('../../../services/documents')
+  return { ...actual, getDocumentHistory: vi.fn() }
+})
 
-import { listShipments, getShipment, cancelShipment, listShippableSources, createShipment } from '../../../services/shipping'
+import {
+  listShipments, getShipment, cancelShipment, listShippableSources, createShipment,
+  viewDeliveryNote, downloadDeliveryNote
+} from '../../../services/shipping'
+import { getDocumentHistory } from '../../../services/documents'
 
 const globalMocks = { $t: (key, params) => (params ? `${key}:${JSON.stringify(params)}` : key), $d: (v) => String(v) }
 
@@ -110,5 +120,74 @@ describe('ShippingView', () => {
 
     expect(createShipment).not.toHaveBeenCalled()
     expect(wrapper.vm.drawerError).toBeTruthy()
+  })
+
+  // Phase 33D.3 — Delivery Note PDF (Preview/Download) + Document History.
+  it('previews the delivery note for an existing shipment', async () => {
+    listShipments.mockResolvedValue(page([shipment]))
+    getShipment.mockResolvedValue({ data: { ...shipment, items: [] } })
+    viewDeliveryNote.mockResolvedValue()
+    const wrapper = mount(ShippingView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    await wrapper.vm.openShipping({ id: 1 })
+    await flushPromises()
+
+    const previewBtn = wrapper.findAll('button').find((b) => b.text().includes('shipping.drawer.viewDeliveryNote'))
+    expect(previewBtn).toBeTruthy()
+    await previewBtn.trigger('click')
+    await flushPromises()
+
+    expect(viewDeliveryNote).toHaveBeenCalledWith(1)
+  })
+
+  it('downloads the delivery note for an existing shipment', async () => {
+    listShipments.mockResolvedValue(page([shipment]))
+    getShipment.mockResolvedValue({ data: { ...shipment, items: [] } })
+    downloadDeliveryNote.mockResolvedValue()
+    const wrapper = mount(ShippingView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    await wrapper.vm.openShipping({ id: 1 })
+    await flushPromises()
+
+    const downloadBtn = wrapper.findAll('button').find((b) => b.text().includes('shipping.drawer.downloadDeliveryNote'))
+    expect(downloadBtn).toBeTruthy()
+    await downloadBtn.trigger('click')
+    await flushPromises()
+
+    expect(downloadDeliveryNote).toHaveBeenCalledWith(1)
+  })
+
+  it('opens the Document History panel and loads this shipment\'s DELIVERY_NOTE history', async () => {
+    listShipments.mockResolvedValue(page([shipment]))
+    getShipment.mockResolvedValue({ data: { ...shipment, items: [] } })
+    getDocumentHistory.mockResolvedValue({ data: [] })
+    const wrapper = mount(ShippingView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    await wrapper.vm.openShipping({ id: 1 })
+    await flushPromises()
+
+    const historyBtn = wrapper.findAll('button').find((b) => b.text().includes('shipping.drawer.historyButton'))
+    expect(historyBtn).toBeTruthy()
+    await historyBtn.trigger('click')
+    await flushPromises()
+
+    expect(getDocumentHistory).toHaveBeenCalledWith('DELIVERY_NOTE', 1)
+  })
+
+  it('does not show the delivery note / history buttons for a new (unsaved) shipment', async () => {
+    listShipments.mockResolvedValue(page([shipment]))
+    listShippableSources.mockResolvedValue({ success: true, data: [] })
+    const wrapper = mount(ShippingView, { global: { mocks: globalMocks } })
+    await flushPromises()
+
+    await wrapper.vm.openShipping(null)
+    await flushPromises()
+
+    const buttons = wrapper.findAll('button').map((b) => b.text())
+    expect(buttons.some((t) => t.includes('shipping.drawer.viewDeliveryNote'))).toBe(false)
+    expect(buttons.some((t) => t.includes('shipping.drawer.historyButton'))).toBe(false)
   })
 })

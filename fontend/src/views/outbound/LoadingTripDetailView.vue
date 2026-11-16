@@ -5,8 +5,25 @@
         <button @click="$router.push('/outbound/loading')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold">
           {{ $t('newRelocation.backButton') }}
         </button>
+        <button v-if="trip" @click="viewManifestPdf" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold">
+          {{ $t('loading.detail.viewManifest') }}
+        </button>
+        <button v-if="trip" @click="downloadManifestPdf" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold">
+          {{ $t('loading.detail.downloadManifest') }}
+        </button>
+        <button v-if="trip" @click="showHistory = true" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold">
+          📜 {{ $t('loading.detail.historyButton') }}
+        </button>
       </template>
     </PageHeader>
+
+    <DocumentHistoryPanel
+      :open="showHistory"
+      document-type="LOADING_MANIFEST"
+      :source-id="id"
+      :title="$t('loading.detail.historyButton')"
+      @close="showHistory = false"
+    />
 
     <div v-if="loadError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">{{ loadError }}</div>
     <div v-else-if="loading" class="text-sm text-slate-400">{{ $t('loading.loadingTrips') }}</div>
@@ -174,7 +191,7 @@
 <script>
 import {
   getLoadingTrip, listAssignableShipments, assignShipmentToTrip, scanCarton, shortCarton,
-  confirmLoadingTrip, cancelLoadingTrip
+  confirmLoadingTrip, cancelLoadingTrip, viewLoadingManifest, downloadLoadingManifest
 } from '../../services/loading'
 import { hasPermission } from '../../services/auth'
 import { showToast } from '../../services/toast'
@@ -182,10 +199,11 @@ import PageHeader from '../../components/ui/PageHeader.vue'
 import FormSection from '../../components/ui/FormSection.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
+import DocumentHistoryPanel from '../../components/documents/DocumentHistoryPanel.vue'
 
 export default {
   name: 'LoadingTripDetailView',
-  components: { PageHeader, FormSection, StatusBadge, ConfirmDialog },
+  components: { PageHeader, FormSection, StatusBadge, ConfirmDialog, DocumentHistoryPanel },
   props: { id: { type: [String, Number], required: true } },
 
   data() {
@@ -193,6 +211,7 @@ export default {
       loading: false,
       loadError: '',
       trip: null,
+      showHistory: false,
 
       assignableShipments: [],
       assignShipmentId: '',
@@ -241,6 +260,22 @@ export default {
         this.loadError = err.message || this.$t('loading.messages.loadFailed')
       } finally {
         this.loading = false
+      }
+    },
+
+    async viewManifestPdf() {
+      try {
+        await viewLoadingManifest(this.trip.id)
+      } catch (err) {
+        showToast(err.message || this.$t('loading.detail.pdfFailed'), 'error')
+      }
+    },
+
+    async downloadManifestPdf() {
+      try {
+        await downloadLoadingManifest(this.trip.id)
+      } catch (err) {
+        showToast(err.message || this.$t('loading.detail.pdfFailed'), 'error')
       }
     },
 

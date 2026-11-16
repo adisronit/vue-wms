@@ -4,17 +4,27 @@ import "time"
 
 // ItemResponse is one shipment line, matching ShippingView.vue's
 // "Package Items" cards (sku, productName, qty).
+//
+// PickingTaskItemID (Phase 33D.3) exposes the already-existing column
+// shipment_items copies verbatim from the source packing job's own
+// ItemResponse at Create time (see Item's own doc) — added purely so
+// internal/shipping's own Delivery Note PDF (pdf.go) can match each
+// line back to the linked packing job's own CartonLPNs, the exact same
+// join key internal/packing's own PDF already resolves expiry through.
+// Not a new business concept; just surfacing a column the model already
+// carried.
 type ItemResponse struct {
-	ID           int64     `json:"id,string" example:"1"`
-	ProductID    int64     `json:"product_id,string" example:"1"`
-	SKU          string    `json:"sku" example:"SKU-0001"`
-	ProductName  string    `json:"product_name" example:"Barcode Label Roll"`
-	LotNo        string    `json:"lot_no"`
-	LocationID   int64     `json:"location_id,string" example:"1"`
-	LocationCode string    `json:"location_code" example:"BIN-C01"`
-	Qty          float64   `json:"qty" example:"20"`
-	UOM          string    `json:"uom" example:"PCS"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID                int64     `json:"id,string" example:"1"`
+	PickingTaskItemID int64     `json:"picking_task_item_id,string" example:"1"`
+	ProductID         int64     `json:"product_id,string" example:"1"`
+	SKU               string    `json:"sku" example:"SKU-0001"`
+	ProductName       string    `json:"product_name" example:"Barcode Label Roll"`
+	LotNo             string    `json:"lot_no"`
+	LocationID        int64     `json:"location_id,string" example:"1"`
+	LocationCode      string    `json:"location_code" example:"BIN-C01"`
+	Qty               float64   `json:"qty" example:"20"`
+	UOM               string    `json:"uom" example:"PCS"`
+	CreatedAt         time.Time `json:"created_at"`
 } //	@name	ShipmentItemResponse
 
 // Response is a full shipment with its lines — GET /shipping/{id}.

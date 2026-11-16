@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut, apiDownload, triggerDownload } from './api'
+import { apiGet, apiPost, apiPut, apiDownload, triggerDownload, openInNewTab } from './api'
 
 export function listShipments(params = {}) {
   const query = new URLSearchParams()
@@ -62,4 +62,17 @@ export function cancelShipment(id, payload) {
 // (shipment_confirmations), the same pattern services/picking.js uses.
 export function newIdempotencyKey() {
   return crypto.randomUUID()
+}
+
+// Phase 33D.3 — Delivery Note PDF: shipment header + full ship-to
+// address snapshot + every delivery line with its own carton LPN(s).
+// Marked DRAFT until the shipment is actually dispatched.
+export async function viewDeliveryNote(id) {
+  const { blob } = await apiDownload(`/shipping/${id}/delivery-note`)
+  openInNewTab(blob)
+}
+
+export async function downloadDeliveryNote(id) {
+  const { blob, filename } = await apiDownload(`/shipping/${id}/delivery-note?download=true`)
+  triggerDownload(blob, filename)
 }
