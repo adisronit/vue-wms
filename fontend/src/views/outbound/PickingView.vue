@@ -165,6 +165,16 @@
           </button>
         </div>
 
+        <!-- Phase 33B: Print Pick List -->
+        <div v-if="!isNewTask" class="mb-6 flex items-center gap-3">
+          <button
+            @click="printPickList"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm px-3 py-2 rounded-lg font-semibold"
+          >
+            📄 {{ $t('picking.documents.printPickList') }}
+          </button>
+        </div>
+
         <div v-if="drawerError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm mb-4">
           {{ drawerError }}
         </div>
@@ -225,6 +235,26 @@
             <div>
               <p class="detail-label">{{ $t('picking.drawer.dueDate') }}</p>
               <p class="detail-value">{{ selectedPicking.dueDate || '—' }}</p>
+            </div>
+          </div>
+
+          <!-- Phase 33B: operator assignment -->
+          <div class="mt-4 pt-4 border-t border-slate-200">
+            <p class="detail-label">{{ $t('picking.drawer.assignedPicker') }}</p>
+            <p class="detail-value mb-2">{{ selectedPicking.assigned_picker_name || $t('picking.drawer.unassigned') }}</p>
+
+            <div v-if="canAssign && isTaskWorkable" class="flex flex-col md:flex-row gap-2">
+              <select v-model="assignPickerId" class="input">
+                <option value="">{{ $t('picking.drawer.selectPicker') }}</option>
+                <option v-for="u in pickers" :key="u.id" :value="u.id">{{ u.full_name }} ({{ u.username }})</option>
+              </select>
+              <button
+                @click="assignPickerToTask"
+                :disabled="assigning"
+                class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl font-semibold text-sm disabled:opacity-60 whitespace-nowrap"
+              >
+                {{ assigning ? $t('picking.drawer.saving') : $t('picking.drawer.assign') }}
+              </button>
             </div>
           </div>
         </div>
@@ -327,12 +357,59 @@
             </div>
 
             <!-- Existing task, resolved line -->
-            <p v-else-if="product.status === 'COMPLETED' || product.status === 'SHORT'" class="text-sm text-green-600 font-semibold mt-3">
-              {{ $t('picking.drawer.lineResolved', { status: product.statusText }) }}
-            </p>
+            <div v-else-if="product.status === 'COMPLETED' || product.status === 'SHORT'" class="mt-3">
+              <p class="text-sm text-green-600 font-semibold">
+                {{ $t('picking.drawer.lineResolved', { status: product.statusText }) }}
+              </p>
+
+              <!-- Phase 33B: structured short-pick details + re-pick -->
+              <div v-if="product.status === 'SHORT'" class="bg-red-50 rounded-xl p-3 mt-2 text-sm">
+                <p>
+                  <span class="font-semibold">{{ $t('picking.drawer.shortReasonLabel') }}:</span>
+                  {{ shortReasonLabel(product.shortReason) }}
+                  <span v-if="product.shortQty != null">
+                    ({{ $t('picking.drawer.shortQtyLabel') }}: {{ product.shortQty }})
+                  </span>
+                </p>
+                <p v-if="product.remark" class="text-slate-500 mt-1">{{ product.remark }}</p>
+                <p v-if="product.repickCount > 0" class="text-slate-400 text-xs mt-1">
+                  {{ $t('picking.drawer.repickCount', { count: product.repickCount }) }}
+                </p>
+
+                <button
+                  v-if="canRepick && isTaskRepickable"
+                  @click="repickLine(product)"
+                  :disabled="!!repicking[product.id]"
+                  class="mt-3 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl font-semibold text-sm disabled:opacity-60"
+                >
+                  {{ repicking[product.id] ? $t('picking.drawer.repicking') : $t('picking.drawer.repick') }}
+                </button>
+              </div>
+            </div>
 
             <!-- Existing task, workable line -->
             <template v-else-if="!isNewTask">
+              <!-- Phase 33B: barcode/QR scan confirmation — a keyboard-
+                   wedge scanner types the scanned code as keystrokes then
+                   Enter, so a plain text input + @keyup.enter is all this
+                   needs (no camera API). -->
+              <div v-if="canScan && canConfirm && isTaskWorkable" class="mt-4">
+                <label class="label">{{ $t('picking.drawer.scanLabel') }}</label>
+                <div class="flex gap-2 items-center">
+                  <input
+                    v-model="scanInputs[product.id]"
+                    type="text"
+                    class="input"
+                    :placeholder="$t('picking.drawer.scanPlaceholder')"
+                    :disabled="!!scanning[product.id]"
+                    @keyup.enter="scanLine(product)"
+                  />
+                  <span v-if="product.scanVerified" class="text-green-600 font-semibold text-sm whitespace-nowrap">
+                    ✓ {{ $t('picking.drawer.scanVerified') }}
+                  </span>
+                </div>
+              </div>
+
               <div v-if="canConfirm && isTaskWorkable" class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
                 <input
                   v-model.number="product.inputQty"
@@ -343,7 +420,7 @@
 
                 <button
                   @click="confirmPick(product)"
-                  :disabled="submitting"
+                  :disabled="submitting || (canScan && !product.scanVerified)"
                   class="bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-semibold disabled:opacity-60"
                 >
                   {{ $t('picking.drawer.confirmPick') }}
@@ -351,13 +428,22 @@
 
                 <button
                   @click="shortPick(product)"
-                  :disabled="submitting"
+                  :disabled="submitting || (canScan && !product.scanVerified)"
                   class="bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold disabled:opacity-60"
                 >
                   {{ $t('picking.drawer.shortPick') }}
                 </button>
               </div>
-              <div v-if="canConfirm && isTaskWorkable" class="mt-3">
+              <div v-if="canConfirm && isTaskWorkable" class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                <select v-model="product.shortReason" class="input">
+                  <option value="">{{ $t('picking.drawer.shortReasonPlaceholder') }}</option>
+                  <option value="OUT_OF_STOCK">{{ $t('picking.shortReason.outOfStock') }}</option>
+                  <option value="DAMAGED">{{ $t('picking.shortReason.damaged') }}</option>
+                  <option value="LOCATION_EMPTY">{{ $t('picking.shortReason.locationEmpty') }}</option>
+                  <option value="WRONG_LOT">{{ $t('picking.shortReason.wrongLot') }}</option>
+                  <option value="MISCOUNT">{{ $t('picking.shortReason.miscount') }}</option>
+                  <option value="OTHER">{{ $t('picking.shortReason.other') }}</option>
+                </select>
                 <input
                   v-model="product.remark"
                   type="text"
@@ -415,9 +501,14 @@
 </template>
 
 <script>
-import { listPicking, getPickingTask, createPickingTask, confirmPickingTask, cancelPickingTask, newIdempotencyKey, exportPicking } from '../../services/picking'
+import {
+  listPicking, getPickingTask, createPickingTask, confirmPickingTask, cancelPickingTask,
+  newIdempotencyKey, exportPicking, assignPicker, scanConfirmPickingItem, repickPickingItem,
+  viewPickList
+} from '../../services/picking'
 import { listWarehouses, listZones, listLocations } from '../../services/warehouses'
 import { listProducts } from '../../services/products'
+import { listUsers } from '../../services/users'
 import { hasPermission } from '../../services/auth'
 import { showToast } from '../../services/toast'
 import PageHeader from '../../components/ui/PageHeader.vue'
@@ -496,6 +587,23 @@ export default {
       submitting: false,
       cancelRemark: '',
 
+      // Phase 33B — operator assignment.
+      pickers: [],
+      assignPickerId: '',
+      assigning: false,
+
+      // Phase 33B — barcode/QR scan confirmation. scannedLineIds holds
+      // the set of item ids that have passed a MATCH scan this drawer
+      // session; Confirm/Short Pick for a line are disabled until its
+      // own id is in this set. scanInputs holds each line's own
+      // keyboard-wedge scanner text input.
+      scannedLineIds: {},
+      scanInputs: {},
+      scanning: {},
+
+      // Phase 33B — re-pick.
+      repicking: {},
+
       newTaskForm: {
         orderNo: '',
         customer: '',
@@ -536,11 +644,26 @@ export default {
     canCreate() {
       return hasPermission('picking.create')
     },
-    // Confirm (per-line pick/short-pick) is gated on picking.update on
-    // the backend, not picking.approve — see internal/picking/handler.go's
-    // doc: the PICKING role's own Phase 2 grants only ever included
-    // view/update, never create/approve.
+    // Phase 33B: Confirm (per-line pick/short-pick) and Repick are now
+    // gated on the new picking.confirm — split out of picking.approve
+    // the same way receiving.confirm/quality_check.confirm/putaway.
+    // confirm/relocation.confirm/order.confirm already were — rather
+    // than picking.update, which Confirm used before this phase. See
+    // backend internal/rbac/catalog.go's own doc on the "picking" module.
     canConfirm() {
+      return hasPermission('picking.confirm')
+    },
+    canRepick() {
+      return hasPermission('picking.confirm')
+    },
+    // Assign/reassign and the scan-validation step are both non-stock-
+    // mutating, execution-level actions — still gated on picking.update,
+    // the permission Confirm itself used to sit at before Phase 33B's
+    // split above.
+    canAssign() {
+      return hasPermission('picking.update')
+    },
+    canScan() {
       return hasPermission('picking.update')
     },
     // Cancel is gated on picking.approve, not picking.update — see the
@@ -560,6 +683,13 @@ export default {
       return !this.isNewTask && this.selectedPicking &&
         (this.selectedPicking.status === 'PENDING' || this.selectedPicking.status === 'IN_PROGRESS')
     },
+    // Phase 33B: matches backend Status.CanRepick — unlike isTaskWorkable,
+    // SHORT_PICK is itself the normal starting point for a re-pick
+    // attempt, not an exception to it (see backend model.go's own doc).
+    isTaskRepickable() {
+      return !this.isNewTask && this.selectedPicking &&
+        (this.selectedPicking.status === 'PENDING' || this.selectedPicking.status === 'IN_PROGRESS' || this.selectedPicking.status === 'SHORT_PICK')
+    },
     displayItems() {
       if (this.isNewTask) {
         return this.newItems.map((it, idx) => ({
@@ -578,12 +708,17 @@ export default {
         sku: it.sku,
         productName: it.product_name,
         location: it.location_code,
+        lotNo: it.lot_no,
         orderQty: it.ordered_qty,
         pickedQty: it.picked_qty,
         status: it.status,
         statusText: itemStatusText(it.status),
         inputQty: it.inputQty || 0,
-        remark: it.remark || ''
+        remark: it.remark || '',
+        shortReason: it.short_reason || '',
+        shortQty: it.short_qty,
+        repickCount: it.repick_count || 0,
+        scanVerified: !!this.scannedLineIds[it.id]
       }))
     }
   },
@@ -692,10 +827,23 @@ export default {
       }
     },
 
+    async fetchPickers() {
+      if (this.pickers.length > 0) return
+      try {
+        const res = await listUsers({ limit: 100 })
+        this.pickers = res.data
+      } catch {
+        // Non-critical: the assign control simply shows no options.
+      }
+    },
+
     async openPicking(item) {
       this.drawerError = ''
       this.submitting = false
       this.cancelRemark = ''
+      this.assignPickerId = ''
+      this.scannedLineIds = {}
+      this.scanInputs = {}
 
       if (!item) {
         this.isNewTask = true
@@ -709,6 +857,7 @@ export default {
       }
 
       this.isNewTask = false
+      if (this.canAssign) await this.fetchPickers()
       try {
         const res = await getPickingTask(item.id)
         this.selectedPicking = {
@@ -716,6 +865,7 @@ export default {
           warehouse: res.data.warehouse_code,
           dueDate: res.data.due_date ? res.data.due_date.slice(0, 10) : ''
         }
+        this.assignPickerId = res.data.assigned_picker_id || ''
       } catch (err) {
         this.drawerError = err.message
         this.selectedPicking = null
@@ -823,6 +973,10 @@ export default {
 
     async confirmPick(product) {
       this.drawerError = ''
+      if (this.canScan && !product.scanVerified) {
+        this.drawerError = this.$t('picking.messages.scanRequiredBeforeConfirm')
+        return
+      }
       if (!product.inputQty || product.inputQty <= 0) {
         this.drawerError = this.$t('picking.messages.pickQtyPositive')
         return
@@ -840,18 +994,122 @@ export default {
       })
     },
 
+    // Phase 33B: short_reason (a closed code) replaces remark as the
+    // required field — see backend ConfirmItemRequest's own doc for the
+    // documented breaking change. Remark remains optional free text.
     async shortPick(product) {
       this.drawerError = ''
-      if (!product.remark) {
-        this.drawerError = this.$t('picking.messages.remarkRequiredForShortPick')
+      if (!product.shortReason) {
+        this.drawerError = this.$t('picking.messages.shortReasonRequired')
         return
       }
 
       await this.submitConfirm({
         item_id: product.id,
         action: 'SHORT',
-        remark: product.remark
+        short_reason: product.shortReason,
+        remark: product.remark || undefined
       })
+    },
+
+    // Phase 33B: keyboard-wedge barcode scanner input — a scanner types
+    // the scanned payload as fast keystrokes followed by Enter, exactly
+    // like a human typing then pressing Enter, so a plain @keyup.enter
+    // handler on a text input is all a web form needs (no camera API).
+    // The Pick List PDF's per-line QR encodes "location|sku|lot" (see
+    // backend internal/picking/pdf.go's scanPayload) — scanning it in
+    // one pass populates and submits all three fields at once; manually
+    // typing just a location code (or sku, or lot) and pressing Enter
+    // also works, submitted as that one field with the others blank,
+    // for a scanner/workflow that reads one code at a time instead.
+    async scanLine(product) {
+      this.drawerError = ''
+      const raw = (this.scanInputs[product.id] || '').trim()
+      if (!raw) return
+
+      const parts = raw.split('|')
+      const payload = { location_code: '', sku: '' }
+      if (parts.length >= 3) {
+        payload.location_code = parts[0].trim()
+        payload.sku = parts[1].trim()
+        payload.lot_no = parts[2].trim()
+      } else {
+        // Single-field scan: match it against whichever of location/sku
+        // this line is still missing confirmation for isn't knowable from
+        // the scan alone, so send it as all three candidates and let the
+        // backend's own match/mismatch comparison decide — any field the
+        // scan doesn't actually describe will simply mismatch and the
+        // picker rescans the next code.
+        payload.location_code = raw
+        payload.sku = raw
+        payload.lot_no = raw
+      }
+
+      this.scanning = { ...this.scanning, [product.id]: true }
+      try {
+        const res = await scanConfirmPickingItem(this.selectedPicking.id, product.id, payload)
+        if (res.data.matched) {
+          this.scannedLineIds = { ...this.scannedLineIds, [product.id]: true }
+          showToast(this.$t('picking.messages.scanMatched'), 'success')
+        } else {
+          this.drawerError = this.$t('picking.messages.scanMismatch', { detail: res.data.detail })
+        }
+      } catch (err) {
+        this.drawerError = err.message
+      } finally {
+        this.scanning = { ...this.scanning, [product.id]: false }
+        this.scanInputs = { ...this.scanInputs, [product.id]: '' }
+      }
+    },
+
+    async repickLine(product) {
+      this.drawerError = ''
+      this.repicking = { ...this.repicking, [product.id]: true }
+      try {
+        const res = await repickPickingItem(this.selectedPicking.id, product.id)
+        this.selectedPicking = {
+          ...res.data,
+          warehouse: res.data.warehouse_code,
+          dueDate: res.data.due_date ? res.data.due_date.slice(0, 10) : ''
+        }
+        showToast(this.$t('picking.messages.repickSucceeded'), 'success')
+        await this.fetchPicking()
+        await this.fetchSummary()
+      } catch (err) {
+        this.drawerError = err.message
+      } finally {
+        this.repicking = { ...this.repicking, [product.id]: false }
+      }
+    },
+
+    async assignPickerToTask() {
+      this.drawerError = ''
+      if (!this.assignPickerId) {
+        this.drawerError = this.$t('picking.messages.pickerRequired')
+        return
+      }
+      this.assigning = true
+      try {
+        const res = await assignPicker(this.selectedPicking.id, this.assignPickerId)
+        this.selectedPicking = {
+          ...res.data,
+          warehouse: res.data.warehouse_code,
+          dueDate: res.data.due_date ? res.data.due_date.slice(0, 10) : ''
+        }
+        showToast(this.$t('picking.messages.pickerAssigned'), 'success')
+      } catch (err) {
+        this.drawerError = err.message
+      } finally {
+        this.assigning = false
+      }
+    },
+
+    async printPickList() {
+      try {
+        await viewPickList(this.selectedPicking.id)
+      } catch (err) {
+        showToast(err.message, 'error')
+      }
     },
 
     async submitConfirm(confirmItem) {
@@ -928,6 +1186,18 @@ export default {
       if (priority === 'HIGH') return 'red'
       if (priority === 'NORMAL') return 'blue'
       return 'gray'
+    },
+
+    shortReasonLabel(code) {
+      const key = {
+        OUT_OF_STOCK: 'picking.shortReason.outOfStock',
+        DAMAGED: 'picking.shortReason.damaged',
+        LOCATION_EMPTY: 'picking.shortReason.locationEmpty',
+        WRONG_LOT: 'picking.shortReason.wrongLot',
+        MISCOUNT: 'picking.shortReason.miscount',
+        OTHER: 'picking.shortReason.other'
+      }[code]
+      return key ? this.$t(key) : (code || '—')
     }
   }
 }

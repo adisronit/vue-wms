@@ -504,14 +504,27 @@
       "pickQtyPlaceholder": "Pick Qty",
       "confirmPick": "Confirm Pick",
       "shortPick": "Short Pick",
-      "remarkPlaceholder": "Remark (required for Short Pick)",
+      "remarkPlaceholder": "Remark (optional)",
       "viewOnlyNote": "Your role can view this task but not confirm picking.",
       "cancelledNote": "This task has been cancelled.",
       "saveTask": "Save Picking Task",
       "saving": "Saving…",
       "cancelRemarkPlaceholder": "Cancellation remark (optional)",
       "cancelTask": "Cancel Task",
-      "close": "Close"
+      "close": "Close",
+      "assignedPicker": "Assigned Picker",
+      "unassigned": "Unassigned",
+      "selectPicker": "Select picker",
+      "assign": "Assign",
+      "shortReasonLabel": "Reason",
+      "shortQtyLabel": "Short Qty",
+      "repickCount": "Re-picked {count} time(s)",
+      "repick": "Re-pick",
+      "repicking": "Re-picking…",
+      "scanLabel": "Scan to Confirm",
+      "scanPlaceholder": "Scan location / product / lot barcode, then press Enter",
+      "scanVerified": "Verified",
+      "shortReasonPlaceholder": "Select short-pick reason"
     },
     "itemStatus": {
       "pending": "Pending",
@@ -530,7 +543,25 @@
       "taskCreated": "Picking task created successfully",
       "pickQtyPositive": "Pick Qty must be greater than zero",
       "pickQtyExceedsRemaining": "Pick Qty cannot exceed remaining quantity",
-      "remarkRequiredForShortPick": "A remark is required to report a short pick"
+      "remarkRequiredForShortPick": "A remark is required to report a short pick",
+      "scanRequiredBeforeConfirm": "Scan to verify the location/product/lot before confirming this line",
+      "shortReasonRequired": "A reason is required to report a short pick",
+      "scanMatched": "Scan verified",
+      "scanMismatch": "Scan mismatch: {detail}",
+      "repickSucceeded": "Line re-opened for picking",
+      "pickerRequired": "Please select a picker",
+      "pickerAssigned": "Picker assigned successfully"
+    },
+    "documents": {
+      "printPickList": "Print Pick List"
+    },
+    "shortReason": {
+      "outOfStock": "Out of Stock",
+      "damaged": "Damaged",
+      "locationEmpty": "Location Empty",
+      "wrongLot": "Wrong Lot",
+      "miscount": "Miscount",
+      "other": "Other"
     }
   },
   "shipping": {
