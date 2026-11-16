@@ -366,7 +366,10 @@ func main() {
 	// no longer depends on internal/picking at all.
 	shippingRepo := shipping.NewRepository(dbManager.DB())
 	shippingService := shipping.NewService(shippingRepo, packingService)
-	shipping.NewHandler(shippingService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+	// Phase 33D.3 -- Delivery Note.
+	shippingPDFService := shipping.NewPDFService(shippingService, packingService, tenantRepo, userRepo)
+	shippingPDFService.SetDocRender(docrenderService)
+	shipping.NewHandler(shippingService, shippingPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Phase 33D.2 — Loading: the "load" half of the dispatch
 	// re-sequencing gate. Depends on shippingService (read-only Get,
@@ -380,7 +383,10 @@ func main() {
 	// cycle.
 	loadingRepo := loading.NewRepository(dbManager.DB())
 	loadingService := loading.NewService(loadingRepo, shippingService, packingService)
-	loading.NewHandler(loadingService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+	// Phase 33D.3 -- Loading Manifest.
+	loadingPDFService := loading.NewPDFService(loadingService, tenantRepo, userRepo)
+	loadingPDFService.SetDocRender(docrenderService)
+	loading.NewHandler(loadingService, loadingPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	stockAdjustmentRepo := stockadjustment.NewRepository(dbManager.DB())
 	stockAdjustmentService := stockadjustment.NewService(stockAdjustmentRepo, productRepo, locationUnscoped, inventoryService, cfg.StockAdjustmentPendingWarningHours)

@@ -9,16 +9,23 @@ vi.mock('../../../services/loading', () => ({
   scanCarton: vi.fn(),
   shortCarton: vi.fn(),
   confirmLoadingTrip: vi.fn(),
-  cancelLoadingTrip: vi.fn()
+  cancelLoadingTrip: vi.fn(),
+  viewLoadingManifest: vi.fn(),
+  downloadLoadingManifest: vi.fn()
 }))
 vi.mock('../../../services/auth', () => ({ hasPermission: vi.fn(() => true) }))
 vi.mock('../../../services/toast', () => ({ showToast: vi.fn() }))
+vi.mock('../../../services/documents', async () => {
+  const actual = await vi.importActual('../../../services/documents')
+  return { ...actual, getDocumentHistory: vi.fn() }
+})
 
 import {
   getLoadingTrip, listAssignableShipments, assignShipmentToTrip, scanCarton, shortCarton,
-  confirmLoadingTrip, cancelLoadingTrip
+  confirmLoadingTrip, cancelLoadingTrip, viewLoadingManifest, downloadLoadingManifest
 } from '../../../services/loading'
 import { hasPermission } from '../../../services/auth'
+import { getDocumentHistory } from '../../../services/documents'
 
 const globalMocks = { $t: (key) => key, $d: (v) => String(v) }
 
@@ -200,5 +207,48 @@ describe('LoadingTripDetailView', () => {
     await flushPromises()
 
     expect(cancelLoadingTrip).toHaveBeenCalledWith(1, {})
+  })
+
+  // Phase 33D.3 — Loading Manifest PDF (Preview/Download) + Document History.
+  it('previews the loading manifest', async () => {
+    getLoadingTrip.mockResolvedValue({ data: baseTrip() })
+    viewLoadingManifest.mockResolvedValue()
+    const wrapper = mountDetail()
+    await flushPromises()
+
+    const previewBtn = wrapper.findAll('button').find((b) => b.text().includes('loading.detail.viewManifest'))
+    expect(previewBtn).toBeTruthy()
+    await previewBtn.trigger('click')
+    await flushPromises()
+
+    expect(viewLoadingManifest).toHaveBeenCalledWith(1)
+  })
+
+  it('downloads the loading manifest', async () => {
+    getLoadingTrip.mockResolvedValue({ data: baseTrip() })
+    downloadLoadingManifest.mockResolvedValue()
+    const wrapper = mountDetail()
+    await flushPromises()
+
+    const downloadBtn = wrapper.findAll('button').find((b) => b.text().includes('loading.detail.downloadManifest'))
+    expect(downloadBtn).toBeTruthy()
+    await downloadBtn.trigger('click')
+    await flushPromises()
+
+    expect(downloadLoadingManifest).toHaveBeenCalledWith(1)
+  })
+
+  it('opens the Document History panel and loads this trip\'s LOADING_MANIFEST history', async () => {
+    getLoadingTrip.mockResolvedValue({ data: baseTrip() })
+    getDocumentHistory.mockResolvedValue({ data: [] })
+    const wrapper = mountDetail({ id: '1' })
+    await flushPromises()
+
+    const historyBtn = wrapper.findAll('button').find((b) => b.text().includes('loading.detail.historyButton'))
+    expect(historyBtn).toBeTruthy()
+    await historyBtn.trigger('click')
+    await flushPromises()
+
+    expect(getDocumentHistory).toHaveBeenCalledWith('LOADING_MANIFEST', '1')
   })
 })

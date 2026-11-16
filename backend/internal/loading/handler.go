@@ -17,13 +17,27 @@ func writeTenantUnauthorized(c *gin.Context) {
 	apihttp.Fail(c, http.StatusUnauthorized, "tenant context required", "UNAUTHORIZED")
 }
 
-// Handler exposes Service over HTTP.
+// Handler exposes Service (and, for the Loading Manifest, PDFService)
+// over HTTP.
 type Handler struct {
 	service *Service
+	pdf     *PDFService
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, pdf *PDFService) *Handler {
+	return &Handler{service: service, pdf: pdf}
+}
+
+// servePDF writes data as a PDF response — matches every other module's
+// own servePDF helper exactly (Phase 33D.3).
+func servePDF(c *gin.Context, data []byte, filename string) {
+	disposition := "inline"
+	if c.Query("download") == "true" {
+		disposition = "attachment"
+	}
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", disposition+"; filename=\""+filename+"\"")
+	c.Data(http.StatusOK, "application/pdf", data)
 }
 
 // Register mounts the Loading endpoints on rg, using the same
@@ -53,6 +67,10 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChec
 	group.GET("", middleware.RequirePermission("loading.view"), h.List)
 	group.GET("/sources", middleware.RequirePermission("loading.view"), h.Sources)
 	group.GET("/:id", middleware.RequirePermission("loading.view"), h.Get)
+	// Phase 33D.3 — the Loading Manifest PDF rides on the same
+	// loading.view permission as Get, matching every other document-
+	// owning module's own "view == can print" precedent.
+	group.GET("/:id/manifest", middleware.RequirePermission("loading.view"), h.Manifest)
 	group.POST("", middleware.RequirePermission("loading.create"), h.CreateTrip)
 	group.POST("/:id/shipments", middleware.RequirePermission("loading.update"), h.AssignShipment)
 	group.POST("/:id/scan", middleware.RequirePermission("loading.update"), h.ScanCarton)
@@ -170,6 +188,41 @@ func (h *Handler) Get(c *gin.Context) {
 		return
 	}
 	apihttp.OK(c, resp, "")
+}
+
+// Manifest godoc
+//
+//	@Summary		Download the Loading Manifest PDF for a trip
+//	@Description	Header (trip no./vehicle/driver/carrier/dock/route/scheduled vs actual loading time/vehicle seal/status), one section per assigned shipment each with its own carton worklist (LPN, planned vs loaded/short, short reason), a trip-wide planned/loaded/short summary, and a driver/loader signature block. Marked DRAFT until the trip is actually COMPLETED. Read-only — never mutates the trip, its shipments, or its cartons. ?download=true for an attachment, omitted for inline viewing.
+//	@Tags			Loading
+//	@Produce		application/pdf
+//	@Security		BearerAuth
+//	@Param			id			path	int		true	"Loading trip ID"
+//	@Param			download	query	boolean	false	"true for a download, omitted for inline viewing"
+//	@Success		200			{file}	file
+//	@Failure		401			{object}	apihttp.ErrorResponse
+//	@Failure		403			{object}	apihttp.ErrorResponse
+//	@Failure		404			{object}	apihttp.ErrorResponse
+//	@Router			/loading-trips/{id}/manifest [get]
+func (h *Handler) Manifest(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid loading trip id", "INVALID_REQUEST")
+		return
+	}
+
+	userID, _ := middleware.CurrentUserID(c)
+	data, filename, err := h.pdf.RenderLoadingManifest(c.Request.Context(), tenantID, userID, id)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	servePDF(c, data, filename)
 }
 
 // CreateTrip godoc

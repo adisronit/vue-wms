@@ -21,13 +21,27 @@ func writeTenantUnauthorized(c *gin.Context) {
 	apihttp.Fail(c, http.StatusUnauthorized, "tenant context required", "UNAUTHORIZED")
 }
 
-// Handler exposes Service over HTTP.
+// Handler exposes Service (and, for the Delivery Note, PDFService) over
+// HTTP.
 type Handler struct {
 	service *Service
+	pdf     *PDFService
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, pdf *PDFService) *Handler {
+	return &Handler{service: service, pdf: pdf}
+}
+
+// servePDF writes data as a PDF response — matches every other module's
+// own servePDF helper exactly (Phase 33D.3).
+func servePDF(c *gin.Context, data []byte, filename string) {
+	disposition := "inline"
+	if c.Query("download") == "true" {
+		disposition = "attachment"
+	}
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", disposition+"; filename=\""+filename+"\"")
+	c.Data(http.StatusOK, "application/pdf", data)
 }
 
 // Register mounts the Shipping endpoints on rg. Permissions reuse the
@@ -68,6 +82,10 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChec
 	shippingGroup.GET("/export", middleware.RequirePermission("shipping.view"), h.Export)
 	shippingGroup.GET("/sources", middleware.RequirePermission("shipping.view"), h.Sources)
 	shippingGroup.GET("/:id", middleware.RequirePermission("shipping.view"), h.Get)
+	// Phase 33D.3 — the Delivery Note PDF rides on the same shipping.view
+	// permission as Get, matching every other document-owning module's
+	// own "view == can print" precedent.
+	shippingGroup.GET("/:id/delivery-note", middleware.RequirePermission("shipping.view"), h.DeliveryNote)
 	shippingGroup.POST("", middleware.RequirePermission("shipping.create"), h.Create)
 	shippingGroup.PUT("/:id", middleware.RequirePermission("shipping.update"), h.Update)
 	shippingGroup.POST("/:id/confirm", middleware.RequirePermission("shipping.confirm"), h.Confirm)
@@ -251,6 +269,41 @@ func (h *Handler) Get(c *gin.Context) {
 		return
 	}
 	apihttp.OK(c, resp, "")
+}
+
+// DeliveryNote godoc
+//
+//	@Summary		Download the Delivery Note PDF for a shipment
+//	@Description	Header (shipment/order no., customer, full ship-to address snapshot, carrier, tracking no., ship date, warehouse, packed/checked by), every delivery line with its own carton LPN(s), and a driver/recipient signature block. Marked DRAFT until the shipment is actually DISPATCHED. Read-only — never mutates the shipment or its items. ?download=true for an attachment, omitted for inline viewing.
+//	@Tags			Shipping
+//	@Produce		application/pdf
+//	@Security		BearerAuth
+//	@Param			id			path	int		true	"Shipment ID"
+//	@Param			download	query	boolean	false	"true for a download, omitted for inline viewing"
+//	@Success		200			{file}	file
+//	@Failure		401			{object}	apihttp.ErrorResponse
+//	@Failure		403			{object}	apihttp.ErrorResponse
+//	@Failure		404			{object}	apihttp.ErrorResponse
+//	@Router			/shipping/{id}/delivery-note [get]
+func (h *Handler) DeliveryNote(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid shipment id", "INVALID_REQUEST")
+		return
+	}
+
+	userID, _ := middleware.CurrentUserID(c)
+	data, filename, err := h.pdf.RenderDeliveryNote(c.Request.Context(), tenantID, userID, id)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	servePDF(c, data, filename)
 }
 
 // Create godoc

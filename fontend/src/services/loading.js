@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './api'
+import { apiGet, apiPost, apiDownload, triggerDownload, openInNewTab } from './api'
 
 // Phase 33D.2 — Loading, the "load" half of the dispatch re-sequencing
 // gate (33D.1 already added the "pack" half on internal/shipping's own
@@ -60,4 +60,17 @@ export function confirmLoadingTrip(id, payload) {
 
 export function cancelLoadingTrip(id, payload) {
   return apiPost(`/loading-trips/${id}/cancel`, payload || {})
+}
+
+// Phase 33D.3 — Loading Manifest PDF: trip header + one section per
+// assigned shipment with its own carton worklist. Marked DRAFT until
+// the trip is actually COMPLETED.
+export async function viewLoadingManifest(id) {
+  const { blob } = await apiDownload(`/loading-trips/${id}/manifest`)
+  openInNewTab(blob)
+}
+
+export async function downloadLoadingManifest(id) {
+  const { blob, filename } = await apiDownload(`/loading-trips/${id}/manifest?download=true`)
+  triggerDownload(blob, filename)
 }

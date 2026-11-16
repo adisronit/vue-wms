@@ -870,7 +870,10 @@
       "reportIssue": "报告异常",
       "viewOnlyNote": "您的角色可以查看此发货单，但无法确认发货、送达或异常。",
       "cancelRemarkPlaceholder": "取消备注（选填）",
-      "cancelShipment": "取消发货单"
+      "cancelShipment": "取消发货单",
+      "viewDeliveryNote": "查看送货单",
+      "downloadDeliveryNote": "下载送货单",
+      "historyButton": "文档历史"
     },
     "statusLabels": {
       "readyToShip": "待发货",
@@ -886,7 +889,8 @@
       "deliveredSuccess": "已标记为送达",
       "issueReported": "已报告发货异常",
       "shipmentCancelled": "发货单已取消",
-      "confirmCancelShipment": "此发货单将被取消且无法恢复，是否继续？"
+      "confirmCancelShipment": "此发货单将被取消且无法恢复，是否继续？",
+      "pdfFailed": "送货单生成失败"
     }
   },
   "loading": {
@@ -974,7 +978,11 @@
       "shortFailed": "标记纸箱缺失失败",
       "confirmSuccess": "装车行程已完成 — 发货单现已可发货",
       "confirmFailed": "确认装车行程失败",
-      "cancelSuccess": "装车行程已取消"
+      "cancelSuccess": "装车行程已取消",
+      "viewManifest": "查看装车单",
+      "downloadManifest": "下载装车单",
+      "historyButton": "文档历史",
+      "pdfFailed": "装车单生成失败"
     },
     "cartonStatus": {
       "planned": "已计划",

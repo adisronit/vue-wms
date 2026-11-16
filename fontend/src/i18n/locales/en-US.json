@@ -870,7 +870,10 @@
       "reportIssue": "Report Issue",
       "viewOnlyNote": "Your role can view this shipment but not confirm dispatch, delivery, or issues.",
       "cancelRemarkPlaceholder": "Cancellation remark (optional)",
-      "cancelShipment": "Cancel Shipment"
+      "cancelShipment": "Cancel Shipment",
+      "viewDeliveryNote": "View Delivery Note",
+      "downloadDeliveryNote": "Download Delivery Note",
+      "historyButton": "Document History"
     },
     "statusLabels": {
       "readyToShip": "Ready to Ship",
@@ -886,7 +889,8 @@
       "deliveredSuccess": "Shipment marked as delivered",
       "issueReported": "Shipping issue has been reported",
       "shipmentCancelled": "Shipment cancelled",
-      "confirmCancelShipment": "This shipment will be cancelled and cannot be resumed. Continue?"
+      "confirmCancelShipment": "This shipment will be cancelled and cannot be resumed. Continue?",
+      "pdfFailed": "Failed to generate the delivery note"
     }
   },
   "loading": {
@@ -974,7 +978,11 @@
       "shortFailed": "Failed to flag carton short",
       "confirmSuccess": "Loading trip completed — shipments are now ready to dispatch",
       "confirmFailed": "Failed to confirm loading trip",
-      "cancelSuccess": "Loading trip cancelled"
+      "cancelSuccess": "Loading trip cancelled",
+      "viewManifest": "View Loading Manifest",
+      "downloadManifest": "Download Loading Manifest",
+      "historyButton": "Document History",
+      "pdfFailed": "Failed to generate the loading manifest"
     },
     "cartonStatus": {
       "planned": "Planned",

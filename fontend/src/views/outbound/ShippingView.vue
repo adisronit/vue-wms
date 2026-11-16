@@ -149,6 +149,18 @@
             </p>
           </div>
 
+          <div v-if="!isNewShipment" class="flex gap-2 items-center">
+            <button @click="viewDeliveryNotePdf" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-semibold">
+              {{ $t('shipping.drawer.viewDeliveryNote') }}
+            </button>
+            <button @click="downloadDeliveryNotePdf" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-semibold">
+              {{ $t('shipping.drawer.downloadDeliveryNote') }}
+            </button>
+            <button @click="showHistory = true" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-sm font-semibold">
+              📜 {{ $t('shipping.drawer.historyButton') }}
+            </button>
+          </div>
+
           <button
             @click="closeDrawer"
             class="text-slate-500 hover:text-red-600 text-xl"
@@ -156,6 +168,15 @@
             ✕
           </button>
         </div>
+
+        <DocumentHistoryPanel
+          v-if="!isNewShipment"
+          :open="showHistory"
+          document-type="DELIVERY_NOTE"
+          :source-id="selectedShipping.id"
+          :title="$t('shipping.drawer.historyButton')"
+          @close="showHistory = false"
+        />
 
         <div v-if="drawerError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm mb-4">
           {{ drawerError }}
@@ -423,7 +444,10 @@
 </template>
 
 <script>
-import { listShipments, getShipment, listShippableSources, createShipment, updateShipment, confirmShipment, cancelShipment, newIdempotencyKey, exportShipments } from '../../services/shipping'
+import {
+  listShipments, getShipment, listShippableSources, createShipment, updateShipment, confirmShipment, cancelShipment,
+  newIdempotencyKey, exportShipments, viewDeliveryNote, downloadDeliveryNote
+} from '../../services/shipping'
 import { hasPermission } from '../../services/auth'
 import { showToast } from '../../services/toast'
 import PageHeader from '../../components/ui/PageHeader.vue'
@@ -431,6 +455,7 @@ import FilterBar from '../../components/ui/FilterBar.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
+import DocumentHistoryPanel from '../../components/documents/DocumentHistoryPanel.vue'
 import i18n from '../../i18n'
 
 let searchDebounce = null
@@ -492,11 +517,12 @@ function emptyForm() {
 export default {
   name: 'ShippingView',
 
-  components: { PageHeader, FilterBar, DataTable, StatusBadge, ConfirmDialog },
+  components: { PageHeader, FilterBar, DataTable, StatusBadge, ConfirmDialog, DocumentHistoryPanel },
 
   data() {
     return {
       showCancelConfirm: false,
+      showHistory: false,
       loading: false,
       loadError: '',
       exporting: false,
@@ -630,6 +656,7 @@ export default {
       this.drawerError = ''
       this.submitting = false
       this.cancelRemark = ''
+      this.showHistory = false
 
       if (!item) {
         this.isNewShipment = true
@@ -670,6 +697,23 @@ export default {
     closeDrawer() {
       this.selectedShipping = null
       this.isNewShipment = false
+      this.showHistory = false
+    },
+
+    async viewDeliveryNotePdf() {
+      try {
+        await viewDeliveryNote(this.selectedShipping.id)
+      } catch (err) {
+        showToast(err.message || this.$t('shipping.messages.pdfFailed'), 'error')
+      }
+    },
+
+    async downloadDeliveryNotePdf() {
+      try {
+        await downloadDeliveryNote(this.selectedShipping.id)
+      } catch (err) {
+        showToast(err.message || this.$t('shipping.messages.pdfFailed'), 'error')
+      }
     },
 
     async saveNewShipment() {

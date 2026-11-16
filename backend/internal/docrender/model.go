@@ -38,6 +38,12 @@ const (
 	TypePickingConfirmation = "PICKING_CONFIRMATION"
 	TypePackingList         = "PACKING_LIST"
 	TypeCartonLabel         = "CARTON_LABEL"
+	// TypeDeliveryNote and TypeLoadingManifest (Phase 33D.3, migrations/
+	// 0112 widens this table's own CK_document_renders_document_type to
+	// allow them) are internal/shipping's and internal/loading's own
+	// respective new PDFs, closing out Phase 33D's outbound chain.
+	TypeDeliveryNote    = "DELIVERY_NOTE"
+	TypeLoadingManifest = "LOADING_MANIFEST"
 )
 
 // DocumentRender is the GORM model for the document_renders table

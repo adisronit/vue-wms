@@ -31,6 +31,9 @@ var permissionByDocumentType = map[string]string{
 	TypePickingBatchList:    "picking_batch.view",
 	TypePackingList:         "packing.view",
 	TypeCartonLabel:         "packing.view",
+	// Phase 33D.3.
+	TypeDeliveryNote:    "shipping.view",
+	TypeLoadingManifest: "loading.view",
 }
 
 // Handler exposes Service over HTTP.
@@ -62,11 +65,11 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChec
 // History godoc
 //
 //	@Summary		List past renders of one document
-//	@Description	Returns every historical render recorded for one (document type, source row) — newest first. Gated on the SAME permission code the owning document type's own live PDF endpoint requires (order.view for ORDER, picking.view for PICK_LIST/PICKING_CONFIRMATION, picking_batch.view for PICKING_BATCH_LIST, packing.view for PACKING_LIST/CARTON_LABEL).
+//	@Description	Returns every historical render recorded for one (document type, source row) — newest first. Gated on the SAME permission code the owning document type's own live PDF endpoint requires (order.view for ORDER, picking.view for PICK_LIST/PICKING_CONFIRMATION, picking_batch.view for PICKING_BATCH_LIST, packing.view for PACKING_LIST/CARTON_LABEL, shipping.view for DELIVERY_NOTE, loading.view for LOADING_MANIFEST).
 //	@Tags			Document History
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			type		path		string	true	"Document type: ORDER, PICK_LIST, PICKING_BATCH_LIST, PICKING_CONFIRMATION, PACKING_LIST, or CARTON_LABEL"
+//	@Param			type		path		string	true	"Document type: ORDER, PICK_LIST, PICKING_BATCH_LIST, PICKING_CONFIRMATION, PACKING_LIST, CARTON_LABEL, DELIVERY_NOTE, or LOADING_MANIFEST"
 //	@Param			sourceId	path		int		true	"The source row's own id (order id, picking task id, batch id, job id, or carton id)"
 //	@Success		200			{object}	apihttp.SuccessResponse{data=[]RenderSummary}
 //	@Failure		400			{object}	apihttp.ErrorResponse
