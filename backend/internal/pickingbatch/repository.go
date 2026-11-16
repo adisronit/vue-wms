@@ -88,20 +88,25 @@ func (r *Repository) FindBatchByID(ctx context.Context, tenantID, id int64) (*Ba
 }
 
 type batchDetailRow struct {
-	ID            int64
-	BatchNo       string
-	WarehouseID   int64
-	WarehouseCode string
-	Status        string
-	PickingTaskID *int64
-	PickNo        *string
-	CreatedBy     *int64
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	ConfirmedAt   *time.Time
-	CancelledAt   *time.Time
-	CancelledBy   *int64
-	CancelRemark  *string
+	ID                   int64
+	BatchNo              string
+	WarehouseID          int64
+	WarehouseCode        string
+	Status               string
+	PickingTaskID        *int64
+	PickNo               *string
+	CreatedBy            *int64
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	ConfirmedAt          *time.Time
+	CancelledAt          *time.Time
+	CancelledBy          *int64
+	CancelRemark         *string
+	SortationStatus      string
+	SortationStation     *string
+	SortationAssignedTo  *int64
+	SortationStartedAt   *time.Time
+	SortationCompletedAt *time.Time
 }
 
 // FindBatchDetail resolves the header plus warehouse_code and the linked
@@ -113,7 +118,9 @@ func (r *Repository) FindBatchDetail(ctx context.Context, tenantID, id int64) (*
 			b.status AS status, b.picking_task_id AS picking_task_id, pt.pick_no AS pick_no,
 			b.created_by AS created_by, b.created_at AS created_at, b.updated_at AS updated_at,
 			b.confirmed_at AS confirmed_at, b.cancelled_at AS cancelled_at, b.cancelled_by AS cancelled_by,
-			b.cancel_remark AS cancel_remark
+			b.cancel_remark AS cancel_remark, b.sortation_status AS sortation_status,
+			b.sortation_station AS sortation_station, b.sortation_assigned_to AS sortation_assigned_to,
+			b.sortation_started_at AS sortation_started_at, b.sortation_completed_at AS sortation_completed_at
 		FROM picking_batches b
 		JOIN warehouses w ON w.id = b.warehouse_id
 		LEFT JOIN picking_tasks pt ON pt.id = b.picking_task_id
@@ -456,4 +463,317 @@ func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams
 		return nil, 0, err
 	}
 	return rows, total, nil
+}
+
+// ---------------------------------------------------------------------
+// Phase 33C.2 -- Sortation
+// ---------------------------------------------------------------------
+
+type sortationLineRow struct {
+	ID                int64
+	OrderID           int64
+	OrderNo           string
+	ShipToName        *string
+	OrderItemID       int64
+	ProductID         int64
+	SKU               string
+	ProductName       string
+	LotNo             string
+	LocationID        int64
+	LocationCode      string
+	PickingTaskItemID *int64
+	AllocatedQty      float64
+	SortedQty         float64
+	ShortageQty       *float64
+	ExceptionReason   *string
+	UOM               string
+}
+
+// ListAllocationsForSortation resolves every picking_batch_allocations
+// row for batchID with the full display shape the Sortation worklist
+// needs — one row per order-share slice (the same granularity the pick
+// floor physically handles: "put 20 of these onto ORD-000001's pile"),
+// never pre-aggregated, since two allocation rows can share a product/
+// lot/location but belong to different orders and must be sorted
+// separately. Scoped to tenantID.
+func (r *Repository) ListAllocationsForSortation(ctx context.Context, tenantID, batchID int64) ([]sortationLineRow, error) {
+	var rows []sortationLineRow
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT a.id AS id, a.order_id AS order_id, o.order_no AS order_no, o.ship_to_name AS ship_to_name,
+			a.order_item_id AS order_item_id, a.product_id AS product_id, p.sku AS sku, p.name AS product_name,
+			a.lot_no AS lot_no, a.location_id AS location_id, l.code AS location_code,
+			a.picking_task_item_id AS picking_task_item_id, a.allocated_qty AS allocated_qty,
+			a.sorted_qty AS sorted_qty, a.shortage_qty AS shortage_qty, a.exception_reason AS exception_reason,
+			a.uom AS uom
+		FROM picking_batch_allocations a
+		JOIN orders o ON o.id = a.order_id
+		JOIN products p ON p.id = a.product_id
+		JOIN locations l ON l.id = a.location_id
+		WHERE a.batch_id = ? AND a.tenant_id = ?
+		ORDER BY o.id ASC, a.product_id ASC, a.lot_no ASC, a.id ASC
+	`, batchID, tenantID).Scan(&rows).Error
+	return rows, err
+}
+
+// FindAllocationByID resolves a single allocation row, scoped to both
+// tenantID AND batchID — a correctly-tenant-scoped allocation id that
+// belongs to a DIFFERENT batch than the one in the URL is treated
+// identically to "not found", the same IDOR-closed convention every
+// other FindByID in this codebase follows.
+func (r *Repository) FindAllocationByID(ctx context.Context, tenantID, batchID, allocationID int64) (*Allocation, error) {
+	var a Allocation
+	err := r.db.WithContext(ctx).First(&a, "id = ? AND batch_id = ? AND tenant_id = ?", allocationID, batchID, tenantID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
+// FindMatchingAllocationsForScan resolves every allocation row that a
+// sortation scan's own (order_id, SKU, lot_no) could plausibly target —
+// almost always exactly one row, but a single order's own demand line
+// can legitimately have been split across more than one FEFO lot at
+// Create time (see Service.allocateProduct's own doc), which would
+// produce more than one allocation row sharing the same order_id/
+// product_id but a DIFFERENT lot_no; this only returns more than one row
+// when both SKU *and* lot_no match more than one, e.g. the same (order,
+// product, lot) pair was allocated across two different locations.
+// Service.ScanSortation consumes these in id order. SKU/lot_no are
+// compared case-insensitively and trimmed, matching picking.ScanConfirm/
+// packing.PackItem's own scan-comparison convention.
+func (r *Repository) FindMatchingAllocationsForScan(ctx context.Context, tenantID, batchID, orderID int64, sku, lotNo string) ([]Allocation, error) {
+	var rows []Allocation
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT a.* FROM picking_batch_allocations a
+		JOIN products p ON p.id = a.product_id
+		WHERE a.batch_id = ? AND a.tenant_id = ? AND a.order_id = ?
+			AND UPPER(LTRIM(RTRIM(p.sku))) = UPPER(LTRIM(RTRIM(?)))
+			AND UPPER(LTRIM(RTRIM(a.lot_no))) = UPPER(LTRIM(RTRIM(?)))
+		ORDER BY a.id ASC
+	`, batchID, tenantID, orderID, sku, lotNo).Scan(&rows).Error
+	return rows, err
+}
+
+// ResolveOrderIDByBarcode matches a scanned order barcode (order_no,
+// case-insensitive/trimmed) against the SPECIFIC orders included in
+// batchID — scanning an order_no that is real but not part of this
+// batch is rejected exactly like a nonexistent one (ErrNotFound), the
+// same "wrong order" mismatch Service.ScanSortation reports uniformly.
+func (r *Repository) ResolveOrderIDByBarcode(ctx context.Context, tenantID, batchID int64, barcode string) (int64, error) {
+	var orderID int64
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT o.id FROM picking_batch_orders pbo
+		JOIN orders o ON o.id = pbo.order_id
+		WHERE pbo.batch_id = ? AND pbo.tenant_id = ? AND UPPER(LTRIM(RTRIM(o.order_no))) = UPPER(LTRIM(RTRIM(?)))
+	`, batchID, tenantID, barcode).Scan(&orderID).Error
+	if err != nil {
+		return 0, err
+	}
+	if orderID == 0 {
+		return 0, ErrNotFound
+	}
+	return orderID, nil
+}
+
+// AdjustSortedQty atomically increments one allocation row's sorted_qty
+// by delta in a single UPDATE, bounded by allocated_qty in the very same
+// WHERE clause — the concurrency-safe over-sortation guard itself,
+// exactly mirroring picking.Repository.AdjustPickedQty/packing.
+// Repository.AdjustPackedQty's own "arithmetic and bound-check as one
+// atomic SQL statement" shape. RowsAffected == 0 means the bound would
+// be exceeded (the caller interprets that as a rejected scan, never a
+// silent clamp) or the row does not belong to tenantID.
+func (r *Repository) AdjustSortedQty(ctx context.Context, tenantID, allocationID int64, delta float64) (int64, error) {
+	result := r.db.WithContext(ctx).Exec(`
+		UPDATE picking_batch_allocations
+		SET sorted_qty = sorted_qty + ?
+		WHERE id = ? AND tenant_id = ? AND sorted_qty + ? <= allocated_qty
+	`, delta, allocationID, tenantID, delta)
+	return result.RowsAffected, result.Error
+}
+
+// FlagShortageException records a sortation-stage shortage/damage
+// exception on one allocation row — bounded to rows that have not
+// already been flagged (exception_reason IS NULL in the WHERE clause
+// itself), so a concurrent duplicate flag attempt affects 0 rows rather
+// than silently overwriting the first one's reason/qty.
+func (r *Repository) FlagShortageException(ctx context.Context, tenantID, allocationID int64, shortageQty float64, reason string) (int64, error) {
+	result := r.db.WithContext(ctx).Exec(`
+		UPDATE picking_batch_allocations
+		SET shortage_qty = ?, exception_reason = ?
+		WHERE id = ? AND tenant_id = ? AND exception_reason IS NULL
+	`, shortageQty, reason, allocationID, tenantID)
+	return result.RowsAffected, result.Error
+}
+
+// AllAllocationsResolved reports whether every allocation row in batchID
+// has reached "no further sortation attention needed" — see the pure
+// allocationResolved predicate's own doc. Implemented as a single COUNT
+// query (rows NOT YET resolved) rather than fetching every row into Go,
+// since Service only needs the boolean.
+func (r *Repository) AllAllocationsResolved(ctx context.Context, tenantID, batchID int64) (bool, error) {
+	var unresolved int64
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT COUNT(*) FROM picking_batch_allocations
+		WHERE batch_id = ? AND tenant_id = ? AND (sorted_qty + ISNULL(shortage_qty, 0)) < allocated_qty
+	`, batchID, tenantID).Scan(&unresolved).Error
+	if err != nil {
+		return false, err
+	}
+	return unresolved == 0, nil
+}
+
+// StartSortation transitions sortation_status NOT_STARTED -> IN_PROGRESS
+// and stamps sortation_started_at, exactly once — a no-op (0 rows
+// affected, not an error) if sortation has already started, so
+// Service.ScanSortation can call this unconditionally on every
+// successful scan without a separate read-then-branch.
+func (r *Repository) StartSortation(ctx context.Context, tenantID, batchID int64) error {
+	return r.db.WithContext(ctx).Exec(`
+		UPDATE picking_batches
+		SET sortation_status = ?, sortation_started_at = SYSUTCDATETIME(), updated_at = SYSUTCDATETIME()
+		WHERE id = ? AND tenant_id = ? AND sortation_status = ?
+	`, string(SortationInProgress), batchID, tenantID, string(SortationNotStarted)).Error
+}
+
+// CompleteSortation transitions sortation_status -> COMPLETED and stamps
+// sortation_completed_at — called only after AllAllocationsResolved
+// confirms every line is done. Guarded to only fire from IN_PROGRESS, so
+// a redundant call (e.g. two scans finishing the last two lines in a
+// race) is naturally idempotent-safe.
+func (r *Repository) CompleteSortation(ctx context.Context, tenantID, batchID int64) error {
+	return r.db.WithContext(ctx).Exec(`
+		UPDATE picking_batches
+		SET sortation_status = ?, sortation_completed_at = SYSUTCDATETIME(), updated_at = SYSUTCDATETIME()
+		WHERE id = ? AND tenant_id = ? AND sortation_status = ?
+	`, string(SortationCompleted), batchID, tenantID, string(SortationInProgress)).Error
+}
+
+// AssignSortation sets the station code and/or assigned user — a
+// planning/ownership annotation, the same authority level as
+// picking.AssignPicker/packing.AssignPacker, never an authorization
+// gate. Either argument may be nil to leave that field unchanged.
+func (r *Repository) AssignSortation(ctx context.Context, tenantID, batchID int64, station *string, userID *int64) error {
+	updates := map[string]any{"updated_at": gorm.Expr("SYSUTCDATETIME()")}
+	if station != nil {
+		updates["sortation_station"] = *station
+	}
+	if userID != nil {
+		updates["sortation_assigned_to"] = *userID
+	}
+	result := r.db.WithContext(ctx).Model(&Batch{}).Where("id = ? AND tenant_id = ?", batchID, tenantID).Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// orderPackingSnapshotRow is the full per-order customer/ship-to
+// snapshot internal/packing's own Service.Create needs when building a
+// batch-sourced job — see that package's own doc for why it must read
+// this from the ORDER directly rather than trusting the shared picking
+// task's own (single-order-shaped, now-meaningless-for-a-batch-task)
+// copied fields.
+type orderPackingSnapshotRow struct {
+	OrderID             int64
+	OrderNo             string
+	Customer            *string
+	CustomerID          *int64
+	ShipToID            *int64
+	ShipToName          *string
+	ShipToAddress       *string
+	ShipToProvince      *string
+	ShipToDistrict      *string
+	ShipToPostalCode    *string
+	ShipToContactPerson *string
+	ShipToContactPhone  *string
+	WarehouseID         int64
+}
+
+// FindOrderPackingSnapshot resolves orderID's own full customer/ship-to
+// snapshot directly from the orders table — exposed (via Service) for
+// internal/packing's one-way read-only dependency into this package, so
+// that package never needs its own import of internal/order or a
+// duplicate query against the orders table.
+func (r *Repository) FindOrderPackingSnapshot(ctx context.Context, tenantID, orderID int64) (*orderPackingSnapshotRow, error) {
+	var row orderPackingSnapshotRow
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT o.id AS order_id, o.order_no AS order_no, o.customer AS customer, o.customer_id AS customer_id,
+			o.ship_to_id AS ship_to_id, o.ship_to_name AS ship_to_name, o.ship_to_address AS ship_to_address,
+			o.ship_to_province AS ship_to_province, o.ship_to_district AS ship_to_district,
+			o.ship_to_postal_code AS ship_to_postal_code, o.ship_to_contact_person AS ship_to_contact_person,
+			o.ship_to_contact_phone AS ship_to_contact_phone, o.warehouse_id AS warehouse_id
+		FROM orders o WHERE o.id = ? AND o.tenant_id = ?
+	`, orderID, tenantID).Scan(&row).Error
+	if err != nil {
+		return nil, err
+	}
+	if row.OrderID == 0 {
+		return nil, ErrNotFound
+	}
+	return &row, nil
+}
+
+// FindBatchByPickingTaskID resolves the picking_batches row (if any)
+// that claims pickingTaskID — exposed for internal/packing's own
+// Service.Create to detect whether a source picking task is batch-
+// sourced. Returns ErrNotFound when the task is NOT batch-sourced (the
+// ordinary, today's-only-real-usage PICK_BY_ORDER case), which the
+// caller must treat as "proceed with the existing, unmodified
+// behavior" rather than a real error.
+func (r *Repository) FindBatchByPickingTaskID(ctx context.Context, tenantID, pickingTaskID int64) (*Batch, error) {
+	var b Batch
+	err := r.db.WithContext(ctx).First(&b, "picking_task_id = ? AND tenant_id = ?", pickingTaskID, tenantID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
+
+// IsOrderInBatch reports whether orderID is one of batchID's own member
+// orders (picking_batch_orders) — the membership check internal/
+// packing's Service.Create applies before trusting a client-supplied
+// order_id against a batch-sourced task.
+func (r *Repository) IsOrderInBatch(ctx context.Context, tenantID, batchID, orderID int64) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT COUNT(*) FROM picking_batch_orders WHERE batch_id = ? AND tenant_id = ? AND order_id = ?
+	`, batchID, tenantID, orderID).Scan(&count).Error
+	return count > 0, err
+}
+
+type orderAllocationLineRow struct {
+	ID                int64
+	PickingTaskItemID *int64
+	ProductID         int64
+	LotNo             string
+	AllocatedQty      float64
+	SortedQty         float64
+	UOM               string
+}
+
+// ListOrderAllocationLines resolves orderID's own allocation rows within
+// batchID — the source internal/packing's Service.Create reads to build
+// a batch-sourced packing job's lines, using each row's own SortedQty
+// (not the shared task's task-wide PickedQty) as the frozen packed_qty
+// ceiling. ORDER BY id so the resulting packing_job_items are created in
+// a stable, deterministic order.
+func (r *Repository) ListOrderAllocationLines(ctx context.Context, tenantID, batchID, orderID int64) ([]orderAllocationLineRow, error) {
+	var rows []orderAllocationLineRow
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT id, picking_task_item_id, product_id, lot_no, allocated_qty, sorted_qty, uom
+		FROM picking_batch_allocations
+		WHERE batch_id = ? AND tenant_id = ? AND order_id = ?
+		ORDER BY id ASC
+	`, batchID, tenantID, orderID).Scan(&rows).Error
+	return rows, err
 }

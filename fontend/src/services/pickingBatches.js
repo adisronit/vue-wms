@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './api'
+import { apiGet, apiPost, apiPut } from './api'
 
 // Phase 33C.1 — Batch Picking / Wave Management. Mirrors services/
 // relocation.js's own list/get/create/confirm/cancel shape — a batch is
@@ -53,4 +53,45 @@ export function confirmPickingBatch(id) {
 // instead (see internal/pickingbatch's own Service.Cancel doc).
 export function cancelPickingBatch(id, payload) {
   return apiPost(`/picking-batches/${id}/cancel`, payload || {})
+}
+
+// ---------------------------------------------------------------------
+// Phase 33C.2 — Sortation. Only available once the batch's underlying
+// picking task has reached COMPLETED or SHORT_PICK — see internal/
+// pickingbatch's own sortationGate doc.
+// ---------------------------------------------------------------------
+
+// getSortation returns the per-order-share worklist for batchId.
+export function getSortation(batchId) {
+  return apiGet(`/picking-batches/${batchId}/sortation`)
+}
+
+// scanSortation is the physical confirmation step — payload:
+// { orderBarcode, sku, lotNo, quantity }.
+export function scanSortation(batchId, payload) {
+  return apiPost(`/picking-batches/${batchId}/sortation/scan`, {
+    order_barcode: payload.orderBarcode,
+    sku: payload.sku,
+    lot_no: payload.lotNo || undefined,
+    quantity: payload.quantity,
+  })
+}
+
+// flagSortationException records a shortage/damage exception on one
+// specific allocation line — payload: { allocationId, shortageQty, reason }.
+export function flagSortationException(batchId, payload) {
+  return apiPost(`/picking-batches/${batchId}/sortation/exception`, {
+    allocation_id: payload.allocationId,
+    shortage_qty: payload.shortageQty,
+    reason: payload.reason,
+  })
+}
+
+// assignSortation sets the station code and/or assigned operator —
+// a planning annotation, never an authorization gate.
+export function assignSortation(batchId, payload) {
+  return apiPut(`/picking-batches/${batchId}/sortation/assign`, {
+    station: payload.station || undefined,
+    user_id: payload.userId || undefined,
+  })
 }

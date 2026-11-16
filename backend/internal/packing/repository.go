@@ -80,11 +80,36 @@ func (r *Repository) FindByPickingTaskID(ctx context.Context, tenantID, pickingT
 	return &job, nil
 }
 
+// FindByPickingTaskAndOrder is FindByPickingTaskID's own order-aware
+// generalization (Phase 33C.2) — the friendly pre-check ahead of
+// migrations/0102's own dual filtered-unique-index scheme. orderID ==
+// nil matches the ordinary (non-batch) "order_id IS NULL" rule exactly;
+// a non-nil orderID matches the new per-order rule for a batch-sourced
+// job.
+func (r *Repository) FindByPickingTaskAndOrder(ctx context.Context, tenantID, pickingTaskID int64, orderID *int64) (*Job, error) {
+	q := r.db.WithContext(ctx).Where("picking_task_id = ? AND tenant_id = ?", pickingTaskID, tenantID)
+	if orderID == nil {
+		q = q.Where("order_id IS NULL")
+	} else {
+		q = q.Where("order_id = ?", *orderID)
+	}
+	var job Job
+	err := q.First(&job).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &job, nil
+}
+
 type headerRow struct {
 	ID                  int64
 	JobNo               string
 	PickingTaskID       int64
 	PickNo              string
+	OrderID             *int64
 	OrderNo             string
 	Customer            *string
 	CustomerID          *int64
@@ -121,6 +146,7 @@ func (r *Repository) FindJobDetail(ctx context.Context, tenantID, id int64) (*he
 	var row headerRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT pj.id AS id, pj.job_no AS job_no, pj.picking_task_id AS picking_task_id, pt.pick_no AS pick_no,
+			pj.order_id AS order_id,
 			pj.order_no AS order_no, pj.customer AS customer, pj.customer_id AS customer_id, pj.ship_to_id AS ship_to_id,
 			pj.ship_to_name AS ship_to_name, pj.ship_to_address AS ship_to_address,
 			pj.ship_to_province AS ship_to_province, pj.ship_to_district AS ship_to_district,
@@ -228,6 +254,7 @@ type listRow struct {
 	JobNo              string
 	PickingTaskID      int64
 	PickNo             string
+	OrderID            *int64
 	OrderNo            string
 	Customer           *string
 	WarehouseCode      string
@@ -272,13 +299,14 @@ func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams
 	offset := (params.Page - 1) * params.Limit
 	listSQL := `
 		SELECT pj.id AS id, pj.job_no AS job_no, pj.picking_task_id AS picking_task_id, '' AS pick_no,
+			pj.order_id AS order_id,
 			pj.order_no AS order_no, pj.customer AS customer, w.code AS warehouse_code, pj.status AS status,
 			apu.full_name AS assigned_packer_name, pj.created_at AS created_at,
 			COUNT(DISTINCT pji.id) AS item_count,
 			COALESCE(SUM(pji.picked_qty), 0) AS picked_total,
 			COALESCE(SUM(pji.packed_qty), 0) AS packed_total
 	` + base + where + `
-		GROUP BY pj.id, pj.job_no, pj.picking_task_id, pj.order_no, pj.customer, w.code, pj.status,
+		GROUP BY pj.id, pj.job_no, pj.picking_task_id, pj.order_id, pj.order_no, pj.customer, w.code, pj.status,
 			apu.full_name, pj.created_at
 		ORDER BY pj.id DESC
 		OFFSET ? ROWS FETCH NEXT ? ROWS ONLY`
@@ -298,7 +326,7 @@ func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams
 			progress = 100
 		}
 		responses = append(responses, ListResponse{
-			ID: row.ID, JobNo: row.JobNo, PickingTaskID: row.PickingTaskID,
+			ID: row.ID, JobNo: row.JobNo, PickingTaskID: row.PickingTaskID, OrderID: row.OrderID,
 			OrderNo: row.OrderNo, Customer: row.Customer, WarehouseCode: row.WarehouseCode,
 			Status: Status(row.Status), ItemCount: row.ItemCount, ProgressPct: progress,
 			AssignedPackerName: row.AssignedPackerName, CreatedAt: row.CreatedAt,
@@ -620,30 +648,40 @@ type sourceRow struct {
 	OrderNo       string
 	Customer      *string
 	ItemCount     int
+	BatchID       *int64
 }
 
 // Sources returns completed (or partially-completed, i.e. SHORT_PICK
 // with at least one line that has a nonzero PickedQty) picking tasks
-// that have no packing job yet — powers GET /packing-jobs/sources,
-// mirroring shipping.Repository.Sources' own query shape exactly
-// (NOT EXISTS against this package's own one-to-one join table instead
-// of shipments). Scoped to tenantID on the picking task itself — the
-// correlated NOT EXISTS subquery needs no separate tenant_id predicate
-// since a packing job can only ever be linked to a picking task that
-// shares its own tenant (packing_jobs.picking_task_id -> picking_tasks.id
-// is a 1:1 FK, and Service.Create verifies the picking task's tenant via
-// pickingChecker.Get before ever creating one).
+// that still have at least one packable packing job left to create —
+// powers GET /packing-jobs/sources, mirroring shipping.Repository.
+// Sources' own query shape (NOT EXISTS against this package's own join
+// table) for the ordinary (non-batch) case.
+//
+// Phase 33C.2: a batch-sourced task (picking_batches.picking_task_id =
+// pt.id) is ALWAYS included here regardless of how many packing jobs
+// already exist against it — "no job exists yet at all" would wrongly
+// stop surfacing a batch task the moment its FIRST order got a job,
+// even though its other orders still need their own. For each such row
+// this additionally resolves PendingOrders (see that field's own doc);
+// a batch-sourced row whose every order already has its own job is
+// filtered back out in Go, since nothing is left to create for it.
+// Scoped to tenantID throughout.
 func (r *Repository) Sources(ctx context.Context, tenantID int64) ([]SourceResponse, error) {
 	var rows []sourceRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT pt.id AS picking_task_id, pt.pick_no AS pick_no, pt.order_no AS order_no, pt.customer AS customer,
-			COUNT(pti.id) AS item_count
+			COUNT(DISTINCT pti.id) AS item_count, pb.id AS batch_id
 		FROM picking_tasks pt
 		JOIN picking_task_items pti ON pti.picking_task_id = pt.id AND pti.picked_qty > 0
+		LEFT JOIN picking_batches pb ON pb.picking_task_id = pt.id AND pb.tenant_id = pt.tenant_id
 		WHERE pt.tenant_id = ?
 			AND pt.status IN ('COMPLETED', 'SHORT_PICK')
-			AND NOT EXISTS (SELECT 1 FROM packing_jobs pj WHERE pj.picking_task_id = pt.id)
-		GROUP BY pt.id, pt.pick_no, pt.order_no, pt.customer
+			AND (
+				pb.id IS NOT NULL
+				OR NOT EXISTS (SELECT 1 FROM packing_jobs pj WHERE pj.picking_task_id = pt.id)
+			)
+		GROUP BY pt.id, pt.pick_no, pt.order_no, pt.customer, pb.id
 		ORDER BY pt.id DESC
 	`, tenantID).Scan(&rows).Error
 	if err != nil {
@@ -652,10 +690,58 @@ func (r *Repository) Sources(ctx context.Context, tenantID int64) ([]SourceRespo
 
 	sources := make([]SourceResponse, 0, len(rows))
 	for _, row := range rows {
+		if row.BatchID == nil {
+			sources = append(sources, SourceResponse{
+				PickingTaskID: row.PickingTaskID, PickNo: row.PickNo, OrderNo: row.OrderNo, Customer: row.Customer,
+				ItemCount: row.ItemCount,
+			})
+			continue
+		}
+
+		pending, err := r.pendingBatchOrders(ctx, tenantID, *row.BatchID, row.PickingTaskID)
+		if err != nil {
+			return nil, err
+		}
+		if len(pending) == 0 {
+			// Every order in this batch already has its own job —
+			// nothing left to create.
+			continue
+		}
 		sources = append(sources, SourceResponse{
 			PickingTaskID: row.PickingTaskID, PickNo: row.PickNo, OrderNo: row.OrderNo, Customer: row.Customer,
-			ItemCount: row.ItemCount,
+			ItemCount: row.ItemCount, IsBatch: true, BatchID: row.BatchID, PendingOrders: pending,
 		})
 	}
 	return sources, nil
+}
+
+// pendingBatchOrders resolves, for a batch-sourced source task, exactly
+// which of the batch's own included orders do not yet have their own
+// packing job against pickingTaskID.
+func (r *Repository) pendingBatchOrders(ctx context.Context, tenantID, batchID, pickingTaskID int64) ([]PendingOrderResponse, error) {
+	type row struct {
+		OrderID  int64
+		OrderNo  string
+		Customer *string
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT o.id AS order_id, o.order_no AS order_no, o.customer AS customer
+		FROM picking_batch_orders pbo
+		JOIN orders o ON o.id = pbo.order_id
+		WHERE pbo.batch_id = ? AND pbo.tenant_id = ?
+			AND NOT EXISTS (
+				SELECT 1 FROM packing_jobs pj
+				WHERE pj.picking_task_id = ? AND pj.tenant_id = ? AND pj.order_id = o.id
+			)
+		ORDER BY o.id ASC
+	`, batchID, tenantID, pickingTaskID, tenantID).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make([]PendingOrderResponse, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, PendingOrderResponse{OrderID: r.OrderID, OrderNo: r.OrderNo, Customer: r.Customer})
+	}
+	return out, nil
 }

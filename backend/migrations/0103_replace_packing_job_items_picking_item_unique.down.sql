@@ -1,0 +1,2 @@
+ALTER TABLE packing_job_items DROP CONSTRAINT UQ_packing_job_items_job_picking_item;
+ALTER TABLE packing_job_items ADD CONSTRAINT UQ_packing_job_items_tenant_picking_item UNIQUE (tenant_id, picking_task_item_id);

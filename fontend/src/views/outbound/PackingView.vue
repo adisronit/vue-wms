@@ -118,12 +118,26 @@
 
         <div v-else class="space-y-3">
           <label class="label">{{ $t('packing.create.selectPickingTask') }}</label>
-          <select v-model="createForm.pickingTaskId" class="input">
+          <select v-model="createForm.pickingTaskId" class="input" @change="onSourceChange">
             <option value="">{{ $t('packing.create.selectPlaceholder') }}</option>
             <option v-for="s in sources" :key="s.picking_task_id" :value="s.picking_task_id">
               {{ s.pick_no }} — {{ s.order_no }} ({{ s.customer || '—' }}, {{ s.item_count }} {{ $t('packing.create.linesSuffix') }})
             </option>
           </select>
+
+          <!-- Phase 33C.2: a batch-sourced source task fans out into one
+               packing job PER ORDER — the caller must pick which one of
+               the batch's own still-pending orders this job is for. -->
+          <template v-if="selectedSource && selectedSource.is_batch">
+            <p class="text-xs text-orange-600">{{ $t('packing.create.batchSourcedNote') }}</p>
+            <label class="label">{{ $t('packing.create.selectOrderLabel') }}</label>
+            <select v-model="createForm.orderId" class="input">
+              <option value="">{{ $t('packing.create.selectOrderPlaceholder') }}</option>
+              <option v-for="o in selectedSource.pending_orders" :key="o.order_id" :value="o.order_id">
+                {{ o.order_no }} ({{ o.customer || '—' }})
+              </option>
+            </select>
+          </template>
 
           <input v-model="createForm.remark" type="text" class="input" :placeholder="$t('packing.create.remarkPlaceholder')" />
         </div>
@@ -132,7 +146,7 @@
           <button @click="showCreateModal = false" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold">{{ $t('common.buttons.cancel') }}</button>
           <button
             @click="submitCreate"
-            :disabled="creating || !createForm.pickingTaskId"
+            :disabled="creating || !createForm.pickingTaskId || (selectedSource && selectedSource.is_batch && !createForm.orderId)"
             class="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold disabled:opacity-60"
           >
             {{ creating ? $t('packing.create.creating') : $t('packing.create.createButton') }}
@@ -174,7 +188,7 @@ export default {
       showCreateModal: false,
       loadingSources: false,
       sources: [],
-      createForm: { pickingTaskId: '', remark: '' },
+      createForm: { pickingTaskId: '', orderId: '', remark: '' },
       createError: '',
       creating: false
     }
@@ -185,7 +199,13 @@ export default {
     inProgressCount() { return this.allJobs.filter((j) => j.status === 'IN_PROGRESS').length },
     completedCount() { return this.allJobs.filter((j) => j.status === 'COMPLETED').length },
     cancelledCount() { return this.allJobs.filter((j) => j.status === 'CANCELLED').length },
-    canCreate() { return hasPermission('packing.create') }
+    canCreate() { return hasPermission('packing.create') },
+    // selectedSource (Phase 33C.2) resolves the chosen picking task's
+    // own source row — is_batch/pending_orders drive the order picker.
+    selectedSource() {
+      if (!this.createForm.pickingTaskId) return null
+      return this.sources.find((s) => s.picking_task_id === this.createForm.pickingTaskId) || null
+    }
   },
 
   watch: {
@@ -273,7 +293,7 @@ export default {
 
     async openCreateModal() {
       this.createError = ''
-      this.createForm = { pickingTaskId: '', remark: '' }
+      this.createForm = { pickingTaskId: '', orderId: '', remark: '' }
       this.showCreateModal = true
       this.loadingSources = true
       try {
@@ -286,12 +306,20 @@ export default {
       }
     },
 
+    // onSourceChange (Phase 33C.2) resets any previously-selected
+    // order_id whenever the picking task selection changes — a stale
+    // order_id from a different batch must never carry over.
+    onSourceChange() {
+      this.createForm.orderId = ''
+    },
+
     async submitCreate() {
       this.createError = ''
       this.creating = true
       try {
         const res = await createPackingJob({
           picking_task_id: this.createForm.pickingTaskId,
+          order_id: (this.selectedSource && this.selectedSource.is_batch) ? this.createForm.orderId : undefined,
           remark: this.createForm.remark || undefined
         })
         this.showCreateModal = false

@@ -388,6 +388,14 @@ func main() {
 	pickingBatchService := pickingbatch.NewService(pickingBatchRepo, warehouseRepo, pickingService)
 	pickingbatch.NewHandler(pickingBatchService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
+	// Phase 33C.2 — Sortation + Packing Integration. Wired AFTER
+	// pickingBatchService exists (SetBatches, not the constructor, the
+	// same "set after construction" shape SetUsers above already uses)
+	// so packingService.Create can detect whether a source picking task
+	// is batch-sourced — a one-way read-only dependency packing ->
+	// pickingbatch; pickingbatch itself never calls into packing.
+	packingService.SetBatches(pickingBatchService)
+
 	if cfg.SwaggerEnabled {
 		engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 		logger.Info("swagger ui enabled", slog.String("url", "/swagger/index.html"))

@@ -105,6 +105,55 @@ describe('PackingView', () => {
     expect(createPackingJob).toHaveBeenCalledWith(expect.objectContaining({ picking_task_id: 5 }))
   })
 
+  // Phase 33C.2: a batch-sourced source task fans out into one packing
+  // job PER ORDER — the modal must surface an order picker (from
+  // pending_orders) and include order_id in the create payload, never
+  // guessing or omitting it.
+  it('shows an order picker for a batch-sourced source and includes order_id when creating', async () => {
+    listPacking.mockResolvedValue(page([]))
+    listPackableSources.mockResolvedValue({
+      success: true,
+      data: [{
+        picking_task_id: 7, pick_no: 'PICK-000007', order_no: 'BATCH-000001', customer: null, item_count: 3,
+        is_batch: true, batch_id: 1,
+        pending_orders: [
+          { order_id: 101, order_no: 'SO-001', customer: 'Acme' },
+          { order_id: 102, order_no: 'SO-002', customer: 'Widgets' }
+        ]
+      }]
+    })
+    createPackingJob.mockResolvedValue({ success: true, data: { id: 9 } })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    const createButton = wrapper.findAll('button').find((b) => b.text().includes('packing.newJobButton'))
+    await createButton.trigger('click')
+    await flushPromises()
+
+    const taskSelect = wrapper.findAll('select').find((s) => s.html().includes('PICK-000007'))
+    await taskSelect.setValue('7')
+    await flushPromises()
+
+    // The order picker now appears, with the batch's own pending orders.
+    expect(wrapper.text()).toContain('packing.create.batchSourcedNote')
+    expect(wrapper.text()).toContain('SO-001')
+    expect(wrapper.text()).toContain('SO-002')
+
+    // Submit is disabled until an order is chosen.
+    let submitButton = wrapper.findAll('button').find((b) => b.text().includes('packing.create.createButton'))
+    expect(submitButton.attributes('disabled')).toBeDefined()
+
+    const orderSelect = wrapper.findAll('select').find((s) => s.html().includes('SO-001'))
+    await orderSelect.setValue('101')
+
+    submitButton = wrapper.findAll('button').find((b) => b.text().includes('packing.create.createButton'))
+    await submitButton.trigger('click')
+    await flushPromises()
+
+    expect(createPackingJob).toHaveBeenCalledWith(expect.objectContaining({ picking_task_id: 7, order_id: 101 }))
+  })
+
   it('shows an empty-sources message when nothing is packable', async () => {
     listPacking.mockResolvedValue(page([]))
     listPackableSources.mockResolvedValue({ success: true, data: [] })

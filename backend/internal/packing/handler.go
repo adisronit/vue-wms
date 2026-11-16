@@ -732,6 +732,14 @@ func writeError(c *gin.Context, err error) {
 		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "SCAN_MISMATCH")
 	case errors.Is(err, ErrOverpack):
 		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "OVERPACK")
+	case errors.Is(err, ErrOrderIDNotAllowed):
+		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "ORDER_ID_NOT_ALLOWED")
+	case errors.Is(err, ErrOrderIDRequired):
+		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "ORDER_ID_REQUIRED")
+	case errors.Is(err, ErrOrderNotInBatch):
+		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "ORDER_NOT_IN_BATCH")
+	case errors.Is(err, ErrSortationIncomplete):
+		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "SORTATION_INCOMPLETE")
 	case errors.As(err, &validationErr):
 		apihttp.Fail(c, http.StatusUnprocessableEntity, validationErr.Message, "VALIDATION_ERROR")
 	default:

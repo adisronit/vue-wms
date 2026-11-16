@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"wms-backend/internal/picking"
+	"wms-backend/internal/pickingbatch"
 	"wms-backend/internal/platform/csvexport"
 	"wms-backend/internal/platform/dbctx"
 	"wms-backend/internal/user"
@@ -36,6 +37,25 @@ var (
 	ErrPackerNotFound      = errors.New("packing: packer user not found")
 	ErrItemNotInJob        = errors.New("packing: item does not belong to this job")
 	ErrCartonNotInJob      = errors.New("packing: carton does not belong to this job")
+
+	// Phase 33C.2 -- order-scoped batch jobs.
+	//
+	// ErrOrderIDNotAllowed covers a client supplying order_id against an
+	// ordinary (non-batch) picking task — that task has exactly one
+	// implicit "order" and a client cannot choose a different one.
+	ErrOrderIDNotAllowed = errors.New("packing: order_id may only be supplied when the source picking task is batch-sourced")
+	// ErrOrderIDRequired covers the opposite gap — a batch-sourced task
+	// with no order_id supplied at all; Packing cannot guess which of
+	// the batch's own included orders this job is for.
+	ErrOrderIDRequired = errors.New("packing: order_id is required when the source picking task is batch-sourced")
+	// ErrOrderNotInBatch covers an order_id that is real but not one of
+	// THIS batch's own member orders.
+	ErrOrderNotInBatch = errors.New("packing: order_id is not a member of this batch")
+	// ErrSortationIncomplete covers the "adequately sorted" threshold
+	// gate (see Service.createBatchJob's own doc) — at least one of this
+	// order's own allocation lines for this batch has not yet had any
+	// units sorted to it.
+	ErrSortationIncomplete = errors.New("packing: this order's own share has not been sorted yet — complete Sortation for this order before opening a packing job")
 )
 
 // pickingChecker is the narrow slice of internal/picking's own Service
@@ -59,6 +79,22 @@ type userChecker interface {
 	FindByID(ctx context.Context, id int64) (*user.User, error)
 }
 
+// batchOrchestrator is the narrow, READ-ONLY slice of internal/
+// pickingbatch's own Service that Create needs to detect whether a
+// source picking task is batch-sourced and, if so, build a per-order
+// job from that order's own allocation rows — the one-way dependency
+// this package -> internal/pickingbatch (never the reverse: pickingbatch
+// has no need to ever import packing). Satisfied structurally by
+// *pickingbatch.Service. Every method here is read-only; this package
+// never writes to picking_batches/picking_batch_allocations through
+// this interface or any other.
+type batchOrchestrator interface {
+	FindBatchByPickingTaskID(ctx context.Context, tenantID, pickingTaskID int64) (*pickingbatch.Batch, error)
+	IsOrderInBatch(ctx context.Context, tenantID, batchID, orderID int64) (bool, error)
+	OrderAllocationLines(ctx context.Context, tenantID, batchID, orderID int64) ([]pickingbatch.OrderAllocationLine, error)
+	OrderPackingSnapshot(ctx context.Context, tenantID, orderID int64) (*pickingbatch.OrderPackingSnapshot, error)
+}
+
 // Service holds the Packing workflow's business rules. It deliberately
 // has NO dependency on internal/inventory at all — grepped to confirm
 // this package does not import it anywhere: Picking already removed the
@@ -72,6 +108,12 @@ type Service struct {
 	// reason documented on picking.Service.users — AssignPacker is the
 	// only method that needs it, and it is nil-checked there.
 	users userChecker
+	// batches is set via SetBatches, not the constructor, for the same
+	// reason — only Create's own batch-sourced branch needs it, and it
+	// is nil-checked there so a packing.Service wired up without ever
+	// calling SetBatches (e.g. an older/narrower test double) continues
+	// to behave exactly as before Phase 33C.2 for the non-batch path.
+	batches batchOrchestrator
 }
 
 func NewService(repo *Repository, pickingSvc pickingChecker) *Service {
@@ -83,6 +125,14 @@ func NewService(repo *Repository, pickingSvc pickingChecker) *Service {
 // mirroring picking.Service.SetUsers exactly.
 func (s *Service) SetUsers(users userChecker) {
 	s.users = users
+}
+
+// SetBatches wires the read-only internal/pickingbatch lookup Create's
+// own batch-sourced branch needs — called once by cmd/server/main.go's
+// own DI wiring, after internal/pickingbatch.Service itself has been
+// constructed (mirrors SetUsers' own "set after construction" shape).
+func (s *Service) SetBatches(batches batchOrchestrator) {
+	s.batches = batches
 }
 
 func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
@@ -134,6 +184,7 @@ func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error
 	}
 	return &Response{
 		ID: header.ID, JobNo: header.JobNo, PickingTaskID: header.PickingTaskID, PickNo: header.PickNo,
+		OrderID: header.OrderID,
 		OrderNo: header.OrderNo, Customer: header.Customer, CustomerID: header.CustomerID, ShipToID: header.ShipToID,
 		ShipToName: header.ShipToName, ShipToAddress: header.ShipToAddress,
 		ShipToProvince: header.ShipToProvince, ShipToDistrict: header.ShipToDistrict,
@@ -149,22 +200,24 @@ func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error
 	}, nil
 }
 
-// Create validates the linked picking task and copies its already-
-// picked lines' quantities verbatim — the client never supplies a
-// per-line quantity at all (CreateRequest has no Items field), so
-// "packing picked_qty does not exceed the picking task's own PickedQty"
-// is enforced by construction, not by a range check on client input.
-// Rejects a picking task that is not yet terminal (COMPLETED or
-// SHORT_PICK — see ErrNotPackable) or that already has a packing job
-// (one-to-one, ErrAlreadyPacked, matching shipping's own one-shipment-
-// per-picking-task precedent). Never calls any internal/inventory
-// function.
+// Create validates the linked picking task and, depending on whether it
+// is batch-sourced (Phase 33C.2), dispatches to one of two branches:
 //
-// Lines are copied for every item with PickedQty > 0 regardless of
-// whether that line's own picking status is COMPLETED or SHORT — a
-// short-picked line can still have a nonzero partial PickedQty that
-// physically left the shelf and must still be packed; only lines with
-// nothing actually picked (PickedQty == 0) are excluded.
+//   - Ordinary (non-batch) task: createOrderJob — byte-for-byte the
+//     existing Phase 33C behavior, unchanged. order_id must be absent
+//     (ErrOrderIDNotAllowed).
+//   - Batch-sourced task (internal/pickingbatch claims this
+//     picking_task_id): createBatchJob — order_id is required
+//     (ErrOrderIDRequired), must be one of the batch's own included
+//     orders (ErrOrderNotInBatch), and the resulting job's lines are
+//     built from THAT order's own picking_batch_allocations rows using
+//     each row's own SortedQty (Sortation's own cumulative progress,
+//     never the shared task's task-wide PickedQty) as the frozen
+//     packed_qty ceiling — see createBatchJob's own doc.
+//
+// Both branches share the same terminal-task precondition (COMPLETED or
+// SHORT_PICK, ErrNotPackable) and never call any internal/inventory
+// function.
 func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest, userID int64) (*Response, error) {
 	task, err := s.picking.Get(ctx, tenantID, req.PickingTaskID)
 	if err != nil {
@@ -174,6 +227,39 @@ func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest,
 		return nil, ErrNotPackable
 	}
 
+	var batch *pickingbatch.Batch
+	if s.batches != nil {
+		b, err := s.batches.FindBatchByPickingTaskID(ctx, tenantID, req.PickingTaskID)
+		switch {
+		case err == nil:
+			batch = b
+		case errors.Is(err, pickingbatch.ErrNotFound):
+			// Not batch-sourced -- the ordinary case, unchanged.
+		default:
+			return nil, err
+		}
+	}
+
+	if batch != nil {
+		return s.createBatchJob(ctx, tenantID, task, batch, req, userID)
+	}
+	if req.OrderID != nil {
+		return nil, ErrOrderIDNotAllowed
+	}
+	return s.createOrderJob(ctx, tenantID, task, req, userID)
+}
+
+// createOrderJob is Phase 33C's own, completely unmodified Create logic
+// for the ordinary (non-batch) flow, extracted verbatim into its own
+// function only so Create (above) can dispatch to it — every line of
+// business logic here is identical to before Phase 33C.2: lines are
+// copied for every item with PickedQty > 0 regardless of whether that
+// line's own picking status is COMPLETED or SHORT (a short-picked line
+// can still have a nonzero partial PickedQty that physically left the
+// shelf and must still be packed; only lines with nothing actually
+// picked are excluded), the duplicate-job pre-check runs before the
+// transaction opens, and the resulting Job's OrderID is left nil.
+func (s *Service) createOrderJob(ctx context.Context, tenantID int64, task *picking.Response, req CreateRequest, userID int64) (*Response, error) {
 	var packableItems []picking.ItemResponse
 	for _, it := range task.Items {
 		if it.PickedQty > 0 {
@@ -187,7 +273,7 @@ func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest,
 	// The duplicate-job check is the first thing here that touches the
 	// database — everything above is pure validation against the
 	// already-fetched picking task.
-	if _, err := s.repo.FindByPickingTaskID(ctx, tenantID, req.PickingTaskID); err == nil {
+	if _, err := s.repo.FindByPickingTaskAndOrder(ctx, tenantID, req.PickingTaskID, nil); err == nil {
 		return nil, ErrAlreadyPacked
 	} else if !errors.Is(err, ErrNotFound) {
 		return nil, err
@@ -198,7 +284,7 @@ func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest,
 
 	var jobID int64
 	start := time.Now()
-	err = s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
+	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
 		job := &Job{
 			PickingTaskID: req.PickingTaskID, OrderNo: task.OrderNo, Customer: task.Customer,
 			CustomerID: task.CustomerID, ShipToID: task.ShipToID,
@@ -225,6 +311,104 @@ func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest,
 		return nil
 	})
 	dbctx.LogTransaction(ctx, "packing.create", start, err)
+	if err != nil {
+		return nil, err
+	}
+	return s.Get(ctx, tenantID, jobID)
+}
+
+// createBatchJob is Phase 33C.2's new branch: build exactly one packing
+// job for ONE order's own share of a batch-sourced, already-terminal
+// picking task.
+//
+// "Adequately sorted" threshold (documented decision): every one of
+// this order's own allocation lines for this batch must have SortedQty
+// > 0 before a job can be opened — NOT every line fully sorted. This
+// deliberately mirrors createOrderJob's own "PickedQty > 0, not
+// PickedQty == OrderedQty" inclusion rule above, and allows a packer to
+// start packing an order's share while Sortation is still working
+// through the rest of that same order's lines (a job's own line is
+// still bounded by that line's own SortedQty as its packed_qty ceiling
+// — PackItem can never pack more than has actually been sorted to it
+// regardless of when the job was opened). A line with zero sorted_qty
+// is excluded from ErrNoPackableItems the same way createOrderJob
+// excludes a zero-PickedQty line; a line that has been fully resolved
+// by a shortage (sorted_qty == 0 forever, shortage_qty == allocated_qty)
+// is likewise simply never packable and never blocks the job itself.
+func (s *Service) createBatchJob(ctx context.Context, tenantID int64, task *picking.Response, batch *pickingbatch.Batch, req CreateRequest, userID int64) (*Response, error) {
+	if req.OrderID == nil {
+		return nil, ErrOrderIDRequired
+	}
+	orderID := *req.OrderID
+
+	inBatch, err := s.batches.IsOrderInBatch(ctx, tenantID, batch.ID, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if !inBatch {
+		return nil, ErrOrderNotInBatch
+	}
+
+	lines, err := s.batches.OrderAllocationLines(ctx, tenantID, batch.ID, orderID)
+	if err != nil {
+		return nil, err
+	}
+	var packableLines []pickingbatch.OrderAllocationLine
+	for _, l := range lines {
+		if l.SortedQty > 0 {
+			packableLines = append(packableLines, l)
+		}
+	}
+	if len(packableLines) == 0 {
+		if len(lines) == 0 {
+			return nil, ErrNoPackableItems
+		}
+		return nil, ErrSortationIncomplete
+	}
+
+	if _, err := s.repo.FindByPickingTaskAndOrder(ctx, tenantID, req.PickingTaskID, &orderID); err == nil {
+		return nil, ErrAlreadyPacked
+	} else if !errors.Is(err, ErrNotFound) {
+		return nil, err
+	}
+
+	snapshot, err := s.batches.OrderPackingSnapshot(ctx, tenantID, orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := dbctx.Detach(ctx)
+	defer cancel()
+
+	var jobID int64
+	start := time.Now()
+	err = s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
+		job := &Job{
+			PickingTaskID: req.PickingTaskID, OrderID: &orderID, OrderNo: snapshot.OrderNo, Customer: snapshot.Customer,
+			CustomerID: snapshot.CustomerID, ShipToID: snapshot.ShipToID,
+			ShipToName: snapshot.ShipToName, ShipToAddress: snapshot.ShipToAddress,
+			ShipToProvince: snapshot.ShipToProvince, ShipToDistrict: snapshot.ShipToDistrict,
+			ShipToPostalCode:    snapshot.ShipToPostalCode,
+			ShipToContactPerson: snapshot.ShipToContactPerson, ShipToContactPhone: snapshot.ShipToContactPhone,
+			WarehouseID: snapshot.WarehouseID, Status: StatusDraft, Remark: req.Remark, CreatedBy: &userID,
+		}
+		if err := txRepo.CreateJob(ctx, tenantID, job); err != nil {
+			return err
+		}
+		jobID = job.ID
+
+		for _, l := range packableLines {
+			if err := txRepo.CreateItem(ctx, tenantID, &Item{
+				PackingJobID: job.ID, PickingTaskItemID: l.PickingTaskItemID, ProductID: l.ProductID,
+				LotNo: l.LotNo, OrderedQty: l.AllocatedQty, PickedQty: l.SortedQty, PackedQty: 0,
+				UOM: l.UOM, Status: ItemStatusPending,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	dbctx.LogTransaction(ctx, "packing.create_batch", start, err)
 	if err != nil {
 		return nil, err
 	}

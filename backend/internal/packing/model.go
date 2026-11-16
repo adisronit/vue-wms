@@ -189,16 +189,28 @@ func (u DimensionUnit) IsValid() bool {
 	return u == DimensionCM || u == DimensionIN
 }
 
-// Job is the GORM model for the packing_jobs table (migrations/0087).
-// OrderNo/Customer/CustomerID/ShipTo* are a one-way snapshot copy from
-// the source picking_tasks row at Create time — never independently
-// validated or re-synced here, matching picking_tasks' own copy from
-// orders (migrations/0062).
+// Job is the GORM model for the packing_jobs table (migrations/0087,
+// extended by migrations/0101-0102 with OrderID). OrderNo/Customer/
+// CustomerID/ShipTo* are a one-way snapshot copy at Create time — for
+// the ordinary (non-batch) flow, copied from the source picking_tasks
+// row, matching picking_tasks' own copy from orders (migrations/0062);
+// for a batch-sourced job (OrderID set), copied directly from THAT
+// order's own row instead, since the shared picking task's own copied
+// fields only ever held one (arbitrary, now-meaningless) order's
+// snapshot — see Service.Create's own doc for why.
+//
+// OrderID is NULL for every ordinary PICK_BY_ORDER job — byte-for-byte
+// the same shape as before Phase 33C.2 — and set to a specific order_id
+// only when the source picking_task_id is batch-sourced (internal/
+// pickingbatch), letting one shared task fan out into one packing job
+// PER ORDER. See migrations/0102's own doc for the dual filtered-unique-
+// index scheme this enables.
 type Job struct {
 	ID                  int64      `gorm:"column:id;primaryKey"`
 	TenantID            int64      `gorm:"column:tenant_id;not null"`
 	JobNo               string     `gorm:"column:job_no"`
 	PickingTaskID       int64      `gorm:"column:picking_task_id"`
+	OrderID             *int64     `gorm:"column:order_id"`
 	OrderNo             string     `gorm:"column:order_no"`
 	Customer            *string    `gorm:"column:customer"`
 	CustomerID          *int64     `gorm:"column:customer_id"`

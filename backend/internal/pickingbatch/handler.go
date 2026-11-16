@@ -48,6 +48,16 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChec
 	group.POST("", middleware.RequirePermission("picking_batch.create"), h.Create)
 	group.POST("/:id/confirm", middleware.RequirePermission("picking_batch.confirm"), h.Confirm)
 	group.POST("/:id/cancel", middleware.RequirePermission("picking_batch.cancel"), h.Cancel)
+
+	// Phase 33C.2 -- Sortation. The worklist read stays on the existing
+	// "view" code; the three mutating actions share the new
+	// "sortation" code (see internal/rbac/catalog.go's own doc on why
+	// this is an addition to the existing picking_batch module, not a
+	// new one).
+	group.GET("/:id/sortation", middleware.RequirePermission("picking_batch.view"), h.GetSortation)
+	group.POST("/:id/sortation/scan", middleware.RequirePermission("picking_batch.sortation"), h.ScanSortation)
+	group.POST("/:id/sortation/exception", middleware.RequirePermission("picking_batch.sortation"), h.FlagSortationException)
+	group.PUT("/:id/sortation/assign", middleware.RequirePermission("picking_batch.sortation"), h.AssignSortation)
 }
 
 // List godoc
@@ -279,6 +289,174 @@ func (h *Handler) Cancel(c *gin.Context) {
 	writeError(c, err)
 }
 
+// ---------------------------------------------------------------------
+// Phase 33C.2 -- Sortation
+// ---------------------------------------------------------------------
+
+// GetSortation godoc
+//
+//	@Summary		Get the Sortation worklist for a batch
+//	@Description	Requires the batch to be CONFIRMED and its underlying picking task to have reached COMPLETED or SHORT_PICK. One line per order-share slice (picking_batch_allocations row), with cumulative sorted_qty/shortage progress.
+//	@Tags			Picking Batches
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		int	true	"Batch ID"
+//	@Success		200	{object}	apihttp.SuccessResponse{data=SortationResponse}
+//	@Failure		401	{object}	apihttp.ErrorResponse
+//	@Failure		403	{object}	apihttp.ErrorResponse
+//	@Failure		404	{object}	apihttp.ErrorResponse
+//	@Failure		409	{object}	apihttp.ErrorResponse	"sortation not yet available"
+//	@Router			/picking-batches/{id}/sortation [get]
+func (h *Handler) GetSortation(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid batch id", "INVALID_REQUEST")
+		return
+	}
+	resp, err := h.service.GetSortation(c.Request.Context(), tenantID, id)
+	if err == nil {
+		apihttp.OK(c, resp, "")
+		return
+	}
+	writeError(c, err)
+}
+
+// ScanSortation godoc
+//
+//	@Summary		Scan one order/SKU/lot confirmation into the Sortation worklist
+//	@Description	Resolves order_barcode against the batch's own member orders and sku/lot_no against that order's own allocation rows, then atomically increments sorted_qty bounded by allocated_qty. Rejects (never clamps) a quantity that would exceed the remaining allocation.
+//	@Tags			Picking Batches
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int						true	"Batch ID"
+//	@Param			request	body		SortationScanRequest	true	"Order/SKU/lot/quantity scan"
+//	@Success		200		{object}	apihttp.SuccessResponse{data=SortationResponse}
+//	@Failure		400		{object}	apihttp.ErrorResponse
+//	@Failure		401		{object}	apihttp.ErrorResponse
+//	@Failure		403		{object}	apihttp.ErrorResponse
+//	@Failure		404		{object}	apihttp.ErrorResponse
+//	@Failure		409		{object}	apihttp.ErrorResponse	"sortation not yet available"
+//	@Failure		422		{object}	apihttp.ErrorResponse	"scan mismatch, or sorting this quantity would exceed the remaining allocation"
+//	@Router			/picking-batches/{id}/sortation/scan [post]
+func (h *Handler) ScanSortation(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid batch id", "INVALID_REQUEST")
+		return
+	}
+	var req SortationScanRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid request body", "INVALID_REQUEST")
+		return
+	}
+	userID, _ := middleware.CurrentUserID(c)
+	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
+
+	resp, err := h.service.ScanSortation(ctx, tenantID, id, req, userID)
+	if err == nil {
+		apihttp.OK(c, resp, "sortation scan recorded")
+		return
+	}
+	writeError(c, err)
+}
+
+// FlagSortationException godoc
+//
+//	@Summary		Flag a sortation-stage shortage/damage exception on one allocation line
+//	@Tags			Picking Batches
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int							true	"Batch ID"
+//	@Param			request	body		SortationExceptionRequest	true	"Allocation, shortage quantity, and reason"
+//	@Success		200		{object}	apihttp.SuccessResponse{data=SortationResponse}
+//	@Failure		400		{object}	apihttp.ErrorResponse
+//	@Failure		401		{object}	apihttp.ErrorResponse
+//	@Failure		403		{object}	apihttp.ErrorResponse
+//	@Failure		404		{object}	apihttp.ErrorResponse
+//	@Failure		409		{object}	apihttp.ErrorResponse	"sortation not yet available, or line already flagged"
+//	@Failure		422		{object}	apihttp.ErrorResponse	"shortage_qty exceeds this allocation's own remaining quantity"
+//	@Router			/picking-batches/{id}/sortation/exception [post]
+func (h *Handler) FlagSortationException(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid batch id", "INVALID_REQUEST")
+		return
+	}
+	var req SortationExceptionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid request body", "INVALID_REQUEST")
+		return
+	}
+	userID, _ := middleware.CurrentUserID(c)
+	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
+
+	resp, err := h.service.FlagSortationException(ctx, tenantID, id, req, userID)
+	if err == nil {
+		apihttp.OK(c, resp, "sortation exception flagged")
+		return
+	}
+	writeError(c, err)
+}
+
+// AssignSortation godoc
+//
+//	@Summary		Assign a sortation station and/or operator to a batch
+//	@Tags			Picking Batches
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int						true	"Batch ID"
+//	@Param			request	body		SortationAssignRequest	true	"Station and/or user to assign"
+//	@Success		200		{object}	apihttp.SuccessResponse{data=SortationResponse}
+//	@Failure		400		{object}	apihttp.ErrorResponse
+//	@Failure		401		{object}	apihttp.ErrorResponse
+//	@Failure		403		{object}	apihttp.ErrorResponse
+//	@Failure		404		{object}	apihttp.ErrorResponse
+//	@Failure		409		{object}	apihttp.ErrorResponse	"sortation not yet available"
+//	@Router			/picking-batches/{id}/sortation/assign [put]
+func (h *Handler) AssignSortation(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid batch id", "INVALID_REQUEST")
+		return
+	}
+	var req SortationAssignRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid request body", "INVALID_REQUEST")
+		return
+	}
+	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
+
+	resp, err := h.service.AssignSortation(ctx, tenantID, id, req)
+	if err == nil {
+		apihttp.OK(c, resp, "sortation assignment updated")
+		return
+	}
+	writeError(c, err)
+}
+
 func parseID(c *gin.Context, param string) (int64, error) {
 	return strconv.ParseInt(c.Param(param), 10, 64)
 }
@@ -296,6 +474,16 @@ func writeError(c *gin.Context, err error) {
 		apihttp.Fail(c, http.StatusConflict, err.Error(), "CONFIRM_CONFLICT")
 	case errors.Is(err, ErrNotCancellable):
 		apihttp.Fail(c, http.StatusConflict, err.Error(), "NOT_CANCELLABLE")
+	case errors.Is(err, ErrSortationNotReady):
+		apihttp.Fail(c, http.StatusConflict, err.Error(), "SORTATION_NOT_READY")
+	case errors.Is(err, ErrSortationScanMismatch):
+		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "SORTATION_SCAN_MISMATCH")
+	case errors.Is(err, ErrSortationOverAllocation):
+		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "SORTATION_OVER_ALLOCATION")
+	case errors.Is(err, ErrAllocationNotFound):
+		apihttp.Fail(c, http.StatusNotFound, err.Error(), "ALLOCATION_NOT_FOUND")
+	case errors.Is(err, ErrSortationAlreadyFlagged):
+		apihttp.Fail(c, http.StatusConflict, err.Error(), "SORTATION_ALREADY_FLAGGED")
 	case errors.As(err, &validationErr):
 		apihttp.Fail(c, http.StatusUnprocessableEntity, validationErr.Message, "VALIDATION_ERROR")
 	default:
