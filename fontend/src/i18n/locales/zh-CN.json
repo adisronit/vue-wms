@@ -114,7 +114,8 @@
     "suppliers": "供应商",
     "logout": "退出登录",
     "sectionPlatformAdmin": "平台管理",
-    "platformTenants": "租户"
+    "platformTenants": "租户",
+    "relocation": "库内调拨"
   },
   "layout": {
     "headerTitle": "仓库管理系统",
@@ -2336,6 +2337,118 @@
       "messages": {
         "loadFailed": "加载租户用户失败"
       }
+    }
+  },
+  "relocation": {
+    "title": "库内调拨",
+    "subtitle": "在仓库各位置之间移动现有库存，独立于收货/上架流程",
+    "newButton": "+ 新建调拨任务",
+    "documents": {
+      "viewTransferNote": "查看调拨单"
+    },
+    "statusLabels": {
+      "ready": "待执行"
+    },
+    "filters": {
+      "searchPlaceholder": "搜索任务号、SKU、位置...",
+      "allStatus": "全部状态",
+      "allWarehouses": "全部仓库"
+    },
+    "table": {
+      "taskNo": "任务号",
+      "sku": "SKU",
+      "product": "产品",
+      "lotNo": "批次号",
+      "qty": "已移动 / 数量",
+      "fromLocation": "源位置",
+      "toLocation": "目标位置",
+      "action": "操作"
+    },
+    "loadingTasks": "正在加载调拨任务…",
+    "noTasks": "未找到调拨任务",
+    "drawer": {
+      "title": "调拨任务",
+      "lines": "调拨明细",
+      "moved": "已移动",
+      "confirmQtyPlaceholder": "待移动数量",
+      "overrideDestinationPlaceholder": "覆盖目标货位（可选）",
+      "confirmLineButton": "确认明细",
+      "markReadyButton": "标记为待执行",
+      "cancelButton": "取消任务",
+      "cancelledAt": "取消时间",
+      "cancelledBy": "取消人",
+      "cancellationRemark": "取消备注"
+    },
+    "messages": {
+      "confirmQtyRequired": "请输入数量",
+      "noLocationFound": "找不到货位代码 \"{value}\"",
+      "markedReady": "调拨任务已标记为待执行",
+      "relocationConfirmed": "调拨确认成功",
+      "taskCancelled": "调拨任务已取消",
+      "confirmCancelTask": "此调拨任务将被取消，已移动的明细不会被撤销。是否继续？"
+    }
+  },
+  "newRelocation": {
+    "title": "新建库内调拨",
+    "subtitle": "扫描源位置和目标位置以移动现有库存",
+    "backButton": "返回调拨列表",
+    "taskInfo": "任务信息",
+    "fields": {
+      "warehouse": "仓库",
+      "selectWarehouse": "选择仓库",
+      "remarkPlaceholder": "输入备注"
+    },
+    "scan": {
+      "title": "扫描调拨明细",
+      "subtitle": "扫描 SKU、批次、源位置和目标货位以添加明细",
+      "lookingUp": "正在查询…",
+      "scannerReady": "扫描器就绪",
+      "skuPlaceholder": "扫描或输入 SKU/条码",
+      "lotPlaceholder": "批次号（可选）",
+      "sourcePlaceholder": "扫描或输入源货位",
+      "destinationPlaceholder": "扫描或输入目标货位",
+      "qtyPlaceholder": "数量",
+      "lpnPlaceholder": "托盘/LPN（可选）",
+      "addLine": "添加明细",
+      "availableStock": "源位置可用库存：{qty}"
+    },
+    "itemsSection": {
+      "title": "调拨明细",
+      "subtitle": "通过上方扫描栏添加的明细"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "产品名称",
+      "lotNo": "批次号",
+      "lpn": "LPN",
+      "fromLocation": "源位置",
+      "toLocation": "目标位置",
+      "qty": "数量",
+      "uom": "单位",
+      "action": "操作",
+      "noItems": "尚未添加明细"
+    },
+    "summary": {
+      "title": "汇总",
+      "totalLines": "明细总数",
+      "totalQty": "总数量"
+    },
+    "actions": {
+      "saveAndMarkReady": "保存并标记为待执行",
+      "viewOnlyNote": "您的角色可以保存草稿，但不能标记为待执行。"
+    },
+    "messages": {
+      "skuRequired": "请输入 SKU",
+      "sourceAndDestinationRequired": "请输入源位置和目标位置",
+      "fromAndToMustDiffer": "源位置和目标位置不能相同",
+      "noProductFound": "找不到产品 \"{value}\"",
+      "noLocationFound": "找不到货位代码 \"{value}\"",
+      "warehouseRequired": "请选择仓库",
+      "atLeastOneItem": "至少需要一条明细",
+      "everyItemNeedsQtyGreaterThanZero": "每条明细的数量必须大于零",
+      "draftSaved": "调拨草稿已保存",
+      "markedReady": "调拨任务已保存并标记为待执行",
+      "confirmSubmitDialog": "此操作将保存任务并标记为待执行。是否继续？"
     }
   }
 }

@@ -50,6 +50,7 @@ import (
 	"wms-backend/internal/putaway"
 	"wms-backend/internal/qualitycheck"
 	"wms-backend/internal/receiving"
+	"wms-backend/internal/relocation"
 	"wms-backend/internal/replenishment"
 	"wms-backend/internal/report"
 	"wms-backend/internal/role"
@@ -294,6 +295,19 @@ func main() {
 	putawayRepo := putaway.NewRepository(dbManager.DB())
 	putawayService := putaway.NewService(putawayRepo, productRepo, warehouseRepo, receivingService, inventoryService)
 	putaway.NewHandler(putawayService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 32: relocation is a standalone internal transfer workflow —
+	// architecturally a clone of putaway above (same tenant-scoped,
+	// hold-aware MoveAvailableStockTx usage) but with no dependency on
+	// receivingService, since it moves stock already in the warehouse
+	// rather than stock a receipt just brought in. Its own PDF
+	// (RenderTransferNote) is composed locally in internal/relocation,
+	// not folded into inbounddoc — a Relocation Transfer Note is not an
+	// inbound document.
+	relocationRepo := relocation.NewRepository(dbManager.DB())
+	relocationService := relocation.NewService(relocationRepo, productRepo, warehouseRepo, inventoryService)
+	relocationPDFService := relocation.NewPDFService(relocationService, inventoryService, locationRepo, tenantRepo, userRepo)
+	relocation.NewHandler(relocationService, relocationPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Phase 31D: inbounddoc composes the three Services above (plus
 	// inventoryService for its own Final Stock Position section and

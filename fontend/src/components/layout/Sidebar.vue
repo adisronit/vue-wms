@@ -40,6 +40,9 @@
       <router-link v-if="canViewReplenishment" to="/inventory/replenishment" class="menu-item" active-class="menu-active">
         {{ $t('nav.replenishment') }}
       </router-link>
+      <router-link v-if="canViewRelocation" to="/inventory/relocation" class="menu-item" active-class="menu-active">
+        {{ $t('nav.relocation') }}
+      </router-link>
 
       <p class="menu-title">{{ $t('nav.sectionOutbound') }}</p>
       <router-link to="/outbound/orders" class="menu-item" active-class="menu-active">
@@ -130,6 +133,7 @@ export default {
     canViewBrands: { type: Boolean, default: false },
     canViewProductFamilies: { type: Boolean, default: false },
     canViewReplenishment: { type: Boolean, default: false },
+    canViewRelocation: { type: Boolean, default: false },
     canViewPlatformAdmin: { type: Boolean, default: false }
   },
 

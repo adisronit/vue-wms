@@ -59,6 +59,17 @@ var Modules = []ModuleDef{
 	// "approve" the same way receiving.confirm/quality_check.confirm
 	// were in 31A/31B, so PUTAWAY staff can confirm their own tasks.
 	{Code: "putaway", Name: "Putaway", Actions: []string{"view", "create", "update", "confirm", "approve"}},
+	// Phase 32 — Stock Relocation: "approve" gates Draft -> Ready
+	// (locking a task's lines for execution); "confirm" gates the
+	// stock-moving action, the same confirm/approve split receiving.
+	// confirm/quality_check.confirm/putaway.confirm already established.
+	// No default grant for any operational staff role yet (matches how
+	// each new module is introduced conservatively) — only ADMIN (every
+	// code, computed) and WAREHOUSE_MANAGER (every non-delete code,
+	// computed) get it automatically; a future phase can extend e.g.
+	// PUTAWAY's RoleDefaultGrants if relocation duties are assigned to
+	// existing staff roles.
+	{Code: "relocation", Name: "Stock Relocation", Actions: []string{"view", "create", "update", "confirm", "approve"}},
 	{Code: "stock_inquiry", Name: "Stock Inquiry", Actions: []string{"view", "export"}},
 	{Code: "stock_adjustment", Name: "Stock Adjustment", Actions: []string{"view", "create", "update", "delete", "approve"}},
 	{Code: "picking", Name: "Picking", Actions: []string{"view", "create", "update", "approve"}},

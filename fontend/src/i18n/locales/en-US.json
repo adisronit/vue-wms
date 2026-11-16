@@ -114,7 +114,8 @@
     "suppliers": "Suppliers",
     "logout": "Logout",
     "sectionPlatformAdmin": "Platform Administration",
-    "platformTenants": "Tenants"
+    "platformTenants": "Tenants",
+    "relocation": "Stock Relocation"
   },
   "layout": {
     "headerTitle": "Warehouse Management System",
@@ -2336,6 +2337,118 @@
       "messages": {
         "loadFailed": "Failed to load tenant users"
       }
+    }
+  },
+  "relocation": {
+    "title": "Stock Relocation",
+    "subtitle": "Move existing stock between warehouse locations, independently of Receiving/Putaway",
+    "newButton": "+ New Relocation Task",
+    "documents": {
+      "viewTransferNote": "View Transfer Note"
+    },
+    "statusLabels": {
+      "ready": "Ready"
+    },
+    "filters": {
+      "searchPlaceholder": "Search Task, SKU, Location...",
+      "allStatus": "All Status",
+      "allWarehouses": "All Warehouses"
+    },
+    "table": {
+      "taskNo": "Task No.",
+      "sku": "SKU",
+      "product": "Product",
+      "lotNo": "Lot No.",
+      "qty": "Moved / Qty",
+      "fromLocation": "From Location",
+      "toLocation": "To Location",
+      "action": "Action"
+    },
+    "loadingTasks": "Loading relocation tasks…",
+    "noTasks": "No relocation tasks found",
+    "drawer": {
+      "title": "Relocation Task",
+      "lines": "Relocation Lines",
+      "moved": "Moved",
+      "confirmQtyPlaceholder": "Quantity to move",
+      "overrideDestinationPlaceholder": "Override destination bin (optional)",
+      "confirmLineButton": "Confirm Line",
+      "markReadyButton": "Mark Ready",
+      "cancelButton": "Cancel Task",
+      "cancelledAt": "Cancelled At",
+      "cancelledBy": "Cancelled By",
+      "cancellationRemark": "Cancellation Remark"
+    },
+    "messages": {
+      "confirmQtyRequired": "Quantity is required",
+      "noLocationFound": "No location found for bin code \"{value}\"",
+      "markedReady": "Relocation task marked ready",
+      "relocationConfirmed": "Relocation confirmed successfully",
+      "taskCancelled": "Relocation task cancelled",
+      "confirmCancelTask": "This relocation task will be cancelled. Lines already moved are not reversed. Continue?"
+    }
+  },
+  "newRelocation": {
+    "title": "New Stock Relocation",
+    "subtitle": "Scan source and destination locations to move existing stock",
+    "backButton": "Back to Relocation",
+    "taskInfo": "Task Information",
+    "fields": {
+      "warehouse": "Warehouse",
+      "selectWarehouse": "Select warehouse",
+      "remarkPlaceholder": "Enter remark"
+    },
+    "scan": {
+      "title": "Scan Relocation Line",
+      "subtitle": "Scan SKU, lot, source and destination bin to add a line",
+      "lookingUp": "Looking up…",
+      "scannerReady": "Scanner Ready",
+      "skuPlaceholder": "Scan or enter SKU/barcode",
+      "lotPlaceholder": "Lot No. (optional)",
+      "sourcePlaceholder": "Scan or enter source bin",
+      "destinationPlaceholder": "Scan or enter destination bin",
+      "qtyPlaceholder": "Quantity",
+      "lpnPlaceholder": "Pallet/LPN (optional)",
+      "addLine": "Add Line",
+      "availableStock": "Available stock at source: {qty}"
+    },
+    "itemsSection": {
+      "title": "Relocation Lines",
+      "subtitle": "Lines added via the scan bar above"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "Product Name",
+      "lotNo": "Lot No.",
+      "lpn": "LPN",
+      "fromLocation": "From Location",
+      "toLocation": "To Location",
+      "qty": "Qty",
+      "uom": "UOM",
+      "action": "Action",
+      "noItems": "No lines added yet"
+    },
+    "summary": {
+      "title": "Summary",
+      "totalLines": "Total Lines",
+      "totalQty": "Total Quantity"
+    },
+    "actions": {
+      "saveAndMarkReady": "Save & Mark Ready",
+      "viewOnlyNote": "Your role can save a draft but not mark it ready."
+    },
+    "messages": {
+      "skuRequired": "SKU is required",
+      "sourceAndDestinationRequired": "Source and destination bin are required",
+      "fromAndToMustDiffer": "Source and destination bin must differ",
+      "noProductFound": "No product found for \"{value}\"",
+      "noLocationFound": "No location found for bin code \"{value}\"",
+      "warehouseRequired": "Warehouse is required",
+      "atLeastOneItem": "At least one line is required",
+      "everyItemNeedsQtyGreaterThanZero": "Every line needs a quantity greater than zero",
+      "draftSaved": "Relocation draft saved",
+      "markedReady": "Relocation task saved and marked ready",
+      "confirmSubmitDialog": "This will save the task and mark it ready for execution. Continue?"
     }
   }
 }
