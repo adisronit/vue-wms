@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -12,6 +13,10 @@ import (
 	apihttp "wms-backend/internal/platform/http"
 	"wms-backend/internal/platform/middleware"
 )
+
+func writeTenantUnauthorized(c *gin.Context) {
+	apihttp.Fail(c, http.StatusUnauthorized, "tenant context required", "UNAUTHORIZED")
+}
 
 // Handler exposes Service over HTTP.
 type Handler struct {
@@ -22,29 +27,31 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-// Register mounts the Putaway endpoints on rg. Permissions reuse the
-// existing "putaway" module from Phase 2/3's catalog exactly as-is — no
-// new codes. Confirm (the action that actually moves stock) is gated on
-// putaway.approve, the same significant-action permission Receiving's
-// Confirm already used for its own module: per the current seed data
-// only ADMIN/WAREHOUSE_MANAGER have it — PUTAWAY staff can create tasks
-// but not confirm them, the same segregation-of-duties consequence of
-// grants already established in Phase 2/3 (see PROJECT_STATUS.md).
+// Register mounts the Putaway endpoints on rg.
 //
-// Phase 15's Cancel is gated on putaway.update instead, matching
-// Receiving's own Cancel reasoning: it only ever runs before any line
-// has moved stock (Service.Cancel's own MovedQty check backs this up
-// regardless of header status), so it sits at the same authority level
-// as managing a task PUTAWAY staff already have — not at approve's
-// stock-moving authority level.
-func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
-	putawayGroup := rg.Group("/putaway", middleware.RequireJWT(jwtSecret))
+// Phase 31C upgrades the chain from RequireJWT-only to RequireJWT ->
+// RequireTenantContext -> RequirePermission, matching internal/receiving's
+// own Phase 31A chain and internal/qualitycheck's own Phase 31B chain —
+// Putaway was the last inbound/outbound workflow module still on the
+// old chain. Every handler method below now extracts tenantID via
+// middleware.EnforcedTenantID and threads it through to Service.
+//
+// Confirm (the action that actually moves stock) is now gated on
+// putaway.confirm, split out of the pre-existing putaway.approve the
+// same way receiving.confirm/quality_check.confirm were in 31A/31B —
+// ordinary PUTAWAY staff can confirm their own tasks; approve stays
+// reserved for a future supervisor exception action.
+func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChecker middleware.MembershipChecker, membershipCacheTTL time.Duration) {
+	putawayGroup := rg.Group("/putaway",
+		middleware.RequireJWT(jwtSecret),
+		middleware.RequireTenantContext(membershipChecker, membershipCacheTTL),
+	)
 	putawayGroup.GET("", middleware.RequirePermission("putaway.view"), h.List)
 	putawayGroup.GET("/export", middleware.RequirePermission("putaway.view"), h.Export)
 	putawayGroup.GET("/sources/:receiptId", middleware.RequirePermission("putaway.view"), h.Sources)
 	putawayGroup.GET("/:id", middleware.RequirePermission("putaway.view"), h.Get)
 	putawayGroup.POST("", middleware.RequirePermission("putaway.create"), h.Create)
-	putawayGroup.POST("/:id/confirm", middleware.RequirePermission("putaway.approve"), h.Confirm)
+	putawayGroup.POST("/:id/confirm", middleware.RequirePermission("putaway.confirm"), h.Confirm)
 	putawayGroup.POST("/:id/cancel", middleware.RequirePermission("putaway.update"), h.Cancel)
 }
 
@@ -66,12 +73,18 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
 //	@Failure		403				{object}	apihttp.ErrorResponse
 //	@Router			/putaway [get]
 func (h *Handler) List(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	page, _ := strconv.Atoi(c.Query("page"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	warehouseID, _ := strconv.ParseInt(c.Query("warehouse_id"), 10, 64)
 	zoneID, _ := strconv.ParseInt(c.Query("zone_id"), 10, 64)
 
-	responses, total, err := h.service.List(c.Request.Context(), ListParams{
+	responses, total, err := h.service.List(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), Status: Status(c.Query("status")),
 		WarehouseID: warehouseID, ZoneID: zoneID, Page: page, Limit: limit,
 	})
@@ -113,10 +126,16 @@ func (h *Handler) List(c *gin.Context) {
 //	@Failure		403				{object}	apihttp.ErrorResponse
 //	@Router			/putaway/export [get]
 func (h *Handler) Export(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	warehouseID, _ := strconv.ParseInt(c.Query("warehouse_id"), 10, 64)
 	zoneID, _ := strconv.ParseInt(c.Query("zone_id"), 10, 64)
 
-	rows, err := h.service.ListForExport(c.Request.Context(), ListParams{
+	rows, err := h.service.ListForExport(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), Status: Status(c.Query("status")),
 		WarehouseID: warehouseID, ZoneID: zoneID,
 	})
@@ -143,7 +162,7 @@ func (h *Handler) Export(c *gin.Context) {
 // Sources godoc
 //
 //	@Summary		List a receipt's lines still eligible for putaway
-//	@Description	Powers NewPutawayView.vue's "Source Document" selector — only lines with received_qty greater than what has already been put away are returned.
+//	@Description	Powers NewPutawayView.vue's "Source Document" selector — excludes whatever has already been put away and whatever is currently held for QC.
 //	@Tags			Putaway
 //	@Produce		json
 //	@Security		BearerAuth
@@ -154,13 +173,18 @@ func (h *Handler) Export(c *gin.Context) {
 //	@Failure		404			{object}	apihttp.ErrorResponse
 //	@Router			/putaway/sources/{receiptId} [get]
 func (h *Handler) Sources(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
 	receiptID, err := parseID(c, "receiptId")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid receipt id", "INVALID_REQUEST")
 		return
 	}
 
-	lines, err := h.service.Sources(c.Request.Context(), receiptID)
+	lines, err := h.service.Sources(c.Request.Context(), tenantID, receiptID)
 	if errors.Is(err, ErrReceiptNotFound) {
 		apihttp.Fail(c, http.StatusNotFound, "receipt not found", "NOT_FOUND")
 		return
@@ -185,13 +209,18 @@ func (h *Handler) Sources(c *gin.Context) {
 //	@Failure		404	{object}	apihttp.ErrorResponse
 //	@Router			/putaway/{id} [get]
 func (h *Handler) Get(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid putaway task id", "INVALID_REQUEST")
 		return
 	}
 
-	resp, err := h.service.Get(c.Request.Context(), id)
+	resp, err := h.service.Get(c.Request.Context(), tenantID, id)
 	if errors.Is(err, ErrNotFound) {
 		apihttp.Fail(c, http.StatusNotFound, "putaway task not found", "NOT_FOUND")
 		return
@@ -220,6 +249,12 @@ func (h *Handler) Get(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/putaway [post]
 func (h *Handler) Create(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	var req CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid request body", "INVALID_REQUEST")
@@ -229,7 +264,7 @@ func (h *Handler) Create(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Create(ctx, req, userID)
+	resp, err := h.service.Create(ctx, tenantID, req, userID)
 	if err == nil {
 		apihttp.Status(c, http.StatusCreated, resp, "putaway task created")
 		return
@@ -240,7 +275,7 @@ func (h *Handler) Create(c *gin.Context) {
 // Confirm godoc
 //
 //	@Summary		Confirm (or report an issue on) one or more putaway lines
-//	@Description	Atomically moves each CONFIRMED line's quantity via Inventory Core's MoveStock (same transaction) — never AddStock, so total system-wide quantity for the moved product/lot is unchanged — and recomputes the task's status; all committed together or all rolled back. ISSUE lines record a remark and move nothing. idempotency_key must be a fresh UUID per click; resending the same key returns the task's current state instead of moving stock twice. Can be called more than once on the same task for partial putaway.
+//	@Description	Atomically moves each CONFIRMED line's quantity via Inventory Core's MoveAvailableStockTx (same transaction) — never AddStock, and never a reserved or QC-held unit, so total system-wide quantity for the moved product/lot is unchanged and held/rejected stock can never reach available storage this way — and recomputes the task's status; all committed together or all rolled back. ISSUE lines record a remark and move nothing. idempotency_key must be a fresh UUID per click; resending the same key returns the task's current state instead of moving stock twice. Can be called more than once on the same task for partial putaway across multiple destinations.
 //	@Tags			Putaway
 //	@Accept			json
 //	@Produce		json
@@ -253,9 +288,14 @@ func (h *Handler) Create(c *gin.Context) {
 //	@Failure		403		{object}	apihttp.ErrorResponse
 //	@Failure		404		{object}	apihttp.ErrorResponse
 //	@Failure		409		{object}	apihttp.ErrorResponse	"task is not in a confirmable status, or a line is already resolved"
-//	@Failure		422		{object}	apihttp.ErrorResponse
+//	@Failure		422		{object}	apihttp.ErrorResponse	"e.g. insufficient AVAILABLE source stock — the remainder is reserved or QC-held"
 //	@Router			/putaway/{id}/confirm [post]
 func (h *Handler) Confirm(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid putaway task id", "INVALID_REQUEST")
@@ -271,7 +311,7 @@ func (h *Handler) Confirm(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Confirm(ctx, id, req, userID)
+	resp, err := h.service.Confirm(ctx, tenantID, id, req, userID)
 	if err == nil {
 		apihttp.OK(c, resp, "putaway confirmed")
 		return
@@ -282,7 +322,7 @@ func (h *Handler) Confirm(c *gin.Context) {
 // Cancel godoc
 //
 //	@Summary		Cancel a putaway task
-//	@Description	Marks the task CANCELLED. Only allowed while no line has actually moved stock yet — rejected with 409 both when the header itself is already terminal (COMPLETED/ISSUE/CANCELLED) and when the header is still IN_PROGRESS solely because a line was flagged ISSUE while another line has already moved stock. Never calls MoveStock to compensate for an already-completed move. Phase 18: on success, records cancelled_at (server UTC time) and cancelled_by (the authenticated caller) on the task, plus the optional request remark in cancel_remark (a dedicated column — the task's own pre-existing remark is left untouched). These audit fields are returned in the detail response (cancelled_at/cancelled_by/cancelled_by_name/cancel_remark) and are only ever set once: a rejected duplicate/invalid cancel attempt (409) never reaches the write and cannot overwrite them.
+//	@Description	Marks the task CANCELLED. Only allowed while no line has actually moved stock yet — rejected with 409 both when the header itself is already terminal (COMPLETED/ISSUE/CANCELLED) and when the header is still IN_PROGRESS solely because a line was flagged ISSUE while another line has already moved stock. Never calls MoveStock to compensate for an already-completed move. Phase 18: on success, records cancelled_at (server UTC time) and cancelled_by (the authenticated caller) on the task, plus the optional request remark in cancel_remark (a dedicated column — the task's own pre-existing remark is left untouched).
 //	@Tags			Putaway
 //	@Accept			json
 //	@Produce		json
@@ -297,6 +337,11 @@ func (h *Handler) Confirm(c *gin.Context) {
 //	@Failure		409		{object}	apihttp.ErrorResponse	"task is not in a cancellable status, or stock has already been moved for one or more lines"
 //	@Router			/putaway/{id}/cancel [post]
 func (h *Handler) Cancel(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid putaway task id", "INVALID_REQUEST")
@@ -314,7 +359,7 @@ func (h *Handler) Cancel(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Cancel(ctx, id, req, userID)
+	resp, err := h.service.Cancel(ctx, tenantID, id, req, userID)
 	if err == nil {
 		apihttp.OK(c, resp, "putaway task cancelled")
 		return
@@ -346,6 +391,8 @@ func writeError(c *gin.Context, err error) {
 		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "NO_SOURCE_STOCK")
 	case errors.Is(err, ErrCrossWarehouse):
 		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "CROSS_WAREHOUSE")
+	case errors.Is(err, ErrCapacityExceeded):
+		apihttp.Fail(c, http.StatusConflict, err.Error(), "CAPACITY_EXCEEDED")
 	case errors.Is(err, ErrInvalidTransition):
 		apihttp.Fail(c, http.StatusConflict, "putaway task is not in a confirmable status", "INVALID_TRANSITION")
 	case errors.Is(err, ErrNotCancellable):

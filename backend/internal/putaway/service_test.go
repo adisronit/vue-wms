@@ -191,7 +191,7 @@ type fakeWarehouses struct {
 	err error
 }
 
-func (f *fakeWarehouses) FindByID(context.Context, int64) (*warehouse.Warehouse, error) {
+func (f *fakeWarehouses) FindByIDForTenant(context.Context, int64, int64) (*warehouse.Warehouse, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -213,7 +213,7 @@ func (f *fakeReceipts) Get(context.Context, int64, int64) (*receiving.Response, 
 func TestCreate_RejectsUnknownWarehouse(t *testing.T) {
 	svc := NewService(nil, nil, &fakeWarehouses{err: errors.New("not found")}, nil, nil)
 
-	_, err := svc.Create(context.Background(), CreateRequest{WarehouseID: 999}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{WarehouseID: 999}, 1)
 
 	if !errors.Is(err, ErrWarehouseNotFound) {
 		t.Fatalf("error = %v, want ErrWarehouseNotFound", err)
@@ -224,7 +224,7 @@ func TestCreate_RejectsUnknownReceipt(t *testing.T) {
 	receiptID := int64(999)
 	svc := NewService(nil, nil, &fakeWarehouses{}, &fakeReceipts{err: errors.New("not found")}, nil)
 
-	_, err := svc.Create(context.Background(), CreateRequest{WarehouseID: 1, ReceiptID: &receiptID}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{WarehouseID: 1, ReceiptID: &receiptID}, 1)
 
 	if !errors.Is(err, ErrReceiptNotFound) {
 		t.Fatalf("error = %v, want ErrReceiptNotFound", err)
@@ -235,7 +235,7 @@ func TestCreate_RejectsReceiptWarehouseMismatch(t *testing.T) {
 	receiptID := int64(1)
 	svc := NewService(nil, nil, &fakeWarehouses{}, &fakeReceipts{warehouseID: 2}, nil)
 
-	_, err := svc.Create(context.Background(), CreateRequest{WarehouseID: 1, ReceiptID: &receiptID}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{WarehouseID: 1, ReceiptID: &receiptID}, 1)
 
 	var validationErr ErrValidation
 	if !errors.As(err, &validationErr) {
@@ -246,7 +246,7 @@ func TestCreate_RejectsReceiptWarehouseMismatch(t *testing.T) {
 func TestCreate_RejectsInvalidPriority(t *testing.T) {
 	svc := NewService(nil, nil, &fakeWarehouses{}, &fakeReceipts{}, nil)
 
-	_, err := svc.Create(context.Background(), CreateRequest{WarehouseID: 1, Priority: "URGENT"}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{WarehouseID: 1, Priority: "URGENT"}, 1)
 
 	var validationErr ErrValidation
 	if !errors.As(err, &validationErr) {
@@ -257,7 +257,7 @@ func TestCreate_RejectsInvalidPriority(t *testing.T) {
 func TestConfirm_RejectsEmptyItems(t *testing.T) {
 	svc := &Service{}
 
-	_, err := svc.Confirm(context.Background(), 1, ConfirmRequest{IdempotencyKey: "key-1"}, 1)
+	_, err := svc.Confirm(context.Background(), 1, 1, ConfirmRequest{IdempotencyKey: "key-1"}, 1)
 
 	var validationErr ErrValidation
 	if !errors.As(err, &validationErr) {

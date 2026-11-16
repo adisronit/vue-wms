@@ -55,7 +55,10 @@ var Modules = []ModuleDef{
 	// decisions. quality_check.approve stays reserved for a future
 	// supervisor-level exception action; none exists yet.
 	{Code: "quality_check", Name: "Quality Check", Actions: []string{"view", "create", "update", "confirm", "approve"}},
-	{Code: "putaway", Name: "Putaway", Actions: []string{"view", "create", "update", "approve"}},
+	// "confirm" (Phase 31C) gates the stock-moving action, split out of
+	// "approve" the same way receiving.confirm/quality_check.confirm
+	// were in 31A/31B, so PUTAWAY staff can confirm their own tasks.
+	{Code: "putaway", Name: "Putaway", Actions: []string{"view", "create", "update", "confirm", "approve"}},
 	{Code: "stock_inquiry", Name: "Stock Inquiry", Actions: []string{"view", "export"}},
 	{Code: "stock_adjustment", Name: "Stock Adjustment", Actions: []string{"view", "create", "update", "delete", "approve"}},
 	{Code: "picking", Name: "Picking", Actions: []string{"view", "create", "update", "approve"}},
@@ -179,7 +182,7 @@ var RoleDefaultGrants = map[string][]string{
 	},
 	"PUTAWAY": {
 		"dashboard.view",
-		"putaway.view", "putaway.create", "putaway.update",
+		"putaway.view", "putaway.create", "putaway.update", "putaway.confirm",
 		"replenishment.view", "replenishment.create", "replenishment.update",
 		"stock_inquiry.view",
 	},

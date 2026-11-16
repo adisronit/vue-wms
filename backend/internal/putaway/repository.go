@@ -17,6 +17,12 @@ var ErrDuplicateIdempotencyKey = errors.New("putaway: idempotency key already us
 
 // Repository is a thin GORM wrapper — business rules (status machine,
 // validation, the confirm workflow) live in Service.
+//
+// Phase 31C: every method below now takes an explicit tenantID and
+// applies it to every query — Putaway was the only remaining inbound/
+// outbound workflow module with zero tenant parameters anywhere, now
+// that Receiving (31A) and Quality Check (31B) are both scoped. Mirrors
+// internal/receiving's own Phase 31A discipline exactly.
 type Repository struct {
 	db *gorm.DB
 }
@@ -39,18 +45,19 @@ func (r *Repository) Transaction(ctx context.Context, fn func(tx *gorm.DB, txRep
 // CreateTask inserts the header, then derives putaway_no from the new
 // IDENTITY id in the same transaction — the same race-free-by-
 // construction approach as receipts.receipt_no (migrations/0011).
-func (r *Repository) CreateTask(ctx context.Context, task *Task) error {
+func (r *Repository) CreateTask(ctx context.Context, tenantID int64, task *Task) error {
+	task.TenantID = tenantID
 	if err := r.db.WithContext(ctx).Create(task).Error; err != nil {
 		return err
 	}
 	task.PutawayNo = fmt.Sprintf("PA-%06d", task.ID)
-	return r.db.WithContext(ctx).Model(&Task{}).Where("id = ?", task.ID).
+	return r.db.WithContext(ctx).Model(&Task{}).Where("id = ? AND tenant_id = ?", task.ID, tenantID).
 		Update("putaway_no", task.PutawayNo).Error
 }
 
-func (r *Repository) FindTaskByID(ctx context.Context, id int64) (*Task, error) {
+func (r *Repository) FindTaskByID(ctx context.Context, tenantID, id int64) (*Task, error) {
 	var task Task
-	err := r.db.WithContext(ctx).First(&task, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&task, "id = ? AND tenant_id = ?", id, tenantID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
 	}
@@ -87,7 +94,7 @@ type headerRow struct {
 // LEFT JOIN to users (Phase 18) resolves cancelled_by to a display name,
 // the same pattern Phase 14 established for created_by_name on stock
 // counts.
-func (r *Repository) FindTaskDetail(ctx context.Context, id int64) (*headerRow, error) {
+func (r *Repository) FindTaskDetail(ctx context.Context, tenantID, id int64) (*headerRow, error) {
 	var row headerRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT pt.id AS id, pt.putaway_no AS putaway_no, pt.receipt_id AS receipt_id, rc.receipt_no AS receipt_no,
@@ -100,8 +107,8 @@ func (r *Repository) FindTaskDetail(ctx context.Context, id int64) (*headerRow, 
 		JOIN warehouses w ON w.id = pt.warehouse_id
 		LEFT JOIN receipts rc ON rc.id = pt.receipt_id
 		LEFT JOIN users cu ON cu.id = pt.cancelled_by
-		WHERE pt.id = ?
-	`, id).Scan(&row).Error
+		WHERE pt.id = ? AND pt.tenant_id = ?
+	`, id, tenantID).Scan(&row).Error
 	if err != nil {
 		return nil, err
 	}
@@ -111,13 +118,20 @@ func (r *Repository) FindTaskDetail(ctx context.Context, id int64) (*headerRow, 
 	return &row, nil
 }
 
-func (r *Repository) UpdateTask(ctx context.Context, task *Task) error {
-	return r.db.WithContext(ctx).Model(&Task{}).Where("id = ?", task.ID).Updates(map[string]any{
+func (r *Repository) UpdateTask(ctx context.Context, tenantID int64, task *Task) error {
+	result := r.db.WithContext(ctx).Model(&Task{}).Where("id = ? AND tenant_id = ?", task.ID, tenantID).Updates(map[string]any{
 		"status":       task.Status,
 		"assigned_to":  task.AssignedTo,
 		"remark":       task.Remark,
 		"completed_at": task.CompletedAt,
-	}).Error
+	})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // CancelTask writes the exact columns Cancel derives — status plus the
@@ -127,13 +141,20 @@ func (r *Repository) UpdateTask(ctx context.Context, task *Task) error {
 // a Cancel that has already passed Status.CanCancel and the MovedQty
 // check, so cancelled_at/cancelled_by/cancel_remark are only ever
 // written once per task.
-func (r *Repository) CancelTask(ctx context.Context, task *Task) error {
-	return r.db.WithContext(ctx).Model(&Task{}).Where("id = ?", task.ID).Updates(map[string]any{
+func (r *Repository) CancelTask(ctx context.Context, tenantID int64, task *Task) error {
+	result := r.db.WithContext(ctx).Model(&Task{}).Where("id = ? AND tenant_id = ?", task.ID, tenantID).Updates(map[string]any{
 		"status":        task.Status,
 		"cancelled_at":  task.CancelledAt,
 		"cancelled_by":  task.CancelledBy,
 		"cancel_remark": task.CancelRemark,
-	}).Error
+	})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 type listRow struct {
@@ -153,7 +174,7 @@ type listRow struct {
 // List returns item-level rows joined with their task header — matches
 // PutawayView.vue's table directly (one row per item; there is no
 // separate item-list drawer the way Receiving needed one).
-func (r *Repository) List(ctx context.Context, params ListParams) ([]ListResponse, int64, error) {
+func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
 	base := `
 		FROM putaway_task_items pti
 		JOIN putaway_tasks pt ON pt.id = pti.putaway_task_id
@@ -162,13 +183,15 @@ func (r *Repository) List(ctx context.Context, params ListParams) ([]ListRespons
 		JOIN locations sl ON sl.id = pti.source_location_id
 		JOIN locations dl ON dl.id = pti.destination_location_id
 	`
-	where := `WHERE (? = '' OR pt.putaway_no LIKE ? OR rc.receipt_no LIKE ? OR p.sku LIKE ? OR p.name LIKE ? OR dl.code LIKE ?)
+	where := `WHERE pti.tenant_id = ?
+		AND (? = '' OR pt.putaway_no LIKE ? OR rc.receipt_no LIKE ? OR p.sku LIKE ? OR p.name LIKE ? OR dl.code LIKE ?)
 		AND (? = '' OR pti.status = ?)
 		AND (? = 0 OR pt.warehouse_id = ?)
 		AND (? = 0 OR dl.zone_id = ?)`
 
 	like := "%" + params.Search + "%"
 	args := []any{
+		tenantID,
 		params.Search, like, like, like, like, like,
 		string(params.Status), string(params.Status),
 		params.WarehouseID, params.WarehouseID,
@@ -230,7 +253,7 @@ type itemRow struct {
 	UpdatedAt               time.Time
 }
 
-func (r *Repository) ListItems(ctx context.Context, taskID int64) ([]ItemResponse, error) {
+func (r *Repository) ListItems(ctx context.Context, tenantID, taskID int64) ([]ItemResponse, error) {
 	var rows []itemRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT pti.id AS id, pti.receipt_item_id AS receipt_item_id, pti.product_id AS product_id,
@@ -243,9 +266,9 @@ func (r *Repository) ListItems(ctx context.Context, taskID int64) ([]ItemRespons
 		JOIN products p ON p.id = pti.product_id
 		JOIN locations sl ON sl.id = pti.source_location_id
 		JOIN locations dl ON dl.id = pti.destination_location_id
-		WHERE pti.putaway_task_id = ?
+		WHERE pti.putaway_task_id = ? AND pti.tenant_id = ?
 		ORDER BY pti.id ASC
-	`, taskID).Scan(&rows).Error
+	`, taskID, tenantID).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -264,13 +287,14 @@ func (r *Repository) ListItems(ctx context.Context, taskID int64) ([]ItemRespons
 	return items, nil
 }
 
-func (r *Repository) CreateItem(ctx context.Context, item *TaskItem) error {
+func (r *Repository) CreateItem(ctx context.Context, tenantID int64, item *TaskItem) error {
+	item.TenantID = tenantID
 	return r.db.WithContext(ctx).Create(item).Error
 }
 
-func (r *Repository) FindItemByID(ctx context.Context, id int64) (*TaskItem, error) {
+func (r *Repository) FindItemByID(ctx context.Context, tenantID, id int64) (*TaskItem, error) {
 	var item TaskItem
-	err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&item, "id = ? AND tenant_id = ?", id, tenantID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrItemNotFound
 	}
@@ -283,40 +307,39 @@ func (r *Repository) FindItemByID(ctx context.Context, id int64) (*TaskItem, err
 // FindItemsByTask returns the raw TaskItem rows (not the joined
 // response shape) — used internally by Confirm to compute the header's
 // new status after applying deltas.
-func (r *Repository) FindItemsByTask(ctx context.Context, taskID int64) ([]TaskItem, error) {
+func (r *Repository) FindItemsByTask(ctx context.Context, tenantID, taskID int64) ([]TaskItem, error) {
 	var items []TaskItem
-	err := r.db.WithContext(ctx).Where("putaway_task_id = ?", taskID).Find(&items).Error
+	err := r.db.WithContext(ctx).Where("putaway_task_id = ? AND tenant_id = ?", taskID, tenantID).Find(&items).Error
 	return items, err
 }
 
-func (r *Repository) UpdateItem(ctx context.Context, item *TaskItem) error {
-	return r.db.WithContext(ctx).Model(&TaskItem{}).Where("id = ?", item.ID).Updates(map[string]any{
+func (r *Repository) UpdateItem(ctx context.Context, tenantID int64, item *TaskItem) error {
+	result := r.db.WithContext(ctx).Model(&TaskItem{}).Where("id = ? AND tenant_id = ?", item.ID, tenantID).Updates(map[string]any{
 		"destination_location_id": item.DestinationLocationID,
 		"moved_qty":               item.MovedQty,
 		"status":                  item.Status,
 		"remark":                  item.Remark,
-	}).Error
+	})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrItemNotFound
+	}
+	return nil
 }
 
 // AdjustMovedQty atomically increments a line's moved_qty by delta in
 // one UPDATE statement — the arithmetic happens inside the database, not
 // as a Go read-then-write, the same concurrency-safety pattern as
-// internal/inventory.Repository.AdjustBalance. Added in Phase 9 to fix a
-// real lost-update bug Phase 8's own concurrency regression test found
-// on receiving.received_qty and flagged as the same structural risk
-// here: Confirm previously read moved_qty into a Go struct
-// (FindItemByID), added the batch's quantity in Go, and wrote the whole
-// row back (UpdateItem above) — under two concurrent Confirm calls
-// against the same line, the second UPDATE's stale computed total could
-// silently overwrite the first's. The inventory ledger/balance itself,
-// written by MoveStockTx, is unaffected either way — only this
-// display/progress column. See PROJECT_STATUS.md.
-func (r *Repository) AdjustMovedQty(ctx context.Context, itemID int64, delta float64) (int64, error) {
+// internal/inventory.Repository.AdjustBalance. See PROJECT_STATUS.md's
+// Phase 9 note for the lost-update bug this fixed.
+func (r *Repository) AdjustMovedQty(ctx context.Context, tenantID, itemID int64, delta float64) (int64, error) {
 	result := r.db.WithContext(ctx).Exec(`
 		UPDATE putaway_task_items
 		SET moved_qty = moved_qty + ?, updated_at = SYSUTCDATETIME()
-		WHERE id = ?
-	`, delta, itemID)
+		WHERE id = ? AND tenant_id = ?
+	`, delta, itemID, tenantID)
 	return result.RowsAffected, result.Error
 }
 
@@ -325,19 +348,26 @@ func (r *Repository) AdjustMovedQty(ctx context.Context, itemID int64, delta flo
 // all) — deliberately excludes moved_qty itself (unlike UpdateItem
 // above) so this write can never clobber a concurrent transaction's own
 // atomic increment with a value computed from a stale read.
-func (r *Repository) UpdateItemAfterConfirm(ctx context.Context, item *TaskItem) error {
-	return r.db.WithContext(ctx).Model(&TaskItem{}).Where("id = ?", item.ID).Updates(map[string]any{
+func (r *Repository) UpdateItemAfterConfirm(ctx context.Context, tenantID int64, item *TaskItem) error {
+	result := r.db.WithContext(ctx).Model(&TaskItem{}).Where("id = ? AND tenant_id = ?", item.ID, tenantID).Updates(map[string]any{
 		"destination_location_id": item.DestinationLocationID,
 		"status":                  item.Status,
 		"remark":                  item.Remark,
-	}).Error
+	})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrItemNotFound
+	}
+	return nil
 }
 
 // InsertConfirmation is the idempotency guard itself — see
 // migrations/0016's doc. Must be called inside the same transaction as
 // the stock mutations it's guarding.
-func (r *Repository) InsertConfirmation(ctx context.Context, idempotencyKey string, taskID int64) error {
-	err := r.db.WithContext(ctx).Create(&Confirmation{IdempotencyKey: idempotencyKey, PutawayTaskID: taskID}).Error
+func (r *Repository) InsertConfirmation(ctx context.Context, tenantID int64, idempotencyKey string, taskID int64) error {
+	err := r.db.WithContext(ctx).Create(&Confirmation{IdempotencyKey: idempotencyKey, TenantID: tenantID, PutawayTaskID: taskID}).Error
 	if err != nil && isUniqueViolation(err) {
 		return ErrDuplicateIdempotencyKey
 	}
@@ -346,25 +376,33 @@ func (r *Repository) InsertConfirmation(ctx context.Context, idempotencyKey stri
 
 // locationInfo is what Confirm/Create need to validate a location
 // before using it: which warehouse it's really in, whether it's active,
-// and its zone's functional type (see Zone.Type, internal/zone/model.go
-// — already exactly the RECEIVING/STORAGE/PICKING/... classification
-// this phase needed; no schema extension was required, see
-// PROJECT_STATUS.md).
+// its zone's functional type (see Zone.Type, internal/zone/model.go —
+// already exactly the RECEIVING/STORAGE/PICKING/... classification this
+// phase needed; no schema extension was required), and its optional
+// Capacity (Phase 31C: enforced only when set — "where configured").
 type locationInfo struct {
 	WarehouseID int64
 	ZoneType    string
 	Status      string
+	Capacity    *int
 }
 
-func (r *Repository) resolveLocation(ctx context.Context, locationID int64) (*locationInfo, error) {
+// resolveLocation verifies locationID belongs to tenantID and returns
+// the fields Confirm/Create need to validate it — never "found but
+// belongs to another tenant" vs. "doesn't exist at all"
+// (tenant-isolation-security.md §6). Phase 31C: this was previously
+// unscoped (the one real IDOR gap this package's own original Phase 7
+// implementation carried — any caller could resolve any tenant's
+// location by ID).
+func (r *Repository) resolveLocation(ctx context.Context, tenantID, locationID int64) (*locationInfo, error) {
 	var info locationInfo
 	err := r.db.WithContext(ctx).Raw(`
-		SELECT w.id AS warehouse_id, z.type AS zone_type, l.status AS status
+		SELECT w.id AS warehouse_id, z.type AS zone_type, l.status AS status, l.capacity AS capacity
 		FROM locations l
 		JOIN zones z ON z.id = l.zone_id
 		JOIN warehouses w ON w.id = z.warehouse_id
-		WHERE l.id = ?
-	`, locationID).Scan(&info).Error
+		WHERE l.id = ? AND l.tenant_id = ?
+	`, locationID, tenantID).Scan(&info).Error
 	if err != nil {
 		return nil, err
 	}
@@ -372,6 +410,18 @@ func (r *Repository) resolveLocation(ctx context.Context, locationID int64) (*lo
 		return nil, ErrLocationNotFound
 	}
 	return &info, nil
+}
+
+// LocationOccupiedQty sums every balance's on-hand Quantity currently
+// sitting at locationID, within tenantID — the "how full is this bin
+// already" half of the Capacity check (Service.checkCapacity), only
+// ever queried when the destination's own Capacity is actually set.
+func (r *Repository) LocationOccupiedQty(ctx context.Context, tenantID, locationID int64) (float64, error) {
+	var total float64
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT COALESCE(SUM(quantity), 0) FROM inventory WHERE tenant_id = ? AND location_id = ?
+	`, tenantID, locationID).Scan(&total).Error
+	return total, err
 }
 
 type sourceLineRow struct {
@@ -386,34 +436,52 @@ type sourceLineRow struct {
 	UOM                string
 	ReceivedQty        float64
 	AlreadyPutAwayQty  float64
+	HeldQty            float64
 }
 
 // SourceLines returns a completed/partially-received receipt's lines
-// still eligible for putaway (received_qty minus whatever's already
-// been moved for that line across every putaway task, regardless of
+// still eligible for putaway: received_qty minus whatever's already
+// been moved for that line across every putaway task (regardless of
 // that task's own status — moved_qty only ever increases via a real
-// confirmed move) — powers GET /putaway/sources/{receiptId}, replacing
-// NewPutawayView.vue's mockSourceItems object.
-func (r *Repository) SourceLines(ctx context.Context, receiptID int64) ([]SourceLineResponse, error) {
+// confirmed move), minus whatever is currently sitting in
+// inventory.HoldQuantity for that line's own (product, location, lot)
+// tuple — the Phase 31C safety requirement that QC-held stock must
+// never be offered for standard putaway. Powers GET
+// /putaway/sources/{receiptId}.
+//
+// Known limitation: this still reads receipt_items (the line level),
+// not receipt_item_splits (migrations/0069, Phase 31A) — a single line
+// confirmed across more than one lot/pallet split is under-represented
+// here (only its own denormalized "most recent lot" is checked for
+// hold), matching the line's own pre-31A single-lot assumption. The
+// actual stock move itself is still fully safe regardless (Confirm's
+// own MoveAvailableStockTx call re-verifies against the live balance
+// atomically), so this is a display/preview imprecision only, not a
+// safety gap — tracked for a future batch to resolve by keying this
+// query off receipt_item_splits the same way internal/qualitycheck
+// already does.
+func (r *Repository) SourceLines(ctx context.Context, tenantID, receiptID int64) ([]SourceLineResponse, error) {
 	var rows []sourceLineRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT ri.id AS receipt_item_id, ri.product_id AS product_id, p.sku AS sku, p.name AS product_name,
 			p.barcode AS barcode, ri.lot_no AS lot_no, ri.location_id AS source_location_id, l.code AS source_location_code,
 			ri.uom AS uom, ri.received_qty AS received_qty,
-			COALESCE((SELECT SUM(pti.moved_qty) FROM putaway_task_items pti WHERE pti.receipt_item_id = ri.id), 0) AS already_put_away_qty
+			COALESCE((SELECT SUM(pti.moved_qty) FROM putaway_task_items pti WHERE pti.receipt_item_id = ri.id AND pti.tenant_id = ri.tenant_id), 0) AS already_put_away_qty,
+			COALESCE((SELECT inv.hold_quantity FROM inventory inv WHERE inv.tenant_id = ri.tenant_id AND inv.product_id = ri.product_id
+				AND inv.location_id = ri.location_id AND inv.lot_no = ri.lot_no), 0) AS held_qty
 		FROM receipt_items ri
 		JOIN products p ON p.id = ri.product_id
 		JOIN locations l ON l.id = ri.location_id
-		WHERE ri.receipt_id = ? AND ri.received_qty > 0
+		WHERE ri.receipt_id = ? AND ri.tenant_id = ? AND ri.received_qty > 0
 		ORDER BY ri.id ASC
-	`, receiptID).Scan(&rows).Error
+	`, receiptID, tenantID).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
 
 	lines := make([]SourceLineResponse, 0, len(rows))
 	for _, row := range rows {
-		remaining := row.ReceivedQty - row.AlreadyPutAwayQty
+		remaining := row.ReceivedQty - row.AlreadyPutAwayQty - row.HeldQty
 		if remaining <= 0 {
 			continue
 		}
@@ -429,12 +497,7 @@ func (r *Repository) SourceLines(ctx context.Context, receiptID int64) ([]Source
 
 // isUniqueViolation delegates to the centralized, error-number-based
 // classifier (internal/platform/database/sqlerr) instead of matching
-// substrings in the error message — Phase 6 shipped this same
-// idempotency pattern (internal/receiving) with only "2627"/"unique"
-// checks and found live that a PRIMARY KEY violation's real message
-// matches neither; this package's own original fix added a "duplicate
-// key" substring check, which the centralized classifier makes
-// unnecessary — see sqlerr's doc.
+// substrings in the error message.
 func isUniqueViolation(err error) bool {
 	return sqlerr.IsUniqueViolation(err)
 }
