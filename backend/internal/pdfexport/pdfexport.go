@@ -40,10 +40,18 @@ var fontBold []byte
 
 const (
 	fontFamily = "Noto"
-	pageWidth  = 210.0 // A4, mm
+	pageWidth  = 210.0 // A4, mm — NewDocument's own default page width
 	marginside = 12.0
 	marginTop  = 38.0 // room for the repeated header block
 	marginBot  = 18.0 // room for the footer
+
+	// Label-format constants (Phase 33C's Carton/Pallet Label, the first
+	// caller needing anything other than A4) — a compact header (no
+	// repeated company-name line, far smaller top margin) and footer
+	// sized for a small-format page, not a scaled-down A4 layout.
+	labelMarginSide = 4.0
+	labelMarginTop  = 14.0
+	labelMarginBot  = 8.0
 )
 
 // Meta is the document-identifying information every generated PDF's
@@ -62,9 +70,24 @@ type Meta struct {
 // conventions. Every method panics-free; rendering errors surface only
 // from Bytes() via fpdf's own deferred error state, matching fpdf's own
 // "check err once at the end" design.
+//
+// pageWidth/marginSide/marginTop/marginBot (Phase 33C) are per-instance
+// fields, not the package-level A4 constants directly, so NewLabelDocument
+// can lay out a small-format page using the exact same Table/KeyValueGrid/
+// SignatureBlock/Barcode/QRCode primitives — NewDocument still defaults
+// them to the original A4 constants, so its own behavior (and every
+// pre-33C caller's output) is completely unchanged.
 type Document struct {
-	pdf  *fpdf.Fpdf
-	meta Meta
+	pdf        *fpdf.Fpdf
+	meta       Meta
+	pageWidth  float64
+	marginSide float64
+	marginTop  float64
+	marginBot  float64
+	// compact switches drawHeader/drawFooter to the small-format layout
+	// NewLabelDocument needs (no repeated company-name line, far smaller
+	// margins) — false for every NewDocument caller, unchanged.
+	compact bool
 }
 
 // NewDocument starts a fresh A4 portrait document with meta's header
@@ -80,7 +103,43 @@ func NewDocument(meta Meta) *Document {
 	pdf.SetAutoPageBreak(true, marginBot)
 	pdf.AliasNbPages("")
 
-	d := &Document{pdf: pdf, meta: meta}
+	d := &Document{pdf: pdf, meta: meta, pageWidth: pageWidth, marginSide: marginside, marginTop: marginTop, marginBot: marginBot}
+	pdf.SetHeaderFunc(d.drawHeader)
+	pdf.SetFooterFunc(d.drawFooter)
+	pdf.AddPage()
+	return d
+}
+
+// NewLabelDocument starts a custom-size document — e.g. a 4x6" shipping-
+// label format (101.6mm x 152.4mm) — with a compact header/footer sized
+// for a small page, added in Phase 33C for Packing's Carton/Pallet Label,
+// the first caller needing anything other than A4. Orientation is
+// inferred from widthMM/heightMM (landscape when wider than tall).
+// AddPage (for a second/third label in the same document — e.g. one per
+// carton) reuses the exact same custom size automatically: fpdf's own
+// AddPage keeps whatever size NewCustom established as the document
+// default.
+func NewLabelDocument(meta Meta, widthMM, heightMM float64) *Document {
+	orientation := "P"
+	if widthMM > heightMM {
+		orientation = "L"
+	}
+	pdf := fpdf.NewCustom(&fpdf.InitType{
+		OrientationStr: orientation,
+		UnitStr:        "mm",
+		Size:           fpdf.SizeType{Wd: widthMM, Ht: heightMM},
+	})
+	pdf.AddUTF8FontFromBytes(fontFamily, "", fontRegular)
+	pdf.AddUTF8FontFromBytes(fontFamily, "B", fontBold)
+	pdf.SetMargins(labelMarginSide, labelMarginTop, labelMarginSide)
+	pdf.SetAutoPageBreak(true, labelMarginBot)
+	pdf.AliasNbPages("")
+
+	d := &Document{
+		pdf: pdf, meta: meta, pageWidth: widthMM,
+		marginSide: labelMarginSide, marginTop: labelMarginTop, marginBot: labelMarginBot,
+		compact: true,
+	}
 	pdf.SetHeaderFunc(d.drawHeader)
 	pdf.SetFooterFunc(d.drawFooter)
 	pdf.AddPage()
@@ -89,24 +148,43 @@ func NewDocument(meta Meta) *Document {
 
 func (d *Document) drawHeader() {
 	pdf := d.pdf
-	pdf.SetXY(marginside, 10)
+	if d.compact {
+		pdf.SetXY(d.marginSide, 3)
+		pdf.SetFont(fontFamily, "B", 9)
+		pdf.CellFormat(0, 4, d.meta.CompanyName, "", 1, "L", false, 0, "")
+		pdf.SetX(d.marginSide)
+		pdf.SetFont(fontFamily, "B", 8)
+		pdf.CellFormat(0, 4, d.meta.DocTitle+" — "+d.meta.DocNo, "", 1, "L", false, 0, "")
+		pdf.SetDrawColor(120, 120, 120)
+		pdf.Line(d.marginSide, 11, d.pageWidth-d.marginSide, 11)
+		return
+	}
+
+	pdf.SetXY(d.marginSide, 10)
 	pdf.SetFont(fontFamily, "B", 14)
 	pdf.CellFormat(0, 7, d.meta.CompanyName, "", 1, "L", false, 0, "")
 
-	pdf.SetX(marginside)
+	pdf.SetX(d.marginSide)
 	pdf.SetFont(fontFamily, "B", 12)
 	pdf.CellFormat(0, 6, d.meta.DocTitle, "", 1, "L", false, 0, "")
 
-	pdf.SetX(marginside)
+	pdf.SetX(d.marginSide)
 	pdf.SetFont(fontFamily, "", 9)
 	pdf.CellFormat(0, 5, fmt.Sprintf("Document No.: %s    Generated: %s UTC", d.meta.DocNo, d.meta.GeneratedAt.UTC().Format("2006-01-02 15:04:05")), "", 1, "L", false, 0, "")
 
 	pdf.SetDrawColor(120, 120, 120)
-	pdf.Line(marginside, 30, pageWidth-marginside, 30)
+	pdf.Line(d.marginSide, 30, d.pageWidth-d.marginSide, 30)
 }
 
 func (d *Document) drawFooter() {
 	pdf := d.pdf
+	if d.compact {
+		pdf.SetY(-7)
+		pdf.SetFont(fontFamily, "", 6)
+		pdf.CellFormat(0, 4, fmt.Sprintf("%d/{nb}", pdf.PageNo()), "", 0, "R", false, 0, "")
+		return
+	}
+
 	pdf.SetY(-15)
 	pdf.SetFont(fontFamily, "", 8)
 	pdf.CellFormat(0, 5, fmt.Sprintf("Generated by %s", d.meta.GeneratedBy), "", 0, "L", false, 0, "")
@@ -118,7 +196,7 @@ func (d *Document) drawFooter() {
 func (d *Document) SectionTitle(text string) {
 	d.pdf.Ln(3)
 	d.pdf.SetFont(fontFamily, "B", 11)
-	d.pdf.SetX(marginside)
+	d.pdf.SetX(d.marginSide)
 	d.pdf.CellFormat(0, 6, text, "", 1, "L", false, 0, "")
 	d.pdf.SetFont(fontFamily, "", 9)
 }
@@ -129,27 +207,33 @@ func (d *Document) SectionTitle(text string) {
 // never reads as a layout glitch.
 func (d *Document) KeyValueGrid(pairs [][2]string, cols int) {
 	pdf := d.pdf
-	colWidth := (pageWidth - 2*marginside) / float64(cols)
+	fontSize := 9.0
+	rowHeight := 5.5
+	if d.compact {
+		fontSize = 7
+		rowHeight = 3.8
+	}
+	colWidth := (d.pageWidth - 2*d.marginSide) / float64(cols)
 	labelWidth := colWidth * 0.38
 	valueWidth := colWidth - labelWidth
 
-	pdf.SetFont(fontFamily, "", 9)
+	pdf.SetFont(fontFamily, "", fontSize)
 	for i, pair := range pairs {
 		if i%cols == 0 {
-			pdf.SetX(marginside)
+			pdf.SetX(d.marginSide)
 		}
 		value := pair[1]
 		if value == "" {
 			value = "-"
 		}
-		pdf.SetFont(fontFamily, "B", 9)
-		pdf.CellFormat(labelWidth, 5.5, pair[0]+":", "", 0, "L", false, 0, "")
-		pdf.SetFont(fontFamily, "", 9)
+		pdf.SetFont(fontFamily, "B", fontSize)
+		pdf.CellFormat(labelWidth, rowHeight, pair[0]+":", "", 0, "L", false, 0, "")
+		pdf.SetFont(fontFamily, "", fontSize)
 		ln := 0
 		if (i+1)%cols == 0 || i == len(pairs)-1 {
 			ln = 1
 		}
-		pdf.CellFormat(valueWidth, 5.5, value, "", ln, "L", false, 0, "")
+		pdf.CellFormat(valueWidth, rowHeight, value, "", ln, "L", false, 0, "")
 	}
 	pdf.Ln(1)
 }
@@ -172,12 +256,12 @@ const tableHeaderHeight = 7.0
 func (d *Document) Table(columns []TableColumn, rows [][]string) {
 	pdf := d.pdf
 	_, pageHeight := pdf.GetPageSize()
-	bottomLimit := pageHeight - marginBot
+	bottomLimit := pageHeight - d.marginBot
 
 	drawColumnHeader := func() {
 		pdf.SetFont(fontFamily, "B", 8.5)
 		pdf.SetFillColor(230, 230, 230)
-		pdf.SetX(marginside)
+		pdf.SetX(d.marginSide)
 		for _, col := range columns {
 			align := col.Align
 			if align == "" {
@@ -195,7 +279,7 @@ func (d *Document) Table(columns []TableColumn, rows [][]string) {
 			pdf.AddPage()
 			drawColumnHeader()
 		}
-		pdf.SetX(marginside)
+		pdf.SetX(d.marginSide)
 		for i, cell := range row {
 			if i >= len(columns) {
 				break
@@ -209,7 +293,7 @@ func (d *Document) Table(columns []TableColumn, rows [][]string) {
 		pdf.Ln(tableRowHeight)
 	}
 	if len(rows) == 0 {
-		pdf.SetX(marginside)
+		pdf.SetX(d.marginSide)
 		pdf.CellFormat(0, tableRowHeight, "(no rows)", "1", 1, "L", false, 0, "")
 	}
 	pdf.Ln(2)
@@ -222,20 +306,20 @@ func (d *Document) SignatureBlock(labels []string) {
 	pdf := d.pdf
 	_, pageHeight := pdf.GetPageSize()
 	needed := 22.0
-	if pdf.GetY()+needed > pageHeight-marginBot {
+	if pdf.GetY()+needed > pageHeight-d.marginBot {
 		pdf.AddPage()
 	}
 	pdf.Ln(10)
-	colWidth := (pageWidth - 2*marginside) / float64(len(labels))
+	colWidth := (d.pageWidth - 2*d.marginSide) / float64(len(labels))
 	lineY := pdf.GetY() + 12
 	for i, label := range labels {
-		x := marginside + float64(i)*colWidth
+		x := d.marginSide + float64(i)*colWidth
 		pdf.Line(x+4, lineY, x+colWidth-4, lineY)
 		pdf.SetXY(x, lineY+1.5)
 		pdf.SetFont(fontFamily, "", 8.5)
 		pdf.CellFormat(colWidth, 5, label, "", 0, "C", false, 0, "")
 	}
-	pdf.SetXY(marginside, lineY+8)
+	pdf.SetXY(d.marginSide, lineY+8)
 }
 
 // Library choice for Barcode/QR (Phase 33B, the first caller — Picking's
@@ -322,11 +406,37 @@ func (d *Document) Spacer(mm float64) {
 // itself plus a small gap, ready for the next QRCode/caption pair.
 func (d *Document) QRCaption(qrSizeMM float64, text string) {
 	pdf := d.pdf
-	pdf.SetXY(marginside, pdf.GetY()+qrSizeMM+1)
+	pdf.SetXY(d.marginSide, pdf.GetY()+qrSizeMM+1)
 	pdf.SetFont(fontFamily, "", 7.5)
 	pdf.CellFormat(0, 4, text, "", 1, "L", false, 0, "")
 	pdf.SetFont(fontFamily, "", 9)
 	pdf.Ln(2)
+}
+
+// AddPage starts a new page in this document, reusing its own size/
+// margins/header/footer — added in Phase 33C for a multi-carton Carton
+// Label document (one label per page) built from NewLabelDocument;
+// equally usable by any NewDocument-created (A4) document that needs an
+// explicit page break beyond fpdf's own automatic one.
+func (d *Document) AddPage() {
+	d.pdf.AddPage()
+}
+
+// MarginX returns this document's own left/right margin (mm) — added in
+// Phase 33C so a caller building a custom-size label document (see
+// NewLabelDocument) can position Barcode/QRCode calls against the
+// document's actual margin instead of a hardcoded A4 value.
+func (d *Document) MarginX() float64 {
+	return d.marginSide
+}
+
+// PageContentWidth returns this document's own usable horizontal space
+// between its left and right margins — the per-instance equivalent of
+// the package-level ContentWidth constant below, correct for a
+// NewLabelDocument's custom page size as well as NewDocument's A4
+// default.
+func (d *Document) PageContentWidth() float64 {
+	return d.pageWidth - 2*d.marginSide
 }
 
 // Bytes finalizes the document and returns the PDF content.
@@ -339,6 +449,8 @@ func (d *Document) Bytes() ([]byte, error) {
 }
 
 // ContentWidth is the usable horizontal space between the left and
-// right margins — document-specific table column widths should sum to
-// this.
+// right margins for a NewDocument-created (A4) document specifically —
+// document-specific table column widths should sum to this. A
+// NewLabelDocument-created document must use PageContentWidth() instead
+// (its page is not A4-sized).
 const ContentWidth = pageWidth - 2*marginside

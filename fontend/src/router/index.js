@@ -14,6 +14,8 @@ import OrderFormView from '../views/outbound/OrderFormView.vue'
 import OrderDetailView from '../views/outbound/OrderDetailView.vue'
 import OrderReviewView from '../views/outbound/OrderReviewView.vue'
 import PickingView from '../views/outbound/PickingView.vue'
+import PackingView from '../views/outbound/PackingView.vue'
+import PackingDetailView from '../views/outbound/PackingDetailView.vue'
 import ShippingView from '../views/outbound/ShippingView.vue'
 import UserManagementView from '../views/administration/UserManagementView.vue'
 import RolePermissionView from '../views/administration/RolePermissionView.vue'
@@ -110,6 +112,17 @@ const routes = [
         path: 'outbound/picking',
         name: 'Picking',
         component: PickingView,
+      },
+      {
+        path: 'outbound/packing',
+        name: 'Packing',
+        component: PackingView,
+      },
+      {
+        path: 'outbound/packing/:id',
+        name: 'PackingDetail',
+        component: PackingDetailView,
+        props: true,
       },
       {
         path: 'outbound/shipping',

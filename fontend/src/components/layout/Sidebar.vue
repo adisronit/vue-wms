@@ -51,6 +51,9 @@
       <router-link to="/outbound/picking" class="menu-item" active-class="menu-active">
         {{ $t('nav.picking') }}
       </router-link>
+      <router-link v-if="canViewPacking" to="/outbound/packing" class="menu-item" active-class="menu-active">
+        {{ $t('nav.packing') }}
+      </router-link>
       <router-link to="/outbound/shipping" class="menu-item" active-class="menu-active">
         {{ $t('nav.shipping') }}
       </router-link>
@@ -134,6 +137,7 @@ export default {
     canViewProductFamilies: { type: Boolean, default: false },
     canViewReplenishment: { type: Boolean, default: false },
     canViewRelocation: { type: Boolean, default: false },
+    canViewPacking: { type: Boolean, default: false },
     canViewPlatformAdmin: { type: Boolean, default: false }
   },
 

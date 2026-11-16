@@ -12,6 +12,7 @@
       :can-view-product-families="canViewProductFamilies"
       :can-view-replenishment="canViewReplenishment"
       :can-view-relocation="canViewRelocation"
+      :can-view-packing="canViewPacking"
       :can-view-platform-admin="canViewPlatformAdmin"
       @logout="logout"
     />
@@ -159,6 +160,9 @@ export default {
     },
     canViewRelocation() {
       return hasPermission('relocation.view')
+    },
+    canViewPacking() {
+      return hasPermission('packing.view')
     },
     canViewPlatformAdmin() {
       return this.platformAdmin

@@ -37,6 +37,7 @@ import (
 	"wms-backend/internal/messaging/rabbitmq"
 	"wms-backend/internal/notification"
 	"wms-backend/internal/order"
+	"wms-backend/internal/packing"
 	"wms-backend/internal/picking"
 	"wms-backend/internal/platform/database"
 	"wms-backend/internal/platform/dbctx"
@@ -325,6 +326,20 @@ func main() {
 	pickingService.SetUsers(userRepo)
 	pickingPDFService := picking.NewPDFService(pickingService, tenantRepo, userRepo)
 	picking.NewHandler(pickingService, pickingPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 33C — Packing: a pure physical-handling/traceability layer
+	// over already-picked stock, sitting between Picking and Shipping.
+	// Deliberately has NO dependency on inventoryService at all (unlike
+	// every module above) — it never mutates a stock balance; the
+	// pickingService dependency is read-only (pickingChecker.Get) for
+	// copying an already-terminal picking task's already-picked lines
+	// verbatim. Does not gate shippingService.Create — that DB-level
+	// pack/load dispatch gate is explicitly deferred to Phase 33D.
+	packingRepo := packing.NewRepository(dbManager.DB())
+	packingService := packing.NewService(packingRepo, pickingService)
+	packingService.SetUsers(userRepo)
+	packingPDFService := packing.NewPDFService(packingService, tenantRepo, userRepo)
+	packing.NewHandler(packingService, packingPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	shippingRepo := shipping.NewRepository(dbManager.DB())
 	shippingService := shipping.NewService(shippingRepo, pickingService)
