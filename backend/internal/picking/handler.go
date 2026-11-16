@@ -20,13 +20,15 @@ func writeTenantUnauthorized(c *gin.Context) {
 	apihttp.Fail(c, http.StatusUnauthorized, "tenant context required", "UNAUTHORIZED")
 }
 
-// Handler exposes Service over HTTP.
+// Handler exposes Service (and, for the Pick List, PDFService) over
+// HTTP.
 type Handler struct {
 	service *Service
+	pdf     *PDFService
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, pdf *PDFService) *Handler {
+	return &Handler{service: service, pdf: pdf}
 }
 
 // Register mounts the Picking endpoints on rg. Permissions reuse the
@@ -66,10 +68,24 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChec
 	)
 	pickingGroup.GET("", middleware.RequirePermission("picking.view"), h.List)
 	pickingGroup.GET("/export", middleware.RequirePermission("picking.view"), h.Export)
+	pickingGroup.GET("/lots/suggest", middleware.RequirePermission("picking.view"), h.SuggestLots)
 	pickingGroup.GET("/:id", middleware.RequirePermission("picking.view"), h.Get)
+	pickingGroup.GET("/:id/pdf", middleware.RequirePermission("picking.view"), h.PickList)
 	pickingGroup.POST("", middleware.RequirePermission("picking.create"), h.Create)
-	pickingGroup.POST("/:id/confirm", middleware.RequirePermission("picking.update"), h.Confirm)
+	// Phase 33B: Confirm moves from picking.update to the new
+	// picking.confirm — see catalog's own doc on the "picking" module.
+	pickingGroup.POST("/:id/confirm", middleware.RequirePermission("picking.confirm"), h.Confirm)
 	pickingGroup.POST("/:id/cancel", middleware.RequirePermission("picking.approve"), h.Cancel)
+	// Assign/reassign and the scan-validation step are both non-stock-
+	// mutating, execution-level actions — gated on picking.update, the
+	// same level PICKING staff already operate at (and Confirm itself
+	// used to sit at, before this phase's split above).
+	pickingGroup.PUT("/:id/assign", middleware.RequirePermission("picking.update"), h.AssignPicker)
+	pickingGroup.POST("/:id/items/:itemId/scan", middleware.RequirePermission("picking.update"), h.ScanConfirm)
+	// Repick re-reserves stock (inventory.ReserveStockTx) — the same
+	// authority level as Confirm, not picking.update's plain execution
+	// level.
+	pickingGroup.POST("/:id/items/:itemId/repick", middleware.RequirePermission("picking.confirm"), h.Repick)
 }
 
 // List godoc
@@ -362,6 +378,232 @@ func (h *Handler) Cancel(c *gin.Context) {
 	writeError(c, err)
 }
 
+// AssignPicker godoc
+//
+//	@Summary		Assign (or reassign) a picker to a task
+//	@Description	Claims the task for pickerUserID — writes assigned_picker_id/assigned_at. Never touches reservation or stock state. Only allowed while the task is PENDING or IN_PROGRESS.
+//	@Tags			Picking
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int				true	"Picking task ID"
+//	@Param			request	body		AssignRequest	true	"Picker to assign"
+//	@Success		200		{object}	apihttp.SuccessResponse{data=Response}
+//	@Failure		400		{object}	apihttp.ErrorResponse
+//	@Failure		401		{object}	apihttp.ErrorResponse
+//	@Failure		403		{object}	apihttp.ErrorResponse
+//	@Failure		404		{object}	apihttp.ErrorResponse
+//	@Failure		409		{object}	apihttp.ErrorResponse	"task is not in an assignable status"
+//	@Router			/picking/{id}/assign [put]
+func (h *Handler) AssignPicker(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid picking task id", "INVALID_REQUEST")
+		return
+	}
+	var req AssignRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid request body", "INVALID_REQUEST")
+		return
+	}
+
+	userID, _ := middleware.CurrentUserID(c)
+	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
+
+	resp, err := h.service.AssignPicker(ctx, tenantID, id, req.PickerID, userID)
+	if err == nil {
+		apihttp.OK(c, resp, "picker assigned")
+		return
+	}
+	writeError(c, err)
+}
+
+// ScanConfirm godoc
+//
+//	@Summary		Validate a location->product->lot scan against a picking line
+//	@Description	Compares the scanned location code/SKU/lot against the line's own assigned ones and logs the attempt (MATCH or MISMATCH) to the scan audit trail. Read-only against inventory — never reserves, consumes, or releases stock. Intended to run right before Confirm for this line.
+//	@Tags			Picking
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int				true	"Picking task ID"
+//	@Param			itemId	path		int				true	"Picking task item ID"
+//	@Param			request	body		ScanRequest		true	"Scanned location/product/lot"
+//	@Success		200		{object}	apihttp.SuccessResponse{data=ScanResponse}
+//	@Failure		400		{object}	apihttp.ErrorResponse
+//	@Failure		401		{object}	apihttp.ErrorResponse
+//	@Failure		403		{object}	apihttp.ErrorResponse
+//	@Failure		404		{object}	apihttp.ErrorResponse
+//	@Router			/picking/{id}/items/{itemId}/scan [post]
+func (h *Handler) ScanConfirm(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid picking task id", "INVALID_REQUEST")
+		return
+	}
+	itemID, err := parseID(c, "itemId")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid picking task item id", "INVALID_REQUEST")
+		return
+	}
+	var req ScanRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid request body", "INVALID_REQUEST")
+		return
+	}
+
+	userID, _ := middleware.CurrentUserID(c)
+	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
+
+	resp, err := h.service.ScanConfirm(ctx, tenantID, id, itemID, req, userID)
+	if err == nil {
+		apihttp.OK(c, resp, "")
+		return
+	}
+	writeError(c, err)
+}
+
+// Repick godoc
+//
+//	@Summary		Reopen a short-picked line for another pick attempt
+//	@Description	Re-reserves (inventory.ReserveStockTx) the line's still-outstanding quantity and moves it back off SHORT — fails with 422 if the location still has no available stock to reserve. See internal/picking's own Repick doc for why this always re-reserves rather than reusing the original (fully-released) reservation.
+//	@Tags			Picking
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int	true	"Picking task ID"
+//	@Param			itemId	path		int	true	"Picking task item ID"
+//	@Success		200		{object}	apihttp.SuccessResponse{data=Response}
+//	@Failure		401		{object}	apihttp.ErrorResponse
+//	@Failure		403		{object}	apihttp.ErrorResponse
+//	@Failure		404		{object}	apihttp.ErrorResponse
+//	@Failure		409		{object}	apihttp.ErrorResponse	"line is not short-picked, or its task cannot be re-picked"
+//	@Failure		422		{object}	apihttp.ErrorResponse	"insufficient stock to re-reserve"
+//	@Router			/picking/{id}/items/{itemId}/repick [post]
+func (h *Handler) Repick(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid picking task id", "INVALID_REQUEST")
+		return
+	}
+	itemID, err := parseID(c, "itemId")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid picking task item id", "INVALID_REQUEST")
+		return
+	}
+
+	userID, _ := middleware.CurrentUserID(c)
+	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
+
+	resp, err := h.service.Repick(ctx, tenantID, id, itemID, userID)
+	if err == nil {
+		apihttp.OK(c, resp, "line re-opened for picking")
+		return
+	}
+	writeError(c, err)
+}
+
+// SuggestLots godoc
+//
+//	@Summary		Suggest FEFO/FIFO-ordered available lots for a product at a warehouse
+//	@Description	Read-only lot lookup (no reservation) ordered First-Expired-First-Out, tie-broken First-In-First-Out — for the UI to suggest/validate which lot a line should draw from.
+//	@Tags			Picking
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			product_id		query		int	true	"Product ID"
+//	@Param			warehouse_id	query		int	true	"Warehouse ID"
+//	@Success		200				{object}	apihttp.SuccessResponse{data=[]LotSuggestionResponse}
+//	@Failure		400				{object}	apihttp.ErrorResponse
+//	@Failure		401				{object}	apihttp.ErrorResponse
+//	@Failure		403				{object}	apihttp.ErrorResponse
+//	@Router			/picking/lots/suggest [get]
+func (h *Handler) SuggestLots(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	productID, err := strconv.ParseInt(c.Query("product_id"), 10, 64)
+	if err != nil || productID == 0 {
+		apihttp.Fail(c, http.StatusBadRequest, "product_id is required", "INVALID_REQUEST")
+		return
+	}
+	warehouseID, err := strconv.ParseInt(c.Query("warehouse_id"), 10, 64)
+	if err != nil || warehouseID == 0 {
+		apihttp.Fail(c, http.StatusBadRequest, "warehouse_id is required", "INVALID_REQUEST")
+		return
+	}
+
+	lots, err := h.service.SuggestLots(c.Request.Context(), tenantID, productID, warehouseID)
+	if err != nil {
+		apihttp.Fail(c, http.StatusInternalServerError, "failed to suggest lots", "INTERNAL_ERROR")
+		return
+	}
+	resp := make([]LotSuggestionResponse, 0, len(lots))
+	for _, lot := range lots {
+		resp = append(resp, LotSuggestionResponse{
+			LocationID: lot.LocationID, LocationCode: lot.LocationCode, LotNo: lot.LotNo,
+			ExpiryDate: lot.ExpiryDate, AvailableQty: lot.AvailableQty, OnHandQty: lot.OnHandQty,
+		})
+	}
+	apihttp.OK(c, resp, "")
+}
+
+// servePDF writes data as an inline PDF response — matching
+// internal/relocation and internal/order's own servePDF helper exactly.
+func servePDF(c *gin.Context, data []byte, filename string) {
+	c.Header("Content-Disposition", "inline; filename=\""+filename+"\"")
+	c.Data(http.StatusOK, "application/pdf", data)
+}
+
+// PickList godoc
+//
+//	@Summary		Download the Pick List / Picking Work Order PDF for a task
+//	@Description	Work order no., source order/customer/destination, warehouse, priority/due date, assigned picker, and each line's SKU/product/source location/lot/expiry/requested/allocated/picked qty — with a Code128 barcode encoding the pick number and a QR code per line encoding location|product|lot for scan confirmation in the warehouse. Read-only: printing/reprinting is always safe.
+//	@Tags			Picking
+//	@Produce		application/pdf
+//	@Security		BearerAuth
+//	@Param			id	path	int	true	"Picking task ID"
+//	@Success		200	{file}	file
+//	@Failure		401	{object}	apihttp.ErrorResponse
+//	@Failure		403	{object}	apihttp.ErrorResponse
+//	@Failure		404	{object}	apihttp.ErrorResponse
+//	@Router			/picking/{id}/pdf [get]
+func (h *Handler) PickList(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid picking task id", "INVALID_REQUEST")
+		return
+	}
+	userID, _ := middleware.CurrentUserID(c)
+
+	data, filename, err := h.pdf.RenderPickList(c.Request.Context(), tenantID, userID, id)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	servePDF(c, data, filename)
+}
+
 func parseID(c *gin.Context, param string) (int64, error) {
 	return strconv.ParseInt(c.Param(param), 10, 64)
 }
@@ -380,6 +622,8 @@ func writeError(c *gin.Context, err error) {
 		apihttp.Fail(c, http.StatusNotFound, "warehouse not found", "WAREHOUSE_NOT_FOUND")
 	case errors.Is(err, ErrLocationNotFound):
 		apihttp.Fail(c, http.StatusNotFound, "location not found", "LOCATION_NOT_FOUND")
+	case errors.Is(err, ErrPickerNotFound):
+		apihttp.Fail(c, http.StatusNotFound, "picker user not found", "PICKER_NOT_FOUND")
 	case errors.Is(err, ErrNoSourceStock):
 		apihttp.Fail(c, http.StatusUnprocessableEntity, err.Error(), "NO_SOURCE_STOCK")
 	case errors.Is(err, ErrCrossWarehouse):
@@ -388,6 +632,10 @@ func writeError(c *gin.Context, err error) {
 		apihttp.Fail(c, http.StatusConflict, "picking task is not in a confirmable status", "INVALID_TRANSITION")
 	case errors.Is(err, ErrNotCancellable):
 		apihttp.Fail(c, http.StatusConflict, "picking task is not in a cancellable status", "NOT_CANCELLABLE")
+	case errors.Is(err, ErrNotAssignable):
+		apihttp.Fail(c, http.StatusConflict, "picking task is not in an assignable status", "NOT_ASSIGNABLE")
+	case errors.Is(err, ErrNotRepickable):
+		apihttp.Fail(c, http.StatusConflict, "line is not short-picked, or its task cannot be re-picked", "NOT_REPICKABLE")
 	case errors.As(err, &validationErr):
 		apihttp.Fail(c, http.StatusUnprocessableEntity, validationErr.Message, "VALIDATION_ERROR")
 	default:

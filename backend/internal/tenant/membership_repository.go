@@ -76,10 +76,10 @@ type MembershipListFilter struct {
 // Server, not just wrong). A literal allowlist, never built from
 // request input, mirroring internal/productcategory's repository.go.
 var membershipSortColumns = map[string]string{
-	"name":      "users.full_name",
-	"role":      "roles.name",
-	"status":    "tenant_users.status",
-	"joinedAt":  "tenant_users.joined_at",
+	"name":     "users.full_name",
+	"role":     "roles.name",
+	"status":   "tenant_users.status",
+	"joinedAt": "tenant_users.joined_at",
 }
 
 // membershipRowQuery is the shared join behind ListMemberships and

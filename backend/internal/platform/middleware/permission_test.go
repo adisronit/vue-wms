@@ -446,6 +446,49 @@ func TestRequirePermission_PickingApprove_AllowedForWarehouseManagerShapedToken(
 	}
 }
 
+// Phase 33B: Confirm moves off picking.update onto the new
+// picking.confirm (split out of picking.approve the same way receiving.
+// confirm/quality_check.confirm/putaway.confirm/relocation.confirm/
+// order.confirm were) — a real PICKING-role-shaped token (which the
+// Phase 33B catalog grants picking.confirm alongside its pre-existing
+// picking.update) is allowed, while a token that still only carries the
+// old picking.update/picking.view/stock_inquiry.view shape (no
+// picking.confirm) is denied, proving the permission actually moved
+// rather than Confirm silently still accepting the old code.
+func TestRequirePermission_PickingConfirm_AllowedForPickingRoleShapedToken(t *testing.T) {
+	router := newPermissionTestRouter("test-secret", "picking.confirm")
+	token := signTokenWithPermissions(t, "test-secret", []string{
+		"dashboard.view", "picking.view", "picking.update", "picking.confirm", "stock_inquiry.view",
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+}
+
+func TestRequirePermission_PickingConfirm_DeniedWithoutIt(t *testing.T) {
+	router := newPermissionTestRouter("test-secret", "picking.confirm")
+	token := signTokenWithPermissions(t, "test-secret", []string{
+		"dashboard.view", "picking.view", "picking.update", "stock_inquiry.view",
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
 // Phase 10: Shipping reuses the existing "shipping" module — no new
 // permission codes. Unlike Picking, the SHIPPING role's own Phase 2/3
 // seed grants (internal/rbac/catalog.go) mirror RECEIVING/PUTAWAY's

@@ -72,7 +72,16 @@ var Modules = []ModuleDef{
 	{Code: "relocation", Name: "Stock Relocation", Actions: []string{"view", "create", "update", "confirm", "approve"}},
 	{Code: "stock_inquiry", Name: "Stock Inquiry", Actions: []string{"view", "export"}},
 	{Code: "stock_adjustment", Name: "Stock Adjustment", Actions: []string{"view", "create", "update", "delete", "approve"}},
-	{Code: "picking", Name: "Picking", Actions: []string{"view", "create", "update", "approve"}},
+	// "confirm" (Phase 33B) gates the stock-mutating/stock-adjacent
+	// actions — Confirm (PICKED/SHORT) and Repick (re-reserving a
+	// previously-short line) — split out of "approve" the same way
+	// receiving.confirm/quality_check.confirm/putaway.confirm/
+	// relocation.confirm/order.confirm already were. Before this split,
+	// Confirm was gated on picking.update (see Handler.Register's own
+	// doc for why); "update" now covers only non-stock-mutating actions
+	// (operator assignment, scan validation). "approve" stays on Cancel,
+	// its pre-existing authority level.
+	{Code: "picking", Name: "Picking", Actions: []string{"view", "create", "update", "confirm", "approve"}},
 	{Code: "replenishment", Name: "Replenishment", Actions: []string{"view", "create", "update", "approve"}},
 	{Code: "shipping", Name: "Shipping", Actions: []string{"view", "create", "update", "approve"}},
 	// "confirm" (Phase 33A) gates the new Review & Release action
@@ -206,7 +215,12 @@ var RoleDefaultGrants = map[string][]string{
 	},
 	"PICKING": {
 		"dashboard.view",
-		"picking.view", "picking.update",
+		// picking.confirm (Phase 33B) added alongside the pre-existing
+		// picking.update so PICKING staff keep the ability to confirm/
+		// short-pick/re-pick lines after Confirm/Repick moved off
+		// picking.update onto this new split code — see catalog's own
+		// doc on the "picking" module above.
+		"picking.view", "picking.update", "picking.confirm",
 		"stock_inquiry.view",
 	},
 	"SHIPPING": {

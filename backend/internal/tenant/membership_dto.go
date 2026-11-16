@@ -87,14 +87,14 @@ type MembershipListParams struct {
 
 func toMembershipResponse(row MembershipRow) MembershipResponse {
 	return MembershipResponse{
-		ID:       row.ID,
-		TenantID: row.TenantID,
-		UserID:   row.UserID,
-		Username: row.Username,
-		FullName: row.FullName,
-		Email:    row.Email,
-		Role:     MembershipRoleSummary{Code: row.RoleCode, Name: row.RoleName},
-		Status:   row.Status,
+		ID:        row.ID,
+		TenantID:  row.TenantID,
+		UserID:    row.UserID,
+		Username:  row.Username,
+		FullName:  row.FullName,
+		Email:     row.Email,
+		Role:      MembershipRoleSummary{Code: row.RoleCode, Name: row.RoleName},
+		Status:    row.Status,
 		InvitedBy: row.InvitedBy,
 		InvitedAt: row.InvitedAt,
 		JoinedAt:  row.JoinedAt,

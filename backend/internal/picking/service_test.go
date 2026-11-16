@@ -47,6 +47,43 @@ func TestStatus_CanCancel(t *testing.T) {
 	}
 }
 
+func TestStatus_CanAssign(t *testing.T) {
+	cases := map[Status]bool{
+		StatusPending: true, StatusInProgress: true,
+		StatusCompleted: false, StatusShortPick: false, StatusCancelled: false,
+	}
+	for status, want := range cases {
+		if got := status.CanAssign(); got != want {
+			t.Errorf("Status(%q).CanAssign() = %v, want %v", status, got, want)
+		}
+	}
+}
+
+func TestStatus_CanRepick(t *testing.T) {
+	cases := map[Status]bool{
+		StatusPending: true, StatusInProgress: true, StatusShortPick: true,
+		StatusCompleted: false, StatusCancelled: false,
+	}
+	for status, want := range cases {
+		if got := status.CanRepick(); got != want {
+			t.Errorf("Status(%q).CanRepick() = %v, want %v", status, got, want)
+		}
+	}
+}
+
+func TestShortReasonCode_IsValid(t *testing.T) {
+	cases := map[ShortReasonCode]bool{
+		ShortReasonOutOfStock: true, ShortReasonDamaged: true, ShortReasonLocationEmpty: true,
+		ShortReasonWrongLot: true, ShortReasonMiscount: true, ShortReasonOther: true,
+		"": false, "NOT_REAL": false,
+	}
+	for reason, want := range cases {
+		if got := reason.IsValid(); got != want {
+			t.Errorf("ShortReasonCode(%q).IsValid() = %v, want %v", reason, got, want)
+		}
+	}
+}
+
 // TestTask_ApplyCancel is Phase 18's own coverage for the audit-column
 // mutation Service.Cancel delegates to — Cancel itself needs a live DB
 // (via s.repo.Transaction), so this isolates the pure part: does the

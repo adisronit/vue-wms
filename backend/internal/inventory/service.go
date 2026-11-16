@@ -687,6 +687,28 @@ func (s *Service) AvailabilityByProductWarehouse(ctx context.Context, tenantID, 
 	return ProductAvailability{AvailableQty: available, ReservedQty: reserved, HoldQty: hold, OnHandQty: onHand}, nil
 }
 
+// LotAvailability is one row of ListAvailableLotsByProductWarehouse's
+// FEFO/FIFO-ordered result — see that method's own doc.
+type LotAvailability struct {
+	LocationID   int64
+	LocationCode string
+	LotNo        string
+	ExpiryDate   *time.Time
+	AvailableQty float64
+	OnHandQty    float64
+	CreatedAt    time.Time
+}
+
+// ListAvailableLotsByProductWarehouse exposes Repository.
+// ListAvailableLotsByProductWarehouse through Service — Phase 33B's
+// read-only FEFO/FIFO lot-suggestion primitive for internal/picking
+// (and any future caller). See the repository method's own doc for why
+// this is new rather than reused from an existing query, and for why it
+// duplicates no reservation/consumption logic.
+func (s *Service) ListAvailableLotsByProductWarehouse(ctx context.Context, tenantID, productID, warehouseID int64) ([]LotAvailability, error) {
+	return s.repo.ListAvailableLotsByProductWarehouse(ctx, tenantID, productID, warehouseID)
+}
+
 func validateMoveStock(req MoveStockRequest) error {
 	if req.TenantID == 0 {
 		return ErrValidation{Message: "tenant_id is required"}
