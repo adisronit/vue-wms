@@ -536,6 +536,16 @@ func (s *Service) Confirm(ctx context.Context, tenantID, receiptID int64, req Co
 		refType := "RECEIVE"
 		refID := receipt.ReceiptNo
 
+		// seenPalletIDs catches a duplicate/conflicting LPN (pallet ID)
+		// assignment within this one Confirm call — across every line,
+		// not just within one, since the same physical pallet can never
+		// legitimately hold two different splits in one receiving event.
+		// A pallet ID reused across *different* receipts over time is
+		// expected (pallets get emptied and reused), so this is
+		// deliberately scoped to the request, not a DB-wide uniqueness
+		// constraint.
+		seenPalletIDs := map[string]bool{}
+
 		for _, lineReq := range req.Items {
 			if lineReq.Quantity <= 0 {
 				return ErrValidation{Message: "quantity must be greater than zero for every confirmed line"}
@@ -571,11 +581,26 @@ func (s *Service) Confirm(ctx context.Context, tenantID, receiptID int64, req Co
 			// ReceiptItem's own doc) even when multiple splits are posted
 			// in one call.
 			lastSplit := splits[len(splits)-1]
-			if p.LotRequired && lastSplit.LotNo == "" {
-				return ErrValidation{Message: fmt.Sprintf("product %s requires a lot number", p.SKU)}
-			}
-			if p.ExpiryRequired && lastSplit.ExpiryDate == nil {
-				return ErrValidation{Message: fmt.Sprintf("product %s requires an expiry date", p.SKU)}
+
+			// Every split is checked, not just the last one — a product
+			// requiring lot/expiry tracking must have it on EVERY batch
+			// posted for it, not only whichever split happens to be
+			// listed last in the request (the line-level display fields
+			// above are a separate, cosmetic concern from this
+			// per-batch tracking requirement).
+			for i, sp := range splits {
+				if p.LotRequired && sp.LotNo == "" {
+					return ErrValidation{Message: fmt.Sprintf("product %s requires a lot number (line %d, split %d)", p.SKU, item.ID, i+1)}
+				}
+				if p.ExpiryRequired && sp.ExpiryDate == nil {
+					return ErrValidation{Message: fmt.Sprintf("product %s requires an expiry date (line %d, split %d)", p.SKU, item.ID, i+1)}
+				}
+				if sp.PalletID != nil && *sp.PalletID != "" {
+					if seenPalletIDs[*sp.PalletID] {
+						return ErrValidation{Message: fmt.Sprintf("pallet/LPN %q is assigned to more than one split in this confirmation", *sp.PalletID)}
+					}
+					seenPalletIDs[*sp.PalletID] = true
+				}
 			}
 
 			for _, sp := range splits {
