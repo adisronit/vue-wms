@@ -60,12 +60,15 @@ type CartonResponse struct {
 } //	@name	PackingCartonResponse
 
 // Response is a full packing job with its lines and cartons — GET
-// /packing-jobs/{id}.
+// /packing-jobs/{id}. OrderID is nil for the ordinary (non-batch) flow;
+// set to a specific order when this job is one of a batch-sourced
+// task's own per-order packing jobs (Phase 33C.2).
 type Response struct {
 	ID                  int64            `json:"id,string" example:"1"`
 	JobNo               string           `json:"job_no" example:"PACK-000001"`
 	PickingTaskID       int64            `json:"picking_task_id,string" example:"1"`
 	PickNo              string           `json:"pick_no" example:"PICK-000001"`
+	OrderID             *int64           `json:"order_id,string"`
 	OrderNo             string           `json:"order_no" example:"SO-20260608-001"`
 	Customer            *string          `json:"customer" example:"ABC Customer"`
 	CustomerID          *int64           `json:"customer_id,string"`
@@ -104,6 +107,7 @@ type ListResponse struct {
 	ID                 int64     `json:"id,string" example:"1"`
 	JobNo              string    `json:"job_no" example:"PACK-000001"`
 	PickingTaskID      int64     `json:"picking_task_id,string" example:"1"`
+	OrderID            *int64    `json:"order_id,string"`
 	OrderNo            string    `json:"order_no" example:"SO-20260608-001"`
 	Customer           *string   `json:"customer" example:"ABC Customer"`
 	WarehouseCode      string    `json:"warehouse_code" example:"WH-01"`
@@ -114,24 +118,54 @@ type ListResponse struct {
 	CreatedAt          time.Time `json:"created_at"`
 } //	@name	PackingListResponse
 
+// PendingOrderResponse (Phase 33C.2) is one of a batch-sourced source
+// task's own included orders that does not yet have its own packing
+// job — the picker for the UI's "create a job for which order" choice.
+type PendingOrderResponse struct {
+	OrderID  int64   `json:"order_id,string" example:"1"`
+	OrderNo  string  `json:"order_no" example:"ORD-000001"`
+	Customer *string `json:"customer" example:"ABC Customer"`
+} //	@name	PackingPendingOrderResponse
+
 // SourceResponse is one row of GET /packing-jobs/sources — a completed
-// or short-picked picking task that has no packing job yet, mirroring
-// shipping.SourceResponse's own shape exactly.
+// or short-picked picking task that still has at least one packable
+// packing job left to create, mirroring shipping.SourceResponse's own
+// shape exactly for the ordinary (non-batch) case.
+//
+// IsBatch/BatchID/PendingOrders (Phase 33C.2) are populated only when
+// this task is batch-sourced (internal/pickingbatch): a batch-sourced
+// task stays in Sources as long as ANY of its own included orders still
+// lacks a job (unlike the ordinary case's strict "no job exists yet at
+// all" rule — multiple jobs, one per order, are expected here), and
+// PendingOrders lists exactly which orders those are, since the caller
+// must choose one via CreateRequest.OrderID.
 type SourceResponse struct {
-	PickingTaskID int64   `json:"picking_task_id,string" example:"1"`
-	PickNo        string  `json:"pick_no" example:"PICK-000001"`
-	OrderNo       string  `json:"order_no" example:"SO-20260608-001"`
-	Customer      *string `json:"customer" example:"ABC Customer"`
-	ItemCount     int     `json:"item_count" example:"3"`
+	PickingTaskID int64                  `json:"picking_task_id,string" example:"1"`
+	PickNo        string                 `json:"pick_no" example:"PICK-000001"`
+	OrderNo       string                 `json:"order_no" example:"SO-20260608-001"`
+	Customer      *string                `json:"customer" example:"ABC Customer"`
+	ItemCount     int                    `json:"item_count" example:"3"`
+	IsBatch       bool                   `json:"is_batch" example:"false"`
+	BatchID       *int64                 `json:"batch_id,string"`
+	PendingOrders []PendingOrderResponse `json:"pending_orders,omitempty"`
 } //	@name	PackingSourceResponse
 
 // CreateRequest is POST /packing-jobs — creates a job from an already-
 // terminal (COMPLETED or SHORT_PICK) picking task. There is no Items
-// field: lines are always copied verbatim from the picking task's own
-// already-picked quantities (see Service.Create's own doc) — a client
-// can never specify or inflate a line's picked_qty.
+// field: lines are always copied verbatim from already-picked/already-
+// sorted quantities (see Service.Create's own doc) — a client can never
+// specify or inflate a line's picked_qty.
+//
+// OrderID (Phase 33C.2) is required if, and only if, PickingTaskID is
+// batch-sourced (internal/pickingbatch) — it selects which one of that
+// batch's own included orders this specific job is for, since a
+// consolidated task must fan out into one job PER ORDER, never one job
+// for the whole batch. Supplying OrderID against an ordinary (non-batch)
+// task is rejected: that task has exactly one implicit "order" and a
+// client cannot choose a different one.
 type CreateRequest struct {
 	PickingTaskID int64   `json:"picking_task_id,string" binding:"required" example:"1"`
+	OrderID       *int64  `json:"order_id,string" example:"1"`
 	Remark        *string `json:"remark"`
 } //	@name	CreatePackingJobRequest
 

@@ -91,22 +91,53 @@ func (s Status) IsValid() bool {
 	}
 }
 
+// SortationStatus is the sortation sub-workflow's own closed set
+// (migrations/0099-0100) — independent of Status (the batch header's own
+// DRAFT/CONFIRMED/COMPLETED/CANCELLED machine). A batch's sortation can
+// only ever begin once Status is CONFIRMED and the underlying picking
+// task has reached COMPLETED or SHORT_PICK (see Service.sortationGate's
+// own doc) — NOT_STARTED is the default for every batch, including ones
+// that will never be sorted (a DRAFT batch that gets cancelled, or a
+// CONFIRMED one whose task is later cancelled, simply never leaves it).
+type SortationStatus string
+
+const (
+	SortationNotStarted SortationStatus = "NOT_STARTED"
+	SortationInProgress SortationStatus = "IN_PROGRESS"
+	SortationCompleted  SortationStatus = "COMPLETED"
+)
+
+func (s SortationStatus) IsValid() bool {
+	switch s {
+	case SortationNotStarted, SortationInProgress, SortationCompleted:
+		return true
+	default:
+		return false
+	}
+}
+
 // Batch is the GORM model for the picking_batches table
-// (migrations/0094).
+// (migrations/0094, extended by migrations/0099-0100 with the
+// sortation sub-workflow's own station/assignment/timestamp columns).
 type Batch struct {
-	ID            int64      `gorm:"column:id;primaryKey"`
-	TenantID      int64      `gorm:"column:tenant_id;not null"`
-	BatchNo       string     `gorm:"column:batch_no"`
-	WarehouseID   int64      `gorm:"column:warehouse_id"`
-	Status        Status     `gorm:"column:status"`
-	PickingTaskID *int64     `gorm:"column:picking_task_id"`
-	CreatedBy     *int64     `gorm:"column:created_by"`
-	CreatedAt     time.Time  `gorm:"column:created_at"`
-	UpdatedAt     time.Time  `gorm:"column:updated_at"`
-	ConfirmedAt   *time.Time `gorm:"column:confirmed_at"`
-	CancelledAt   *time.Time `gorm:"column:cancelled_at"`
-	CancelledBy   *int64     `gorm:"column:cancelled_by"`
-	CancelRemark  *string    `gorm:"column:cancel_remark"`
+	ID                   int64           `gorm:"column:id;primaryKey"`
+	TenantID             int64           `gorm:"column:tenant_id;not null"`
+	BatchNo              string          `gorm:"column:batch_no"`
+	WarehouseID          int64           `gorm:"column:warehouse_id"`
+	Status               Status          `gorm:"column:status"`
+	PickingTaskID        *int64          `gorm:"column:picking_task_id"`
+	CreatedBy            *int64          `gorm:"column:created_by"`
+	CreatedAt            time.Time       `gorm:"column:created_at"`
+	UpdatedAt            time.Time       `gorm:"column:updated_at"`
+	ConfirmedAt          *time.Time      `gorm:"column:confirmed_at"`
+	CancelledAt          *time.Time      `gorm:"column:cancelled_at"`
+	CancelledBy          *int64          `gorm:"column:cancelled_by"`
+	CancelRemark         *string         `gorm:"column:cancel_remark"`
+	SortationStatus      SortationStatus `gorm:"column:sortation_status"`
+	SortationStation     *string         `gorm:"column:sortation_station"`
+	SortationAssignedTo  *int64          `gorm:"column:sortation_assigned_to"`
+	SortationStartedAt   *time.Time      `gorm:"column:sortation_started_at"`
+	SortationCompletedAt *time.Time      `gorm:"column:sortation_completed_at"`
 }
 
 func (Batch) TableName() string { return "picking_batches" }
@@ -127,8 +158,17 @@ type BatchOrder struct {
 func (BatchOrder) TableName() string { return "picking_batch_orders" }
 
 // Allocation is the GORM model for the picking_batch_allocations table
-// (migrations/0096) — the critical traceability ledger. See the
-// package doc above for the full shape/purpose.
+// (migrations/0096, extended by migrations/0099-0100 with Sortation's
+// own cumulative progress columns) — the critical traceability ledger.
+// See the package doc above for the full shape/purpose.
+//
+// SortedQty is cumulative across every successful sortation scan against
+// this row, written exclusively via Repository.AdjustSortedQty's own
+// atomic guarded UPDATE (sorted_qty + delta <= allocated_qty in the
+// WHERE clause itself) — never a Go read-modify-write. ShortageQty/
+// ExceptionReason are Sortation's own distinct exception point (see
+// migrations/0099's own doc for why this is deliberately separate from
+// both picking's short-pick reason and packing's own exception reason).
 type Allocation struct {
 	ID                int64     `gorm:"column:id;primaryKey"`
 	TenantID          int64     `gorm:"column:tenant_id;not null"`
@@ -142,9 +182,27 @@ type Allocation struct {
 	AllocatedQty      float64   `gorm:"column:allocated_qty"`
 	UOM               string    `gorm:"column:uom"`
 	CreatedAt         time.Time `gorm:"column:created_at"`
+	SortedQty         float64   `gorm:"column:sorted_qty"`
+	ShortageQty       *float64  `gorm:"column:shortage_qty"`
+	ExceptionReason   *string   `gorm:"column:exception_reason"`
 }
 
 func (Allocation) TableName() string { return "picking_batch_allocations" }
+
+// allocationResolved reports whether one allocation row needs no further
+// sortation attention — either fully sorted (sorted_qty == allocated_qty)
+// or its shortfall has been fully accounted for by a recorded shortage
+// (sorted_qty + shortage_qty >= allocated_qty). This is the per-row
+// predicate Service's own "is the whole batch's sortation COMPLETE" rule
+// (see Service.recomputeSortationStatus's own doc) requires of every
+// allocation row in the batch.
+func allocationResolved(a Allocation) bool {
+	total := a.SortedQty
+	if a.ShortageQty != nil {
+		total += *a.ShortageQty
+	}
+	return total >= a.AllocatedQty
+}
 
 // applyCancel mutates b in place for a successful DRAFT -> CANCELLED
 // Cancel — mirrors every other workflow package's own applyCancel

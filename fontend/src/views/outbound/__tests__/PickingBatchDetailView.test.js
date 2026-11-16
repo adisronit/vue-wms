@@ -71,4 +71,26 @@ describe('PickingBatchDetailView', () => {
     expect(confirmPickingBatch).toHaveBeenCalledWith(7)
     expect(wrapper.vm.batch.status).toBe('CONFIRMED')
   })
+
+  // Phase 33C.2: once a batch is CONFIRMED (its pick is in progress or
+  // done), a "Go to Sortation" button must be offered alongside "Go to
+  // Picking" — Sortation is a continuation of the same batch, not a
+  // separate top-level workflow.
+  it('shows the Go to Sortation button once the batch is CONFIRMED or COMPLETED', async () => {
+    getPickingBatch.mockResolvedValue({ data: { ...draftBatch(), status: 'CONFIRMED', picking_task_id: 5 } })
+    const wrapper = mount(PickingBatchDetailView, { props: { id: 7 }, global: { mocks: globalMocks } })
+    await flushPromises()
+
+    const buttons = wrapper.findAll('button').map((b) => b.text())
+    expect(buttons.some((t) => t.includes('pickingBatches.detail.goToSortation'))).toBe(true)
+  })
+
+  it('hides the Go to Sortation button while the batch is still DRAFT', async () => {
+    getPickingBatch.mockResolvedValue({ data: draftBatch() })
+    const wrapper = mount(PickingBatchDetailView, { props: { id: 7 }, global: { mocks: globalMocks } })
+    await flushPromises()
+
+    const buttons = wrapper.findAll('button').map((b) => b.text())
+    expect(buttons.some((t) => t.includes('pickingBatches.detail.goToSortation'))).toBe(false)
+  })
 })

@@ -1,0 +1,24 @@
+-- Phase 33C.2 -- discovered directly against a real SQL Server while
+-- writing the SO-001/SO-002/SO-003 three-independent-packing-jobs test:
+-- migrations/0088's own "CONSTRAINT UQ_packing_job_items_tenant_picking_item
+-- UNIQUE (tenant_id, picking_task_item_id)" assumed at most one packing
+-- job could ever exist per picking task (true before this phase), so at
+-- most one packing_job_items row could ever reference a given
+-- picking_task_item_id. That assumption no longer holds for a batch-
+-- sourced task: ONE shared picking_task_items row (one consolidated
+-- product/lot/location line) legitimately produces MULTIPLE
+-- packing_job_items rows, one per order's own packing job, all
+-- referencing that same picking_task_item_id with different (smaller,
+-- per-order) ordered_qty/picked_qty ceilings.
+--
+-- Replaces the old tenant-wide uniqueness with job-scoped uniqueness
+-- instead: UNIQUE (tenant_id, packing_job_id, picking_task_item_id).
+-- This preserves the original intent exactly for the ordinary
+-- (non-batch) case, where exactly one packing_job_items row has ever
+-- existed per (job, line) pair anyway (migrations/0102's own dual
+-- filtered-unique-index scheme already caps packing_jobs itself at one
+-- job per non-batch task), while correctly allowing N different jobs
+-- (one per order) to each hold their own row against the same shared
+-- line.
+ALTER TABLE packing_job_items DROP CONSTRAINT UQ_packing_job_items_tenant_picking_item;
+ALTER TABLE packing_job_items ADD CONSTRAINT UQ_packing_job_items_job_picking_item UNIQUE (tenant_id, packing_job_id, picking_task_item_id);

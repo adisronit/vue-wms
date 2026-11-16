@@ -115,7 +115,18 @@ var Modules = []ModuleDef{
 	// WAREHOUSE_MANAGER (every non-delete code) get it automatically; a
 	// future phase could extend PICKING's own RoleDefaultGrants if
 	// batch-picking duties are assigned to existing picking staff.
-	{Code: "picking_batch", Name: "Batch Picking", Actions: []string{"view", "create", "confirm", "cancel"}},
+	//
+	// Phase 33C.2 adds "sortation" to this same module rather than a new
+	// catalog module — Sortation is a continuation of one batch's own
+	// lifecycle (same picking_batches header, same picking_batch_
+	// allocations ledger extended with sorted_qty/shortage_qty), not a
+	// separate workflow object. It gates the two mutating sortation
+	// actions (POST .../sortation/scan and POST .../sortation/exception)
+	// at an authority level distinct from "confirm" (which only ever
+	// claims orders + creates the task) and "cancel" — the worklist read
+	// (GET .../sortation) stays on the existing "view" code, matching
+	// every other module's own "view gates every read" convention.
+	{Code: "picking_batch", Name: "Batch Picking", Actions: []string{"view", "create", "confirm", "cancel", "sortation"}},
 	{Code: "replenishment", Name: "Replenishment", Actions: []string{"view", "create", "update", "approve"}},
 	{Code: "shipping", Name: "Shipping", Actions: []string{"view", "create", "update", "approve"}},
 	// "confirm" (Phase 33A) gates the new Review & Release action

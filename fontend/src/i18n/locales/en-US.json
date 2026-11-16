@@ -638,7 +638,8 @@
       "cancelSuccess": "Picking batch cancelled",
       "confirmedNote": "This batch has been confirmed into one picking task. From here, execute it through the Picking module (pick, scan, confirm).",
       "goToPicking": "Go to Picking",
-      "confirmCancelMessage": "Cancel this DRAFT batch? Its orders will become available for a new batch."
+      "confirmCancelMessage": "Cancel this DRAFT batch? Its orders will become available for a new batch.",
+      "goToSortation": "Go to Sortation"
     },
     "messages": {
       "loadFailed": "Failed to load picking batches",
@@ -695,7 +696,11 @@
       "createButton": "Create",
       "createSuccess": "Packing job created",
       "createFailed": "Failed to create packing job",
-      "loadSourcesFailed": "Failed to load packable picking tasks"
+      "loadSourcesFailed": "Failed to load packable picking tasks",
+      "selectOrderLabel": "Order",
+      "selectOrderPlaceholder": "Select which order this job is for...",
+      "batchSourcedNote": "This picking task was consolidated from multiple orders — select which order’s own share to pack.",
+      "noOrdersPending": "Every order in this batch already has its own packing job"
     },
     "detail": {
       "subtitle": "Pack, flag exceptions, manage cartons, and complete checker verification",
@@ -2759,5 +2764,59 @@
       "markedReady": "Relocation task saved and marked ready",
       "confirmSubmitDialog": "This will save the task and mark it ready for execution. Continue?"
     }
+  },
+  "sortation": {
+    "title": "Sortation",
+    "subtitle": "Sort the consolidated pick back into each order’s own pile before packing",
+    "backButton": "Back",
+    "loading": "Loading sortation worklist…",
+    "notReady": "Sortation is not available until this batch’s picking task is completed",
+    "loadFailed": "Failed to load sortation worklist",
+    "statusLabels": {
+      "notStarted": "Not Started",
+      "inProgress": "In Progress",
+      "completed": "Completed"
+    },
+    "assignTitle": "Station / Operator Assignment",
+    "stationLabel": "Station",
+    "stationPlaceholder": "e.g. SORT-01",
+    "assignButton": "Assign",
+    "assignSuccess": "Sortation assignment updated",
+    "assignFailed": "Failed to update sortation assignment",
+    "scanTitle": "Scan Confirmation",
+    "orderBarcodeLabel": "Order Barcode",
+    "orderBarcodePlaceholder": "Scan or enter order no.",
+    "skuLabel": "SKU",
+    "skuPlaceholder": "Scan or enter SKU",
+    "lotLabel": "Lot No.",
+    "lotPlaceholder": "Lot no. (optional)",
+    "qtyLabel": "Quantity",
+    "qtyPlaceholder": "Quantity",
+    "scanButton": "Confirm",
+    "scanning": "Confirming...",
+    "scanSuccess": "Sortation scan recorded",
+    "scanFailed": "Failed to record sortation scan",
+    "worklistTitle": "Worklist",
+    "table": {
+      "orderNo": "Order No.",
+      "shipTo": "Ship To",
+      "sku": "SKU",
+      "product": "Product",
+      "lot": "Lot No.",
+      "allocated": "Allocated",
+      "sorted": "Sorted",
+      "remaining": "Remaining",
+      "status": "Status"
+    },
+    "lineResolved": "Resolved",
+    "linePending": "Pending",
+    "exceptionButton": "Flag Exception",
+    "exceptionTitle": "Flag Sortation Exception",
+    "exceptionReasonPlaceholder": "Reason (e.g. found damaged while sorting)",
+    "exceptionQtyPlaceholder": "Shortage quantity",
+    "submitExceptionButton": "Submit",
+    "exceptionFlagged": "Exception flagged",
+    "exceptionFailed": "Failed to flag exception",
+    "completedBanner": "Sortation is complete for this batch — every order’s own share has been accounted for."
   }
 }

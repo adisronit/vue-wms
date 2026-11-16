@@ -638,7 +638,8 @@
       "cancelSuccess": "拣货批次已取消",
       "confirmedNote": "该批次已确认为一个拣货任务。请通过拣货模块继续执行（拣货、扫描、确认）。",
       "goToPicking": "前往拣货",
-      "confirmCancelMessage": "是否取消此草稿批次？其中的订单将可重新加入新的批次。"
+      "confirmCancelMessage": "是否取消此草稿批次？其中的订单将可重新加入新的批次。",
+      "goToSortation": "前往分拣"
     },
     "messages": {
       "loadFailed": "加载拣货批次失败",
@@ -695,7 +696,11 @@
       "createButton": "创建",
       "createSuccess": "打包作业已创建",
       "createFailed": "创建打包作业失败",
-      "loadSourcesFailed": "加载可打包的拣货任务失败"
+      "loadSourcesFailed": "加载可打包的拣货任务失败",
+      "selectOrderLabel": "订单",
+      "selectOrderPlaceholder": "选择此作业对应的订单...",
+      "batchSourcedNote": "此拣货任务由多个订单合并而成 — 请选择要装箱的订单份额。",
+      "noOrdersPending": "此批次中的每个订单都已有自己的装箱作业"
     },
     "detail": {
       "subtitle": "打包、标记异常、管理箱子并完成复核确认",
@@ -2759,5 +2764,59 @@
       "markedReady": "调拨任务已保存并标记为待执行",
       "confirmSubmitDialog": "此操作将保存任务并标记为待执行。是否继续？"
     }
+  },
+  "sortation": {
+    "title": "分拣",
+    "subtitle": "在装箱前,将合并拣货的货品重新分拣回各订单自己的堆放处",
+    "backButton": "返回",
+    "loading": "正在加载分拣工作清单…",
+    "notReady": "此批次的拣货任务完成之前,分拣功能尚不可用",
+    "loadFailed": "加载分拣工作清单失败",
+    "statusLabels": {
+      "notStarted": "未开始",
+      "inProgress": "进行中",
+      "completed": "已完成"
+    },
+    "assignTitle": "分拣站/操作员分配",
+    "stationLabel": "分拣站",
+    "stationPlaceholder": "例如 SORT-01",
+    "assignButton": "分配",
+    "assignSuccess": "分拣分配已更新",
+    "assignFailed": "更新分拣分配失败",
+    "scanTitle": "扫描确认",
+    "orderBarcodeLabel": "订单条码",
+    "orderBarcodePlaceholder": "扫描或输入订单编号",
+    "skuLabel": "SKU",
+    "skuPlaceholder": "扫描或输入 SKU",
+    "lotLabel": "批号",
+    "lotPlaceholder": "批号(可选)",
+    "qtyLabel": "数量",
+    "qtyPlaceholder": "数量",
+    "scanButton": "确认",
+    "scanning": "确认中...",
+    "scanSuccess": "分拣扫描已记录",
+    "scanFailed": "记录分拣扫描失败",
+    "worklistTitle": "工作清单",
+    "table": {
+      "orderNo": "订单编号",
+      "shipTo": "收货地址",
+      "sku": "SKU",
+      "product": "产品",
+      "lot": "批号",
+      "allocated": "已分配",
+      "sorted": "已分拣",
+      "remaining": "剩余",
+      "status": "状态"
+    },
+    "lineResolved": "已完成",
+    "linePending": "待处理",
+    "exceptionButton": "标记异常",
+    "exceptionTitle": "标记分拣异常",
+    "exceptionReasonPlaceholder": "原因(例如分拣时发现损坏)",
+    "exceptionQtyPlaceholder": "短缺数量",
+    "submitExceptionButton": "提交",
+    "exceptionFlagged": "异常已标记",
+    "exceptionFailed": "标记异常失败",
+    "completedBanner": "此批次的分拣已完成 — 所有订单的份额均已处理完毕。"
   }
 }

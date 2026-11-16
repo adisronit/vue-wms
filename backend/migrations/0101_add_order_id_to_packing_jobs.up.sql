@@ -1,0 +1,14 @@
+-- Phase 33C.2 -- Sortation + Packing Integration. packing_jobs.order_id
+-- is NULL for the ordinary (non-batch) PICK_BY_ORDER flow -- byte-for-
+-- byte unchanged from Phase 33C -- and set to a specific order_id only
+-- when the source picking_task_id is batch-sourced (internal/
+-- pickingbatch), since Packing must produce one job PER ORDER from a
+-- multi-order consolidated task, never one job for the whole batch.
+--
+-- Bare ADD COLUMN only in this file -- see migrations/0092's own doc on
+-- the SQL Server same-batch ADD-COLUMN-then-ADD-CONSTRAINT bug. The FK,
+-- the new index, and (critically) the replacement of migrations/0087's
+-- own plain UNIQUE(tenant_id, picking_task_id) constraint with the dual
+-- filtered-unique-index scheme this column requires all follow in their
+-- own transaction, migrations/0102.
+ALTER TABLE packing_jobs ADD order_id BIGINT NULL;

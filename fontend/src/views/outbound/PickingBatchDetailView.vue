@@ -51,6 +51,13 @@
           >
             {{ $t('pickingBatches.detail.goToPicking') }}
           </button>
+          <button
+            v-if="batch.status === 'CONFIRMED' || batch.status === 'COMPLETED'"
+            @click="$router.push(`/outbound/picking-batches/${id}/sortation`)"
+            class="bg-slate-800 hover:bg-slate-900 text-white px-5 py-3 rounded-xl font-semibold"
+          >
+            {{ $t('pickingBatches.detail.goToSortation') }}
+          </button>
         </div>
       </div>
 

@@ -1,0 +1,6 @@
+DROP INDEX IX_picking_batches_sortation_status ON picking_batches;
+ALTER TABLE picking_batches DROP CONSTRAINT FK_picking_batches_sortation_assigned_to;
+ALTER TABLE picking_batches DROP CONSTRAINT CK_picking_batches_sortation_status;
+
+ALTER TABLE picking_batch_allocations DROP CONSTRAINT CK_picking_batch_allocations_shortage_qty;
+ALTER TABLE picking_batch_allocations DROP CONSTRAINT CK_picking_batch_allocations_sorted_qty;

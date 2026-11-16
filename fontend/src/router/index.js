@@ -17,6 +17,7 @@ import PickingView from '../views/outbound/PickingView.vue'
 import PickingBatchView from '../views/outbound/PickingBatchView.vue'
 import NewPickingBatchView from '../views/outbound/NewPickingBatchView.vue'
 import PickingBatchDetailView from '../views/outbound/PickingBatchDetailView.vue'
+import SortationView from '../views/outbound/SortationView.vue'
 import PackingView from '../views/outbound/PackingView.vue'
 import PackingDetailView from '../views/outbound/PackingDetailView.vue'
 import ShippingView from '../views/outbound/ShippingView.vue'
@@ -130,6 +131,12 @@ const routes = [
         path: 'outbound/picking-batches/:id',
         name: 'PickingBatchDetail',
         component: PickingBatchDetailView,
+        props: true,
+      },
+      {
+        path: 'outbound/picking-batches/:id/sortation',
+        name: 'Sortation',
+        component: SortationView,
         props: true,
       },
       {
