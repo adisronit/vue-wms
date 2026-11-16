@@ -114,7 +114,8 @@
     "suppliers": "ผู้จำหน่าย",
     "logout": "ออกจากระบบ",
     "sectionPlatformAdmin": "การบริหารแพลตฟอร์ม",
-    "platformTenants": "ผู้เช่า"
+    "platformTenants": "ผู้เช่า",
+    "relocation": "ย้ายสต็อกภายในคลัง"
   },
   "layout": {
     "headerTitle": "ระบบจัดการคลังสินค้า",
@@ -2277,6 +2278,118 @@
       "messages": {
         "loadFailed": "โหลดข้อมูลผู้ใช้งานในองค์กรไม่สำเร็จ"
       }
+    }
+  },
+  "relocation": {
+    "title": "ย้ายสต็อกภายในคลัง",
+    "subtitle": "ย้ายสต็อกที่มีอยู่ระหว่างตำแหน่งจัดเก็บภายในคลัง แยกจากการรับเข้า/จัดเก็บเข้าที่",
+    "newButton": "+ สร้างงานย้ายสต็อก",
+    "documents": {
+      "viewTransferNote": "ดูใบย้ายสต็อก"
+    },
+    "statusLabels": {
+      "ready": "พร้อมดำเนินการ"
+    },
+    "filters": {
+      "searchPlaceholder": "ค้นหาเลขงาน, SKU, ตำแหน่ง...",
+      "allStatus": "สถานะทั้งหมด",
+      "allWarehouses": "คลังทั้งหมด"
+    },
+    "table": {
+      "taskNo": "เลขที่งาน",
+      "sku": "SKU",
+      "product": "สินค้า",
+      "lotNo": "เลขที่ Lot",
+      "qty": "ย้ายแล้ว / จำนวน",
+      "fromLocation": "ตำแหน่งต้นทาง",
+      "toLocation": "ตำแหน่งปลายทาง",
+      "action": "การดำเนินการ"
+    },
+    "loadingTasks": "กำลังโหลดงานย้ายสต็อก…",
+    "noTasks": "ไม่พบงานย้ายสต็อก",
+    "drawer": {
+      "title": "งานย้ายสต็อก",
+      "lines": "รายการย้ายสต็อก",
+      "moved": "ย้ายแล้ว",
+      "confirmQtyPlaceholder": "จำนวนที่จะย้าย",
+      "overrideDestinationPlaceholder": "เปลี่ยนตำแหน่งปลายทาง (ไม่บังคับ)",
+      "confirmLineButton": "ยืนยันรายการ",
+      "markReadyButton": "ทำเครื่องหมายพร้อมดำเนินการ",
+      "cancelButton": "ยกเลิกงาน",
+      "cancelledAt": "ยกเลิกเมื่อ",
+      "cancelledBy": "ยกเลิกโดย",
+      "cancellationRemark": "หมายเหตุการยกเลิก"
+    },
+    "messages": {
+      "confirmQtyRequired": "กรุณาระบุจำนวน",
+      "noLocationFound": "ไม่พบตำแหน่งสำหรับรหัส \"{value}\"",
+      "markedReady": "ทำเครื่องหมายงานย้ายสต็อกว่าพร้อมดำเนินการแล้ว",
+      "relocationConfirmed": "ยืนยันการย้ายสต็อกสำเร็จ",
+      "taskCancelled": "ยกเลิกงานย้ายสต็อกแล้ว",
+      "confirmCancelTask": "งานย้ายสต็อกนี้จะถูกยกเลิก รายการที่ย้ายไปแล้วจะไม่ถูกย้อนกลับ ดำเนินการต่อหรือไม่?"
+    }
+  },
+  "newRelocation": {
+    "title": "สร้างงานย้ายสต็อกใหม่",
+    "subtitle": "สแกนตำแหน่งต้นทางและปลายทางเพื่อย้ายสต็อกที่มีอยู่",
+    "backButton": "กลับไปหน้าย้ายสต็อก",
+    "taskInfo": "ข้อมูลงาน",
+    "fields": {
+      "warehouse": "คลังสินค้า",
+      "selectWarehouse": "เลือกคลังสินค้า",
+      "remarkPlaceholder": "กรอกหมายเหตุ"
+    },
+    "scan": {
+      "title": "สแกนรายการย้ายสต็อก",
+      "subtitle": "สแกน SKU, Lot, ตำแหน่งต้นทางและปลายทางเพื่อเพิ่มรายการ",
+      "lookingUp": "กำลังค้นหา…",
+      "scannerReady": "เครื่องสแกนพร้อมใช้งาน",
+      "skuPlaceholder": "สแกนหรือกรอก SKU/บาร์โค้ด",
+      "lotPlaceholder": "เลขที่ Lot (ไม่บังคับ)",
+      "sourcePlaceholder": "สแกนหรือกรอกตำแหน่งต้นทาง",
+      "destinationPlaceholder": "สแกนหรือกรอกตำแหน่งปลายทาง",
+      "qtyPlaceholder": "จำนวน",
+      "lpnPlaceholder": "พาเลท/LPN (ไม่บังคับ)",
+      "addLine": "เพิ่มรายการ",
+      "availableStock": "สต็อกพร้อมใช้ที่ต้นทาง: {qty}"
+    },
+    "itemsSection": {
+      "title": "รายการย้ายสต็อก",
+      "subtitle": "รายการที่เพิ่มผ่านแถบสแกนด้านบน"
+    },
+    "table": {
+      "sku": "SKU",
+      "productName": "ชื่อสินค้า",
+      "lotNo": "เลขที่ Lot",
+      "lpn": "LPN",
+      "fromLocation": "ตำแหน่งต้นทาง",
+      "toLocation": "ตำแหน่งปลายทาง",
+      "qty": "จำนวน",
+      "uom": "หน่วย",
+      "action": "การดำเนินการ",
+      "noItems": "ยังไม่มีรายการ"
+    },
+    "summary": {
+      "title": "สรุป",
+      "totalLines": "จำนวนรายการ",
+      "totalQty": "จำนวนรวม"
+    },
+    "actions": {
+      "saveAndMarkReady": "บันทึก & ทำเครื่องหมายพร้อมดำเนินการ",
+      "viewOnlyNote": "สิทธิ์ของคุณสามารถบันทึกฉบับร่างได้ แต่ไม่สามารถทำเครื่องหมายพร้อมดำเนินการ"
+    },
+    "messages": {
+      "skuRequired": "กรุณาระบุ SKU",
+      "sourceAndDestinationRequired": "กรุณาระบุตำแหน่งต้นทางและปลายทาง",
+      "fromAndToMustDiffer": "ตำแหน่งต้นทางและปลายทางต้องไม่เหมือนกัน",
+      "noProductFound": "ไม่พบสินค้าสำหรับ \"{value}\"",
+      "noLocationFound": "ไม่พบตำแหน่งสำหรับรหัส \"{value}\"",
+      "warehouseRequired": "กรุณาเลือกคลังสินค้า",
+      "atLeastOneItem": "ต้องมีอย่างน้อยหนึ่งรายการ",
+      "everyItemNeedsQtyGreaterThanZero": "ทุกรายการต้องมีจำนวนมากกว่าศูนย์",
+      "draftSaved": "บันทึกฉบับร่างงานย้ายสต็อกแล้ว",
+      "markedReady": "บันทึกและทำเครื่องหมายงานย้ายสต็อกว่าพร้อมดำเนินการแล้ว",
+      "confirmSubmitDialog": "การดำเนินการนี้จะบันทึกงานและทำเครื่องหมายว่าพร้อมดำเนินการ ดำเนินการต่อหรือไม่?"
     }
   }
 }

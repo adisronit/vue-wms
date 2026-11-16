@@ -27,6 +27,8 @@ import SupplierView from '../views/administration/SupplierView.vue'
 import BrandView from '../views/administration/BrandView.vue'
 import ProductFamilyView from '../views/administration/ProductFamilyView.vue'
 import ReplenishmentView from '../views/inventory/ReplenishmentView.vue'
+import RelocationView from '../views/inventory/RelocationView.vue'
+import NewRelocationView from '../views/inventory/NewRelocationView.vue'
 import TenantManagementView from '../views/platform/TenantManagementView.vue'
 import TenantDetailView from '../views/platform/TenantDetailView.vue'
 
@@ -162,6 +164,16 @@ const routes = [
         path: 'inventory/replenishment',
         name: 'Replenishment',
         component: ReplenishmentView
+      },
+      {
+        path: 'inventory/relocation',
+        name: 'Relocation',
+        component: RelocationView
+      },
+      {
+        path: 'inventory/relocation/new',
+        name: 'NewRelocation',
+        component: NewRelocationView
       },
       {
         path: 'platform/tenants',
