@@ -128,13 +128,65 @@ type CancelRequest struct {
 
 // ListParams narrows GET /transfer-receipts to the worklist's own
 // search/status/destination-warehouse filters, with pagination.
+// HasDiscrepancy (Phase 33E.3) is a list-level reconciliation view: when
+// true, only receipts with at least one line carrying a recorded
+// discrepancy (discrepancy_qty > 0) are returned -- the "needs follow-
+// up" worklist. False (the zero value, "?has_discrepancy" omitted or
+// "false") applies no such filter, matching every other optional filter
+// in this struct's own "zero value means no filter" convention
+// (Status == "", DestinationWarehouseID == 0).
 type ListParams struct {
 	Search                 string
 	Status                 Status
 	DestinationWarehouseID int64
+	HasDiscrepancy         bool
 	Page                   int
 	Limit                  int
 }
+
+// ReconciliationLineResponse is one line of GET
+// /transfer-receipts/{id}/reconciliation -- pure computation over the
+// already-stored dispatched_qty/received_qty/discrepancy_qty columns
+// (ItemResponse's own fields), never a new stored value.
+// FullyReconciled is true iff received_qty equals dispatched_qty AND no
+// discrepancy was recorded for this line -- the per-line reconciliation
+// verdict an operator's worklist needs at a glance.
+type ReconciliationLineResponse struct {
+	ItemID            int64      `json:"item_id,string" example:"1"`
+	ProductID         int64      `json:"product_id,string" example:"1"`
+	SKU               string     `json:"sku" example:"SKU-0001"`
+	ProductName       string     `json:"product_name" example:"Barcode Label Roll"`
+	LotNo             string     `json:"lot_no"`
+	UOM               string     `json:"uom" example:"PCS"`
+	DispatchedQty     float64    `json:"dispatched_qty" example:"100"`
+	ReceivedQty       float64    `json:"received_qty" example:"100"`
+	DiscrepancyQty    *float64   `json:"discrepancy_qty"`
+	DiscrepancyReason *string    `json:"discrepancy_reason"`
+	Status            ItemStatus `json:"status" example:"COMPLETED"`
+	FullyReconciled   bool       `json:"fully_reconciled" example:"true"`
+} //	@name	TransferReceiptReconciliationLineResponse
+
+// ReconciliationResponse is GET /transfer-receipts/{id}/reconciliation --
+// a read-only summary over an already-created/received/confirmed
+// receipt's own stored lines; no new table, no mutation.
+// ReconciliationStatus is PENDING while the receipt itself has not yet
+// been confirmed (receiving is still in progress -- any discrepancy
+// recorded so far is provisional), RECONCILED once COMPLETED with zero
+// total discrepancy, or DISCREPANCY once COMPLETED with a non-zero
+// total discrepancy. FullyReconciled mirrors that at the boolean level
+// every line's own FullyReconciled already uses (true iff every line is
+// FullyReconciled).
+type ReconciliationResponse struct {
+	ReceiptID            int64                         `json:"receipt_id,string" example:"1"`
+	ReceiptNo            string                        `json:"receipt_no" example:"TRC-000001"`
+	Status               Status                        `json:"status" example:"COMPLETED"`
+	TotalDispatchedQty   float64                       `json:"total_dispatched_qty" example:"100"`
+	TotalReceivedQty     float64                       `json:"total_received_qty" example:"90"`
+	TotalDiscrepancyQty  float64                       `json:"total_discrepancy_qty" example:"10"`
+	FullyReconciled      bool                          `json:"fully_reconciled" example:"false"`
+	ReconciliationStatus string                        `json:"reconciliation_status" example:"DISCREPANCY"`
+	Lines                []ReconciliationLineResponse `json:"lines"`
+} //	@name	TransferReceiptReconciliationResponse
 
 // EligibleShipmentParams narrows GET
 // /transfer-receipts/eligible-shipments.

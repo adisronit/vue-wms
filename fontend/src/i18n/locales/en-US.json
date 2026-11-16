@@ -2897,7 +2897,8 @@
     "filters": {
       "searchPlaceholder": "Search Receipt, Shipment, Order No...",
       "allStatus": "All Status",
-      "selectDestinationWarehouse": "Select Destination Warehouse"
+      "selectDestinationWarehouse": "Select Destination Warehouse",
+      "hasDiscrepancyOnly": "Needs Follow-up (Discrepancy)"
     },
     "table": {
       "receiptNo": "Receipt No.",
@@ -2912,6 +2913,19 @@
     "noReceipts": "No transfer receipts found",
     "lineStatus": {
       "discrepancy": "Discrepancy"
+    },
+    "reconciliation": {
+      "title": "Reconciliation",
+      "status": {
+        "pending": "Pending",
+        "reconciled": "Reconciled",
+        "discrepancy": "Discrepancy"
+      },
+      "totalDispatched": "Total Dispatched",
+      "totalReceived": "Total Received",
+      "totalDiscrepancy": "Total Discrepancy",
+      "fullyReconciled": "Fully Reconciled",
+      "notFullyReconciled": "Not Fully Reconciled"
     },
     "drawer": {
       "newReceiptTitle": "New Transfer Receipt",
@@ -2936,7 +2950,10 @@
       "receiveButton": "Receive",
       "confirmButton": "Confirm Receipt",
       "cancelButton": "Cancel Receipt",
-      "notReadyToConfirm": "Every line must be fully received or closed with a discrepancy before confirming"
+      "notReadyToConfirm": "Every line must be fully received or closed with a discrepancy before confirming",
+      "viewTransferNote": "View Transfer Note",
+      "downloadTransferNote": "Download Transfer Note",
+      "historyButton": "Document History"
     },
     "messages": {
       "selectSourceRequired": "Select a source shipment",
@@ -2947,7 +2964,8 @@
       "itemReceived": "Item received",
       "receiptConfirmed": "Transfer receipt confirmed",
       "receiptCancelled": "Transfer receipt cancelled",
-      "confirmCancelReceipt": "This transfer receipt will be cancelled. Continue?"
+      "confirmCancelReceipt": "This transfer receipt will be cancelled. Continue?",
+      "pdfFailed": "Failed to generate the transfer note"
     }
   },
   "sortation": {

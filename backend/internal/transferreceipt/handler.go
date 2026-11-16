@@ -18,13 +18,27 @@ func writeTenantUnauthorized(c *gin.Context) {
 	apihttp.Fail(c, http.StatusUnauthorized, "tenant context required", "UNAUTHORIZED")
 }
 
-// Handler exposes Service over HTTP.
+// Handler exposes Service (and, for Reconciliation/the Transfer Note PDF,
+// PDFService) over HTTP.
 type Handler struct {
 	service *Service
+	pdf     *PDFService
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, pdf *PDFService) *Handler {
+	return &Handler{service: service, pdf: pdf}
+}
+
+// servePDF writes data as a PDF response -- matches every other module's
+// own servePDF helper exactly (Phase 33D.3/33E.3).
+func servePDF(c *gin.Context, data []byte, filename string) {
+	disposition := "inline"
+	if c.Query("download") == "true" {
+		disposition = "attachment"
+	}
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", disposition+"; filename=\""+filename+"\"")
+	c.Data(http.StatusOK, "application/pdf", data)
 }
 
 // Register mounts the Destination Receiving endpoints on rg, using the
@@ -45,6 +59,12 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChec
 	group.GET("", middleware.RequirePermission("transfer_receipt.view"), h.List)
 	group.GET("/eligible-shipments", middleware.RequirePermission("transfer_receipt.view"), h.EligibleShipments)
 	group.GET("/:id", middleware.RequirePermission("transfer_receipt.view"), h.Get)
+	// Phase 33E.3 -- Reconciliation + Transfer Note PDF. Both ride on the
+	// same "transfer_receipt.view" permission every other read-only
+	// endpoint above already requires -- neither is a mutation, and
+	// neither needs a new RBAC code.
+	group.GET("/:id/reconciliation", middleware.RequirePermission("transfer_receipt.view"), h.Reconciliation)
+	group.GET("/:id/transfer-note", middleware.RequirePermission("transfer_receipt.view"), h.TransferNote)
 	group.POST("", middleware.RequirePermission("transfer_receipt.create"), h.Create)
 	group.POST("/:id/items/:itemId/receive", middleware.RequirePermission("transfer_receipt.confirm"), h.ReceiveItem)
 	group.POST("/:id/confirm", middleware.RequirePermission("transfer_receipt.confirm"), h.Confirm)
@@ -63,6 +83,7 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChec
 //	@Param			search						query		string	false	"Matches receipt no, shipment no, or order no"
 //	@Param			status						query		string	false	"DRAFT, COMPLETED, or CANCELLED"
 //	@Param			destination_warehouse_id	query		int		false	"Filter by destination warehouse"
+//	@Param			has_discrepancy				query		bool	false	"true to list only receipts with at least one line carrying a recorded discrepancy -- the reconciliation follow-up worklist"
 //	@Success		200							{object}	apihttp.ListResponse{data=[]ListResponse}
 //	@Failure		401							{object}	apihttp.ErrorResponse
 //	@Failure		403							{object}	apihttp.ErrorResponse
@@ -77,10 +98,11 @@ func (h *Handler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.Query("page"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	destWarehouseID, _ := strconv.ParseInt(c.Query("destination_warehouse_id"), 10, 64)
+	hasDiscrepancy, _ := strconv.ParseBool(c.Query("has_discrepancy"))
 
 	responses, total, err := h.service.List(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), Status: Status(c.Query("status")),
-		DestinationWarehouseID: destWarehouseID, Page: page, Limit: limit,
+		DestinationWarehouseID: destWarehouseID, HasDiscrepancy: hasDiscrepancy, Page: page, Limit: limit,
 	})
 	if err != nil {
 		apihttp.Fail(c, http.StatusInternalServerError, "failed to list transfer receipts", "INTERNAL_ERROR")
@@ -169,6 +191,78 @@ func (h *Handler) Get(c *gin.Context) {
 		return
 	}
 	apihttp.OK(c, resp, "")
+}
+
+// Reconciliation godoc
+//
+//	@Summary		Get a transfer receipt's reconciliation summary
+//	@Description	Read-only per-line reconciliation (dispatched/received/discrepancy qty, fully_reconciled) plus header totals and an overall reconciliation_status (PENDING while not yet COMPLETED, RECONCILED once COMPLETED with zero discrepancy, DISCREPANCY once COMPLETED with a non-zero discrepancy). Pure computation over the receipt's own already-stored lines -- no new table, no mutation.
+//	@Tags			Transfer Receiving
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		int	true	"Transfer receipt ID"
+//	@Success		200	{object}	apihttp.SuccessResponse{data=ReconciliationResponse}
+//	@Failure		401	{object}	apihttp.ErrorResponse
+//	@Failure		403	{object}	apihttp.ErrorResponse
+//	@Failure		404	{object}	apihttp.ErrorResponse
+//	@Router			/transfer-receipts/{id}/reconciliation [get]
+func (h *Handler) Reconciliation(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid transfer receipt id", "INVALID_REQUEST")
+		return
+	}
+
+	resp, err := h.service.Reconciliation(c.Request.Context(), tenantID, id)
+	if errors.Is(err, ErrNotFound) {
+		apihttp.Fail(c, http.StatusNotFound, "transfer receipt not found", "NOT_FOUND")
+		return
+	}
+	if err != nil {
+		apihttp.Fail(c, http.StatusInternalServerError, "failed to compute reconciliation", "INTERNAL_ERROR")
+		return
+	}
+	apihttp.OK(c, resp, "")
+}
+
+// TransferNote godoc
+//
+//	@Summary		Download the Inter-Warehouse Transfer Note PDF for a transfer receipt
+//	@Description	Header (transfer note no., source order no./transfer reference, source/destination warehouse, shipment no., dispatch/receipt date, received by), every line (SKU/product/brand/pack size, lot/expiry, UOM, dispatched/received/discrepancy qty + reason), footer totals/discrepancy summary with received-by/checked-by signature fields, and barcodes for the receipt no. and the source order no. Marked DRAFT until the receipt itself reaches COMPLETED. Read-only -- never mutates the receipt or its items. ?download=true for an attachment, omitted for inline viewing.
+//	@Tags			Transfer Receiving
+//	@Produce		application/pdf
+//	@Security		BearerAuth
+//	@Param			id			path	int		true	"Transfer receipt ID"
+//	@Param			download	query	boolean	false	"true for a download, omitted for inline viewing"
+//	@Success		200			{file}	file
+//	@Failure		401			{object}	apihttp.ErrorResponse
+//	@Failure		403			{object}	apihttp.ErrorResponse
+//	@Failure		404			{object}	apihttp.ErrorResponse
+//	@Router			/transfer-receipts/{id}/transfer-note [get]
+func (h *Handler) TransferNote(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid transfer receipt id", "INVALID_REQUEST")
+		return
+	}
+
+	userID, _ := middleware.CurrentUserID(c)
+	data, filename, err := h.pdf.RenderTransferNote(c.Request.Context(), tenantID, userID, id)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	servePDF(c, data, filename)
 }
 
 // Create godoc

@@ -34,6 +34,8 @@ var permissionByDocumentType = map[string]string{
 	// Phase 33D.3.
 	TypeDeliveryNote:    "shipping.view",
 	TypeLoadingManifest: "loading.view",
+	// Phase 33E.3.
+	TypeTransferNote: "transfer_receipt.view",
 }
 
 // Handler exposes Service over HTTP.

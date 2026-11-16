@@ -111,6 +111,77 @@ func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error
 	}, nil
 }
 
+// Reconciliation computes GET /transfer-receipts/{id}/reconciliation --
+// a read-only summary derived entirely from Get's own already-correct,
+// already-joined Response (no second query path duplicating FindReceiptDetail/
+// ListItems). Pure arithmetic over already-stored dispatched_qty/
+// received_qty/discrepancy_qty: no new table, no mutation, nothing this
+// phase's own Create/ReceiveItem/Confirm/Cancel logic doesn't already
+// guarantee is internally consistent.
+//
+// Per-line FullyReconciled is true iff received_qty == dispatched_qty
+// AND no (non-zero) discrepancy_qty was recorded -- the same two
+// conditions ReceiveItem's own "close short" branch and itemStatus's own
+// ItemStatusCompleted path are already mutually exclusive on, so this
+// never reinterprets what those already decided.
+//
+// ReconciliationStatus is PENDING while the receipt itself has not yet
+// reached COMPLETED (receiving may still be in progress -- any
+// discrepancy recorded so far is provisional until Confirm's own
+// "every line settled" gate passes), RECONCILED once COMPLETED with
+// zero total discrepancy, or DISCREPANCY once COMPLETED with a non-zero
+// total discrepancy.
+func (s *Service) Reconciliation(ctx context.Context, tenantID, id int64) (*ReconciliationResponse, error) {
+	receipt, err := s.Get(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := make([]ReconciliationLineResponse, 0, len(receipt.Items))
+	var totalDispatched, totalReceived, totalDiscrepancy float64
+	fullyReconciled := true
+	for _, it := range receipt.Items {
+		discrepancyQty := 0.0
+		if it.DiscrepancyQty != nil {
+			discrepancyQty = *it.DiscrepancyQty
+		}
+		lineReconciled := it.ReceivedQty == it.DispatchedQty && discrepancyQty == 0
+		if !lineReconciled {
+			fullyReconciled = false
+		}
+		totalDispatched += it.DispatchedQty
+		totalReceived += it.ReceivedQty
+		totalDiscrepancy += discrepancyQty
+
+		lines = append(lines, ReconciliationLineResponse{
+			ItemID: it.ID, ProductID: it.ProductID, SKU: it.SKU, ProductName: it.ProductName,
+			LotNo: it.LotNo, UOM: it.UOM,
+			DispatchedQty: it.DispatchedQty, ReceivedQty: it.ReceivedQty,
+			DiscrepancyQty: it.DiscrepancyQty, DiscrepancyReason: it.DiscrepancyReason,
+			Status: it.Status, FullyReconciled: lineReconciled,
+		})
+	}
+	if len(receipt.Items) == 0 {
+		fullyReconciled = false
+	}
+
+	reconciliationStatus := "PENDING"
+	if receipt.Status == StatusCompleted {
+		if totalDiscrepancy != 0 {
+			reconciliationStatus = "DISCREPANCY"
+		} else {
+			reconciliationStatus = "RECONCILED"
+		}
+	}
+
+	return &ReconciliationResponse{
+		ReceiptID: receipt.ID, ReceiptNo: receipt.ReceiptNo, Status: receipt.Status,
+		TotalDispatchedQty: totalDispatched, TotalReceivedQty: totalReceived, TotalDiscrepancyQty: totalDiscrepancy,
+		FullyReconciled: fullyReconciled, ReconciliationStatus: reconciliationStatus,
+		Lines: lines,
+	}, nil
+}
+
 // Create validates shipmentID is a DISPATCHED-or-later shipment whose
 // own order is an INTERNAL_TRANSFER order with no receipt yet, then
 // copies one transfer_receipt_item per shipment line with
