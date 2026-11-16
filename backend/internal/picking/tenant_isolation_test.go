@@ -20,6 +20,7 @@ import (
 	"wms-backend/internal/location"
 	"wms-backend/internal/platform/testsupport"
 	"wms-backend/internal/product"
+	"wms-backend/internal/user"
 	"wms-backend/internal/warehouse"
 )
 
@@ -106,7 +107,32 @@ func newPickingServiceAndRepo(tx *gorm.DB) (*Service, *Repository) {
 	productRepo := product.NewRepository(tx)
 	warehouseRepo := warehouse.NewRepository(tx)
 	invSvc := inventory.NewService(inventory.NewRepository(tx), productRepo, location.NewRepository(tx))
-	return NewService(repo, productRepo, warehouseRepo, invSvc), repo
+	svc := NewService(repo, productRepo, warehouseRepo, invSvc)
+	svc.SetUsers(user.NewRepository(tx))
+	return svc, repo
+}
+
+// seedPickerUser inserts a real role + user row within tenant f's own
+// tenant — AssignPicker's userChecker.FindByID call is global (users
+// are not tenant-scoped, see Service.userChecker's own doc), but the
+// role FK still needs a real row to reference.
+func seedPickerUser(t *testing.T, tx *gorm.DB, f pickingFixture, label string) int64 {
+	t.Helper()
+	var roleID int64
+	if err := tx.Raw(
+		"INSERT INTO roles (tenant_id, code, name) OUTPUT INSERTED.id VALUES (?, ?, ?)",
+		f.tenantID, "PICKER-"+label, "Picker Role "+label,
+	).Scan(&roleID).Error; err != nil {
+		t.Fatalf("seedPickerUser(%s): insert role: %v", label, err)
+	}
+	var userID int64
+	if err := tx.Raw(
+		"INSERT INTO users (username, password_hash, full_name, email, role_id) OUTPUT INSERTED.id VALUES (?, 'x', ?, ?, ?)",
+		"picker-"+label, "Picker "+label, "picker-"+label+"@example.com", roleID,
+	).Scan(&userID).Error; err != nil {
+		t.Fatalf("seedPickerUser(%s): insert user: %v", label, err)
+	}
+	return userID
 }
 
 // createTask is a small helper that runs Service.Create end-to-end
@@ -403,13 +429,22 @@ func TestService_Confirm_ShortLine_ReleasesReservation(t *testing.T) {
 
 	resp, err := svc.Confirm(context.Background(), a.tenantID, taskID, ConfirmRequest{
 		IdempotencyKey: "key-short-1",
-		Items:          []ConfirmItemRequest{{ItemID: itemID, Action: "SHORT", Remark: "out of stock"}},
+		// Phase 33B: ShortReason is now required for a SHORT action — see
+		// ConfirmItemRequest's own doc for the documented breaking change
+		// this test was updated for. Remark remains optional free text.
+		Items: []ConfirmItemRequest{{ItemID: itemID, Action: "SHORT", ShortReason: "OUT_OF_STOCK", Remark: "out of stock"}},
 	}, 1)
 	if err != nil {
 		t.Fatalf("Confirm(own tenant, SHORT): %v", err)
 	}
 	if resp.Status != StatusShortPick {
 		t.Errorf("task status = %v, want SHORT_PICK", resp.Status)
+	}
+	if resp.Items[0].ShortReason == nil || *resp.Items[0].ShortReason != "OUT_OF_STOCK" {
+		t.Errorf("ShortReason = %v, want OUT_OF_STOCK", resp.Items[0].ShortReason)
+	}
+	if resp.Items[0].ShortQty == nil || *resp.Items[0].ShortQty != 10 {
+		t.Errorf("ShortQty = %v, want 10", resp.Items[0].ShortQty)
 	}
 
 	invRepo := inventory.NewRepository(tx)
@@ -422,6 +457,42 @@ func TestService_Confirm_ShortLine_ReleasesReservation(t *testing.T) {
 	}
 	if bal.ReservedQuantity != 0 {
 		t.Errorf("ReservedQuantity after SHORT = %v, want 0 (fully released)", bal.ReservedQuantity)
+	}
+}
+
+// TestService_Confirm_ShortLine_RejectsInvalidReason proves the Phase
+// 33B breaking change actually rejects an invalid/missing ShortReason
+// rather than silently falling back to the old Remark-only behavior.
+func TestService_Confirm_ShortLine_RejectsInvalidReason(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+
+	a := newPickingFixture(t, tx, "confirm-badreason")
+	seedPickingBalance(t, tx, a, "LOT-A", 100, 0)
+
+	svc, _ := newPickingServiceAndRepo(tx)
+	taskID := createTask(t, svc, a.tenantID, a, "LOT-A", 10)
+	task, err := svc.Get(context.Background(), a.tenantID, taskID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	itemID := task.Items[0].ID
+
+	_, err = svc.Confirm(context.Background(), a.tenantID, taskID, ConfirmRequest{
+		IdempotencyKey: "key-badreason-1",
+		Items:          []ConfirmItemRequest{{ItemID: itemID, Action: "SHORT", Remark: "no reason code given"}},
+	}, 1)
+	var validationErr ErrValidation
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("Confirm(SHORT, no short_reason) = %v, want ErrValidation", err)
+	}
+
+	_, err = svc.Confirm(context.Background(), a.tenantID, taskID, ConfirmRequest{
+		IdempotencyKey: "key-badreason-2",
+		Items:          []ConfirmItemRequest{{ItemID: itemID, Action: "SHORT", ShortReason: "NOT_A_REAL_CODE"}},
+	}, 1)
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("Confirm(SHORT, unknown short_reason) = %v, want ErrValidation", err)
 	}
 }
 
@@ -663,5 +734,367 @@ func TestRepository_AdjustPickedQty_Concurrent_NoLostUpdates(t *testing.T) {
 	}
 	if updated.PickedQty != attempts {
 		t.Errorf("final picked_qty = %v, want %d (no lost updates across %d concurrent increments)", updated.PickedQty, attempts, attempts)
+	}
+}
+
+// --- Phase 33B: AssignPicker ---
+
+func TestService_AssignPicker_OwnTenant_Succeeds(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+
+	a := newPickingFixture(t, tx, "assign-ok")
+	seedPickingBalance(t, tx, a, "LOT-A", 100, 0)
+	pickerID := seedPickerUser(t, tx, a, "assign-ok")
+
+	svc, _ := newPickingServiceAndRepo(tx)
+	taskID := createTask(t, svc, a.tenantID, a, "LOT-A", 10)
+
+	resp, err := svc.AssignPicker(context.Background(), a.tenantID, taskID, pickerID, 1)
+	if err != nil {
+		t.Fatalf("AssignPicker(own tenant, real picker): %v", err)
+	}
+	if resp.AssignedPickerID == nil || *resp.AssignedPickerID != pickerID {
+		t.Errorf("AssignedPickerID = %v, want %d", resp.AssignedPickerID, pickerID)
+	}
+	if resp.AssignedAt == nil {
+		t.Error("AssignedAt = nil, want set")
+	}
+	if resp.AssignedPickerName == nil || *resp.AssignedPickerName != "Picker assign-ok" {
+		t.Errorf("AssignedPickerName = %v, want %q", resp.AssignedPickerName, "Picker assign-ok")
+	}
+}
+
+func TestService_AssignPicker_CrossTenant_NotFound(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+
+	a := newPickingFixture(t, tx, "assign-cross-a")
+	b := newPickingFixture(t, tx, "assign-cross-b")
+	seedPickingBalance(t, tx, b, "LOT-B", 100, 0)
+	pickerID := seedPickerUser(t, tx, a, "assign-cross")
+
+	svc, _ := newPickingServiceAndRepo(tx)
+	taskID := createTask(t, svc, b.tenantID, b, "LOT-B", 10)
+
+	if _, err := svc.AssignPicker(context.Background(), a.tenantID, taskID, pickerID, 1); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("AssignPicker(tenantA, tenantB's task) = %v, want ErrNotFound", err)
+	}
+}
+
+func TestService_AssignPicker_UnknownPicker_Rejected(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+
+	a := newPickingFixture(t, tx, "assign-unknown")
+	seedPickingBalance(t, tx, a, "LOT-A", 100, 0)
+
+	svc, _ := newPickingServiceAndRepo(tx)
+	taskID := createTask(t, svc, a.tenantID, a, "LOT-A", 10)
+
+	if _, err := svc.AssignPicker(context.Background(), a.tenantID, taskID, 999999999, 1); !errors.Is(err, ErrPickerNotFound) {
+		t.Fatalf("AssignPicker(nonexistent picker) = %v, want ErrPickerNotFound", err)
+	}
+}
+
+// --- Phase 33B: ScanConfirm ---
+
+func TestService_ScanConfirm_Match(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+
+	a := newPickingFixture(t, tx, "scan-match")
+	seedPickingBalance(t, tx, a, "LOT-A", 100, 0)
+
+	svc, _ := newPickingServiceAndRepo(tx)
+	taskID := createTask(t, svc, a.tenantID, a, "LOT-A", 10)
+	task, err := svc.Get(context.Background(), a.tenantID, taskID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	item := task.Items[0]
+
+	resp, err := svc.ScanConfirm(context.Background(), a.tenantID, taskID, item.ID, ScanRequest{
+		LocationCode: item.LocationCode, SKU: item.SKU, LotNo: item.LotNo,
+	}, 1)
+	if err != nil {
+		t.Fatalf("ScanConfirm(matching scan): %v", err)
+	}
+	if !resp.Matched {
+		t.Errorf("Matched = false, want true (detail: %s)", resp.Detail)
+	}
+}
+
+func TestService_ScanConfirm_MismatchedLocation_Rejected(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+
+	a := newPickingFixture(t, tx, "scan-mismatch")
+	seedPickingBalance(t, tx, a, "LOT-A", 100, 0)
+
+	svc, _ := newPickingServiceAndRepo(tx)
+	taskID := createTask(t, svc, a.tenantID, a, "LOT-A", 10)
+	task, err := svc.Get(context.Background(), a.tenantID, taskID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	item := task.Items[0]
+
+	resp, err := svc.ScanConfirm(context.Background(), a.tenantID, taskID, item.ID, ScanRequest{
+		LocationCode: "WRONG-LOC", SKU: item.SKU, LotNo: item.LotNo,
+	}, 1)
+	if err != nil {
+		t.Fatalf("ScanConfirm(mismatched location): %v", err)
+	}
+	if resp.Matched {
+		t.Error("Matched = true, want false for a wrong location code")
+	}
+	if resp.Detail == "" {
+		t.Error("Detail is empty, want an explanation of the mismatch")
+	}
+}
+
+func TestService_ScanConfirm_MismatchedSKU_Rejected(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+
+	a := newPickingFixture(t, tx, "scan-sku")
+	seedPickingBalance(t, tx, a, "LOT-A", 100, 0)
+
+	svc, _ := newPickingServiceAndRepo(tx)
+	taskID := createTask(t, svc, a.tenantID, a, "LOT-A", 10)
+	task, err := svc.Get(context.Background(), a.tenantID, taskID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	item := task.Items[0]
+
+	resp, err := svc.ScanConfirm(context.Background(), a.tenantID, taskID, item.ID, ScanRequest{
+		LocationCode: item.LocationCode, SKU: "WRONG-SKU", LotNo: item.LotNo,
+	}, 1)
+	if err != nil {
+		t.Fatalf("ScanConfirm(mismatched SKU): %v", err)
+	}
+	if resp.Matched {
+		t.Error("Matched = true, want false for a wrong SKU")
+	}
+}
+
+func TestService_ScanConfirm_CrossTenant_ItemNotFound(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+
+	a := newPickingFixture(t, tx, "scan-cross-a")
+	b := newPickingFixture(t, tx, "scan-cross-b")
+	seedPickingBalance(t, tx, b, "LOT-B", 100, 0)
+
+	svc, _ := newPickingServiceAndRepo(tx)
+	taskID := createTask(t, svc, b.tenantID, b, "LOT-B", 10)
+	task, err := svc.Get(context.Background(), b.tenantID, taskID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	item := task.Items[0]
+
+	if _, err := svc.ScanConfirm(context.Background(), a.tenantID, taskID, item.ID, ScanRequest{
+		LocationCode: item.LocationCode, SKU: item.SKU, LotNo: item.LotNo,
+	}, 1); !errors.Is(err, ErrItemNotFound) {
+		t.Fatalf("ScanConfirm(tenantA, tenantB's item) = %v, want ErrItemNotFound", err)
+	}
+}
+
+// --- Phase 33B: Repick ---
+
+// TestService_Repick_ShortThenRepickThenComplete_NoDoubleReservation is
+// the proof Repick's own doc promises: across a short -> repick ->
+// complete cycle, stock is reserved and consumed exactly once, never
+// twice, even though two separate ReserveStockTx calls happen (one at
+// task-creation, one at Repick).
+func TestService_Repick_ShortThenRepickThenComplete_NoDoubleReservation(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+
+	a := newPickingFixture(t, tx, "repick-cycle")
+	seedPickingBalance(t, tx, a, "LOT-A", 100, 0)
+
+	svc, _ := newPickingServiceAndRepo(tx)
+	taskID := createTask(t, svc, a.tenantID, a, "LOT-A", 10)
+	task, err := svc.Get(context.Background(), a.tenantID, taskID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	itemID := task.Items[0].ID
+
+	invRepo := inventory.NewRepository(tx)
+	bal, err := invRepo.FindBalance(context.Background(), a.tenantID, a.productID, a.locationID, "LOT-A")
+	if err != nil {
+		t.Fatalf("FindBalance after Create: %v", err)
+	}
+	if bal.Quantity != 100 || bal.ReservedQuantity != 10 {
+		t.Fatalf("balance after Create = %+v, want Quantity=100 ReservedQuantity=10", bal)
+	}
+
+	// SHORT the whole line — releases the 10-unit reservation down to 0.
+	shortResp, err := svc.Confirm(context.Background(), a.tenantID, taskID, ConfirmRequest{
+		IdempotencyKey: "repick-cycle-short",
+		Items:          []ConfirmItemRequest{{ItemID: itemID, Action: "SHORT", ShortReason: "LOCATION_EMPTY"}},
+	}, 1)
+	if err != nil {
+		t.Fatalf("Confirm(SHORT): %v", err)
+	}
+	if shortResp.Status != StatusShortPick {
+		t.Fatalf("task status after SHORT = %v, want SHORT_PICK", shortResp.Status)
+	}
+	bal, err = invRepo.FindBalance(context.Background(), a.tenantID, a.productID, a.locationID, "LOT-A")
+	if err != nil {
+		t.Fatalf("FindBalance after SHORT: %v", err)
+	}
+	if bal.Quantity != 100 || bal.ReservedQuantity != 0 {
+		t.Fatalf("balance after SHORT = %+v, want Quantity=100 ReservedQuantity=0 (fully released)", bal)
+	}
+
+	// Repick: re-reserves the full 10 units again (a fresh reservation,
+	// not a reuse — see Repick's own doc).
+	repickResp, err := svc.Repick(context.Background(), a.tenantID, taskID, itemID, 1)
+	if err != nil {
+		t.Fatalf("Repick: %v", err)
+	}
+	if repickResp.Items[0].Status != ItemStatusPending {
+		t.Errorf("item status after Repick = %v, want PENDING", repickResp.Items[0].Status)
+	}
+	if repickResp.Items[0].ShortQty != nil || repickResp.Items[0].ShortReason != nil {
+		t.Errorf("ShortQty/ShortReason after Repick = %v/%v, want both nil", repickResp.Items[0].ShortQty, repickResp.Items[0].ShortReason)
+	}
+	if repickResp.Items[0].RepickCount != 1 {
+		t.Errorf("RepickCount after Repick = %d, want 1", repickResp.Items[0].RepickCount)
+	}
+	bal, err = invRepo.FindBalance(context.Background(), a.tenantID, a.productID, a.locationID, "LOT-A")
+	if err != nil {
+		t.Fatalf("FindBalance after Repick: %v", err)
+	}
+	if bal.Quantity != 100 || bal.ReservedQuantity != 10 {
+		t.Fatalf("balance after Repick = %+v, want Quantity=100 ReservedQuantity=10 (exactly one fresh reservation, not two)", bal)
+	}
+
+	// Complete the re-picked line — consumes exactly this one reservation.
+	completeResp, err := svc.Confirm(context.Background(), a.tenantID, taskID, ConfirmRequest{
+		IdempotencyKey: "repick-cycle-complete",
+		Items:          []ConfirmItemRequest{{ItemID: itemID, Action: "PICKED", Quantity: 10}},
+	}, 1)
+	if err != nil {
+		t.Fatalf("Confirm(PICKED) after Repick: %v", err)
+	}
+	if completeResp.Status != StatusCompleted {
+		t.Errorf("task status after completing the re-picked line = %v, want COMPLETED", completeResp.Status)
+	}
+
+	bal, err = invRepo.FindBalance(context.Background(), a.tenantID, a.productID, a.locationID, "LOT-A")
+	if err != nil {
+		t.Fatalf("FindBalance after final Confirm: %v", err)
+	}
+	// Exactly one pick's worth (10) left the building — not 0 (never
+	// picked) and not -10/double-deducted (picked twice). Reserved must
+	// be back to 0.
+	if bal.Quantity != 90 {
+		t.Errorf("final Quantity = %v, want 90 (100 - 10, picked exactly once across the whole short->repick->complete cycle)", bal.Quantity)
+	}
+	if bal.ReservedQuantity != 0 {
+		t.Errorf("final ReservedQuantity = %v, want 0", bal.ReservedQuantity)
+	}
+}
+
+func TestService_Repick_RejectsNonShortLine(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+
+	a := newPickingFixture(t, tx, "repick-notshort")
+	seedPickingBalance(t, tx, a, "LOT-A", 100, 0)
+
+	svc, _ := newPickingServiceAndRepo(tx)
+	taskID := createTask(t, svc, a.tenantID, a, "LOT-A", 10)
+	task, err := svc.Get(context.Background(), a.tenantID, taskID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	itemID := task.Items[0].ID
+
+	if _, err := svc.Repick(context.Background(), a.tenantID, taskID, itemID, 1); !errors.Is(err, ErrNotRepickable) {
+		t.Fatalf("Repick(still-PENDING line) = %v, want ErrNotRepickable", err)
+	}
+}
+
+func TestService_Repick_CrossTenant_NotFound(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+
+	a := newPickingFixture(t, tx, "repick-cross-a")
+	b := newPickingFixture(t, tx, "repick-cross-b")
+	seedPickingBalance(t, tx, b, "LOT-B", 100, 0)
+
+	svc, _ := newPickingServiceAndRepo(tx)
+	taskID := createTask(t, svc, b.tenantID, b, "LOT-B", 10)
+	task, err := svc.Get(context.Background(), b.tenantID, taskID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	itemID := task.Items[0].ID
+
+	if _, err := svc.Repick(context.Background(), a.tenantID, taskID, itemID, 1); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("Repick(tenantA, tenantB's task) = %v, want ErrNotFound", err)
+	}
+}
+
+func TestService_Repick_InsufficientStock_StaysShort(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+
+	a := newPickingFixture(t, tx, "repick-oos")
+	seedPickingBalance(t, tx, a, "LOT-A", 10, 0)
+
+	svc, _ := newPickingServiceAndRepo(tx)
+	taskID := createTask(t, svc, a.tenantID, a, "LOT-A", 10)
+	task, err := svc.Get(context.Background(), a.tenantID, taskID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	itemID := task.Items[0].ID
+
+	if _, err := svc.Confirm(context.Background(), a.tenantID, taskID, ConfirmRequest{
+		IdempotencyKey: "repick-insufficient-short",
+		Items:          []ConfirmItemRequest{{ItemID: itemID, Action: "SHORT", ShortReason: "OUT_OF_STOCK"}},
+	}, 1); err != nil {
+		t.Fatalf("Confirm(SHORT): %v", err)
+	}
+
+	// Fully consume the location's stock via a second, unrelated task so
+	// Repick's own re-reservation attempt has nothing available.
+	otherTaskID := createTask(t, svc, a.tenantID, a, "LOT-A", 10)
+	otherTask, err := svc.Get(context.Background(), a.tenantID, otherTaskID)
+	if err != nil {
+		t.Fatalf("Get(other task): %v", err)
+	}
+	if _, err := svc.Confirm(context.Background(), a.tenantID, otherTaskID, ConfirmRequest{
+		IdempotencyKey: "repick-insufficient-drain",
+		Items:          []ConfirmItemRequest{{ItemID: otherTask.Items[0].ID, Action: "PICKED", Quantity: 10}},
+	}, 1); err != nil {
+		t.Fatalf("Confirm(PICKED, drain): %v", err)
+	}
+
+	_, err = svc.Repick(context.Background(), a.tenantID, taskID, itemID, 1)
+	if err == nil {
+		t.Fatal("Repick with no available stock = nil error, want a rejection")
+	}
+
+	// The line must still be SHORT — a failed Repick must not have
+	// partially changed its state.
+	after, err := svc.Get(context.Background(), a.tenantID, taskID)
+	if err != nil {
+		t.Fatalf("Get after failed Repick: %v", err)
+	}
+	if after.Items[0].Status != ItemStatusShort {
+		t.Errorf("item status after a failed Repick = %v, want still SHORT", after.Items[0].Status)
+	}
+	if after.Items[0].RepickCount != 0 {
+		t.Errorf("RepickCount after a failed Repick = %d, want still 0", after.Items[0].RepickCount)
 	}
 }

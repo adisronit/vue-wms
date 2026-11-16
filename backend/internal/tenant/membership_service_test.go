@@ -16,9 +16,9 @@ import (
 // roles) — lets MembershipService's validation/guard/audit-construction
 // logic be tested without a real SQL Server connection.
 type fakeMembershipRepo struct {
-	memberships map[string]*TenantUser // "tenantID:userID" -> row
-	users       map[int64]*user.User   // userID -> user, for display joins
-	roles       map[int64]*role.Role   // roleID -> role
+	memberships      map[string]*TenantUser // "tenantID:userID" -> row
+	users            map[int64]*user.User   // userID -> user, for display joins
+	roles            map[int64]*role.Role   // roleID -> role
 	nextMembershipID int64
 
 	createErr error
@@ -30,9 +30,9 @@ type fakeMembershipRepo struct {
 
 func newFakeMembershipRepo() *fakeMembershipRepo {
 	return &fakeMembershipRepo{
-		memberships: map[string]*TenantUser{},
-		users:       map[int64]*user.User{},
-		roles:       map[int64]*role.Role{},
+		memberships:      map[string]*TenantUser{},
+		users:            map[int64]*user.User{},
+		roles:            map[int64]*role.Role{},
 		nextMembershipID: 1,
 	}
 }
@@ -440,8 +440,8 @@ func TestEnsureActingTenantAdmin(t *testing.T) {
 	repo.seedRole(2, 1, "RECEIVING", "Receiving Staff")
 	repo.seedUser(1, "admin", "admin@example.com", user.StatusActive)
 	repo.seedUser(2, "staff", "staff@example.com", user.StatusActive)
-	repo.seedMembership(1, 1, 1, TenantUserStatusActive)   // ADMIN, ACTIVE
-	repo.seedMembership(1, 2, 2, TenantUserStatusActive)   // RECEIVING, ACTIVE
+	repo.seedMembership(1, 1, 1, TenantUserStatusActive) // ADMIN, ACTIVE
+	repo.seedMembership(1, 2, 2, TenantUserStatusActive) // RECEIVING, ACTIVE
 	tenants := newFakeManagementRepo(&Tenant{ID: 1, Slug: "acme", Name: "Acme"})
 	svc := newMembershipServiceUnderTest(repo, &fakeUserLookup{}, tenants)
 

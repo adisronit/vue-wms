@@ -504,14 +504,27 @@
       "pickQtyPlaceholder": "拣货数量",
       "confirmPick": "确认拣货",
       "shortPick": "缺货",
-      "remarkPlaceholder": "备注（缺货时必填）",
+      "remarkPlaceholder": "备注（可选）",
       "viewOnlyNote": "您的角色可以查看此任务，但无法确认拣货。",
       "cancelledNote": "此任务已被取消。",
       "saveTask": "保存拣货任务",
       "saving": "正在保存…",
       "cancelRemarkPlaceholder": "取消备注（选填）",
       "cancelTask": "取消任务",
-      "close": "关闭"
+      "close": "关闭",
+      "assignedPicker": "指定拣货员",
+      "unassigned": "未分配",
+      "selectPicker": "选择拣货员",
+      "assign": "分配",
+      "shortReasonLabel": "原因",
+      "shortQtyLabel": "缺货数量",
+      "repickCount": "已重新拣货 {count} 次",
+      "repick": "重新拣货",
+      "repicking": "重新拣货中…",
+      "scanLabel": "扫描确认",
+      "scanPlaceholder": "扫描位置/产品/批次条码，然后按 Enter",
+      "scanVerified": "已验证",
+      "shortReasonPlaceholder": "选择缺货原因"
     },
     "itemStatus": {
       "pending": "待处理",
@@ -530,7 +543,25 @@
       "taskCreated": "拣货任务创建成功",
       "pickQtyPositive": "拣货数量必须大于零",
       "pickQtyExceedsRemaining": "拣货数量不能超过剩余数量",
-      "remarkRequiredForShortPick": "报告缺货时必须填写备注"
+      "remarkRequiredForShortPick": "报告缺货时必须填写备注",
+      "scanRequiredBeforeConfirm": "确认此行之前请先扫描验证位置/产品/批次",
+      "shortReasonRequired": "报告缺货时必须选择原因",
+      "scanMatched": "扫描验证成功",
+      "scanMismatch": "扫描不匹配：{detail}",
+      "repickSucceeded": "该行已重新开放拣货",
+      "pickerRequired": "请选择拣货员",
+      "pickerAssigned": "拣货员分配成功"
+    },
+    "documents": {
+      "printPickList": "打印拣货单"
+    },
+    "shortReason": {
+      "outOfStock": "缺货",
+      "damaged": "损坏",
+      "locationEmpty": "库位为空",
+      "wrongLot": "批次错误",
+      "miscount": "计数错误",
+      "other": "其他"
     }
   },
   "shipping": {

@@ -59,6 +59,31 @@ func (s Status) CanCancel() bool {
 	}
 }
 
+// CanAssign reports whether AssignPicker may run against a task in this
+// status — same predicate as CanConfirm: assigning (or reassigning) an
+// operator only makes sense while a task still has work left to do.
+func (s Status) CanAssign() bool {
+	return s.CanConfirm()
+}
+
+// CanRepick reports whether a SHORT line on a task in this status may
+// be reopened via Repick. Unlike CanConfirm/CanAssign, SHORT_PICK itself
+// must be allowed here — that header status is exactly what a task
+// reaches once every line is terminal and at least one was short (see
+// computeTaskStatus), so it is the normal starting point for a re-pick
+// attempt, not an exception to it. CANCELLED is still rejected: a
+// cancelled task's reservations have already all been released and
+// re-opening a line on it would have nothing backing a fresh
+// reservation's own business context.
+func (s Status) CanRepick() bool {
+	switch s {
+	case StatusPending, StatusInProgress, StatusShortPick:
+		return true
+	default:
+		return false
+	}
+}
+
 func (s Status) IsValid() bool {
 	switch s {
 	case StatusPending, StatusInProgress, StatusCompleted, StatusShortPick, StatusCancelled:
@@ -85,6 +110,41 @@ func (p Priority) IsValid() bool {
 		return false
 	}
 }
+
+// ShortReasonCode (migrations/0084-0085, Phase 33B) is a closed set
+// replacing free-text remark as the authoritative reason a line was
+// flagged SHORT. remark itself is untouched — still an optional general
+// note any confirm action may carry — but a SHORT action now requires
+// one of these codes, not an arbitrary string, so a report or dashboard
+// can group/filter short-picks by reason without parsing prose.
+type ShortReasonCode string
+
+const (
+	ShortReasonOutOfStock    ShortReasonCode = "OUT_OF_STOCK"
+	ShortReasonDamaged       ShortReasonCode = "DAMAGED"
+	ShortReasonLocationEmpty ShortReasonCode = "LOCATION_EMPTY"
+	ShortReasonWrongLot      ShortReasonCode = "WRONG_LOT"
+	ShortReasonMiscount      ShortReasonCode = "MISCOUNT"
+	ShortReasonOther         ShortReasonCode = "OTHER"
+)
+
+func (r ShortReasonCode) IsValid() bool {
+	switch r {
+	case ShortReasonOutOfStock, ShortReasonDamaged, ShortReasonLocationEmpty, ShortReasonWrongLot, ShortReasonMiscount, ShortReasonOther:
+		return true
+	default:
+		return false
+	}
+}
+
+// ScanResult is a closed set for picking_scan_log.result — see
+// Service.ScanConfirm's own doc.
+type ScanResult string
+
+const (
+	ScanResultMatch    ScanResult = "MATCH"
+	ScanResultMismatch ScanResult = "MISMATCH"
+)
 
 // ItemStatus is a task line's own state, independent of the header.
 type ItemStatus string
@@ -133,6 +193,18 @@ type Task struct {
 	CancelledAt         *time.Time `gorm:"column:cancelled_at"`
 	CancelledBy         *int64     `gorm:"column:cancelled_by"`
 	CancelRemark        *string    `gorm:"column:cancel_remark"`
+	// AssignedPickerID/AssignedAt (migrations/0082-0083, Phase 33B) are
+	// a one-way "claim" written only by Service.AssignPicker — nil until
+	// a task is assigned, and simply overwritten (both fields together,
+	// always in the same call) on a reassignment. No ownership
+	// verification against AssignedPickerID is required of any other
+	// mutating action (Confirm/Cancel/Repick) — matching CreatedBy/
+	// CancelledBy's own existing precedent of being a display/audit
+	// field, not an authorization gate; any caller holding the
+	// appropriate picking.* permission may still act on the task
+	// regardless of who it is assigned to.
+	AssignedPickerID *int64     `gorm:"column:assigned_picker_id"`
+	AssignedAt       *time.Time `gorm:"column:assigned_at"`
 }
 
 func (Task) TableName() string { return "picking_tasks" }
@@ -175,9 +247,38 @@ type TaskItem struct {
 	Remark        *string    `gorm:"column:remark"`
 	CreatedAt     time.Time  `gorm:"column:created_at"`
 	UpdatedAt     time.Time  `gorm:"column:updated_at"`
+	// ShortQty/ShortReason (migrations/0084-0085, Phase 33B) are set
+	// together, only by the SHORT branch of Service.Confirm, and cleared
+	// together, only by a successful Service.Repick — see each method's
+	// own doc. ShortQty is a frozen snapshot of "ordered_qty - picked_qty
+	// at the moment this line was flagged short", not a live
+	// recomputation, so it keeps its meaning even after a later re-pick
+	// changes picked_qty.
+	ShortQty    *float64 `gorm:"column:short_qty"`
+	ShortReason *string  `gorm:"column:short_reason"`
+	RepickCount int      `gorm:"column:repick_count"`
 }
 
 func (TaskItem) TableName() string { return "picking_task_items" }
+
+// ScanLog is the GORM model for the picking_scan_log table
+// (migrations/0086) — the persisted audit trail for Service.ScanConfirm.
+// Append-only: nothing in this package updates or deletes a row here.
+type ScanLog struct {
+	ID                  int64      `gorm:"column:id;primaryKey"`
+	TenantID            int64      `gorm:"column:tenant_id;not null"`
+	PickingTaskID       int64      `gorm:"column:picking_task_id"`
+	PickingTaskItemID   int64      `gorm:"column:picking_task_item_id"`
+	ScannedLocationCode string     `gorm:"column:scanned_location_code"`
+	ScannedSKU          string     `gorm:"column:scanned_sku"`
+	ScannedLotNo        string     `gorm:"column:scanned_lot_no"`
+	Result              ScanResult `gorm:"column:result"`
+	MismatchDetail      *string    `gorm:"column:mismatch_detail"`
+	ScannedBy           *int64     `gorm:"column:scanned_by"`
+	CreatedAt           time.Time  `gorm:"column:created_at"`
+}
+
+func (ScanLog) TableName() string { return "picking_scan_log" }
 
 // Confirmation is the GORM model for the picking_confirmations table
 // (migrations/0019) — the idempotency guard for Confirm, the same

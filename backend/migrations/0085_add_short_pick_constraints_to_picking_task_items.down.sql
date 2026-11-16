@@ -1,0 +1,2 @@
+ALTER TABLE picking_task_items DROP CONSTRAINT CK_picking_task_items_short_reason;
+ALTER TABLE picking_task_items DROP CONSTRAINT CK_picking_task_items_short_qty;

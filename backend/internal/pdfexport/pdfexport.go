@@ -23,8 +23,12 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"image/png"
 	"time"
 
+	"github.com/boombuler/barcode"
+	"github.com/boombuler/barcode/code128"
+	"github.com/boombuler/barcode/qr"
 	"github.com/go-pdf/fpdf"
 )
 
@@ -232,6 +236,97 @@ func (d *Document) SignatureBlock(labels []string) {
 		pdf.CellFormat(colWidth, 5, label, "", 0, "C", false, 0, "")
 	}
 	pdf.SetXY(marginside, lineY+8)
+}
+
+// Library choice for Barcode/QR (Phase 33B, the first caller — Picking's
+// Pick List): github.com/boombuler/barcode, a pure-Go, dependency-light
+// 1D/2D barcode encoder with no Cgo and no external renderer, matching
+// this package's own "pure Go, no Chromium/wkhtmltopdf" constraint — the
+// same reasoning that chose go-pdf/fpdf itself. It encodes directly to
+// an image.Image (barcode.Barcode embeds image.Image), which this
+// package then PNG-encodes in memory and registers with fpdf via
+// RegisterImageOptionsReader/ImageOptions — no temp files, no disk I/O.
+// Code128 for the 1D case (any ASCII pick/order number — no fixed-length
+// or numeric-only restriction the way Code39/EAN would impose) and
+// standard QR (error-correction level M, auto-encoding mode) for the
+// 2D case (enough payload for "location|product|lot" style scan
+// strings). Registered images are cached by a content-derived name, so
+// rendering the exact same code twice within one document (unlikely,
+// but possible if two lines truly share location+product+lot) embeds
+// the PNG bytes only once.
+
+// Barcode renders data as a Code128 barcode at (x, y), sized wMM x hMM
+// (both in mm — this package's own unit throughout), on the current
+// page. Generated at a fixed, scanner-friendly pixel resolution
+// (300x80px) regardless of the requested mm size — fpdf stretches a
+// raster image to whatever box ImageOptions is given, so the mm size
+// only controls layout, never scan quality.
+func (d *Document) Barcode(data string, x, y, wMM, hMM float64) error {
+	bc, err := code128.Encode(data)
+	if err != nil {
+		return err
+	}
+	return d.placeBarcodeImage("barcode:"+data, bc, 300, 80, x, y, wMM, hMM)
+}
+
+// QRCode renders data as a QR code at (x, y), sized sizeMM x sizeMM, on
+// the current page. Generated at a fixed 200x200px resolution.
+func (d *Document) QRCode(data string, x, y, sizeMM float64) error {
+	bc, err := qr.Encode(data, qr.M, qr.Auto)
+	if err != nil {
+		return err
+	}
+	return d.placeBarcodeImage("qr:"+data, bc, 200, 200, x, y, sizeMM, sizeMM)
+}
+
+// placeBarcodeImage scales bc to widthPx x heightPx, PNG-encodes it into
+// memory, registers it with fpdf under imgName (a content-derived name,
+// so repeating the exact same code within one document re-uses the
+// already-embedded PNG bytes instead of duplicating them), and places
+// it on the current page at (x, y) sized wMM x hMM.
+func (d *Document) placeBarcodeImage(imgName string, bc barcode.Barcode, widthPx, heightPx int, x, y, wMM, hMM float64) error {
+	scaled, err := barcode.Scale(bc, widthPx, heightPx)
+	if err != nil {
+		return err
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, scaled); err != nil {
+		return err
+	}
+	d.pdf.RegisterImageOptionsReader(imgName, fpdf.ImageOptions{ImageType: "PNG"}, &buf)
+	d.pdf.ImageOptions(imgName, x, y, wMM, hMM, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+	return nil
+}
+
+// CursorY returns the document's current Y position (mm from the top of
+// the page) — added in Phase 33B for Picking's Pick List, the first
+// caller needing to place a non-flowing element (Barcode/QRCode, which
+// take an explicit x/y rather than auto-flowing like Table/
+// KeyValueGrid/SignatureBlock) at "wherever the cursor currently is"
+// rather than a hardcoded position.
+func (d *Document) CursorY() float64 {
+	return d.pdf.GetY()
+}
+
+// Spacer advances the cursor down by mm — used after a non-flowing
+// element (Barcode/QRCode) that, unlike every other primitive in this
+// file, does not itself move the cursor.
+func (d *Document) Spacer(mm float64) {
+	d.pdf.Ln(mm)
+}
+
+// QRCaption prints a caption line positioned qrSizeMM below the cursor
+// position the most recently placed QRCode was drawn at (QRCode's own
+// placement is non-flowing — see ImageOptions' own doc — so the cursor
+// has not moved since), then advances the cursor past the caption
+// itself plus a small gap, ready for the next QRCode/caption pair.
+func (d *Document) QRCaption(qrSizeMM float64, text string) {
+	pdf := d.pdf
+	pdf.SetXY(marginside, pdf.GetY()+qrSizeMM+1)
+	pdf.SetFont(fontFamily, "", 7.5)
+	pdf.CellFormat(0, 4, text, "", 1, "L", false, 0, "")
+	pdf.SetFont(fontFamily, "", 9)
+	pdf.Ln(2)
 }
 
 // Bytes finalizes the document and returns the PDF content.

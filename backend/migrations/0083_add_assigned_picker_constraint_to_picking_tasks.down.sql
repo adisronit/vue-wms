@@ -1,0 +1,2 @@
+DROP INDEX IX_picking_tasks_assigned_picker_id ON picking_tasks;
+ALTER TABLE picking_tasks DROP CONSTRAINT FK_picking_tasks_assigned_picker;

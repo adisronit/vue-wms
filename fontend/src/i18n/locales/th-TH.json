@@ -504,14 +504,27 @@
       "pickQtyPlaceholder": "จำนวนที่หยิบ",
       "confirmPick": "ยืนยันการหยิบ",
       "shortPick": "หยิบไม่ครบ",
-      "remarkPlaceholder": "หมายเหตุ (จำเป็นสำหรับการหยิบไม่ครบ)",
+      "remarkPlaceholder": "หมายเหตุ (ไม่บังคับ)",
       "viewOnlyNote": "สิทธิ์ของคุณสามารถดูงานนี้ได้ แต่ไม่สามารถยืนยันการหยิบสินค้าได้",
       "cancelledNote": "งานนี้ถูกยกเลิกแล้ว",
       "saveTask": "บันทึกงานหยิบสินค้า",
       "saving": "กำลังบันทึก…",
       "cancelRemarkPlaceholder": "หมายเหตุการยกเลิก (ไม่บังคับ)",
       "cancelTask": "ยกเลิกงาน",
-      "close": "ปิด"
+      "close": "ปิด",
+      "assignedPicker": "ผู้รับผิดชอบหยิบสินค้า",
+      "unassigned": "ยังไม่มอบหมาย",
+      "selectPicker": "เลือกผู้หยิบสินค้า",
+      "assign": "มอบหมาย",
+      "shortReasonLabel": "สาเหตุ",
+      "shortQtyLabel": "จำนวนที่ขาด",
+      "repickCount": "หยิบซ้ำแล้ว {count} ครั้ง",
+      "repick": "หยิบซ้ำ",
+      "repicking": "กำลังหยิบซ้ำ…",
+      "scanLabel": "สแกนเพื่อยืนยัน",
+      "scanPlaceholder": "สแกนบาร์โค้ดตำแหน่ง / สินค้า / ล็อต แล้วกด Enter",
+      "scanVerified": "ยืนยันแล้ว",
+      "shortReasonPlaceholder": "เลือกสาเหตุการหยิบไม่ครบ"
     },
     "itemStatus": {
       "pending": "รอดำเนินการ",
@@ -530,7 +543,25 @@
       "taskCreated": "สร้างงานหยิบสินค้าสำเร็จ",
       "pickQtyPositive": "จำนวนที่หยิบต้องมากกว่าศูนย์",
       "pickQtyExceedsRemaining": "จำนวนที่หยิบต้องไม่เกินจำนวนที่คงเหลือ",
-      "remarkRequiredForShortPick": "กรุณากรอกหมายเหตุเพื่อรายงานการหยิบไม่ครบ"
+      "remarkRequiredForShortPick": "กรุณากรอกหมายเหตุเพื่อรายงานการหยิบไม่ครบ",
+      "scanRequiredBeforeConfirm": "กรุณาสแกนเพื่อตรวจสอบตำแหน่ง/สินค้า/ล็อตก่อนยืนยันรายการนี้",
+      "shortReasonRequired": "กรุณาเลือกสาเหตุเพื่อรายงานการหยิบไม่ครบ",
+      "scanMatched": "สแกนยืนยันสำเร็จ",
+      "scanMismatch": "สแกนไม่ตรงกัน: {detail}",
+      "repickSucceeded": "เปิดรายการให้หยิบใหม่อีกครั้ง",
+      "pickerRequired": "กรุณาเลือกผู้หยิบสินค้า",
+      "pickerAssigned": "มอบหมายผู้หยิบสินค้าสำเร็จ"
+    },
+    "documents": {
+      "printPickList": "พิมพ์รายการหยิบสินค้า"
+    },
+    "shortReason": {
+      "outOfStock": "สินค้าหมด",
+      "damaged": "สินค้าเสียหาย",
+      "locationEmpty": "ตำแหน่งว่างเปล่า",
+      "wrongLot": "ล็อตไม่ถูกต้อง",
+      "miscount": "นับผิด",
+      "other": "อื่นๆ"
     }
   },
   "shipping": {

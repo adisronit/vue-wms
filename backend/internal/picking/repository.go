@@ -90,6 +90,9 @@ type headerRow struct {
 	CancelledBy         *int64
 	CancelledByName     *string
 	CancelRemark        *string
+	AssignedPickerID    *int64
+	AssignedPickerName  *string
+	AssignedAt          *time.Time
 }
 
 // FindTaskDetail returns the header with warehouse display fields
@@ -114,10 +117,12 @@ func (r *Repository) FindTaskDetail(ctx context.Context, tenantID, id int64) (*h
 			pt.status AS status, pt.priority AS priority, pt.due_date AS due_date, pt.remark AS remark,
 			pt.created_at AS created_at, pt.updated_at AS updated_at, pt.completed_at AS completed_at,
 			pt.cancelled_at AS cancelled_at, pt.cancelled_by AS cancelled_by, cu.full_name AS cancelled_by_name,
-			pt.cancel_remark AS cancel_remark
+			pt.cancel_remark AS cancel_remark,
+			pt.assigned_picker_id AS assigned_picker_id, au.full_name AS assigned_picker_name, pt.assigned_at AS assigned_at
 		FROM picking_tasks pt
 		JOIN warehouses w ON w.id = pt.warehouse_id
 		LEFT JOIN users cu ON cu.id = pt.cancelled_by
+		LEFT JOIN users au ON au.id = pt.assigned_picker_id
 		WHERE pt.id = ? AND pt.tenant_id = ?
 	`, id, tenantID).Scan(&row).Error
 	if err != nil {
@@ -154,6 +159,18 @@ func (r *Repository) CancelTask(ctx context.Context, tenantID int64, task *Task)
 		"cancelled_at":  task.CancelledAt,
 		"cancelled_by":  task.CancelledBy,
 		"cancel_remark": task.CancelRemark,
+	}).Error
+}
+
+// AssignPicker writes assigned_picker_id/assigned_at together — Phase
+// 33B's own atomic claim, mirroring CancelTask's own "one explicit
+// UPDATE, deliberately separate from UpdateTask" shape. Only ever called
+// from Service.AssignPicker after a tenant-scoped FindTaskByID has
+// already proved ownership and Status.CanAssign() has already gated it.
+func (r *Repository) AssignPicker(ctx context.Context, tenantID, taskID, pickerID int64, assignedAt time.Time) error {
+	return r.db.WithContext(ctx).Model(&Task{}).Where("id = ? AND tenant_id = ?", taskID, tenantID).Updates(map[string]any{
+		"assigned_picker_id": pickerID,
+		"assigned_at":        assignedAt,
 	}).Error
 }
 
@@ -248,6 +265,7 @@ type itemRow struct {
 	SKU          string
 	ProductName  string
 	LotNo        string
+	ExpiryDate   *time.Time
 	LocationID   int64
 	LocationCode string
 	OrderedQty   float64
@@ -255,6 +273,9 @@ type itemRow struct {
 	UOM          string
 	Status       string
 	Remark       *string
+	ShortQty     *float64
+	ShortReason  *string
+	RepickCount  int
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
@@ -284,12 +305,17 @@ func (r *Repository) ListItems(ctx context.Context, tenantID, taskID int64) ([]I
 	var rows []itemRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT pti.id AS id, pti.product_id AS product_id, p.sku AS sku, p.name AS product_name,
-			pti.lot_no AS lot_no, pti.location_id AS location_id, l.code AS location_code,
+			pti.lot_no AS lot_no, inv.expiry_date AS expiry_date,
+			pti.location_id AS location_id, l.code AS location_code,
 			pti.ordered_qty AS ordered_qty, pti.picked_qty AS picked_qty, pti.uom AS uom,
-			pti.status AS status, pti.remark AS remark, pti.created_at AS created_at, pti.updated_at AS updated_at
+			pti.status AS status, pti.remark AS remark,
+			pti.short_qty AS short_qty, pti.short_reason AS short_reason, pti.repick_count AS repick_count,
+			pti.created_at AS created_at, pti.updated_at AS updated_at
 		FROM picking_task_items pti
 		JOIN products p ON p.id = pti.product_id
 		JOIN locations l ON l.id = pti.location_id
+		LEFT JOIN inventory inv ON inv.tenant_id = pti.tenant_id AND inv.product_id = pti.product_id
+			AND inv.location_id = pti.location_id AND inv.lot_no = pti.lot_no
 		WHERE pti.picking_task_id = ? AND pti.tenant_id = ?
 		ORDER BY pti.id ASC
 	`, taskID, tenantID).Scan(&rows).Error
@@ -301,9 +327,12 @@ func (r *Repository) ListItems(ctx context.Context, tenantID, taskID int64) ([]I
 	for _, row := range rows {
 		items = append(items, ItemResponse{
 			ID: row.ID, ProductID: row.ProductID, SKU: row.SKU, ProductName: row.ProductName, LotNo: row.LotNo,
+			ExpiryDate: row.ExpiryDate,
 			LocationID: row.LocationID, LocationCode: row.LocationCode,
 			OrderedQty: row.OrderedQty, PickedQty: row.PickedQty, UOM: row.UOM,
-			Status: ItemStatus(row.Status), Remark: row.Remark, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
+			Status: ItemStatus(row.Status), Remark: row.Remark,
+			ShortQty: row.ShortQty, ShortReason: row.ShortReason, RepickCount: row.RepickCount,
+			CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
 		})
 	}
 	return items, nil
@@ -363,12 +392,88 @@ func (r *Repository) AdjustPickedQty(ctx context.Context, tenantID, itemID int64
 // AdjustPickedQty (or, for a SHORT line, after no quantity change at
 // all) — deliberately excludes picked_qty itself so this write can never
 // clobber a concurrent transaction's own atomic increment with a value
-// computed from a stale read.
+// computed from a stale read. short_qty/short_reason (Phase 33B) are
+// always written alongside status/remark — nil for a PICKED line
+// (clearing any still-open short state — belt-and-suspenders only,
+// since Confirm's own guard already rejects re-confirming an already-
+// SHORT line), non-nil for a SHORT line.
 func (r *Repository) UpdateItemAfterConfirm(ctx context.Context, tenantID int64, item *TaskItem) error {
 	return r.db.WithContext(ctx).Model(&TaskItem{}).Where("id = ? AND tenant_id = ?", item.ID, tenantID).Updates(map[string]any{
-		"status": item.Status,
-		"remark": item.Remark,
+		"status":       item.Status,
+		"remark":       item.Remark,
+		"short_qty":    item.ShortQty,
+		"short_reason": item.ShortReason,
 	}).Error
+}
+
+// IncrementRepickCount atomically increments a line's repick_count by 1
+// — the same guarded-UPDATE-not-Go-read-modify-write shape as
+// AdjustPickedQty, for the same concurrency reason (two concurrent
+// Repick calls against the same line must never lose one's increment).
+func (r *Repository) IncrementRepickCount(ctx context.Context, tenantID, itemID int64) (int64, error) {
+	result := r.db.WithContext(ctx).Exec(`
+		UPDATE picking_task_items
+		SET repick_count = repick_count + 1, updated_at = SYSUTCDATETIME()
+		WHERE id = ? AND tenant_id = ?
+	`, itemID, tenantID)
+	return result.RowsAffected, result.Error
+}
+
+// UpdateItemAfterRepick writes the fields a successful Repick derives —
+// status moves off SHORT back to PENDING/PARTIALLY_PICKED (see
+// Service.Repick's own doc) and short_qty/short_reason are cleared back
+// to nil, since the line is workable again and its last short-pick
+// reason no longer describes its current state. repick_count itself is
+// written separately via IncrementRepickCount's own atomic UPDATE, not
+// here, for the same lost-update reason AdjustPickedQty/
+// UpdateItemAfterConfirm are already split.
+func (r *Repository) UpdateItemAfterRepick(ctx context.Context, tenantID int64, item *TaskItem) error {
+	return r.db.WithContext(ctx).Model(&TaskItem{}).Where("id = ? AND tenant_id = ?", item.ID, tenantID).Updates(map[string]any{
+		"status":       item.Status,
+		"short_qty":    nil,
+		"short_reason": nil,
+	}).Error
+}
+
+// itemScanContext is what ScanConfirm needs to validate a scan against
+// — the line's own assigned location code/product SKU/lot, resolved by
+// joining the same tables ListItems already joins, scoped to tenantID.
+type itemScanContext struct {
+	PickingTaskID int64
+	LocationCode  string
+	SKU           string
+	LotNo         string
+}
+
+// FindItemScanContext resolves itemID's own expected scan identity.
+// Returns ErrItemNotFound for a nonexistent or cross-tenant item id, the
+// same guard every other item lookup in this package already applies.
+func (r *Repository) FindItemScanContext(ctx context.Context, tenantID, itemID int64) (*itemScanContext, error) {
+	var row itemScanContext
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT pti.picking_task_id AS picking_task_id, l.code AS location_code, p.sku AS sku, pti.lot_no AS lot_no
+		FROM picking_task_items pti
+		JOIN products p ON p.id = pti.product_id
+		JOIN locations l ON l.id = pti.location_id
+		WHERE pti.id = ? AND pti.tenant_id = ?
+	`, itemID, tenantID).Scan(&row).Error
+	if err != nil {
+		return nil, err
+	}
+	if row.PickingTaskID == 0 {
+		return nil, ErrItemNotFound
+	}
+	return &row, nil
+}
+
+// InsertScanLog writes one picking_scan_log row — see migrations/0086's
+// own doc for why this is a persisted table rather than structured-
+// logger-only output. Called unconditionally by ScanConfirm, on both a
+// MATCH and a MISMATCH, so the audit trail covers every scan attempt,
+// not just the successful ones.
+func (r *Repository) InsertScanLog(ctx context.Context, tenantID int64, log *ScanLog) error {
+	log.TenantID = tenantID
+	return r.db.WithContext(ctx).Create(log).Error
 }
 
 // InsertConfirmation is the idempotency guard itself — see

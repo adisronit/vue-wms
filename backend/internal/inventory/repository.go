@@ -513,3 +513,59 @@ func (r *Repository) AvailabilityByProductWarehouse(ctx context.Context, tenantI
 	}
 	return row.AvailableQty, row.ReservedQty, row.HoldQty, row.OnHandQty, nil
 }
+
+// lotAvailabilityRow is ListAvailableLotsByProductWarehouse's own scan
+// target — see that method's doc.
+type lotAvailabilityRow struct {
+	LocationID   int64
+	LocationCode string
+	LotNo        string
+	ExpiryDate   *time.Time
+	Quantity     float64
+	AvailableQty float64
+	CreatedAt    time.Time
+}
+
+// ListAvailableLotsByProductWarehouse is Phase 33B's read-only FEFO/FIFO
+// primitive — grepped first (per the phase plan's own instruction):
+// nothing else in this codebase (including internal/putaway and
+// internal/relocation) exposes a query ordering a product's lots by
+// expiry/receipt date; order.ItemResponse.FEFOPreferred (migrations/
+// 0080) is only ever a caller-set boolean flag on an order line, never
+// a query result. This fills that gap with the narrowest possible
+// addition: one SELECT, no reservation/consumption logic duplicated
+// from AdjustReservation/AdjustBalance, ordered First-Expired-First-Out
+// (ExpiryDate ascending, NULLs last via the CASE below) and tie-broken
+// First-In-First-Out (CreatedAt ascending) — the standard combined
+// FEFO/FIFO picking sequence. Only rows with a positive available
+// balance (quantity - reserved - hold > 0) are returned; a lot that is
+// fully reserved/held/exhausted is not a usable suggestion. Never
+// mutates anything — internal/picking's own ReserveStockTx call at
+// task-creation (or Repick's own re-reservation) is still the only
+// thing that ever actually claims a lot this query surfaces.
+func (r *Repository) ListAvailableLotsByProductWarehouse(ctx context.Context, tenantID, productID, warehouseID int64) ([]LotAvailability, error) {
+	var rows []lotAvailabilityRow
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT inv.location_id AS location_id, l.code AS location_code, inv.lot_no AS lot_no,
+			inv.expiry_date AS expiry_date, inv.quantity AS quantity,
+			(inv.quantity - inv.reserved_quantity - inv.hold_quantity) AS available_qty,
+			inv.created_at AS created_at
+		FROM inventory inv
+		JOIN locations l ON l.id = inv.location_id
+		JOIN zones z ON z.id = l.zone_id
+		WHERE inv.tenant_id = ? AND inv.product_id = ? AND z.warehouse_id = ?
+			AND (inv.quantity - inv.reserved_quantity - inv.hold_quantity) > 0
+		ORDER BY CASE WHEN inv.expiry_date IS NULL THEN 1 ELSE 0 END, inv.expiry_date ASC, inv.created_at ASC
+	`, tenantID, productID, warehouseID).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make([]LotAvailability, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, LotAvailability{
+			LocationID: row.LocationID, LocationCode: row.LocationCode, LotNo: row.LotNo,
+			ExpiryDate: row.ExpiryDate, AvailableQty: row.AvailableQty, OnHandQty: row.Quantity, CreatedAt: row.CreatedAt,
+		})
+	}
+	return out, nil
+}

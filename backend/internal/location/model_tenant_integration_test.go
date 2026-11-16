@@ -60,7 +60,7 @@ func TestLocation_CodeUniqueWithinTenantAndZoneOnly(t *testing.T) {
 }
 
 // TestLocation_TypeCheckConstraint proves CK_locations_type
-// (migrations/0050) allows NULL/'' (optional) and the 7 defined values,
+// (migrations/0050) allows NULL/” (optional) and the 7 defined values,
 // and rejects anything else — the database-level backstop behind
 // Service's own Type.IsValid() check.
 func TestLocation_TypeCheckConstraint(t *testing.T) {

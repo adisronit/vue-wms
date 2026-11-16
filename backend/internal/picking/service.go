@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -12,6 +13,7 @@ import (
 	"wms-backend/internal/platform/csvexport"
 	"wms-backend/internal/platform/dbctx"
 	"wms-backend/internal/product"
+	"wms-backend/internal/user"
 	"wms-backend/internal/warehouse"
 )
 
@@ -30,6 +32,9 @@ var (
 	ErrNotCancellable    = errors.New("picking: task is not in a cancellable status")
 	ErrCrossWarehouse    = errors.New("picking: location must belong to the task's warehouse")
 	ErrNoSourceStock     = errors.New("picking: no stock found for this product/lot at the source location")
+	ErrPickerNotFound    = errors.New("picking: picker user not found")
+	ErrNotAssignable     = errors.New("picking: task is not in an assignable status")
+	ErrNotRepickable     = errors.New("picking: line is not a short-picked line, or its task cannot be re-picked")
 )
 
 // productChecker is the narrow slice of internal/product's own
@@ -53,6 +58,20 @@ type warehouseChecker interface {
 	FindByID(ctx context.Context, id int64) (*warehouse.Warehouse, error)
 }
 
+// userChecker is the narrow slice of internal/user's own Repository
+// Phase 33B's AssignPicker needs — satisfied structurally by
+// *user.Repository, the same "declare the narrow interface locally"
+// convention productChecker/warehouseChecker already use. Deliberately
+// global, not tenant-scoped (no FindByIDForTenant equivalent exists on
+// user.Repository at all) — matching this package's own pre-existing
+// CreatedBy/CancelledBy convention of trusting a users.id FK without a
+// tenant-ownership check, since users themselves are not a tenant-scoped
+// entity in this codebase (see MEMORY's own tenant/RBAC model doc: roles
+// are per-tenant, users are global).
+type userChecker interface {
+	FindByID(ctx context.Context, id int64) (*user.User, error)
+}
+
 // Service holds the Picking workflow's business rules — the status
 // machine, validation, and the Confirm transaction that calls Phase 5's
 // inventory.Service.RemoveStockTx instead of mutating stock itself, and
@@ -63,10 +82,25 @@ type Service struct {
 	products   productChecker
 	warehouses warehouseChecker
 	inventory  *inventory.Service
+	// users is set via SetUsers, not the constructor, so every existing
+	// NewService call site across this codebase's tests (and
+	// internal/order/internal/shipping's own test helpers, which
+	// construct a *picking.Service directly for their own cross-module
+	// fixtures) keeps compiling unchanged — AssignPicker is the only
+	// method that needs it, and it is nil-checked there.
+	users userChecker
 }
 
 func NewService(repo *Repository, products productChecker, warehouses warehouseChecker, inventorySvc *inventory.Service) *Service {
 	return &Service{repo: repo, products: products, warehouses: warehouses, inventory: inventorySvc}
+}
+
+// SetUsers wires the user-existence checker AssignPicker needs — called
+// once by cmd/server/main.go's own DI wiring after NewService, kept out
+// of the constructor itself for the reason documented on Service.users
+// above.
+func (s *Service) SetUsers(users userChecker) {
+	s.users = users
 }
 
 func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
@@ -120,8 +154,9 @@ func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error
 		Status: Status(header.Status), Priority: Priority(header.Priority), DueDate: header.DueDate,
 		Remark: header.Remark, CreatedAt: header.CreatedAt, UpdatedAt: header.UpdatedAt, CompletedAt: header.CompletedAt,
 		CancelledAt: header.CancelledAt, CancelledBy: header.CancelledBy, CancelledByName: header.CancelledByName,
-		CancelRemark: header.CancelRemark,
-		Items:        items,
+		CancelRemark:     header.CancelRemark,
+		AssignedPickerID: header.AssignedPickerID, AssignedPickerName: header.AssignedPickerName, AssignedAt: header.AssignedAt,
+		Items: items,
 	}, nil
 }
 
@@ -370,11 +405,21 @@ func (s *Service) Confirm(ctx context.Context, tenantID, taskID int64, req Confi
 			}
 
 			if lineReq.Action == "SHORT" {
-				if lineReq.Remark == "" {
-					return ErrValidation{Message: "remark is required to report a short pick"}
+				// Phase 33B breaking change: ShortReason (a closed code)
+				// is now required instead of Remark — see
+				// ConfirmItemRequest's own doc for why.
+				reason := ShortReasonCode(lineReq.ShortReason)
+				if !reason.IsValid() {
+					return ErrValidation{Message: "short_reason must be one of OUT_OF_STOCK, DAMAGED, LOCATION_EMPTY, WRONG_LOT, MISCOUNT, OTHER"}
 				}
-				remark := lineReq.Remark
-				item.Remark = &remark
+				reasonStr := string(reason)
+				item.ShortReason = &reasonStr
+				shortQty := item.OrderedQty - item.PickedQty
+				item.ShortQty = &shortQty
+				if lineReq.Remark != "" {
+					remark := lineReq.Remark
+					item.Remark = &remark
+				}
 				item.Status = itemStatus(item.OrderedQty, item.PickedQty, true)
 
 				// A SHORT permanently ends this line: whatever fraction of
@@ -558,4 +603,216 @@ func (s *Service) Cancel(ctx context.Context, tenantID, taskID int64, req Cancel
 		return nil, err
 	}
 	return s.Get(ctx, tenantID, taskID)
+}
+
+// AssignPicker is Phase 33B's addition — claims (or reassigns) a task to
+// a picker. Writes assigned_picker_id/assigned_at together and never
+// touches reservation/stock state at all: this is a planning/ownership
+// annotation, the same authority level as Create, not an execution
+// action. No ownership verification of pickerUserID is performed beyond
+// existence (see userChecker's own doc) — users are not tenant-scoped
+// in this codebase, so there is no tenant to verify it against here; a
+// defense-in-depth tenant-membership check belongs to the handler layer
+// orchestrating role/permission grants, not this call.
+func (s *Service) AssignPicker(ctx context.Context, tenantID, taskID, pickerUserID, actingUserID int64) (*Response, error) {
+	if s.users != nil {
+		if _, err := s.users.FindByID(ctx, pickerUserID); err != nil {
+			return nil, ErrPickerNotFound
+		}
+	}
+
+	ctx, cancel := dbctx.Detach(ctx)
+	defer cancel()
+
+	start := time.Now()
+	now := time.Now().UTC()
+	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
+		task, err := txRepo.FindTaskByID(ctx, tenantID, taskID)
+		if err != nil {
+			return err
+		}
+		if !task.Status.CanAssign() {
+			return ErrNotAssignable
+		}
+		return txRepo.AssignPicker(ctx, tenantID, taskID, pickerUserID, now)
+	})
+	dbctx.LogTransaction(ctx, "picking.assign", start, err)
+	if err != nil {
+		return nil, err
+	}
+	return s.Get(ctx, tenantID, taskID)
+}
+
+// ScanConfirm is Phase 33B's barcode-scan validation step — a read-only
+// check (plus an audit-log write) that the location/product/lot a
+// picker's scanner just read matches the line's own assigned ones,
+// meant to run right before the UI lets the operator actually call
+// Confirm/AdjustPickedQty for that line. Deliberately NOT wired as a
+// hard precondition inside Confirm itself: Confirm remains independently
+// callable (no new required field, no breaking change to its own
+// contract beyond ShortReason above), so existing automated flows and
+// this package's own pre-33B tests keep working unchanged. The
+// warehouse-floor workflow this phase targets is scan-then-confirm in
+// the UI, not a database-level gate — see this package's own Phase 33B
+// report for the explicit tradeoff.
+//
+// Matching is case-insensitive/trimmed on each field; LotNo matches
+// only when the request supplies one — a non-lot-tracked line's
+// lot_no column is "" (migrations/0018's own DEFAULT), and a scanner
+// has nothing meaningful to scan for "no lot", so an empty LotNo in the
+// request is never treated as a mismatch against an empty expected lot.
+func (s *Service) ScanConfirm(ctx context.Context, tenantID, taskID, itemID int64, req ScanRequest, userID int64) (*ScanResponse, error) {
+	scanCtx, err := s.repo.FindItemScanContext(ctx, tenantID, itemID)
+	if err != nil {
+		return nil, err
+	}
+	if scanCtx.PickingTaskID != taskID {
+		return nil, ErrItemNotFound
+	}
+
+	var mismatches []string
+	if !equalFold(scanCtx.LocationCode, req.LocationCode) {
+		mismatches = append(mismatches, fmt.Sprintf("location: expected %s, scanned %s", scanCtx.LocationCode, req.LocationCode))
+	}
+	if !equalFold(scanCtx.SKU, req.SKU) {
+		mismatches = append(mismatches, fmt.Sprintf("product: expected %s, scanned %s", scanCtx.SKU, req.SKU))
+	}
+	if req.LotNo != "" && !equalFold(scanCtx.LotNo, req.LotNo) {
+		mismatches = append(mismatches, fmt.Sprintf("lot: expected %s, scanned %s", scanCtx.LotNo, req.LotNo))
+	}
+
+	result := ScanResultMatch
+	detail := ""
+	if len(mismatches) > 0 {
+		result = ScanResultMismatch
+		detail = fmt.Sprintf("%v", mismatches)
+	}
+
+	logEntry := &ScanLog{
+		PickingTaskID: taskID, PickingTaskItemID: itemID,
+		ScannedLocationCode: req.LocationCode, ScannedSKU: req.SKU, ScannedLotNo: req.LotNo,
+		Result: result, ScannedBy: &userID,
+	}
+	if detail != "" {
+		logEntry.MismatchDetail = &detail
+	}
+	if err := s.repo.InsertScanLog(ctx, tenantID, logEntry); err != nil {
+		return nil, err
+	}
+
+	if result == ScanResultMismatch {
+		return &ScanResponse{Matched: false, Detail: detail}, nil
+	}
+	return &ScanResponse{Matched: true}, nil
+}
+
+func equalFold(a, b string) bool {
+	return strings.EqualFold(strings.TrimSpace(a), strings.TrimSpace(b))
+}
+
+// Repick is Phase 33B's re-pick flow — reopens a SHORT line for another
+// pick attempt.
+//
+// Design decision (documented per the phase plan's own prompt): a fresh
+// reservation, not a reuse of the original one. Confirm's own SHORT
+// branch always releases the line's ENTIRE remaining reservation via
+// ReleaseReservationTx (see Confirm's own doc) — by the time a line is
+// SHORT, nothing is reserved for it anymore. Re-opening it for another
+// attempt therefore has nothing to "restore"; it must call
+// inventory.ReserveStockTx again, exactly like a brand-new line would at
+// task-creation (createItem), for whatever quantity remains
+// unpicked (ordered_qty - picked_qty). This can legitimately fail
+// (ErrNoStock/ErrInsufficientStock) if the location still has no
+// available stock — that is a correct, expected outcome, not a bug: a
+// re-pick attempt is only ever a request to try reserving again, never
+// a guarantee. If it fails, the line stays SHORT and nothing changes.
+//
+// This never double-reserves or double-consumes stock across a
+// short -> repick -> complete cycle: the SHORT branch released the
+// reservation down to zero, so the fresh ReserveStockTx call here starts
+// from that same zero baseline, and the eventual Confirm(PICKED) call
+// consumes exactly this new reservation — see
+// TestService_Repick_ShortThenRepickThenComplete_NoDoubleReservation in
+// tenant_isolation_test.go for the proof.
+func (s *Service) Repick(ctx context.Context, tenantID, taskID, itemID int64, userID int64) (*Response, error) {
+	ctx, cancel := dbctx.Detach(ctx)
+	defer cancel()
+
+	start := time.Now()
+	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
+		task, err := txRepo.FindTaskByID(ctx, tenantID, taskID)
+		if err != nil {
+			return err
+		}
+		if !task.Status.CanRepick() {
+			return ErrNotRepickable
+		}
+
+		item, err := txRepo.FindItemByID(ctx, tenantID, itemID)
+		if err != nil {
+			return err
+		}
+		if item.PickingTaskID != taskID {
+			return ErrItemNotFound
+		}
+		if item.Status != ItemStatusShort {
+			return ErrNotRepickable
+		}
+
+		remaining := item.OrderedQty - item.PickedQty
+		if remaining <= 0 {
+			return ErrNotRepickable
+		}
+
+		invRepo := inventory.NewRepository(tx)
+		if _, err := s.inventory.ReserveStockTx(ctx, invRepo, inventory.ReserveRequest{
+			TenantID:  tenantID,
+			ProductID: item.ProductID, LocationID: item.LocationID, LotNo: item.LotNo, Quantity: remaining,
+		}); err != nil {
+			if errors.Is(err, inventory.ErrNoStock) {
+				return ErrNoSourceStock
+			}
+			if errors.Is(err, inventory.ErrInsufficientStock) {
+				return ErrValidation{Message: "insufficient available stock to re-reserve this quantity"}
+			}
+			return err
+		}
+
+		if _, err := txRepo.IncrementRepickCount(ctx, tenantID, itemID); err != nil {
+			return err
+		}
+
+		item.Status = itemStatus(item.OrderedQty, item.PickedQty, false)
+		if err := txRepo.UpdateItemAfterRepick(ctx, tenantID, item); err != nil {
+			return err
+		}
+
+		allItems, err := txRepo.FindItemsByTask(ctx, tenantID, taskID)
+		if err != nil {
+			return err
+		}
+		task.Status = computeTaskStatus(allItems)
+		// The task is workable again — clear completed_at, which SHORT_PICK
+		// may have set when every line was previously terminal (see
+		// Confirm's own doc). A task that has reopened a line is no longer
+		// "done", even if its header status briefly stays SHORT_PICK until
+		// this line resolves again.
+		task.CompletedAt = nil
+		return txRepo.UpdateTask(ctx, tenantID, task)
+	})
+	dbctx.LogTransaction(ctx, "picking.repick", start, err)
+	if err != nil {
+		return nil, err
+	}
+	return s.Get(ctx, tenantID, taskID)
+}
+
+// SuggestLots is Phase 33B's read-only FEFO/FIFO lot-suggestion
+// endpoint support — exposes inventory.Service.
+// ListAvailableLotsByProductWarehouse (see that method's own doc for why
+// it's new) so the UI can suggest/validate which lot a picker should
+// draw from for a given product+warehouse, without duplicating any
+// reservation logic here.
+func (s *Service) SuggestLots(ctx context.Context, tenantID, productID, warehouseID int64) ([]inventory.LotAvailability, error) {
+	return s.inventory.ListAvailableLotsByProductWarehouse(ctx, tenantID, productID, warehouseID)
 }
