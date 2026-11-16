@@ -13,6 +13,7 @@ import (
 	"wms-backend/internal/platform/csvexport"
 	"wms-backend/internal/platform/dbctx"
 	"wms-backend/internal/product"
+	"wms-backend/internal/supplier"
 	"wms-backend/internal/warehouse"
 )
 
@@ -27,26 +28,46 @@ var (
 	ErrWarehouseNotFound = errors.New("receiving: warehouse not found")
 	ErrLocationNotFound  = errors.New("receiving: location not found")
 	ErrProductNotFound   = errors.New("receiving: product not found")
+	ErrSupplierNotFound  = errors.New("receiving: supplier not found")
 	ErrInvalidTransition = errors.New("receiving: receipt is not in a confirmable status")
 	ErrNotEditable       = errors.New("receiving: receipt can no longer be edited")
 	ErrNotCancellable    = errors.New("receiving: receipt is not in a cancellable status")
 )
 
-// productChecker, warehouseChecker, and locationChecker are the narrow
-// slices of the Phase 3/4 repositories this package needs — satisfied
-// structurally by *product.Repository, *warehouse.Repository, and
-// *location.Repository, the same narrow-interface pattern used
-// throughout warehouse/zone/location and user/auth.
+// productChecker, warehouseChecker, locationChecker, and supplierChecker
+// are the narrow ownership-check interfaces this package needs.
+//
+// Phase 31A tenant-scopes every one of them — Receiving was the last
+// inbound/outbound module whose product/warehouse/location lookups were
+// plain existence checks, not ownership checks (phase27-audit-report.md
+// §3(c)'s "existence checker, not ownership checker" gap, closed for
+// Inventory in Phase 30 Batch 1 and for Picking/Order/Shipping in their
+// own Phase 30 batches, but never for Receiving itself). productChecker
+// now requires FindByIDForTenant (internal/product's own scoped lookup,
+// mirroring internal/picking's identical Batch 2 interface);
+// locationChecker and warehouseChecker now require the real tenant-
+// scoped FindByID each package exposes (internal/location's since
+// Location Master Management; internal/warehouse's own FindByIDForTenant,
+// added in this same phase — see that method's own doc for why
+// Receiving is the first caller of it anywhere in this codebase).
 type productChecker interface {
-	FindByID(ctx context.Context, id int64) (*product.Product, error)
+	FindByIDForTenant(ctx context.Context, tenantID, id int64) (*product.Product, error)
 }
 
 type warehouseChecker interface {
-	FindByID(ctx context.Context, id int64) (*warehouse.Warehouse, error)
+	FindByIDForTenant(ctx context.Context, tenantID, id int64) (*warehouse.Warehouse, error)
 }
 
 type locationChecker interface {
-	FindByID(ctx context.Context, id int64) (*location.Location, error)
+	FindByID(ctx context.Context, tenantID, id int64) (*location.Location, error)
+}
+
+// supplierChecker is the narrow slice of internal/supplier.Repository
+// this package needs to both verify ownership of a chosen SupplierID
+// and read its company_name for the one-time snapshot — see
+// Service.resolveSupplier's own doc.
+type supplierChecker interface {
+	FindByID(ctx context.Context, tenantID, id int64) (*supplier.Supplier, error)
 }
 
 // Service holds the Receiving workflow's business rules — the status
@@ -57,14 +78,15 @@ type Service struct {
 	products   productChecker
 	warehouses warehouseChecker
 	locations  locationChecker
+	suppliers  supplierChecker
 	inventory  *inventory.Service
 }
 
-func NewService(repo *Repository, products productChecker, warehouses warehouseChecker, locations locationChecker, inventorySvc *inventory.Service) *Service {
-	return &Service{repo: repo, products: products, warehouses: warehouses, locations: locations, inventory: inventorySvc}
+func NewService(repo *Repository, products productChecker, warehouses warehouseChecker, locations locationChecker, suppliers supplierChecker, inventorySvc *inventory.Service) *Service {
+	return &Service{repo: repo, products: products, warehouses: warehouses, locations: locations, suppliers: suppliers, inventory: inventorySvc}
 }
 
-func (s *Service) List(ctx context.Context, params ListParams) ([]ListResponse, int64, error) {
+func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
 	page, limit := params.Page, params.Limit
 	if page < 1 {
 		page = 1
@@ -73,7 +95,7 @@ func (s *Service) List(ctx context.Context, params ListParams) ([]ListResponse, 
 		limit = 20
 	}
 	params.Page, params.Limit = page, limit
-	return s.repo.ListReceipts(ctx, params)
+	return s.repo.ListReceipts(ctx, tenantID, params)
 }
 
 // ListForExport is Phase 22's CSV-export path — the same List query and
@@ -81,31 +103,42 @@ func (s *Service) List(ctx context.Context, params ListParams) ([]ListResponse, 
 // the paginated screen does, but capped at csvexport.MaxExportRows
 // instead of the screen's own 100-row page size. Discards the total
 // count (unused by a file export).
-func (s *Service) ListForExport(ctx context.Context, params ListParams) ([]ListResponse, error) {
+func (s *Service) ListForExport(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, error) {
 	params.Page = 1
 	params.Limit = csvexport.MaxExportRows
-	rows, _, err := s.repo.ListReceipts(ctx, params)
+	rows, _, err := s.repo.ListReceipts(ctx, tenantID, params)
 	return rows, err
 }
 
 // CountOpen exposes Repository.CountOpen through Service — Phase 23's
-// Dashboard "Pending Receiving" card.
-func (s *Service) CountOpen(ctx context.Context) (int64, error) {
-	return s.repo.CountOpen(ctx)
+// Dashboard "Pending Receiving" card. tenantID (Phase 31A): dashboard
+// has no verified per-request tenant context of its own yet, so it
+// passes inventory.UnverifiedCallerTenantID — same bridging pattern
+// internal/picking's own Batch 2 CountOpen established for the same
+// caller (see internal/dashboard/service.go's own doc).
+func (s *Service) CountOpen(ctx context.Context, tenantID int64) (int64, error) {
+	return s.repo.CountOpen(ctx, tenantID)
 }
 
-func (s *Service) Get(ctx context.Context, id int64) (*Response, error) {
-	header, err := s.repo.FindReceiptDetail(ctx, id)
+func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error) {
+	header, err := s.repo.FindReceiptDetail(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
-	items, err := s.repo.ListItems(ctx, id)
+	items, err := s.repo.ListItems(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
 	return &Response{
 		ID: header.ID, ReceiptNo: header.ReceiptNo, ReceivingType: ReceivingType(header.ReceivingType),
 		ReferenceNo: header.ReferenceNo, Vendor: header.Vendor,
+		SupplierID: header.SupplierID, SupplierName: header.SupplierName,
+		InvoiceNo: header.InvoiceNo, DeliveryNoteNo: header.DeliveryNoteNo,
+		ContainerNo: header.ContainerNo, SealNo: header.SealNo,
+		TransportCompany: header.TransportCompany, DriverName: header.DriverName,
+		VehicleRegNo: header.VehicleRegNo, DockDoor: header.DockDoor,
+		ArrivalTime: header.ArrivalTime, UnloadingStartTime: header.UnloadingStartTime,
+		UnloadingEndTime: header.UnloadingEndTime, Currency: header.Currency,
 		WarehouseID: header.WarehouseID, WarehouseCode: header.WarehouseCode,
 		StagingLocationID: header.StagingLocationID, StagingLocation: header.StagingLocation,
 		Status: Status(header.Status), ReceivingDate: header.ReceivingDate, Remark: header.Remark,
@@ -116,7 +149,25 @@ func (s *Service) Get(ctx context.Context, id int64) (*Response, error) {
 	}, nil
 }
 
-func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (*Response, error) {
+// resolveSupplier verifies supplierID belongs to tenantID (cross-tenant
+// and "doesn't exist" are indistinguishable — tenant-isolation-
+// security.md §6) and returns the one-time name snapshot to store on
+// the receipt — see Receipt.SupplierNameSnapshot's own doc. Returns
+// (nil, nil) unchanged when supplierID is nil: SupplierID is optional,
+// Vendor's free-text field alone is still a fully supported path.
+func (s *Service) resolveSupplier(ctx context.Context, tenantID int64, supplierID *int64) (*string, error) {
+	if supplierID == nil {
+		return nil, nil
+	}
+	sup, err := s.suppliers.FindByID(ctx, tenantID, *supplierID)
+	if err != nil {
+		return nil, ErrSupplierNotFound
+	}
+	name := sup.CompanyName
+	return &name, nil
+}
+
+func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest, userID int64) (*Response, error) {
 	if !req.ReceivingType.IsValid() {
 		return nil, ErrValidation{Message: "receiving_type must be one of PO, ASN, RETURN, TRANSFER"}
 	}
@@ -129,11 +180,15 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 		return nil, ErrValidation{Message: "status must be DRAFT or WAITING when creating a receipt"}
 	}
 
-	if _, err := s.warehouses.FindByID(ctx, req.WarehouseID); err != nil {
+	if _, err := s.warehouses.FindByIDForTenant(ctx, tenantID, req.WarehouseID); err != nil {
 		return nil, ErrWarehouseNotFound
 	}
-	if _, err := s.locations.FindByID(ctx, req.StagingLocationID); err != nil {
+	if _, err := s.locations.FindByID(ctx, tenantID, req.StagingLocationID); err != nil {
 		return nil, ErrLocationNotFound
+	}
+	supplierSnapshot, err := s.resolveSupplier(ctx, tenantID, req.SupplierID)
+	if err != nil {
+		return nil, err
 	}
 
 	// Validation above has no durable side effect yet and is fine to
@@ -144,13 +199,20 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 
 	var receiptID int64
 	start := time.Now()
-	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
+	err = s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
 		receipt := &Receipt{
 			ReceivingType: req.ReceivingType, ReferenceNo: req.ReferenceNo, Vendor: req.Vendor,
+			SupplierID: req.SupplierID, SupplierNameSnapshot: supplierSnapshot,
+			InvoiceNo: req.InvoiceNo, DeliveryNoteNo: req.DeliveryNoteNo,
+			ContainerNo: req.ContainerNo, SealNo: req.SealNo,
+			TransportCompany: req.TransportCompany, DriverName: req.DriverName,
+			VehicleRegNo: req.VehicleRegNo, DockDoor: req.DockDoor,
+			ArrivalTime: req.ArrivalTime, UnloadingStartTime: req.UnloadingStartTime,
+			UnloadingEndTime: req.UnloadingEndTime, Currency: req.Currency,
 			WarehouseID: req.WarehouseID, StagingLocationID: req.StagingLocationID, Status: status,
 			ReceivingDate: req.ReceivingDate, Remark: req.Remark, CreatedBy: &userID,
 		}
-		if err := txRepo.CreateReceipt(ctx, receipt); err != nil {
+		if err := txRepo.CreateReceipt(ctx, tenantID, receipt); err != nil {
 			return err
 		}
 		receiptID = receipt.ID
@@ -159,7 +221,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 			if itemReq.LocationID == 0 {
 				itemReq.LocationID = req.StagingLocationID
 			}
-			if err := s.createItem(ctx, txRepo, receipt.ID, itemReq); err != nil {
+			if err := s.createItem(ctx, txRepo, tenantID, receipt.ID, itemReq); err != nil {
 				return err
 			}
 		}
@@ -170,39 +232,57 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 		return nil, err
 	}
 
-	return s.Get(ctx, receiptID)
+	return s.Get(ctx, tenantID, receiptID)
 }
 
-func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Response, error) {
-	receipt, err := s.repo.FindReceiptByID(ctx, id)
+func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequest) (*Response, error) {
+	receipt, err := s.repo.FindReceiptByID(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
 	if !receipt.Status.CanEdit() {
 		return nil, ErrNotEditable
 	}
-	if _, err := s.locations.FindByID(ctx, req.StagingLocationID); err != nil {
+	if _, err := s.locations.FindByID(ctx, tenantID, req.StagingLocationID); err != nil {
 		return nil, ErrLocationNotFound
+	}
+	supplierSnapshot, err := s.resolveSupplier(ctx, tenantID, req.SupplierID)
+	if err != nil {
+		return nil, err
 	}
 
 	receipt.ReferenceNo = req.ReferenceNo
 	receipt.Vendor = req.Vendor
+	receipt.SupplierID = req.SupplierID
+	receipt.SupplierNameSnapshot = supplierSnapshot
+	receipt.InvoiceNo = req.InvoiceNo
+	receipt.DeliveryNoteNo = req.DeliveryNoteNo
+	receipt.ContainerNo = req.ContainerNo
+	receipt.SealNo = req.SealNo
+	receipt.TransportCompany = req.TransportCompany
+	receipt.DriverName = req.DriverName
+	receipt.VehicleRegNo = req.VehicleRegNo
+	receipt.DockDoor = req.DockDoor
+	receipt.ArrivalTime = req.ArrivalTime
+	receipt.UnloadingStartTime = req.UnloadingStartTime
+	receipt.UnloadingEndTime = req.UnloadingEndTime
+	receipt.Currency = req.Currency
 	receipt.StagingLocationID = req.StagingLocationID
 	receipt.ReceivingDate = req.ReceivingDate
 	receipt.Remark = req.Remark
 
-	if err := s.repo.UpdateReceipt(ctx, receipt); err != nil {
+	if err := s.repo.UpdateReceipt(ctx, tenantID, receipt); err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, id)
+	return s.Get(ctx, tenantID, id)
 }
 
 // AddItem is POST /receipts/{id}/items — used both by the "+ Add Item"
 // button and the barcode-scan flow (which adds-or-increments a line;
 // the frontend decides which by checking its own already-fetched item
 // list, then calls either AddItem or UpdateItem accordingly).
-func (s *Service) AddItem(ctx context.Context, receiptID int64, req CreateItemRequest) (*Response, error) {
-	receipt, err := s.repo.FindReceiptByID(ctx, receiptID)
+func (s *Service) AddItem(ctx context.Context, tenantID, receiptID int64, req CreateItemRequest) (*Response, error) {
+	receipt, err := s.repo.FindReceiptByID(ctx, tenantID, receiptID)
 	if err != nil {
 		return nil, err
 	}
@@ -218,17 +298,17 @@ func (s *Service) AddItem(ctx context.Context, receiptID int64, req CreateItemRe
 
 	start := time.Now()
 	err = s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
-		return s.createItem(ctx, txRepo, receiptID, req)
+		return s.createItem(ctx, txRepo, tenantID, receiptID, req)
 	})
 	dbctx.LogTransaction(ctx, "receiving.add_item", start, err)
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, receiptID)
+	return s.Get(ctx, tenantID, receiptID)
 }
 
-func (s *Service) createItem(ctx context.Context, txRepo *Repository, receiptID int64, req CreateItemRequest) error {
-	p, err := s.products.FindByID(ctx, req.ProductID)
+func (s *Service) createItem(ctx context.Context, txRepo *Repository, tenantID, receiptID int64, req CreateItemRequest) error {
+	p, err := s.products.FindByIDForTenant(ctx, tenantID, req.ProductID)
 	if err != nil {
 		return ErrProductNotFound
 	}
@@ -244,7 +324,7 @@ func (s *Service) createItem(ctx context.Context, txRepo *Repository, receiptID 
 	if req.ExpectedQty < 0 {
 		return ErrValidation{Message: "expected_qty must not be negative"}
 	}
-	if _, err := s.locations.FindByID(ctx, req.LocationID); err != nil {
+	if _, err := s.locations.FindByID(ctx, tenantID, req.LocationID); err != nil {
 		return ErrLocationNotFound
 	}
 
@@ -257,11 +337,11 @@ func (s *Service) createItem(ctx context.Context, txRepo *Repository, receiptID 
 		ReceiptID: receiptID, ProductID: req.ProductID, ExpectedQty: req.ExpectedQty, UOM: uom,
 		LotNo: req.LotNo, ExpiryDate: req.ExpiryDate, LocationID: req.LocationID, Status: ItemStatusPending,
 	}
-	return txRepo.CreateItem(ctx, item)
+	return txRepo.CreateItem(ctx, tenantID, item)
 }
 
-func (s *Service) UpdateItem(ctx context.Context, receiptID, itemID int64, req UpdateItemRequest) (*Response, error) {
-	receipt, err := s.repo.FindReceiptByID(ctx, receiptID)
+func (s *Service) UpdateItem(ctx context.Context, tenantID, receiptID, itemID int64, req UpdateItemRequest) (*Response, error) {
+	receipt, err := s.repo.FindReceiptByID(ctx, tenantID, receiptID)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +349,7 @@ func (s *Service) UpdateItem(ctx context.Context, receiptID, itemID int64, req U
 		return nil, ErrNotEditable
 	}
 
-	item, err := s.repo.FindItemByID(ctx, itemID)
+	item, err := s.repo.FindItemByID(ctx, tenantID, itemID)
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +360,7 @@ func (s *Service) UpdateItem(ctx context.Context, receiptID, itemID int64, req U
 		return nil, ErrValidation{Message: "line has already started receiving and can no longer be edited"}
 	}
 
-	p, err := s.products.FindByID(ctx, item.ProductID)
+	p, err := s.products.FindByIDForTenant(ctx, tenantID, item.ProductID)
 	if err != nil {
 		return nil, ErrProductNotFound
 	}
@@ -293,7 +373,7 @@ func (s *Service) UpdateItem(ctx context.Context, receiptID, itemID int64, req U
 	if req.ExpectedQty < 0 {
 		return nil, ErrValidation{Message: "expected_qty must not be negative"}
 	}
-	if _, err := s.locations.FindByID(ctx, req.LocationID); err != nil {
+	if _, err := s.locations.FindByID(ctx, tenantID, req.LocationID); err != nil {
 		return nil, ErrLocationNotFound
 	}
 
@@ -303,18 +383,119 @@ func (s *Service) UpdateItem(ctx context.Context, receiptID, itemID int64, req U
 	item.ExpiryDate = req.ExpiryDate
 	item.LocationID = req.LocationID
 
-	if err := s.repo.UpdateItem(ctx, item); err != nil {
+	if err := s.repo.UpdateItem(ctx, tenantID, item); err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, receiptID)
+	return s.Get(ctx, tenantID, receiptID)
+}
+
+// resolvedSplit is one split batch after defaults (item's current lot/
+// expiry/location) have been applied — used both to validate quantity
+// conservation and to drive the single AddStockTx + CreateSplit pair
+// Confirm issues per batch.
+type resolvedSplit struct {
+	Quantity        float64
+	LotNo           string
+	MfgDate         *time.Time
+	ExpiryDate      *time.Time
+	LocationID      int64
+	PalletID        *string
+	CartonCount     *int
+	TemperatureC    *float64
+	ConditionNote   *string
+	CountryOfOrigin *string
+}
+
+// resolveSplits turns one ConfirmItemRequest into the list of batches to
+// actually post, applying the item's current lot/expiry/location as the
+// default for any field a split omits — see ConfirmItemRequest.Splits's
+// own doc for the implicit-single-split behavior this preserves for
+// every pre-Phase-31A request body unchanged.
+func resolveSplits(lineReq ConfirmItemRequest, item *ReceiptItem) ([]resolvedSplit, error) {
+	if len(lineReq.Splits) == 0 {
+		lotNo := item.LotNo
+		if lineReq.LotNo != "" {
+			lotNo = lineReq.LotNo
+		}
+		expiryDate := item.ExpiryDate
+		if lineReq.ExpiryDate != nil {
+			expiryDate = lineReq.ExpiryDate
+		}
+		locationID := item.LocationID
+		if lineReq.LocationID != 0 {
+			locationID = lineReq.LocationID
+		}
+		return []resolvedSplit{{
+			Quantity: lineReq.Quantity, LotNo: lotNo, ExpiryDate: expiryDate, LocationID: locationID,
+		}}, nil
+	}
+
+	var sum float64
+	resolved := make([]resolvedSplit, 0, len(lineReq.Splits))
+	for _, sp := range lineReq.Splits {
+		if sp.Quantity <= 0 {
+			return nil, ErrValidation{Message: "each split quantity must be greater than zero"}
+		}
+		sum += sp.Quantity
+
+		lotNo := item.LotNo
+		if sp.LotNo != "" {
+			lotNo = sp.LotNo
+		}
+		expiryDate := item.ExpiryDate
+		if sp.ExpiryDate != nil {
+			expiryDate = sp.ExpiryDate
+		}
+		locationID := item.LocationID
+		if sp.LocationID != 0 {
+			locationID = sp.LocationID
+		}
+
+		rs := resolvedSplit{
+			Quantity: sp.Quantity, LotNo: lotNo, MfgDate: sp.MfgDate, ExpiryDate: expiryDate, LocationID: locationID,
+		}
+		if sp.PalletID != "" {
+			rs.PalletID = &sp.PalletID
+		}
+		if sp.CartonCount != 0 {
+			cc := sp.CartonCount
+			rs.CartonCount = &cc
+		}
+		rs.TemperatureC = sp.TemperatureC
+		if sp.ConditionNote != "" {
+			rs.ConditionNote = &sp.ConditionNote
+		}
+		if sp.CountryOfOrigin != "" {
+			rs.CountryOfOrigin = &sp.CountryOfOrigin
+		}
+		resolved = append(resolved, rs)
+	}
+
+	// Quantity conservation: splits must account for exactly this call's
+	// quantity, not more and not less — a partial match would silently
+	// under- or over-receive relative to what the caller actually
+	// claimed for this line this call.
+	if sum != lineReq.Quantity {
+		return nil, ErrValidation{Message: "split quantities must sum to the line's confirmed quantity"}
+	}
+	return resolved, nil
 }
 
 // Confirm is the atomic core of this phase: validate -> update receipt
-// item received_qty -> call inventory.AddStockTx (same transaction) ->
-// ledger row is written by AddStockTx itself -> update receipt status
-// -> commit. Any failure rolls back everything, including any lines
-// already processed earlier in this same call.
-func (s *Service) Confirm(ctx context.Context, receiptID int64, req ConfirmRequest, userID int64) (*Response, error) {
+// item received_qty -> call inventory.AddStockTx (same transaction, one
+// call per lot/expiry/pallet split) -> ledger row(s) written by
+// AddStockTx itself -> record each split in receipt_item_splits ->
+// update receipt status -> commit. Any failure rolls back everything,
+// including any lines already processed earlier in this same call.
+//
+// Phase 31A: QC-required products (product.QCRequired) post their
+// entire confirmed quantity into inventory's HoldQuantity instead of
+// leaving it immediately available — see
+// inventory.Inventory.Available's own doc for the full model. This is
+// the Inventory Core *mechanism* only: no QC pass/release/reject
+// workflow exists yet (Phase 31B), so a QC-required line's quantity
+// stays held indefinitely until that later phase adds the release path.
+func (s *Service) Confirm(ctx context.Context, tenantID, receiptID int64, req ConfirmRequest, userID int64) (*Response, error) {
 	if len(req.Items) == 0 {
 		return nil, ErrValidation{Message: "at least one item is required to confirm receiving"}
 	}
@@ -332,14 +513,10 @@ func (s *Service) Confirm(ctx context.Context, receiptID int64, req ConfirmReque
 		// Confirm the receipt exists BEFORE claiming the idempotency key:
 		// receipt_confirmations.receipt_id is a real FK (migrations/0013),
 		// so inserting the guard for a nonexistent id would raise a raw
-		// FK-violation 500 instead of a clean 404 — a real bug found live
-		// during Phase 11's own testing and fixed there in
-		// internal/stockadjustment/internal/stockcount first; this is the
-		// identical fix applied to the packages Phase 11 flagged as
-		// carrying the same defect (see PROJECT_STATUS.md's Phase 12).
-		// This SELECT has no side effect, so moving it ahead of the
-		// INSERT does not weaken the idempotency guarantee at all.
-		receipt, err := txRepo.FindReceiptByID(ctx, receiptID)
+		// FK-violation 500 instead of a clean 404. This SELECT has no
+		// side effect, so moving it ahead of the INSERT does not weaken
+		// the idempotency guarantee at all.
+		receipt, err := txRepo.FindReceiptByID(ctx, tenantID, receiptID)
 		if err != nil {
 			return err
 		}
@@ -347,7 +524,7 @@ func (s *Service) Confirm(ctx context.Context, receiptID int64, req ConfirmReque
 		// Idempotency guard: if this key was already used, the INSERT
 		// fails on the UNIQUE constraint and everything below is skipped
 		// and rolled back — see migrations/0013's doc.
-		if err := txRepo.InsertConfirmation(ctx, req.IdempotencyKey, receiptID); err != nil {
+		if err := txRepo.InsertConfirmation(ctx, tenantID, req.IdempotencyKey, receiptID); err != nil {
 			return err
 		}
 
@@ -364,7 +541,7 @@ func (s *Service) Confirm(ctx context.Context, receiptID int64, req ConfirmReque
 				return ErrValidation{Message: "quantity must be greater than zero for every confirmed line"}
 			}
 
-			item, err := txRepo.FindItemByID(ctx, lineReq.ItemID)
+			item, err := txRepo.FindItemByID(ctx, tenantID, lineReq.ItemID)
 			if err != nil {
 				return err
 			}
@@ -375,7 +552,7 @@ func (s *Service) Confirm(ctx context.Context, receiptID int64, req ConfirmReque
 				return ErrValidation{Message: fmt.Sprintf("line %d is already fully received", item.ID)}
 			}
 
-			p, err := s.products.FindByID(ctx, item.ProductID)
+			p, err := s.products.FindByIDForTenant(ctx, tenantID, item.ProductID)
 			if err != nil {
 				return ErrProductNotFound
 			}
@@ -383,42 +560,56 @@ func (s *Service) Confirm(ctx context.Context, receiptID int64, req ConfirmReque
 				return ErrValidation{Message: fmt.Sprintf("product %s requires serial tracking, which is not yet supported by receiving", p.SKU)}
 			}
 
-			lotNo := item.LotNo
-			if lineReq.LotNo != "" {
-				lotNo = lineReq.LotNo
-			}
-			if p.LotRequired && lotNo == "" {
-				return ErrValidation{Message: fmt.Sprintf("product %s requires a lot number", p.SKU)}
+			splits, err := resolveSplits(lineReq, item)
+			if err != nil {
+				return err
 			}
 
-			expiryDate := item.ExpiryDate
-			if lineReq.ExpiryDate != nil {
-				expiryDate = lineReq.ExpiryDate
+			// lastSplit's lot/expiry/location becomes the line's own
+			// denormalized display fields, matching the pre-existing
+			// "most recent confirm call's values" meaning exactly (see
+			// ReceiptItem's own doc) even when multiple splits are posted
+			// in one call.
+			lastSplit := splits[len(splits)-1]
+			if p.LotRequired && lastSplit.LotNo == "" {
+				return ErrValidation{Message: fmt.Sprintf("product %s requires a lot number", p.SKU)}
 			}
-			if p.ExpiryRequired && expiryDate == nil {
+			if p.ExpiryRequired && lastSplit.ExpiryDate == nil {
 				return ErrValidation{Message: fmt.Sprintf("product %s requires an expiry date", p.SKU)}
 			}
 
-			locationID := item.LocationID
-			if lineReq.LocationID != 0 {
-				locationID = lineReq.LocationID
-			}
-			if _, err := s.locations.FindByID(ctx, locationID); err != nil {
-				return ErrLocationNotFound
-			}
+			for _, sp := range splits {
+				if _, err := s.locations.FindByID(ctx, tenantID, sp.LocationID); err != nil {
+					return ErrLocationNotFound
+				}
 
-			// TenantID: inventory.UnverifiedCallerTenantID — receiving has no
-			// verified per-request tenant context of its own yet (Phase 30
-			// Batch 1 only covers internal/inventory itself; see that
-			// constant's own doc). Equals the bootstrap tenant, so this
-			// changes nothing about today's single-tenant behavior.
-			if _, err := s.inventory.AddStockTx(ctx, invRepo, inventory.StockChangeRequest{
-				TenantID:  inventory.UnverifiedCallerTenantID,
-				ProductID: item.ProductID, LocationID: locationID, LotNo: lotNo, ExpiryDate: expiryDate,
-				Quantity: lineReq.Quantity, Type: inventory.TransactionReceive,
-				ReferenceType: &refType, ReferenceID: &refID, CreatedBy: &userID,
-			}); err != nil {
-				return err
+				// HoldQuantity (Phase 31A): a QC-required product's entire
+				// posted quantity goes into inventory.hold_quantity — see
+				// this method's own doc.
+				var holdQty float64
+				if p.QCRequired {
+					holdQty = sp.Quantity
+				}
+
+				if _, err := s.inventory.AddStockTx(ctx, invRepo, inventory.StockChangeRequest{
+					TenantID:  tenantID,
+					ProductID: item.ProductID, LocationID: sp.LocationID, LotNo: sp.LotNo, ExpiryDate: sp.ExpiryDate,
+					Quantity: sp.Quantity, HoldQuantity: holdQty, Type: inventory.TransactionReceive,
+					ReferenceType: &refType, ReferenceID: &refID, CreatedBy: &userID,
+				}); err != nil {
+					return err
+				}
+
+				if err := txRepo.CreateSplit(ctx, tenantID, &ReceiptItemSplit{
+					ReceiptID: receiptID, ReceiptItemID: item.ID,
+					LotNo: sp.LotNo, MfgDate: sp.MfgDate, ExpiryDate: sp.ExpiryDate,
+					Quantity: sp.Quantity, UOM: item.UOM,
+					PalletID: sp.PalletID, CartonCount: sp.CartonCount, LocationID: sp.LocationID,
+					TemperatureC: sp.TemperatureC, ConditionNote: sp.ConditionNote, CountryOfOrigin: sp.CountryOfOrigin,
+					CreatedBy: &userID,
+				}); err != nil {
+					return err
+				}
 			}
 
 			// Atomic guarded increment (see AdjustReceivedQty's doc) instead
@@ -427,28 +618,28 @@ func (s *Service) Confirm(ctx context.Context, receiptID int64, req ConfirmReque
 			// lost-update race Phase 8's concurrency regression test found.
 			// Re-read afterward so status derivation uses the row's true,
 			// post-increment total, not this loop's pre-transaction snapshot.
-			if _, err := txRepo.AdjustReceivedQty(ctx, item.ID, lineReq.Quantity); err != nil {
+			if _, err := txRepo.AdjustReceivedQty(ctx, tenantID, item.ID, lineReq.Quantity); err != nil {
 				return err
 			}
-			updated, err := txRepo.FindItemByID(ctx, item.ID)
+			updated, err := txRepo.FindItemByID(ctx, tenantID, item.ID)
 			if err != nil {
 				return err
 			}
-			updated.LotNo = lotNo
-			updated.ExpiryDate = expiryDate
-			updated.LocationID = locationID
+			updated.LotNo = lastSplit.LotNo
+			updated.ExpiryDate = lastSplit.ExpiryDate
+			updated.LocationID = lastSplit.LocationID
 			updated.Status = itemStatus(updated.ExpectedQty, updated.ReceivedQty)
-			if err := txRepo.UpdateItemAfterConfirm(ctx, updated); err != nil {
+			if err := txRepo.UpdateItemAfterConfirm(ctx, tenantID, updated); err != nil {
 				return err
 			}
 		}
 
-		allItems, err := txRepo.FindItemsByReceipt(ctx, receiptID)
+		allItems, err := txRepo.FindItemsByReceipt(ctx, tenantID, receiptID)
 		if err != nil {
 			return err
 		}
 		receipt.Status = computeReceiptStatus(allItems)
-		return txRepo.UpdateReceipt(ctx, receipt)
+		return txRepo.UpdateReceipt(ctx, tenantID, receipt)
 	})
 	dbctx.LogTransaction(ctx, "receiving.confirm", start, err)
 
@@ -456,12 +647,12 @@ func (s *Service) Confirm(ctx context.Context, receiptID int64, req ConfirmReque
 		// Already processed by an earlier call with this same key —
 		// return the current (already-correct) state as a successful,
 		// idempotent no-op rather than an error or a second stock add.
-		return s.Get(ctx, receiptID)
+		return s.Get(ctx, tenantID, receiptID)
 	}
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, receiptID)
+	return s.Get(ctx, tenantID, receiptID)
 }
 
 // Cancel is Phase 15's addition — allowed only while the receipt is
@@ -473,13 +664,13 @@ func (s *Service) Confirm(ctx context.Context, receiptID int64, req ConfirmReque
 // automatically — Cancel simply refuses once that boundary has passed
 // (ErrNotCancellable, mapped to 409) rather than inventing a
 // compensating transaction.
-func (s *Service) Cancel(ctx context.Context, receiptID int64, req CancelRequest, userID int64) (*Response, error) {
+func (s *Service) Cancel(ctx context.Context, tenantID, receiptID int64, req CancelRequest, userID int64) (*Response, error) {
 	ctx, cancel := dbctx.Detach(ctx)
 	defer cancel()
 
 	start := time.Now()
 	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
-		receipt, err := txRepo.FindReceiptByID(ctx, receiptID)
+		receipt, err := txRepo.FindReceiptByID(ctx, tenantID, receiptID)
 		if err != nil {
 			return err
 		}
@@ -499,13 +690,13 @@ func (s *Service) Cancel(ctx context.Context, receiptID int64, req CancelRequest
 		// own Remark field — unlike Phase 15's original behavior, Cancel no
 		// longer clobbers whatever remark already existed on the receipt.
 		receipt.applyCancel(userID, req.Remark, time.Now().UTC())
-		return txRepo.CancelReceipt(ctx, receipt)
+		return txRepo.CancelReceipt(ctx, tenantID, receipt)
 	})
 	dbctx.LogTransaction(ctx, "receiving.cancel", start, err)
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, receiptID)
+	return s.Get(ctx, tenantID, receiptID)
 }
 
 // computeReceiptStatus derives the header status from its lines: fully

@@ -14,6 +14,14 @@ import (
 	"wms-backend/internal/platform/middleware"
 )
 
+// writeTenantUnauthorized is shared by every handler method's
+// EnforcedTenantID guard below — same shape as internal/picking's own
+// (Batch 2), internal/order's own (Batch 3), and internal/shipping's
+// own (Batch 4).
+func writeTenantUnauthorized(c *gin.Context) {
+	apihttp.Fail(c, http.StatusUnauthorized, "tenant context required", "UNAUTHORIZED")
+}
+
 // Handler exposes Service over HTTP.
 type Handler struct {
 	service *Service
@@ -23,24 +31,34 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-// Register mounts the Receiving endpoints on rg. Permissions reuse the
-// existing "receiving" module from Phase 2's catalog exactly as-is — no
-// new codes. Confirm (the action that actually moves stock) is gated on
-// receiving.approve, not a new "confirm" verb: it's the existing
-// significant-action permission this module already used, and per the
-// current seed data only ADMIN/WAREHOUSE_MANAGER have it — RECEIVING
-// staff can create and edit receipts but not confirm them, a
-// segregation-of-duties consequence of the grants already established
-// in Phase 2/3, not a new decision made here (see PROJECT_STATUS.md).
+// Register mounts the Receiving endpoints on rg.
 //
-// Phase 15's Cancel is gated on receiving.update instead — unlike
-// Picking's Cancel (Phase 13, gated on picking.approve because it
-// releases a reservation, a consequential action), Cancel here only
-// ever runs before any stock has moved (Status.CanCancel mirrors
-// CanEdit exactly), so it sits at the same authority level as editing
-// the receipt, which RECEIVING staff already have.
-func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
-	receipts := rg.Group("/receipts", middleware.RequireJWT(jwtSecret))
+// Phase 31A upgrades the chain from RequireJWT-only to RequireJWT ->
+// RequireTenantContext -> RequirePermission, matching internal/picking's
+// own Batch 2 chain, internal/order's own Batch 3 chain, and
+// internal/shipping's own Batch 4 chain — every handler method below
+// now extracts tenantID via middleware.EnforcedTenantID and threads it
+// through to Service. Receiving was the last inbound/outbound workflow
+// module still on the old RequireJWT-only chain.
+//
+// Confirm (the action that actually moves stock into Available or Hold)
+// is now gated on receiving.confirm, a new permission split out of the
+// pre-existing receiving.approve — the approved Phase 31A architecture
+// decision to separate ordinary Receiving-staff confirmation from
+// supervisor-level exception approval and QC release. receiving.approve
+// itself is kept in the catalog (granted to ADMIN/WAREHOUSE_MANAGER
+// exactly as before) for a future exception-handling action; no such
+// action exists yet in this phase. See internal/rbac/catalog.go's own
+// doc for the permission-catalog side of this split.
+//
+// Phase 15's Cancel is still gated on receiving.update: it only ever
+// runs pre-confirm (Status.CanCancel mirrors CanEdit exactly), so it
+// sits at editing's authority level, not confirm's stock-moving level.
+func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChecker middleware.MembershipChecker, membershipCacheTTL time.Duration) {
+	receipts := rg.Group("/receipts",
+		middleware.RequireJWT(jwtSecret),
+		middleware.RequireTenantContext(membershipChecker, membershipCacheTTL),
+	)
 	receipts.GET("", middleware.RequirePermission("receiving.view"), h.List)
 	receipts.GET("/export", middleware.RequirePermission("receiving.view"), h.Export)
 	receipts.GET("/:id", middleware.RequirePermission("receiving.view"), h.Get)
@@ -48,7 +66,7 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
 	receipts.PUT("/:id", middleware.RequirePermission("receiving.update"), h.Update)
 	receipts.POST("/:id/items", middleware.RequirePermission("receiving.update"), h.AddItem)
 	receipts.PUT("/:id/items/:itemId", middleware.RequirePermission("receiving.update"), h.UpdateItem)
-	receipts.POST("/:id/confirm", middleware.RequirePermission("receiving.approve"), h.Confirm)
+	receipts.POST("/:id/confirm", middleware.RequirePermission("receiving.confirm"), h.Confirm)
 	receipts.POST("/:id/cancel", middleware.RequirePermission("receiving.update"), h.Cancel)
 }
 
@@ -70,6 +88,12 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
 //	@Failure		403				{object}	apihttp.ErrorResponse
 //	@Router			/receipts [get]
 func (h *Handler) List(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	page, _ := strconv.Atoi(c.Query("page"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	warehouseID, _ := strconv.ParseInt(c.Query("warehouse_id"), 10, 64)
@@ -81,7 +105,7 @@ func (h *Handler) List(c *gin.Context) {
 		}
 	}
 
-	responses, total, err := h.service.List(c.Request.Context(), ListParams{
+	responses, total, err := h.service.List(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), Status: Status(c.Query("status")),
 		WarehouseID: warehouseID, Date: date, Page: page, Limit: limit,
 	})
@@ -123,6 +147,12 @@ func (h *Handler) List(c *gin.Context) {
 //	@Failure		403				{object}	apihttp.ErrorResponse
 //	@Router			/receipts/export [get]
 func (h *Handler) Export(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	warehouseID, _ := strconv.ParseInt(c.Query("warehouse_id"), 10, 64)
 	var date *time.Time
 	if raw := c.Query("date"); raw != "" {
@@ -131,7 +161,7 @@ func (h *Handler) Export(c *gin.Context) {
 		}
 	}
 
-	rows, err := h.service.ListForExport(c.Request.Context(), ListParams{
+	rows, err := h.service.ListForExport(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), Status: Status(c.Query("status")),
 		WarehouseID: warehouseID, Date: date,
 	})
@@ -168,13 +198,19 @@ func (h *Handler) Export(c *gin.Context) {
 //	@Failure		404	{object}	apihttp.ErrorResponse
 //	@Router			/receipts/{id} [get]
 func (h *Handler) Get(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid receipt id", "INVALID_REQUEST")
 		return
 	}
 
-	resp, err := h.service.Get(c.Request.Context(), id)
+	resp, err := h.service.Get(c.Request.Context(), tenantID, id)
 	if errors.Is(err, ErrNotFound) {
 		apihttp.Fail(c, http.StatusNotFound, "receipt not found", "NOT_FOUND")
 		return
@@ -199,10 +235,16 @@ func (h *Handler) Get(c *gin.Context) {
 //	@Failure		400		{object}	apihttp.ErrorResponse
 //	@Failure		401		{object}	apihttp.ErrorResponse
 //	@Failure		403		{object}	apihttp.ErrorResponse
-//	@Failure		404		{object}	apihttp.ErrorResponse	"warehouse, location, or product does not exist"
+//	@Failure		404		{object}	apihttp.ErrorResponse	"warehouse, location, supplier, or product does not exist"
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/receipts [post]
 func (h *Handler) Create(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	var req CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid request body", "INVALID_REQUEST")
@@ -212,7 +254,7 @@ func (h *Handler) Create(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Create(ctx, req, userID)
+	resp, err := h.service.Create(ctx, tenantID, req, userID)
 	if err == nil {
 		apihttp.Status(c, http.StatusCreated, resp, "receipt created")
 		return
@@ -238,6 +280,12 @@ func (h *Handler) Create(c *gin.Context) {
 //	@Failure		409		{object}	apihttp.ErrorResponse	"receipt can no longer be edited"
 //	@Router			/receipts/{id} [put]
 func (h *Handler) Update(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid receipt id", "INVALID_REQUEST")
@@ -250,7 +298,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.Update(c.Request.Context(), id, req)
+	resp, err := h.service.Update(c.Request.Context(), tenantID, id, req)
 	if err == nil {
 		apihttp.OK(c, resp, "")
 		return
@@ -277,6 +325,12 @@ func (h *Handler) Update(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse	"e.g. product requires a lot number/expiry/serial tracking"
 //	@Router			/receipts/{id}/items [post]
 func (h *Handler) AddItem(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid receipt id", "INVALID_REQUEST")
@@ -290,7 +344,7 @@ func (h *Handler) AddItem(c *gin.Context) {
 	}
 
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
-	resp, err := h.service.AddItem(ctx, id, req)
+	resp, err := h.service.AddItem(ctx, tenantID, id, req)
 	if err == nil {
 		apihttp.Status(c, http.StatusCreated, resp, "item added")
 		return
@@ -318,6 +372,12 @@ func (h *Handler) AddItem(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/receipts/{id}/items/{itemId} [put]
 func (h *Handler) UpdateItem(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid receipt id", "INVALID_REQUEST")
@@ -335,7 +395,7 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.UpdateItem(c.Request.Context(), id, itemID, req)
+	resp, err := h.service.UpdateItem(c.Request.Context(), tenantID, id, itemID, req)
 	if err == nil {
 		apihttp.OK(c, resp, "")
 		return
@@ -346,7 +406,7 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 // Confirm godoc
 //
 //	@Summary		Confirm receiving for one or more lines
-//	@Description	Atomically updates each line's received quantity, calls Inventory Core's AddStock (same transaction), and recomputes the receipt's status — all committed together or all rolled back. idempotency_key must be a fresh UUID per click; resending the same key (double-click, retry) returns the receipt's current state instead of adding stock twice. Can be called more than once on the same receipt for partial receiving.
+//	@Description	Atomically updates each line's received quantity, calls Inventory Core's AddStock (same transaction) for every lot/expiry/pallet split, records each split, and recomputes the receipt's status — all committed together or all rolled back. idempotency_key must be a fresh UUID per click; resending the same key (double-click, retry) returns the receipt's current state instead of adding stock twice. Can be called more than once on the same receipt for partial receiving. A QC-required product's confirmed quantity is posted into inventory's hold (not immediately available) — see ReceiptItemResponse.Splits.
 //	@Tags			Receiving
 //	@Accept			json
 //	@Produce		json
@@ -362,6 +422,12 @@ func (h *Handler) UpdateItem(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/receipts/{id}/confirm [post]
 func (h *Handler) Confirm(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid receipt id", "INVALID_REQUEST")
@@ -377,7 +443,7 @@ func (h *Handler) Confirm(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Confirm(ctx, id, req, userID)
+	resp, err := h.service.Confirm(ctx, tenantID, id, req, userID)
 	if err == nil {
 		apihttp.OK(c, resp, "receiving confirmed")
 		return
@@ -403,6 +469,12 @@ func (h *Handler) Confirm(c *gin.Context) {
 //	@Failure		409		{object}	apihttp.ErrorResponse	"receipt is not in a cancellable status (stock already received, already cancelled, or already completed)"
 //	@Router			/receipts/{id}/cancel [post]
 func (h *Handler) Cancel(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid receipt id", "INVALID_REQUEST")
@@ -420,7 +492,7 @@ func (h *Handler) Cancel(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Cancel(ctx, id, req, userID)
+	resp, err := h.service.Cancel(ctx, tenantID, id, req, userID)
 	if err == nil {
 		apihttp.OK(c, resp, "receipt cancelled")
 		return
@@ -446,6 +518,8 @@ func writeError(c *gin.Context, err error) {
 		apihttp.Fail(c, http.StatusNotFound, "warehouse not found", "WAREHOUSE_NOT_FOUND")
 	case errors.Is(err, ErrLocationNotFound):
 		apihttp.Fail(c, http.StatusNotFound, "location not found", "LOCATION_NOT_FOUND")
+	case errors.Is(err, ErrSupplierNotFound):
+		apihttp.Fail(c, http.StatusNotFound, "supplier not found", "SUPPLIER_NOT_FOUND")
 	case errors.Is(err, ErrNotEditable):
 		apihttp.Fail(c, http.StatusConflict, "receipt can no longer be edited", "NOT_EDITABLE")
 	case errors.Is(err, ErrInvalidTransition):

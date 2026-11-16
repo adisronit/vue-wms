@@ -41,7 +41,14 @@ type ModuleDef struct {
 // noted in the package doc).
 var Modules = []ModuleDef{
 	{Code: "dashboard", Name: "Dashboard", Actions: []string{"view", "export"}},
-	{Code: "receiving", Name: "Receiving", Actions: []string{"view", "create", "update", "delete", "approve"}},
+	// "confirm" (Phase 31A) is split out of "approve" so ordinary
+	// Receiving staff can confirm their own receipts (the stock-moving
+	// action) without also being granted the separate, supervisor-level
+	// "approve" permission — which remains reserved for a future
+	// exception-handling action (over-receipt approval, etc.) and for
+	// quality_check.approve's own QC release, neither built in this
+	// phase. See RoleDefaultGrants' own doc.
+	{Code: "receiving", Name: "Receiving", Actions: []string{"view", "create", "update", "delete", "confirm", "approve"}},
 	{Code: "quality_check", Name: "Quality Check", Actions: []string{"view", "create", "update", "approve"}},
 	{Code: "putaway", Name: "Putaway", Actions: []string{"view", "create", "update", "approve"}},
 	{Code: "stock_inquiry", Name: "Stock Inquiry", Actions: []string{"view", "export"}},
@@ -90,6 +97,7 @@ var actionLabels = map[string]string{
 	"create":  "Create",
 	"update":  "Update",
 	"delete":  "Delete",
+	"confirm": "Confirm",
 	"approve": "Approve",
 	"export":  "Export",
 }
@@ -156,7 +164,7 @@ var RoleDefaultGrants = map[string][]string{
 	"WAREHOUSE_MANAGER": allExcept("delete"),
 	"RECEIVING": {
 		"dashboard.view",
-		"receiving.view", "receiving.create", "receiving.update",
+		"receiving.view", "receiving.create", "receiving.update", "receiving.confirm",
 		"stock_inquiry.view",
 	},
 	"QC": {

@@ -32,6 +32,7 @@ type row struct {
 	ExpiryDate       *time.Time
 	Quantity         float64
 	ReservedQuantity float64
+	HoldQuantity     float64
 	UOM              string
 	Status           string
 	CreatedAt        time.Time
@@ -45,7 +46,8 @@ func (r row) toResponse() Response {
 		ZoneID: r.ZoneID, ZoneCode: r.ZoneCode,
 		LocationID: r.LocationID, LocationCode: r.LocationCode,
 		LotNo: r.LotNo, ExpiryDate: r.ExpiryDate,
-		AvailableQty: r.Quantity - r.ReservedQuantity, ReservedQty: r.ReservedQuantity, OnHandQty: r.Quantity,
+		AvailableQty: r.Quantity - r.ReservedQuantity - r.HoldQuantity, ReservedQty: r.ReservedQuantity,
+		HoldQty: r.HoldQuantity, OnHandQty: r.Quantity,
 		UOM: r.UOM, Status: Status(r.Status), CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 	}
 }
@@ -64,12 +66,12 @@ const joinedSelect = `
 		z.id AS zone_id, z.code AS zone_code,
 		l.id AS location_id, l.code AS location_code,
 		inv.lot_no AS lot_no, inv.expiry_date AS expiry_date,
-		inv.quantity AS quantity, inv.reserved_quantity AS reserved_quantity,
+		inv.quantity AS quantity, inv.reserved_quantity AS reserved_quantity, inv.hold_quantity AS hold_quantity,
 		p.base_uom AS uom, inv.created_at AS created_at, inv.updated_at AS updated_at,
 		CASE
-			WHEN inv.on_hold = 1 THEN 'HOLD'
+			WHEN inv.on_hold = 1 OR inv.hold_quantity > 0 THEN 'HOLD'
 			WHEN inv.reserved_quantity > 0 THEN 'RESERVED'
-			WHEN (inv.quantity - inv.reserved_quantity) <= p.min_stock THEN 'LOW_STOCK'
+			WHEN (inv.quantity - inv.reserved_quantity - inv.hold_quantity) <= p.min_stock THEN 'LOW_STOCK'
 			ELSE 'AVAILABLE'
 		END AS status
 	FROM inventory inv
@@ -189,7 +191,7 @@ func (r *Repository) Summary(ctx context.Context, tenantID int64) (SummaryRespon
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT
 			COUNT(DISTINCT inv.product_id) AS total_skus,
-			COALESCE(SUM(inv.quantity - inv.reserved_quantity), 0) AS available_qty,
+			COALESCE(SUM(inv.quantity - inv.reserved_quantity - inv.hold_quantity), 0) AS available_qty,
 			COALESCE(SUM(inv.reserved_quantity), 0) AS reserved_qty,
 			(SELECT COUNT(*) FROM (
 				SELECT inv2.product_id
@@ -197,7 +199,7 @@ func (r *Repository) Summary(ctx context.Context, tenantID int64) (SummaryRespon
 				JOIN products p2 ON p2.id = inv2.product_id
 				WHERE inv2.tenant_id = ?
 				GROUP BY inv2.product_id, p2.min_stock
-				HAVING SUM(inv2.quantity - inv2.reserved_quantity) <= p2.min_stock
+				HAVING SUM(inv2.quantity - inv2.reserved_quantity - inv2.hold_quantity) <= p2.min_stock
 			) low) AS low_stock_count
 		FROM inventory inv
 		WHERE inv.tenant_id = ?
@@ -340,24 +342,58 @@ func (r *Repository) AdjustBalance(ctx context.Context, tenantID, productID, loc
 
 // AdjustReservation atomically applies delta to reserved_quantity in one
 // UPDATE statement — the arithmetic and both safety checks (a
-// reservation can never exceed on-hand quantity; a release/consume can
-// never take reserved_quantity negative) live in the WHERE clause, not
-// as a Go read-then-write, mirroring AdjustBalance's mechanism exactly,
-// including the same tenant_id-in-WHERE reasoning (Phase 30 Batch 1).
-// A positive delta reserves; a negative delta releases or consumes.
-// Returns rows affected: 0 means either the row doesn't exist (in this
-// tenant), or applying delta would push reserved_quantity outside
-// [0, quantity]. This statement never touches quantity itself —
-// reservation is a claim against an existing balance, never a movement
-// of it. This is Phase 12's concurrency-safety mechanism for Picking
-// reservation — see PROJECT_STATUS.md.
+// reservation can never exceed on-hand quantity net of anything already
+// on hold; a release/consume can never take reserved_quantity negative)
+// live in the WHERE clause, not as a Go read-then-write, mirroring
+// AdjustBalance's mechanism exactly, including the same tenant_id-in-WHERE
+// reasoning (Phase 30 Batch 1). A positive delta reserves; a negative
+// delta releases or consumes. Returns rows affected: 0 means either the
+// row doesn't exist (in this tenant), or applying delta would push
+// reserved_quantity+hold_quantity outside [0, quantity]. This statement
+// never touches quantity or hold_quantity themselves — reservation is a
+// claim against an existing balance, never a movement of it. This is
+// Phase 12's concurrency-safety mechanism for Picking reservation — see
+// PROJECT_STATUS.md.
+//
+// Phase 31A: the upper-bound guard changed from
+// "reserved_quantity + delta <= quantity" to
+// "reserved_quantity + hold_quantity + delta <= quantity" — the exact
+// enforcement point for the approved stock lifecycle's safety
+// requirement that QC-held stock can never be reserved (and therefore
+// never picked): Available = Quantity - ReservedQuantity - HoldQuantity
+// can never go negative, because no reservation can ever push Reserved
+// past Quantity-Hold. Every existing caller is unaffected for any row
+// with hold_quantity = 0 (every row that existed before migrations/0067,
+// and every row Receiving posts today for a non-QC-required product).
 func (r *Repository) AdjustReservation(ctx context.Context, tenantID, productID, locationID int64, lotNo string, delta float64) (int64, error) {
 	result := r.db.WithContext(ctx).Exec(`
 		UPDATE inventory
 		SET reserved_quantity = reserved_quantity + ?, updated_at = SYSUTCDATETIME()
 		WHERE tenant_id = ? AND product_id = ? AND location_id = ? AND lot_no = ?
 			AND reserved_quantity + ? >= 0
-			AND reserved_quantity + ? <= quantity
+			AND reserved_quantity + hold_quantity + ? <= quantity
+	`, delta, tenantID, productID, locationID, lotNo, delta, delta)
+	return result.RowsAffected, result.Error
+}
+
+// AdjustHold atomically applies delta to hold_quantity in one UPDATE
+// statement, mirroring AdjustReservation's exact mechanism and the same
+// reserved_quantity+hold_quantity<=quantity invariant (so posting a hold
+// can never itself push the balance past 100% committed). A positive
+// delta is Receiving's Confirm posting a QC-required line into hold
+// (see internal/receiving's Confirm doc); a negative delta is a future
+// QC release/reject (Phase 31B — no caller exists yet in this phase).
+// Returns rows affected: 0 means either the row doesn't exist (in this
+// tenant), or applying delta would push hold_quantity outside
+// [0, quantity - reserved_quantity]. Never touches quantity or
+// reserved_quantity themselves.
+func (r *Repository) AdjustHold(ctx context.Context, tenantID, productID, locationID int64, lotNo string, delta float64) (int64, error) {
+	result := r.db.WithContext(ctx).Exec(`
+		UPDATE inventory
+		SET hold_quantity = hold_quantity + ?, updated_at = SYSUTCDATETIME()
+		WHERE tenant_id = ? AND product_id = ? AND location_id = ? AND lot_no = ?
+			AND hold_quantity + ? >= 0
+			AND reserved_quantity + hold_quantity + ? <= quantity
 	`, delta, tenantID, productID, locationID, lotNo, delta, delta)
 	return result.RowsAffected, result.Error
 }

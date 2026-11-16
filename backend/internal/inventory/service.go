@@ -102,12 +102,19 @@ type ReserveRequest struct {
 // called, not by the sign of Quantity. TenantID (Phase 30 Batch 1): see
 // ReserveRequest's doc.
 type StockChangeRequest struct {
-	TenantID      int64
-	ProductID     int64
-	LocationID    int64
-	LotNo         string
-	ExpiryDate    *time.Time
-	Quantity      float64
+	TenantID   int64
+	ProductID  int64
+	LocationID int64
+	LotNo      string
+	ExpiryDate *time.Time
+	Quantity   float64
+	// HoldQuantity (Phase 31A) is the portion of Quantity to post into
+	// inventory.hold_quantity instead of leaving it immediately
+	// available — only meaningful on AddStock/AddStockTx; RemoveStock
+	// ignores it. Must be 0 <= HoldQuantity <= Quantity (see
+	// validateStockChange). Zero (the default) preserves every existing
+	// caller's exact pre-Phase-31A behavior.
+	HoldQuantity  float64
 	Type          TransactionType
 	ReferenceType *string
 	ReferenceID   *string
@@ -539,11 +546,29 @@ func addStockTx(ctx context.Context, txRepo *Repository, req StockChangeRequest)
 		// A positive delta can only fail AdjustBalance's WHERE clause if
 		// the row doesn't exist yet (the >= 0 guard can't reject a
 		// positive delta) — first stock ever placed at this tuple.
+		// HoldQuantity is set directly on the brand-new row rather than
+		// via a second AdjustHold call — there is no concurrent writer
+		// to race against a row this transaction just created.
 		if err := txRepo.CreateBalance(ctx, req.TenantID, &Inventory{
 			ProductID: req.ProductID, LocationID: req.LocationID, LotNo: req.LotNo,
-			ExpiryDate: req.ExpiryDate, Quantity: req.Quantity,
+			ExpiryDate: req.ExpiryDate, Quantity: req.Quantity, HoldQuantity: req.HoldQuantity,
 		}); err != nil {
 			return nil, translateFKViolation(err)
+		}
+	} else if req.HoldQuantity > 0 {
+		// An existing balance row already had Quantity bumped by
+		// AdjustBalance above, in this same transaction; AdjustHold's own
+		// guard (hold_quantity+reserved_quantity<=quantity) is checked
+		// against that already-updated row, so this can only return 0
+		// rows if validateStockChange's own HoldQuantity<=Quantity
+		// invariant was somehow violated — defensive, not expected to
+		// trigger in practice.
+		hrows, err := txRepo.AdjustHold(ctx, req.TenantID, req.ProductID, req.LocationID, req.LotNo, req.HoldQuantity)
+		if err != nil {
+			return nil, err
+		}
+		if hrows == 0 {
+			return nil, ErrValidation{Message: "hold_quantity would exceed on-hand quantity"}
 		}
 	}
 
@@ -613,6 +638,9 @@ func validateStockChange(req StockChangeRequest) error {
 	}
 	if !req.Type.IsValid() {
 		return ErrValidation{Message: "invalid transaction type"}
+	}
+	if req.HoldQuantity < 0 || req.HoldQuantity > req.Quantity {
+		return ErrValidation{Message: "hold_quantity must be between 0 and quantity"}
 	}
 	return nil
 }

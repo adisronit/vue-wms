@@ -82,6 +82,30 @@ func (r *Repository) FindByID(ctx context.Context, id int64) (*Warehouse, error)
 	return &w, nil
 }
 
+// FindByIDForTenant returns id's row scoped to tenantID, or
+// ErrNotFound — never "found but belongs to another tenant" vs.
+// "doesn't exist at all" (tenant-isolation-security.md §6). Added in
+// Phase 31A: no tenant-scoped warehouse lookup existed anywhere in this
+// codebase before this (every prior Phase 30 batch — Picking/Order/
+// Shipping — flagged it as a deferred gap; see
+// [[wms_customer_shipto_order_integration]]'s own note). Every new
+// tenant-facing caller of warehouse ownership must use this, not
+// FindByID — mirrors internal/product's own FindByID/FindByIDForTenant
+// split exactly, for the identical reason: FindByID stays unscoped
+// because it is still structurally required by sibling packages'
+// pre-existing, not-yet-tenant-scoped checker interfaces.
+func (r *Repository) FindByIDForTenant(ctx context.Context, tenantID, id int64) (*Warehouse, error) {
+	var w Warehouse
+	err := r.db.WithContext(ctx).First(&w, "id = ? AND tenant_id = ?", id, tenantID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &w, nil
+}
+
 // FindWithCounts returns id's warehouse plus its live zone/location
 // counts, for GET/POST/PUT single-resource responses.
 func (r *Repository) FindWithCounts(ctx context.Context, id int64) (*WithCounts, error) {

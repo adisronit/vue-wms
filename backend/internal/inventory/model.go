@@ -54,17 +54,28 @@ type Inventory struct {
 	ExpiryDate       *time.Time `gorm:"column:expiry_date"`
 	Quantity         float64    `gorm:"column:quantity"`
 	ReservedQuantity float64    `gorm:"column:reserved_quantity"`
-	OnHold           bool       `gorm:"column:on_hold"`
-	CreatedAt        time.Time  `gorm:"column:created_at"`
-	UpdatedAt        time.Time  `gorm:"column:updated_at"`
+	// HoldQuantity (migrations/0067-0068, Phase 31A) is a SUBSET of
+	// Quantity, never an addition to it — see AdjustHold's own doc for
+	// the full Quantity/Hold/Available model. Distinct from OnHold
+	// below: OnHold is a whole-row manual hold flag (pre-existing), while
+	// HoldQuantity is a partial, QC-driven quantity carve-out that can
+	// coexist with an otherwise-available balance.
+	HoldQuantity float64   `gorm:"column:hold_quantity"`
+	OnHold       bool      `gorm:"column:on_hold"`
+	CreatedAt    time.Time `gorm:"column:created_at"`
+	UpdatedAt    time.Time `gorm:"column:updated_at"`
 }
 
 func (Inventory) TableName() string { return "inventory" }
 
 // Available is the derived available-to-use quantity — never stored,
-// always computed, so it can never drift from quantity/reserved.
+// always computed, so it can never drift from quantity/reserved/hold.
+// Phase 31A's approved stock lifecycle: Available = Quantity -
+// ReservedQuantity - HoldQuantity. Receiving a QC-required line posts
+// Quantity and HoldQuantity together (see internal/receiving's Confirm),
+// leaving Available unchanged until QC acts on the hold.
 func (i Inventory) Available() float64 {
-	return i.Quantity - i.ReservedQuantity
+	return i.Quantity - i.ReservedQuantity - i.HoldQuantity
 }
 
 // Transaction is the GORM model for the inventory_transactions table

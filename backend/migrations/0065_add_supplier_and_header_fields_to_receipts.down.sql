@@ -1,0 +1,14 @@
+ALTER TABLE receipts DROP COLUMN currency;
+ALTER TABLE receipts DROP COLUMN unloading_end_time;
+ALTER TABLE receipts DROP COLUMN unloading_start_time;
+ALTER TABLE receipts DROP COLUMN arrival_time;
+ALTER TABLE receipts DROP COLUMN dock_door;
+ALTER TABLE receipts DROP COLUMN vehicle_reg_no;
+ALTER TABLE receipts DROP COLUMN driver_name;
+ALTER TABLE receipts DROP COLUMN transport_company;
+ALTER TABLE receipts DROP COLUMN seal_no;
+ALTER TABLE receipts DROP COLUMN container_no;
+ALTER TABLE receipts DROP COLUMN delivery_note_no;
+ALTER TABLE receipts DROP COLUMN invoice_no;
+ALTER TABLE receipts DROP COLUMN supplier_name_snapshot;
+ALTER TABLE receipts DROP COLUMN supplier_id;

@@ -11,85 +11,196 @@
       </template>
     </PageHeader>
 
-    <!-- Document Header -->
-    <FormSection :title="$t('newReceiving.documentInfo')">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label class="label">{{ $t('newReceiving.fields.receivingType') }}</label>
-          <select v-model="form.receivingType" class="input">
-            <option value="PO">{{ $t('newReceiving.receivingTypeOptions.po') }}</option>
-            <option value="ASN">{{ $t('newReceiving.receivingTypeOptions.asn') }}</option>
-            <option value="RETURN">{{ $t('newReceiving.receivingTypeOptions.return') }}</option>
-            <option value="TRANSFER">{{ $t('newReceiving.receivingTypeOptions.transfer') }}</option>
-          </select>
+    <!-- Wizard step indicator -->
+    <div class="flex items-center gap-3">
+      <div
+        v-for="s in 3"
+        :key="s"
+        class="flex items-center gap-3"
+        :class="s < 3 ? 'flex-1' : ''"
+      >
+        <button
+          type="button"
+          @click="goToStep(s)"
+          :disabled="s > step && s > furthestStepReached"
+          class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0"
+          :class="step === s
+            ? 'bg-orange-600 text-white'
+            : s <= furthestStepReached
+              ? 'bg-orange-100 text-orange-700'
+              : 'bg-slate-100 text-slate-400'"
+        >
+          {{ s }}
+        </button>
+        <span
+          class="text-sm font-semibold"
+          :class="step === s ? 'text-orange-700' : 'text-slate-500'"
+        >
+          {{ $t(`newReceiving.wizard.step${s}`) }}
+        </span>
+        <div v-if="s < 3" class="flex-1 h-px bg-slate-200"></div>
+      </div>
+    </div>
+
+    <div v-if="formError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
+      {{ formError }}
+    </div>
+
+    <!-- Step 1: Document -->
+    <template v-if="step === 1">
+      <FormSection :title="$t('newReceiving.documentInfo')">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="label">{{ $t('newReceiving.fields.receivingType') }}</label>
+            <select v-model="form.receivingType" class="input">
+              <option value="PO">{{ $t('newReceiving.receivingTypeOptions.po') }}</option>
+              <option value="ASN">{{ $t('newReceiving.receivingTypeOptions.asn') }}</option>
+              <option value="RETURN">{{ $t('newReceiving.receivingTypeOptions.return') }}</option>
+              <option value="TRANSFER">{{ $t('newReceiving.receivingTypeOptions.transfer') }}</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="label">{{ $t('newReceiving.fields.referenceNo') }}</label>
+            <input
+              v-model="form.referenceNo"
+              type="text"
+              class="input"
+              :placeholder="$t('newReceiving.fields.referenceNoPlaceholder')"
+            />
+          </div>
+
+          <div>
+            <label class="label">{{ $t('newReceiving.fields.receivingDate') }}</label>
+            <input
+              v-model="form.receivingDate"
+              type="date"
+              class="input"
+            />
+          </div>
+
+          <div>
+            <label class="label">{{ $t('newReceiving.fields.supplier') }}</label>
+            <SearchableSelect
+              v-model="form.supplierId"
+              v-model:display-value="supplierDisplayName"
+              :fetch-options="fetchSupplierOptions"
+              :placeholder="$t('newReceiving.fields.selectSupplier')"
+            />
+          </div>
+
+          <div>
+            <label class="label">{{ $t('newReceiving.fields.vendor') }}</label>
+            <input
+              v-model="form.vendor"
+              type="text"
+              class="input"
+              :placeholder="$t('newReceiving.fields.vendorPlaceholder')"
+            />
+          </div>
+
+          <div>
+            <label class="label">{{ $t('newReceiving.fields.warehouse') }}</label>
+            <select v-model="form.warehouseId" class="input">
+              <option value="">{{ $t('newReceiving.fields.selectWarehouse') }}</option>
+              <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="label">{{ $t('newReceiving.fields.stagingLocation') }}</label>
+            <select v-model="form.stagingLocationId" class="input" :disabled="!form.warehouseId">
+              <option value="">{{ $t('newReceiving.fields.selectStagingLocation') }}</option>
+              <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
+            </select>
+          </div>
         </div>
 
-        <div>
-          <label class="label">{{ $t('newReceiving.fields.referenceNo') }}</label>
-          <input
-            v-model="form.referenceNo"
-            type="text"
+        <div class="mt-4">
+          <label class="label">{{ $t('newReceiving.fields.remark') }}</label>
+          <textarea
+            v-model="form.remark"
+            rows="3"
             class="input"
-            :placeholder="$t('newReceiving.fields.referenceNoPlaceholder')"
-          />
+            :placeholder="$t('newReceiving.fields.remarkPlaceholder')"
+          ></textarea>
         </div>
+      </FormSection>
 
-        <div>
-          <label class="label">{{ $t('newReceiving.fields.receivingDate') }}</label>
-          <input
-            v-model="form.receivingDate"
-            type="date"
-            class="input"
-          />
+      <FormSection :title="$t('newReceiving.logistics.title')">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="label">{{ $t('newReceiving.logistics.invoiceNo') }}</label>
+            <input v-model="form.invoiceNo" type="text" class="input" />
+          </div>
+          <div>
+            <label class="label">{{ $t('newReceiving.logistics.deliveryNoteNo') }}</label>
+            <input v-model="form.deliveryNoteNo" type="text" class="input" />
+          </div>
+          <div>
+            <label class="label">{{ $t('newReceiving.logistics.currency') }}</label>
+            <input v-model="form.currency" type="text" class="input" placeholder="THB" />
+          </div>
+          <div>
+            <label class="label">{{ $t('newReceiving.logistics.containerNo') }}</label>
+            <input v-model="form.containerNo" type="text" class="input" />
+          </div>
+          <div>
+            <label class="label">{{ $t('newReceiving.logistics.sealNo') }}</label>
+            <input v-model="form.sealNo" type="text" class="input" />
+          </div>
+          <div>
+            <label class="label">{{ $t('newReceiving.logistics.transportCompany') }}</label>
+            <input v-model="form.transportCompany" type="text" class="input" />
+          </div>
+          <div>
+            <label class="label">{{ $t('newReceiving.logistics.driverName') }}</label>
+            <input v-model="form.driverName" type="text" class="input" />
+          </div>
+          <div>
+            <label class="label">{{ $t('newReceiving.logistics.vehicleRegNo') }}</label>
+            <input v-model="form.vehicleRegNo" type="text" class="input" />
+          </div>
+          <div>
+            <label class="label">{{ $t('newReceiving.logistics.dockDoor') }}</label>
+            <input v-model="form.dockDoor" type="text" class="input" />
+          </div>
+          <div>
+            <label class="label">{{ $t('newReceiving.logistics.arrivalTime') }}</label>
+            <input v-model="form.arrivalTime" type="datetime-local" class="input" />
+          </div>
+          <div>
+            <label class="label">{{ $t('newReceiving.logistics.unloadingStartTime') }}</label>
+            <input v-model="form.unloadingStartTime" type="datetime-local" class="input" />
+          </div>
+          <div>
+            <label class="label">{{ $t('newReceiving.logistics.unloadingEndTime') }}</label>
+            <input v-model="form.unloadingEndTime" type="datetime-local" class="input" />
+          </div>
         </div>
+      </FormSection>
 
-        <div>
-          <label class="label">{{ $t('newReceiving.fields.vendor') }}</label>
-          <!-- Vendor option values are mock/seed business data (vendor
-               names), not UI chrome — left untranslated per this
-               phase's "preserve original business values" instruction. -->
-          <select v-model="form.vendor" class="input">
-            <option value="">{{ $t('newReceiving.fields.selectVendor') }}</option>
-            <option value="ABC Supplier">ABC Supplier</option>
-            <option value="Global Parts">Global Parts</option>
-            <option value="Fast Supply">Fast Supply</option>
-            <option value="Orange Logistics">Orange Logistics</option>
-          </select>
+      <FormSection>
+        <div class="flex justify-end gap-3">
+          <button
+            @click="saveDraft"
+            :disabled="submitting"
+            class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-6 py-3 rounded-xl font-semibold disabled:opacity-60"
+          >
+            {{ $t('newReceiving.actions.saveDraft') }}
+          </button>
+          <button
+            @click="goNextFromDocument"
+            class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold"
+          >
+            {{ $t('newReceiving.wizard.next') }}
+          </button>
         </div>
+      </FormSection>
+    </template>
 
-        <div>
-          <label class="label">{{ $t('newReceiving.fields.warehouse') }}</label>
-          <select v-model="form.warehouseId" class="input">
-            <option value="">{{ $t('newReceiving.fields.selectWarehouse') }}</option>
-            <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="label">{{ $t('newReceiving.fields.stagingLocation') }}</label>
-          <select v-model="form.stagingLocationId" class="input" :disabled="!form.warehouseId">
-            <option value="">{{ $t('newReceiving.fields.selectStagingLocation') }}</option>
-            <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
-          </select>
-        </div>
-      </div>
-
-      <div v-if="formError" class="mt-4 bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">
-        {{ formError }}
-      </div>
-
-      <div class="mt-4">
-        <label class="label">{{ $t('newReceiving.fields.remark') }}</label>
-        <textarea
-          v-model="form.remark"
-          rows="3"
-          class="input"
-          :placeholder="$t('newReceiving.fields.remarkPlaceholder')"
-        ></textarea>
-      </div>
-    </FormSection>
-
-    <!-- Scan / Add Item -->
+    <!-- Step 2: Scan & Count -->
+    <template v-if="step === 2">
     <FormSection>
       <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-5">
         <div>
@@ -222,7 +333,14 @@
             </select>
           </td>
 
-          <td class="table-td text-right">
+          <td class="table-td text-right whitespace-nowrap">
+            <button
+              @click="toggleSplits(item)"
+              class="text-orange-600 hover:text-orange-700 font-semibold mr-3"
+            >
+              {{ item.splitsOpen ? $t('newReceiving.splits.hide') : $t('newReceiving.splits.manage') }}
+              <span v-if="item.splits.length">({{ item.splits.length }})</span>
+            </button>
             <button
               @click="removeItem(index)"
               class="text-red-600 hover:text-red-700 font-semibold"
@@ -231,8 +349,100 @@
             </button>
           </td>
         </tr>
+
+        <!-- Lot/Expiry/Pallet splits for this line — when present, these
+             (not the line's own single lot_no/expiry_date/location above)
+             are what gets sent to Confirm; each split's quantity must sum
+             to the line's own Receive Qty. -->
+        <tr v-for="item in itemsWithOpenSplits" :key="'splits-' + item.id" class="border-t bg-slate-50">
+          <td colspan="10" class="p-4">
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-sm font-semibold text-slate-700">
+                {{ $t('newReceiving.splits.title') }}
+              </p>
+              <button
+                @click="addSplit(item)"
+                class="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded-lg text-sm font-semibold"
+              >
+                {{ $t('newReceiving.splits.addSplit') }}
+              </button>
+            </div>
+
+            <p v-if="item.splits.length === 0" class="text-sm text-slate-500">
+              {{ $t('newReceiving.splits.none') }}
+            </p>
+
+            <div v-else class="space-y-2">
+              <div
+                v-for="(split, sIdx) in item.splits"
+                :key="sIdx"
+                class="grid grid-cols-2 md:grid-cols-7 gap-2 items-center bg-white border border-slate-200 rounded-xl p-2"
+              >
+                <input v-model.number="split.quantity" type="number" class="table-input input-number" :placeholder="$t('newReceiving.splits.qty')" />
+                <input v-model="split.lotNo" class="table-input" :placeholder="$t('newReceiving.table.lotNo')" />
+                <input v-model="split.expiryDate" type="date" class="table-input" />
+                <input v-model="split.palletId" class="table-input" :placeholder="$t('newReceiving.splits.palletId')" />
+                <input v-model.number="split.cartonCount" type="number" class="table-input input-number" :placeholder="$t('newReceiving.splits.cartonCount')" />
+                <select v-model="split.locationId" class="table-input">
+                  <option value="">{{ $t('newReceiving.scan.selectLocation') }}</option>
+                  <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
+                </select>
+                <button @click="removeSplit(item, sIdx)" class="text-red-600 hover:text-red-700 font-semibold text-sm text-right">
+                  {{ $t('newReceiving.table.remove') }}
+                </button>
+              </div>
+
+              <p
+                class="text-sm font-semibold"
+                :class="splitQtySum(item) === Number(item.receiveQty || 0) ? 'text-green-600' : 'text-red-600'"
+              >
+                {{ $t('newReceiving.splits.sumOfQty', { sum: splitQtySum(item), total: Number(item.receiveQty || 0) }) }}
+              </p>
+            </div>
+          </td>
+        </tr>
       </DataTable>
     </FormSection>
+
+      <FormSection>
+        <div class="flex justify-between gap-3">
+          <button
+            @click="step = 1"
+            class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-6 py-3 rounded-xl font-semibold"
+          >
+            {{ $t('newReceiving.wizard.back') }}
+          </button>
+          <div class="flex gap-3">
+            <button
+              @click="saveDraft"
+              :disabled="submitting"
+              class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-6 py-3 rounded-xl font-semibold disabled:opacity-60"
+            >
+              {{ $t('newReceiving.actions.saveDraft') }}
+            </button>
+            <button
+              @click="goNextFromItems"
+              class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold"
+            >
+              {{ $t('newReceiving.wizard.next') }}
+            </button>
+          </div>
+        </div>
+      </FormSection>
+    </template>
+
+    <!-- Step 3: Review -->
+    <template v-if="step === 3">
+      <FormSection :title="$t('newReceiving.review.documentTitle')">
+        <dl class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div><dt class="text-slate-500">{{ $t('newReceiving.fields.receivingType') }}</dt><dd class="font-semibold">{{ form.receivingType }}</dd></div>
+          <div><dt class="text-slate-500">{{ $t('newReceiving.fields.referenceNo') }}</dt><dd class="font-semibold">{{ form.referenceNo || '—' }}</dd></div>
+          <div><dt class="text-slate-500">{{ $t('newReceiving.fields.supplier') }}</dt><dd class="font-semibold">{{ supplierDisplayName || form.vendor || '—' }}</dd></div>
+          <div><dt class="text-slate-500">{{ $t('newReceiving.fields.warehouse') }}</dt><dd class="font-semibold">{{ warehouseLabel }}</dd></div>
+          <div><dt class="text-slate-500">{{ $t('newReceiving.fields.stagingLocation') }}</dt><dd class="font-semibold">{{ stagingLocationLabel }}</dd></div>
+          <div><dt class="text-slate-500">{{ $t('newReceiving.logistics.invoiceNo') }}</dt><dd class="font-semibold">{{ form.invoiceNo || '—' }}</dd></div>
+        </dl>
+      </FormSection>
 
     <!-- Summary -->
     <FormSection :title="$t('newReceiving.summary.title')">
@@ -266,7 +476,14 @@
 
     <!-- Action Bar -->
     <FormSection>
-      <div class="flex flex-col md:flex-row justify-end gap-3">
+      <div class="flex flex-col md:flex-row justify-between gap-3">
+        <button
+          @click="step = 2"
+          class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-6 py-3 rounded-xl font-semibold"
+        >
+          {{ $t('newReceiving.wizard.back') }}
+        </button>
+        <div class="flex flex-col md:flex-row gap-3">
         <button
           @click="saveDraft"
           :disabled="submitting"
@@ -286,8 +503,10 @@
         <p v-else class="text-sm text-slate-500 self-center">
           {{ $t('newReceiving.actions.viewOnlyNote') }}
         </p>
+        </div>
       </div>
     </FormSection>
+    </template>
 
     <ConfirmDialog
       :open="showSubmitConfirm"
@@ -307,6 +526,7 @@
 <script>
 import { listWarehouses, listZones, listLocations } from '../../services/warehouses'
 import { listProducts } from '../../services/products'
+import { listSuppliers } from '../../services/suppliers'
 import { createReceipt, confirmReceipt, newIdempotencyKey } from '../../services/receiving'
 import { hasPermission } from '../../services/auth'
 import { showToast } from '../../services/toast'
@@ -314,6 +534,7 @@ import PageHeader from '../../components/ui/PageHeader.vue'
 import FormSection from '../../components/ui/FormSection.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
+import SearchableSelect from '../../components/ui/SearchableSelect.vue'
 
 function todayDate() {
   return new Date().toISOString().slice(0, 10)
@@ -326,19 +547,29 @@ function toApiDate(dateStr) {
   return dateStr ? `${dateStr}T00:00:00Z` : null
 }
 
+// <input type="datetime-local"> gives "YYYY-MM-DDTHH:mm" (no seconds/
+// zone) — append both so it round-trips through Go's RFC3339 decoding.
+function toApiDateTime(dateTimeStr) {
+  return dateTimeStr ? `${dateTimeStr}:00Z` : null
+}
+
 export default {
   name: 'NewReceivingView',
 
-  components: { PageHeader, FormSection, DataTable, ConfirmDialog },
+  components: { PageHeader, FormSection, DataTable, ConfirmDialog, SearchableSelect },
 
   data() {
     return {
+      step: 1,
+      furthestStepReached: 1,
+
       scanText: '',
       scanQty: 1,
       scanLocationId: '',
 
       warehouses: [],
       locations: [],
+      supplierDisplayName: '',
 
       formError: '',
       submitting: false,
@@ -351,6 +582,19 @@ export default {
         referenceNo: '',
         receivingDate: todayDate(),
         vendor: '',
+        supplierId: '',
+        invoiceNo: '',
+        deliveryNoteNo: '',
+        containerNo: '',
+        sealNo: '',
+        transportCompany: '',
+        driverName: '',
+        vehicleRegNo: '',
+        dockDoor: '',
+        arrivalTime: '',
+        unloadingStartTime: '',
+        unloadingEndTime: '',
+        currency: '',
         warehouseId: '',
         stagingLocationId: '',
         remark: ''
@@ -378,7 +622,21 @@ export default {
     },
 
     canConfirm() {
-      return hasPermission('receiving.approve')
+      return hasPermission('receiving.confirm')
+    },
+
+    itemsWithOpenSplits() {
+      return this.items.filter((item) => item.splitsOpen)
+    },
+
+    warehouseLabel() {
+      const w = this.warehouses.find((w) => w.id === this.form.warehouseId)
+      return w ? `${w.code} — ${w.name}` : '—'
+    },
+
+    stagingLocationLabel() {
+      const l = this.locations.find((l) => l.id === this.form.stagingLocationId)
+      return l ? l.code : '—'
     }
   },
 
@@ -450,6 +708,63 @@ export default {
       }
     },
 
+    // fetchSupplierOptions backs the Supplier SearchableSelect's remote
+    // search — only ACTIVE suppliers are offered; the backend itself
+    // re-verifies ownership regardless, this is just the picker.
+    async fetchSupplierOptions(search) {
+      try {
+        const res = await listSuppliers({ search, status: 'ACTIVE', limit: 20 })
+        return res.data.map((s) => ({ value: s.id, label: `${s.code} — ${s.company_name}` }))
+      } catch {
+        return []
+      }
+    },
+
+    goToStep(target) {
+      if (target <= this.furthestStepReached) this.step = target
+    },
+
+    goNextFromDocument() {
+      const error = this.validateForm({ requireReceiveQty: false, requireItems: false })
+      if (error) {
+        this.formError = error
+        return
+      }
+      this.formError = ''
+      this.step = 2
+      this.furthestStepReached = Math.max(this.furthestStepReached, 2)
+    },
+
+    goNextFromItems() {
+      const error = this.validateForm({ requireReceiveQty: false, requireItems: true })
+      if (error) {
+        this.formError = error
+        return
+      }
+      this.formError = ''
+      this.step = 3
+      this.furthestStepReached = Math.max(this.furthestStepReached, 3)
+    },
+
+    toggleSplits(item) {
+      item.splitsOpen = !item.splitsOpen
+    },
+
+    addSplit(item) {
+      item.splits.push({
+        quantity: 0, lotNo: '', expiryDate: '', palletId: '', cartonCount: 0,
+        locationId: item.locationId || this.form.stagingLocationId || ''
+      })
+    },
+
+    removeSplit(item, index) {
+      item.splits.splice(index, 1)
+    },
+
+    splitQtySum(item) {
+      return item.splits.reduce((sum, s) => sum + Number(s.quantity || 0), 0)
+    },
+
     addItem() {
       this.items.push({
         id: Date.now(),
@@ -462,7 +777,9 @@ export default {
         uom: 'PCS',
         lotNo: '',
         expiryDate: '',
-        locationId: this.form.stagingLocationId || ''
+        locationId: this.form.stagingLocationId || '',
+        splits: [],
+        splitsOpen: false
       })
     },
 
@@ -496,7 +813,9 @@ export default {
             uom: product.base_uom || 'PCS',
             lotNo: '',
             expiryDate: '',
-            locationId: this.scanLocationId || this.form.stagingLocationId || ''
+            locationId: this.scanLocationId || this.form.stagingLocationId || '',
+            splits: [],
+            splitsOpen: false
           })
         }
 
@@ -513,18 +832,24 @@ export default {
       this.items.splice(index, 1)
     },
 
-    // Shared by Save Draft and Confirm Receiving — Confirm additionally
-    // requires at least one line to actually receive a quantity.
-    validateForm({ requireReceiveQty }) {
+    // Shared by Save Draft and the wizard's per-step Next buttons.
+    // requireItems is false for Step 1 -> 2 (a draft may be saved
+    // header-only, matching the backend's own "items optional" Create);
+    // Confirm additionally requires at least one line to actually
+    // receive a quantity.
+    validateForm({ requireReceiveQty, requireItems = true }) {
       if (!this.form.referenceNo) return this.$t('newReceiving.messages.referenceNoRequired')
-      if (!this.form.vendor) return this.$t('newReceiving.messages.vendorRequired')
+      if (!this.form.supplierId && !this.form.vendor) return this.$t('newReceiving.messages.supplierOrVendorRequired')
       if (!this.form.warehouseId) return this.$t('newReceiving.messages.warehouseRequired')
       if (!this.form.stagingLocationId) return this.$t('newReceiving.messages.stagingLocationRequired')
-      if (this.items.length === 0) return this.$t('newReceiving.messages.atLeastOneItem')
+      if (requireItems && this.items.length === 0) return this.$t('newReceiving.messages.atLeastOneItem')
       if (this.items.some((item) => !item.productId)) {
         return this.$t('newReceiving.messages.everyItemMustResolve')
       }
       if (this.items.some((item) => !item.locationId)) return this.$t('newReceiving.messages.everyItemMustHaveLocation')
+      if (this.items.some((item) => (item.splits || []).length > 0 && this.splitQtySum(item) !== Number(item.receiveQty || 0))) {
+        return this.$t('newReceiving.messages.splitQtyMustMatch')
+      }
       if (requireReceiveQty && this.totalReceiveQty <= 0) {
         return this.$t('newReceiving.messages.enterReceiveQty')
       }
@@ -535,7 +860,20 @@ export default {
       return {
         receiving_type: this.form.receivingType,
         reference_no: this.form.referenceNo,
-        vendor: this.form.vendor,
+        vendor: this.form.vendor || null,
+        supplier_id: this.form.supplierId || null,
+        invoice_no: this.form.invoiceNo || null,
+        delivery_note_no: this.form.deliveryNoteNo || null,
+        container_no: this.form.containerNo || null,
+        seal_no: this.form.sealNo || null,
+        transport_company: this.form.transportCompany || null,
+        driver_name: this.form.driverName || null,
+        vehicle_reg_no: this.form.vehicleRegNo || null,
+        dock_door: this.form.dockDoor || null,
+        arrival_time: toApiDateTime(this.form.arrivalTime),
+        unloading_start_time: toApiDateTime(this.form.unloadingStartTime),
+        unloading_end_time: toApiDateTime(this.form.unloadingEndTime),
+        currency: this.form.currency || null,
         warehouse_id: this.form.warehouseId,
         staging_location_id: this.form.stagingLocationId,
         status,
@@ -553,7 +891,7 @@ export default {
     },
 
     async saveDraft() {
-      const error = this.validateForm({ requireReceiveQty: false })
+      const error = this.validateForm({ requireReceiveQty: false, requireItems: this.items.length > 0 })
       if (error) {
         this.formError = error
         return
@@ -577,7 +915,7 @@ export default {
     // immediately — the actual submit logic is unchanged and now runs
     // from submitReceiving() when the dialog is confirmed.
     confirmReceivingClick() {
-      const error = this.validateForm({ requireReceiveQty: true })
+      const error = this.validateForm({ requireReceiveQty: true, requireItems: true })
       if (error) {
         this.formError = error
         return
@@ -604,7 +942,21 @@ export default {
             quantity: Number(srcItem.receiveQty),
             lot_no: srcItem.lotNo || '',
             expiry_date: toApiDate(srcItem.expiryDate),
-            location_id: srcItem.locationId
+            location_id: srcItem.locationId,
+            // Splits (Phase 31A): when the line was broken into multiple
+            // lot/pallet batches, send each one; the backend posts one
+            // AddStock + one receipt_item_splits row per entry instead of
+            // the single implicit split above.
+            splits: (srcItem.splits || []).length > 0
+              ? srcItem.splits.map((s) => ({
+                  quantity: Number(s.quantity || 0),
+                  lot_no: s.lotNo || '',
+                  expiry_date: toApiDate(s.expiryDate),
+                  location_id: s.locationId || srcItem.locationId,
+                  pallet_id: s.palletId || '',
+                  carton_count: Number(s.cartonCount || 0)
+                }))
+              : undefined
           }))
 
         await confirmReceipt(created.data.id, {

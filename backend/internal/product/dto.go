@@ -20,11 +20,15 @@ type Response struct {
 	PackSizeUnit string  `json:"pack_size_unit"`
 	Barcode      *string `json:"barcode"`
 
-	LotRequired    bool         `json:"lot_required"`
-	SerialRequired bool         `json:"serial_required"`
-	ExpiryRequired bool         `json:"expiry_required"`
-	StorageType    StorageType  `json:"storage_type"`
-	RotationRule   RotationRule `json:"rotation_rule"`
+	LotRequired    bool `json:"lot_required"`
+	SerialRequired bool `json:"serial_required"`
+	ExpiryRequired bool `json:"expiry_required"`
+	// QCRequired (Phase 31A) decides whether Receiving's Confirm posts
+	// this product's incoming quantity into inventory.hold_quantity
+	// instead of straight to available stock — see model.go's own doc.
+	QCRequired   bool         `json:"qc_required"`
+	StorageType  StorageType  `json:"storage_type"`
+	RotationRule RotationRule `json:"rotation_rule"`
 
 	DefaultSupplierID    *int64 `json:"default_supplier_id,string" example:"null"`
 	CountryOfOrigin      string `json:"country_of_origin"`
@@ -84,6 +88,7 @@ type CreateRequest struct {
 	LotRequired    bool         `json:"lot_required"`
 	SerialRequired bool         `json:"serial_required"`
 	ExpiryRequired bool         `json:"expiry_required"`
+	QCRequired     bool         `json:"qc_required"`
 	StorageType    StorageType  `json:"storage_type" example:"CHILLED"`
 	RotationRule   RotationRule `json:"rotation_rule" example:"FEFO"`
 
@@ -127,6 +132,7 @@ type UpdateRequest struct {
 	LotRequired    bool         `json:"lot_required"`
 	SerialRequired bool         `json:"serial_required"`
 	ExpiryRequired bool         `json:"expiry_required"`
+	QCRequired     bool         `json:"qc_required"`
 	StorageType    StorageType  `json:"storage_type" example:"CHILLED"`
 	RotationRule   RotationRule `json:"rotation_rule" example:"FEFO"`
 
@@ -177,6 +183,7 @@ func toResponse(p Product) Response {
 		Category: p.Category, CategoryID: p.CategoryID, BrandID: p.BrandID, FamilyID: p.FamilyID, VariantName: p.VariantName,
 		BaseUOM: p.BaseUOM, PackSize: p.PackSize, PackSizeUnit: p.PackSizeUnit, Barcode: p.Barcode,
 		LotRequired: p.LotRequired, SerialRequired: p.SerialRequired, ExpiryRequired: p.ExpiryRequired,
+		QCRequired:  p.QCRequired,
 		StorageType: p.StorageType, RotationRule: p.RotationRule,
 		DefaultSupplierID: p.DefaultSupplierID, CountryOfOrigin: p.CountryOfOrigin,
 		PreferredWarehouseID: p.PreferredWarehouseID, PreferredZoneID: p.PreferredZoneID, DefaultZone: p.DefaultZone,

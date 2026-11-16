@@ -129,6 +129,7 @@ func (r *Repository) Update(ctx context.Context, tenantID int64, p *Product) err
 		"lot_required":           p.LotRequired,
 		"serial_required":        p.SerialRequired,
 		"expiry_required":        p.ExpiryRequired,
+		"qc_required":            p.QCRequired,
 		"storage_type":           p.StorageType,
 		"rotation_rule":          p.RotationRule,
 		"default_supplier_id":    p.DefaultSupplierID,

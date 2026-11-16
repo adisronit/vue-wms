@@ -203,7 +203,7 @@ type fakeReceipts struct {
 	err         error
 }
 
-func (f *fakeReceipts) Get(context.Context, int64) (*receiving.Response, error) {
+func (f *fakeReceipts) Get(context.Context, int64, int64) (*receiving.Response, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
