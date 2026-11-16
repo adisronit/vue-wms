@@ -285,9 +285,14 @@ func main() {
 	qualitycheckService := qualitycheck.NewService(qualitycheckRepo, warehouseRepo, inventoryService)
 	qualitycheck.NewHandler(qualitycheckService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
+	// Phase 31C: putawayService is now itself tenant-scoped (the last
+	// inbound/outbound module on the old chain), so it uses productRepo/
+	// warehouseRepo's real tenant-scoped FindByIDForTenant lookups and
+	// receivingService's own verified tenantID — see
+	// internal/putaway/service.go's own doc.
 	putawayRepo := putaway.NewRepository(dbManager.DB())
 	putawayService := putaway.NewService(putawayRepo, productRepo, warehouseRepo, receivingService, inventoryService)
-	putaway.NewHandler(putawayService).Register(v1, cfg.JWTSecret)
+	putaway.NewHandler(putawayService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	pickingRepo := picking.NewRepository(dbManager.DB())
 	pickingService := picking.NewService(pickingRepo, productRepo, warehouseRepo, inventoryService)

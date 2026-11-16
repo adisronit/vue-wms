@@ -376,6 +376,27 @@ func (r *Repository) AdjustReservation(ctx context.Context, tenantID, productID,
 	return result.RowsAffected, result.Error
 }
 
+// AdjustAvailableBalance atomically applies a negative delta to
+// quantity, guarded so the removal can never dip into
+// reserved_quantity or hold_quantity — i.e. it only ever removes from
+// the currently AVAILABLE portion (Quantity - Reserved - Hold). Added
+// in Phase 31C for Putaway, which relocates existing stock between
+// locations and must never move reserved or QC-held units out of their
+// current location. Deliberately narrower than AdjustBalance (used by
+// every other caller — Stock Adjustment/Return/Count/Receiving/Picking
+// — which either add stock, or reconcile to physical reality/an
+// already-released reservation, and must not gain this extra
+// restriction). See MoveAvailableStockTx's own doc.
+func (r *Repository) AdjustAvailableBalance(ctx context.Context, tenantID, productID, locationID int64, lotNo string, delta float64) (int64, error) {
+	result := r.db.WithContext(ctx).Exec(`
+		UPDATE inventory
+		SET quantity = quantity + ?, updated_at = SYSUTCDATETIME()
+		WHERE tenant_id = ? AND product_id = ? AND location_id = ? AND lot_no = ?
+			AND quantity + ? >= reserved_quantity + hold_quantity
+	`, delta, tenantID, productID, locationID, lotNo, delta)
+	return result.RowsAffected, result.Error
+}
+
 // AdjustHold atomically applies delta to hold_quantity in one UPDATE
 // statement, mirroring AdjustReservation's exact mechanism and the same
 // reserved_quantity+hold_quantity<=quantity invariant (so posting a hold

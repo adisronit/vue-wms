@@ -40,6 +40,14 @@ var ErrNoStock = errors.New("inventory: no stock at this location")
 // ErrInsufficientStock.
 var ErrReservationUnderflow = errors.New("inventory: cannot release or consume more than is currently reserved")
 
+// ErrInsufficientAvailableStock is returned by MoveStockAvailableTx when
+// Quantity exceeds what's currently AVAILABLE (Quantity - Reserved -
+// Hold) at the source tuple — distinct from ErrInsufficientStock, which
+// only guards against exceeding raw on-hand Quantity and would
+// otherwise let a move dip into reserved or QC-held units. See
+// AdjustAvailableBalance's own doc.
+var ErrInsufficientAvailableStock = errors.New("inventory: cannot move more than is currently available (excludes reserved/held quantity)")
+
 // ErrHoldUnderflow is returned by ReleaseHoldTx/RejectHoldTx (Phase 31B)
 // when Quantity exceeds what's currently held at that (product,
 // location, lot) — AdjustHold's guarded UPDATE catches it first, the
@@ -376,6 +384,70 @@ func (s *Service) MoveStockTx(ctx context.Context, txRepo *Repository, req MoveS
 		return err
 	}
 	return moveStockTx(ctx, txRepo, req)
+}
+
+// MoveAvailableStockTx is MoveStockTx's exact shape, but the source leg
+// uses AdjustAvailableBalance instead of AdjustBalance — the removal can
+// never dip into reserved_quantity or hold_quantity, so a caller can
+// never relocate reserved or QC-held stock out of its current location.
+// Added in Phase 31C for internal/putaway, the explicit safety
+// requirement that "held/rejected stock must never be moved into
+// available storage through standard putaway" — moving an item changes
+// WHERE a balance sits, and Available = Quantity - Reserved - Hold must
+// remain exactly what it was before the move at both ends (only the
+// LocationID changes), which plain MoveStockTx cannot guarantee since
+// its AdjustBalance has no notion of reserved/held.
+func (s *Service) MoveAvailableStockTx(ctx context.Context, txRepo *Repository, req MoveStockRequest) error {
+	if err := validateMoveStock(req); err != nil {
+		return err
+	}
+	if err := s.verifyOwnership(ctx, req.TenantID, req.ProductID, req.FromLocationID); err != nil {
+		return err
+	}
+	if err := s.verifyOwnership(ctx, req.TenantID, req.ProductID, req.ToLocationID); err != nil {
+		return err
+	}
+
+	txType := req.Type
+	if txType == "" {
+		txType = TransactionMove
+	}
+	refType := req.ReferenceType
+	if refType == nil {
+		t := "MOVE"
+		refType = &t
+	}
+	moveRef := req.ReferenceID
+	if moveRef == nil {
+		ref := uuid.NewString()
+		moveRef = &ref
+	}
+
+	rows, err := txRepo.AdjustAvailableBalance(ctx, req.TenantID, req.ProductID, req.FromLocationID, req.LotNo, -req.Quantity)
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		if _, ferr := txRepo.FindBalance(ctx, req.TenantID, req.ProductID, req.FromLocationID, req.LotNo); errors.Is(ferr, ErrNotFound) {
+			return ErrNoStock
+		}
+		return ErrInsufficientAvailableStock
+	}
+	if err := txRepo.InsertTransaction(ctx, req.TenantID, &Transaction{
+		TransactionType: txType, ProductID: req.ProductID, LocationID: req.FromLocationID, LotNo: req.LotNo,
+		Quantity: -req.Quantity, ReferenceType: refType, ReferenceID: moveRef, Reason: req.Reason, CreatedBy: req.CreatedBy,
+	}); err != nil {
+		return err
+	}
+
+	_, err = addStockTx(ctx, txRepo, StockChangeRequest{
+		TenantID:  req.TenantID,
+		ProductID: req.ProductID, LocationID: req.ToLocationID, LotNo: req.LotNo,
+		ExpiryDate: req.ExpiryDate,
+		Quantity:   req.Quantity, Type: txType,
+		ReferenceType: refType, ReferenceID: moveRef, Reason: req.Reason, CreatedBy: req.CreatedBy,
+	})
+	return err
 }
 
 // ReserveStockTx increases reserved_quantity at (ProductID, LocationID,
