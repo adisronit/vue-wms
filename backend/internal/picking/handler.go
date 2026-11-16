@@ -71,6 +71,11 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChec
 	pickingGroup.GET("/lots/suggest", middleware.RequirePermission("picking.view"), h.SuggestLots)
 	pickingGroup.GET("/:id", middleware.RequirePermission("picking.view"), h.Get)
 	pickingGroup.GET("/:id/pdf", middleware.RequirePermission("picking.view"), h.PickList)
+	// Phase 33C.3 — Picking Confirmation Report. Same "picking.view"
+	// gate as the Pick List itself above: reading a report about a task
+	// requires no more than reading the task's own live Pick List
+	// already does.
+	pickingGroup.GET("/:id/confirmation-report", middleware.RequirePermission("picking.view"), h.ConfirmationReport)
 	pickingGroup.POST("", middleware.RequirePermission("picking.create"), h.Create)
 	// Phase 33B: Confirm moves from picking.update to the new
 	// picking.confirm — see catalog's own doc on the "picking" module.
@@ -605,6 +610,41 @@ func (h *Handler) PickList(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 
 	data, filename, err := h.pdf.RenderPickList(c.Request.Context(), tenantID, userID, id)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	servePDF(c, data, filename)
+}
+
+// ConfirmationReport godoc
+//
+//	@Summary		Download the Picking Confirmation Report PDF for a task
+//	@Description	Post-completion report: ordered vs picked quantity per line (with shortage qty/reason), a scan-verification summary from picking_scan_log, and picker/checker signature fields. Not hard-blocked before the task reaches a terminal status — a report generated earlier is honestly marked "IN PROGRESS" rather than FINAL. Read-only: printing/reprinting is always safe.
+//	@Tags			Picking
+//	@Produce		application/pdf
+//	@Security		BearerAuth
+//	@Param			id			path	int		true	"Picking task ID"
+//	@Param			download	query	boolean	false	"true for a download, omitted for inline viewing"
+//	@Success		200	{file}	file
+//	@Failure		401	{object}	apihttp.ErrorResponse
+//	@Failure		403	{object}	apihttp.ErrorResponse
+//	@Failure		404	{object}	apihttp.ErrorResponse
+//	@Router			/picking/{id}/confirmation-report [get]
+func (h *Handler) ConfirmationReport(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid picking task id", "INVALID_REQUEST")
+		return
+	}
+	userID, _ := middleware.CurrentUserID(c)
+
+	data, filename, err := h.pdf.RenderConfirmationReport(c.Request.Context(), tenantID, userID, id)
 	if err != nil {
 		writeError(c, err)
 		return

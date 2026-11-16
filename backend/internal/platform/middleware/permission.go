@@ -41,6 +41,27 @@ func RequirePermission(code string) gin.HandlerFunc {
 	}
 }
 
+// HasPermission is the same check RequirePermission(code) performs, but
+// exposed as a plain boolean for handlers whose required permission code
+// is only known at request time (e.g. docrender's history/reprint
+// endpoints, whose gating permission depends on a ":type" path param
+// resolved after RequireJWT has already run) — RequirePermission's own
+// fixed-code-at-route-registration shape cannot express that, so those
+// handlers call this directly instead of chaining a second gin.HandlerFunc.
+// Added in Phase 33C.3; every pre-existing route keeps using
+// RequirePermission exactly as before.
+func HasPermission(c *gin.Context, code string) bool {
+	raw, ok := c.Get(ClaimsContextKey)
+	if !ok {
+		return false
+	}
+	claims, ok := raw.(jwt.MapClaims)
+	if !ok {
+		return false
+	}
+	return hasPermission(claims, code)
+}
+
 func hasPermission(claims jwt.MapClaims, code string) bool {
 	raw, ok := claims["permissions"]
 	if !ok {

@@ -913,7 +913,7 @@ func TestPDFService_RenderPackingListAndCartonLabels_ProduceValidPDFs(t *testing
 		t.Error("RenderPackingList returned an empty filename")
 	}
 
-	labelData, labelFilename, err := pdfSvc.RenderCartonLabels(context.Background(), a.tenantID, 1, jobID, 0)
+	labelData, labelFilename, err := pdfSvc.RenderCartonLabels(context.Background(), a.tenantID, 1, jobID, 0, "")
 	if err != nil {
 		t.Fatalf("RenderCartonLabels: %v", err)
 	}
@@ -924,7 +924,7 @@ func TestPDFService_RenderPackingListAndCartonLabels_ProduceValidPDFs(t *testing
 		t.Error("RenderCartonLabels returned an empty filename")
 	}
 
-	singleData, _, err := pdfSvc.RenderCartonLabels(context.Background(), a.tenantID, 1, jobID, carton.ID)
+	singleData, _, err := pdfSvc.RenderCartonLabels(context.Background(), a.tenantID, 1, jobID, carton.ID, "")
 	if err != nil {
 		t.Fatalf("RenderCartonLabels(single carton): %v", err)
 	}

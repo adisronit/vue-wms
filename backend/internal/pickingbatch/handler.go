@@ -18,13 +18,27 @@ func writeTenantUnauthorized(c *gin.Context) {
 	apihttp.Fail(c, http.StatusUnauthorized, "tenant context required", "UNAUTHORIZED")
 }
 
-// Handler exposes Service over HTTP.
+// Handler exposes Service (and, for the Consolidated Batch Picking
+// List, PDFService) over HTTP.
 type Handler struct {
 	service *Service
+	pdf     *PDFService
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, pdf *PDFService) *Handler {
+	return &Handler{service: service, pdf: pdf}
+}
+
+// servePDF writes data as a PDF response — matches every other
+// module's own servePDF helper exactly.
+func servePDF(c *gin.Context, data []byte, filename string) {
+	disposition := "inline"
+	if c.Query("download") == "true" {
+		disposition = "attachment"
+	}
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", disposition+"; filename=\""+filename+"\"")
+	c.Data(http.StatusOK, "application/pdf", data)
 }
 
 // Register mounts the Batch Picking endpoints on rg, using a new
@@ -45,6 +59,10 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChec
 	group.GET("", middleware.RequirePermission("picking_batch.view"), h.List)
 	group.GET("/available-orders", middleware.RequirePermission("picking_batch.view"), h.AvailableOrders)
 	group.GET("/:id", middleware.RequirePermission("picking_batch.view"), h.Get)
+	// Phase 33C.3 — Consolidated Batch Picking List. Same "view" gate as
+	// GET /:id above: reading a PDF about a batch requires no more than
+	// reading the batch's own JSON detail already does.
+	group.GET("/:id/pdf", middleware.RequirePermission("picking_batch.view"), h.PDF)
 	group.POST("", middleware.RequirePermission("picking_batch.create"), h.Create)
 	group.POST("/:id/confirm", middleware.RequirePermission("picking_batch.confirm"), h.Confirm)
 	group.POST("/:id/cancel", middleware.RequirePermission("picking_batch.cancel"), h.Cancel)
@@ -168,6 +186,42 @@ func (h *Handler) Get(c *gin.Context) {
 		return
 	}
 	writeError(c, err)
+}
+
+// PDF godoc
+//
+//	@Summary		Download the Consolidated Batch Picking List PDF for a batch
+//	@Description	Batch/wave no., warehouse, every consolidated line (SKU/product/brand/pack size/source location/lot/expiry/qty/UOM), a barcode/QR for the batch no., and one QR per line for pick-face scanning. Only valid once the batch is CONFIRMED or COMPLETED — a DRAFT batch has no real picking task yet. Read-only: printing/reprinting is always safe.
+//	@Tags			Picking Batches
+//	@Produce		application/pdf
+//	@Security		BearerAuth
+//	@Param			id			path	int		true	"Batch ID"
+//	@Param			download	query	boolean	false	"true for a download, omitted for inline viewing"
+//	@Success		200	{file}	file
+//	@Failure		401	{object}	apihttp.ErrorResponse
+//	@Failure		403	{object}	apihttp.ErrorResponse
+//	@Failure		404	{object}	apihttp.ErrorResponse
+//	@Failure		409	{object}	apihttp.ErrorResponse	"batch is not CONFIRMED/COMPLETED yet"
+//	@Router			/picking-batches/{id}/pdf [get]
+func (h *Handler) PDF(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+	id, err := parseID(c, "id")
+	if err != nil {
+		apihttp.Fail(c, http.StatusBadRequest, "invalid batch id", "INVALID_REQUEST")
+		return
+	}
+	userID, _ := middleware.CurrentUserID(c)
+
+	data, filename, err := h.pdf.RenderConsolidatedPickList(c.Request.Context(), tenantID, userID, id)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	servePDF(c, data, filename)
 }
 
 // Create godoc
@@ -470,6 +524,8 @@ func writeError(c *gin.Context, err error) {
 		apihttp.Fail(c, http.StatusNotFound, "warehouse not found", "WAREHOUSE_NOT_FOUND")
 	case errors.Is(err, ErrNotConfirmable):
 		apihttp.Fail(c, http.StatusConflict, err.Error(), "NOT_CONFIRMABLE")
+	case errors.Is(err, ErrBatchNotConfirmed):
+		apihttp.Fail(c, http.StatusConflict, err.Error(), "BATCH_NOT_CONFIRMED")
 	case errors.Is(err, ErrConfirmConflict):
 		apihttp.Fail(c, http.StatusConflict, err.Error(), "CONFIRM_CONFLICT")
 	case errors.Is(err, ErrNotCancellable):

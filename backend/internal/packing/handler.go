@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -654,6 +655,7 @@ func (h *Handler) PackingList(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Param			id			path	int		true	"Packing job ID"
 //	@Param			carton_id	query	int		false	"Print only this carton"
+//	@Param			format		query	string	false	"LABEL (default, 4x6in media) or A4 — renders the same label content on a full A4 page for warehouses without a label printer"
 //	@Param			download	query	boolean	false	"true for a download, omitted for inline viewing"
 //	@Success		200			{file}	file
 //	@Failure		401			{object}	apihttp.ErrorResponse
@@ -682,7 +684,9 @@ func (h *Handler) CartonLabels(c *gin.Context) {
 		}
 	}
 
-	data, filename, err := h.pdf.RenderCartonLabels(c.Request.Context(), tenantID, userID, id, cartonID)
+	format := strings.ToUpper(c.Query("format"))
+
+	data, filename, err := h.pdf.RenderCartonLabels(c.Request.Context(), tenantID, userID, id, cartonID, format)
 	if err != nil {
 		writeError(c, err)
 		return

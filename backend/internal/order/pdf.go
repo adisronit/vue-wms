@@ -29,14 +29,36 @@ type userNamer interface {
 // tenant/user display-name lookups every generated PDF's header/footer
 // needs — the same composition shape internal/relocation's own
 // PDFService uses, kept local to this package.
+// docRecorder is the narrow slice of internal/docrender's own Service
+// this package needs — see internal/picking/pdf.go's own docRecorder
+// doc for the full rationale (wired via SetDocRender, not the
+// constructor, nil-checked at the one call site in record below).
+type docRecorder interface {
+	Record(ctx context.Context, tenantID int64, documentType, documentNo, sourceTable string, sourceID, userID int64, isDraft bool, pdfData []byte) error
+}
+
 type PDFService struct {
-	order   *Service
-	tenants tenantNamer
-	users   userNamer
+	order     *Service
+	tenants   tenantNamer
+	users     userNamer
+	docrender docRecorder
 }
 
 func NewPDFService(orderSvc *Service, tenants tenantNamer, users userNamer) *PDFService {
 	return &PDFService{order: orderSvc, tenants: tenants, users: users}
+}
+
+// SetDocRender wires the document-history recorder (Phase 33C.3) — see
+// docRecorder's own doc.
+func (s *PDFService) SetDocRender(d docRecorder) {
+	s.docrender = d
+}
+
+func (s *PDFService) record(ctx context.Context, tenantID int64, documentType, documentNo, sourceTable string, sourceID, userID int64, isDraft bool, pdfData []byte) {
+	if s.docrender == nil {
+		return
+	}
+	_ = s.docrender.Record(ctx, tenantID, documentType, documentNo, sourceTable, sourceID, userID, isDraft, pdfData)
 }
 
 func (s *PDFService) meta(ctx context.Context, tenantID, userID int64, title, docNo string) (pdfexport.Meta, error) {
@@ -126,7 +148,11 @@ func (s *PDFService) RenderOrderDocument(ctx context.Context, tenantID, userID, 
 	})
 
 	data, err := doc.Bytes()
-	return data, fmt.Sprintf("Order_%s.pdf", o.OrderNo), err
+	if err != nil {
+		return nil, "", err
+	}
+	s.record(ctx, tenantID, "ORDER", o.OrderNo, "orders", orderID, userID, false, data)
+	return data, fmt.Sprintf("Order_%s.pdf", o.OrderNo), nil
 }
 
 // formatDate renders a *time.Time as a date-only string (RequiredShipping/

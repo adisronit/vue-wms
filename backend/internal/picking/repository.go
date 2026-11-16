@@ -476,6 +476,20 @@ func (r *Repository) InsertScanLog(ctx context.Context, tenantID int64, log *Sca
 	return r.db.WithContext(ctx).Create(log).Error
 }
 
+// FindScanLogsByTask returns every picking_scan_log row recorded for
+// taskID, oldest first — added in Phase 33C.3 for the Picking
+// Confirmation Report's own "scan verification summary" section. Purely
+// additive and read-only: no existing caller of this package uses it,
+// and it does not change ScanConfirm's own write behavior at all.
+func (r *Repository) FindScanLogsByTask(ctx context.Context, tenantID, taskID int64) ([]ScanLog, error) {
+	var logs []ScanLog
+	err := r.db.WithContext(ctx).
+		Where("tenant_id = ? AND picking_task_id = ?", tenantID, taskID).
+		Order("created_at ASC, id ASC").
+		Find(&logs).Error
+	return logs, err
+}
+
 // InsertConfirmation is the idempotency guard itself — see
 // migrations/0019's doc. Must be called inside the same transaction as
 // the stock mutations it's guarding.
