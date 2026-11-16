@@ -10,6 +10,9 @@ import PutawayView from '../views/inbound/PutawayView.vue'
 import StockInquiryView from '../views/inventory/StockInquiryView.vue'
 import StockAdjustmentView from '../views/inventory/StockAdjustmentView.vue'
 import OrderView from '../views/outbound/OrderView.vue'
+import OrderFormView from '../views/outbound/OrderFormView.vue'
+import OrderDetailView from '../views/outbound/OrderDetailView.vue'
+import OrderReviewView from '../views/outbound/OrderReviewView.vue'
 import PickingView from '../views/outbound/PickingView.vue'
 import ShippingView from '../views/outbound/ShippingView.vue'
 import UserManagementView from '../views/administration/UserManagementView.vue'
@@ -79,6 +82,29 @@ const routes = [
         path: 'outbound/orders',
         name: 'Orders',
         component: OrderView,
+      },
+      {
+        path: 'outbound/orders/new',
+        name: 'NewOrder',
+        component: OrderFormView,
+      },
+      {
+        path: 'outbound/orders/:id/edit',
+        name: 'EditOrder',
+        component: OrderFormView,
+        props: true,
+      },
+      {
+        path: 'outbound/orders/:id/review',
+        name: 'OrderReview',
+        component: OrderReviewView,
+        props: true,
+      },
+      {
+        path: 'outbound/orders/:id',
+        name: 'OrderDetail',
+        component: OrderDetailView,
+        props: true,
       },
       {
         path: 'outbound/picking',
