@@ -104,7 +104,7 @@ func (f *fakeWarehouses) FindByID(context.Context, int64) (*warehouse.Warehouse,
 func TestCreate_RejectsUnknownWarehouse(t *testing.T) {
 	svc := NewService(nil, nil, &fakeWarehouses{err: errors.New("not found")}, nil, nil)
 
-	_, err := svc.Create(context.Background(), CreateRequest{WarehouseID: 999}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{WarehouseID: 999}, 1)
 
 	if !errors.Is(err, ErrWarehouseNotFound) {
 		t.Fatalf("error = %v, want ErrWarehouseNotFound", err)
@@ -114,7 +114,7 @@ func TestCreate_RejectsUnknownWarehouse(t *testing.T) {
 func TestUpdate_RejectsUnknownWarehouse(t *testing.T) {
 	svc := NewService(nil, nil, &fakeWarehouses{err: errors.New("not found")}, nil, nil)
 
-	_, err := svc.Update(context.Background(), 1, UpdateRequest{WarehouseID: 999})
+	_, err := svc.Update(context.Background(), 1, 1, UpdateRequest{WarehouseID: 999})
 
 	if !errors.Is(err, ErrWarehouseNotFound) {
 		t.Fatalf("error = %v, want ErrWarehouseNotFound", err)

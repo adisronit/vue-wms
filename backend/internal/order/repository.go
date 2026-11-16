@@ -36,28 +36,34 @@ func (r *Repository) Transaction(ctx context.Context, fn func(tx *gorm.DB, txRep
 	})
 }
 
-// CreateOrder inserts the header, then derives order_no from the new
-// IDENTITY id in the same transaction — the same race-free-by-
-// construction approach as pick_no/task_no/shipment_no.
-func (r *Repository) CreateOrder(ctx context.Context, o *Order) error {
+// CreateOrder stamps tenantID onto the header, inserts it, then derives
+// order_no from the new IDENTITY id in the same transaction — the same
+// race-free-by-construction approach as pick_no/task_no/shipment_no.
+// Phase 30 Batch 3: tenantID must be the caller's own verified tenant,
+// never read from the request body.
+func (r *Repository) CreateOrder(ctx context.Context, tenantID int64, o *Order) error {
+	o.TenantID = tenantID
 	if err := r.db.WithContext(ctx).Create(o).Error; err != nil {
 		return err
 	}
 	o.OrderNo = fmt.Sprintf("ORD-%06d", o.ID)
-	return r.db.WithContext(ctx).Model(&Order{}).Where("id = ?", o.ID).
+	return r.db.WithContext(ctx).Model(&Order{}).Where("id = ? AND tenant_id = ?", o.ID, tenantID).
 		Update("order_no", o.OrderNo).Error
 }
 
-func (r *Repository) CreateItem(ctx context.Context, item *Item) error {
+func (r *Repository) CreateItem(ctx context.Context, tenantID int64, item *Item) error {
+	item.TenantID = tenantID
 	return r.db.WithContext(ctx).Create(item).Error
 }
 
-// FindByID returns the plain GORM model — used internally by Update/
-// CreatePickingTask/Cancel where the joined display fields FindDetail
-// resolves aren't needed.
-func (r *Repository) FindByID(ctx context.Context, id int64) (*Order, error) {
+// FindByID returns the plain GORM model, scoped to tenantID — used
+// internally by Update/CreatePickingTask/Cancel where the joined display
+// fields FindDetail resolves aren't needed. Phase 30 Batch 3: a
+// cross-tenant id now returns ErrNotFound exactly like a nonexistent one,
+// closing the IDOR this query previously had.
+func (r *Repository) FindByID(ctx context.Context, tenantID, id int64) (*Order, error) {
 	var o Order
-	err := r.db.WithContext(ctx).First(&o, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&o, "id = ? AND tenant_id = ?", id, tenantID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
 	}
@@ -70,10 +76,11 @@ func (r *Repository) FindByID(ctx context.Context, id int64) (*Order, error) {
 // FindByOrderNo supports lookup by the server-generated order_no —
 // order_no is never client-supplied (see CreateRequest's doc), so this
 // exists for completeness/future use (e.g. a barcode/QR scan flow)
-// rather than any path this phase's own handlers call today.
-func (r *Repository) FindByOrderNo(ctx context.Context, orderNo string) (*Order, error) {
+// rather than any path this phase's own handlers call today. Scoped to
+// tenantID for the same reason FindByID is.
+func (r *Repository) FindByOrderNo(ctx context.Context, tenantID int64, orderNo string) (*Order, error) {
 	var o Order
-	err := r.db.WithContext(ctx).First(&o, "order_no = ?", orderNo).Error
+	err := r.db.WithContext(ctx).First(&o, "order_no = ? AND tenant_id = ?", orderNo, tenantID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
 	}
@@ -88,10 +95,10 @@ func (r *Repository) FindByOrderNo(ctx context.Context, orderNo string) (*Order,
 // migrations/0038's own external_reference doc). Not wired to a
 // dedicated handler route this phase — GET /orders?search= already
 // matches external_reference — but kept available at the repository
-// layer for that future integration.
-func (r *Repository) FindByExternalReference(ctx context.Context, ref string) (*Order, error) {
+// layer for that future integration. Scoped to tenantID.
+func (r *Repository) FindByExternalReference(ctx context.Context, tenantID int64, ref string) (*Order, error) {
 	var o Order
-	err := r.db.WithContext(ctx).First(&o, "external_reference = ?", ref).Error
+	err := r.db.WithContext(ctx).First(&o, "external_reference = ? AND tenant_id = ?", ref, tenantID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
 	}
@@ -101,9 +108,13 @@ func (r *Repository) FindByExternalReference(ctx context.Context, ref string) (*
 	return &o, nil
 }
 
-func (r *Repository) FindItemsByOrder(ctx context.Context, orderID int64) ([]Item, error) {
+// FindItemsByOrder is only ever called right after a tenant-scoped
+// FindByID already proved orderID belongs to tenantID, but the
+// tenant_id predicate here is defense in depth, not the primary guard —
+// matching internal/picking's own FindItemsByTask precedent (Batch 2).
+func (r *Repository) FindItemsByOrder(ctx context.Context, tenantID, orderID int64) ([]Item, error) {
 	var items []Item
-	err := r.db.WithContext(ctx).Where("order_id = ?", orderID).Order("id ASC").Find(&items).Error
+	err := r.db.WithContext(ctx).Where("order_id = ? AND tenant_id = ?", orderID, tenantID).Order("id ASC").Find(&items).Error
 	return items, err
 }
 
@@ -111,16 +122,20 @@ func (r *Repository) FindItemsByOrder(ctx context.Context, orderID int64) ([]Ite
 // replace semantics (delete then reinsert) rather than a per-line diff,
 // safe only because a PENDING order (the only status Update ever runs
 // against — see Status.CanUpdate) has never had CreatePickingTask
-// reserve anything against these lines yet.
-func (r *Repository) DeleteItemsByOrder(ctx context.Context, orderID int64) error {
-	return r.db.WithContext(ctx).Where("order_id = ?", orderID).Delete(&Item{}).Error
+// reserve anything against these lines yet. Scoped to tenantID as
+// defense in depth, matching FindItemsByOrder above.
+func (r *Repository) DeleteItemsByOrder(ctx context.Context, tenantID, orderID int64) error {
+	return r.db.WithContext(ctx).Where("order_id = ? AND tenant_id = ?", orderID, tenantID).Delete(&Item{}).Error
 }
 
 // UpdateHeader writes the fields Update may change — never touches
 // status/picking_task_id/cancel* columns, which have their own guarded
-// writers (ClaimForPickingTask, LinkPickingTask, CancelOrder).
-func (r *Repository) UpdateHeader(ctx context.Context, o *Order) error {
-	err := r.db.WithContext(ctx).Model(&Order{}).Where("id = ?", o.ID).Updates(map[string]any{
+// writers (ClaimForPickingTask, LinkPickingTask, CancelOrder). Phase 30
+// Batch 3: scoped to tenantID — the caller's own FindByID already proved
+// ownership, but the write itself is scoped too, matching every other
+// workflow package's own write-layer precedent.
+func (r *Repository) UpdateHeader(ctx context.Context, tenantID int64, o *Order) error {
+	err := r.db.WithContext(ctx).Model(&Order{}).Where("id = ? AND tenant_id = ?", o.ID, tenantID).Updates(map[string]any{
 		"customer":           o.Customer,
 		"external_reference": o.ExternalReference,
 		"warehouse_id":       o.WarehouseID,
@@ -134,36 +149,43 @@ func (r *Repository) UpdateHeader(ctx context.Context, o *Order) error {
 // guard — an atomic conditional UPDATE, the same ClaimStatus shape
 // internal/stockcount's own CreateAdjustments established (Phase 16):
 // 0 rows affected means the order is not PENDING (already has a picking
-// task, was cancelled, or a concurrent call won the race), and
-// Service.CreatePickingTask treats that uniformly as ErrNotReleasable —
-// a clean 409 instead of the raw UNIQUE-constraint violation
-// orders.picking_task_id would otherwise raise. Claiming BEFORE calling
+// task, was cancelled, or a concurrent call won the race) OR does not
+// belong to tenantID, and Service.CreatePickingTask treats both cases
+// uniformly as ErrNotReleasable — a clean 409 instead of the raw
+// UNIQUE-constraint violation orders.picking_task_id would otherwise
+// raise, and without ever distinguishing "exists in another tenant" from
+// "not releasable" in the response. Claiming BEFORE calling
 // picking.Service.CreateTx, in the same transaction, is what makes a
 // failed picking-task creation roll back this claim automatically too —
-// no separate compensating update is needed.
-func (r *Repository) ClaimForPickingTask(ctx context.Context, orderID int64) (int64, error) {
+// no separate compensating update is needed. Phase 30 Batch 3: tenant_id
+// now lives directly in this atomic UPDATE's WHERE clause — the same
+// highest-risk fix Batch 1/2 applied to AdjustBalance/AdjustPickedQty — a
+// mismatched tenant_id here would otherwise let a caller claim (and thus
+// create a picking task against) another tenant's order.
+func (r *Repository) ClaimForPickingTask(ctx context.Context, tenantID, orderID int64) (int64, error) {
 	result := r.db.WithContext(ctx).Exec(`
 		UPDATE orders
 		SET status = ?, updated_at = SYSUTCDATETIME()
-		WHERE id = ? AND status = ? AND picking_task_id IS NULL
-	`, string(StatusPicking), orderID, string(StatusPending))
+		WHERE id = ? AND tenant_id = ? AND status = ? AND picking_task_id IS NULL
+	`, string(StatusPicking), orderID, tenantID, string(StatusPending))
 	return result.RowsAffected, result.Error
 }
 
 // LinkPickingTask records which picking task CreatePickingTask created
 // for this order — called only after picking.Service.CreateTx has
 // already succeeded, inside the same transaction as ClaimForPickingTask.
-func (r *Repository) LinkPickingTask(ctx context.Context, orderID, pickingTaskID int64) error {
-	return r.db.WithContext(ctx).Model(&Order{}).Where("id = ?", orderID).
+// Scoped to tenantID as defense in depth.
+func (r *Repository) LinkPickingTask(ctx context.Context, tenantID, orderID, pickingTaskID int64) error {
+	return r.db.WithContext(ctx).Model(&Order{}).Where("id = ? AND tenant_id = ?", orderID, tenantID).
 		Update("picking_task_id", pickingTaskID).Error
 }
 
 // CancelOrder persists a successful Cancel — status plus the
 // cancellation-audit columns, in one explicit UPDATE, the same
 // dedicated-writer shape every other workflow package's own CancelTask
-// uses.
-func (r *Repository) CancelOrder(ctx context.Context, o *Order) error {
-	return r.db.WithContext(ctx).Model(&Order{}).Where("id = ?", o.ID).Updates(map[string]any{
+// uses. Scoped to tenantID as defense in depth.
+func (r *Repository) CancelOrder(ctx context.Context, tenantID int64, o *Order) error {
+	return r.db.WithContext(ctx).Model(&Order{}).Where("id = ? AND tenant_id = ?", o.ID, tenantID).Updates(map[string]any{
 		"status":        o.Status,
 		"cancelled_at":  o.CancelledAt,
 		"cancelled_by":  o.CancelledBy,
@@ -202,7 +224,10 @@ type detailRow struct {
 	CancelRemark      *string
 }
 
-func (r *Repository) FindDetail(ctx context.Context, id int64) (*detailRow, error) {
+// FindDetail scopes to tenantID — Phase 30 Batch 3 closes the IDOR this
+// query previously had: a cross-tenant id now returns ErrNotFound exactly
+// like a nonexistent one.
+func (r *Repository) FindDetail(ctx context.Context, tenantID, id int64) (*detailRow, error) {
 	var row detailRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT o.id AS id, o.order_no AS order_no, o.customer AS customer, o.external_reference AS external_reference,
@@ -220,8 +245,8 @@ func (r *Repository) FindDetail(ctx context.Context, id int64) (*detailRow, erro
 		LEFT JOIN shipments sh ON sh.picking_task_id = pt.id
 		LEFT JOIN users cu ON cu.id = o.created_by
 		LEFT JOIN users xu ON xu.id = o.cancelled_by
-		WHERE o.id = ?
-	`, id).Scan(&row).Error
+		WHERE o.id = ? AND o.tenant_id = ?
+	`, id, tenantID).Scan(&row).Error
 	if err != nil {
 		return nil, err
 	}
@@ -240,16 +265,20 @@ type itemDetailRow struct {
 	UOM         string
 }
 
-func (r *Repository) FindItemsDetail(ctx context.Context, orderID int64) ([]ItemResponse, error) {
+// FindItemsDetail is only ever called right after a tenant-scoped
+// FindDetail already proved orderID belongs to tenantID, but the
+// tenant_id predicate here is defense in depth, matching
+// FindItemsByOrder's own reasoning above.
+func (r *Repository) FindItemsDetail(ctx context.Context, tenantID, orderID int64) ([]ItemResponse, error) {
 	var rows []itemDetailRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT oi.id AS id, oi.product_id AS product_id, p.sku AS sku, p.name AS product_name,
 			oi.ordered_qty AS ordered_qty, oi.uom AS uom
 		FROM order_items oi
 		JOIN products p ON p.id = oi.product_id
-		WHERE oi.order_id = ?
+		WHERE oi.order_id = ? AND oi.tenant_id = ?
 		ORDER BY oi.id ASC
-	`, orderID).Scan(&rows).Error
+	`, orderID, tenantID).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -282,8 +311,10 @@ type listRow struct {
 // rather than via a per-row call into picking.Service/shipping.Service
 // (which Service.Get uses instead — see its own doc) specifically to
 // avoid an N+1 lookup across a page of orders; both paths feed the exact
-// same pure deriveFulfillmentStatus function.
-func (r *Repository) List(ctx context.Context, params ListParams) ([]listRow, int64, error) {
+// same pure deriveFulfillmentStatus function. Phase 30 Batch 3: scoped to
+// tenantID so one tenant's order history never leaks into another's
+// list.
+func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams) ([]listRow, int64, error) {
 	base := `
 		FROM orders o
 		JOIN warehouses w ON w.id = o.warehouse_id
@@ -291,12 +322,14 @@ func (r *Repository) List(ctx context.Context, params ListParams) ([]listRow, in
 		LEFT JOIN picking_tasks pt ON pt.id = o.picking_task_id
 		LEFT JOIN shipments sh ON sh.picking_task_id = pt.id
 	`
-	where := `WHERE (? = '' OR o.order_no LIKE ? OR o.external_reference LIKE ? OR o.customer LIKE ?)
+	where := `WHERE o.tenant_id = ?
+		AND (? = '' OR o.order_no LIKE ? OR o.external_reference LIKE ? OR o.customer LIKE ?)
 		AND (? = '' OR o.status = ?)
 		AND (? = 0 OR o.warehouse_id = ?)`
 
 	like := "%" + params.Search + "%"
 	args := []any{
+		tenantID,
 		params.Search, like, like, like,
 		string(params.Status), string(params.Status),
 		params.WarehouseID, params.WarehouseID,

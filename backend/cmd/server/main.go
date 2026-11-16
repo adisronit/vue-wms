@@ -312,7 +312,7 @@ func main() {
 
 	orderRepo := order.NewRepository(dbManager.DB())
 	orderService := order.NewService(orderRepo, productRepo, warehouseRepo, pickingService, shippingService)
-	order.NewHandler(orderService).Register(v1, cfg.JWTSecret)
+	order.NewHandler(orderService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	if cfg.SwaggerEnabled {
 		engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

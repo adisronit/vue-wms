@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -12,6 +13,13 @@ import (
 	apihttp "wms-backend/internal/platform/http"
 	"wms-backend/internal/platform/middleware"
 )
+
+// writeTenantUnauthorized is shared by every handler method's
+// EnforcedTenantID guard below — same shape as internal/picking's own
+// (Batch 2).
+func writeTenantUnauthorized(c *gin.Context) {
+	apihttp.Fail(c, http.StatusUnauthorized, "tenant context required", "UNAUTHORIZED")
+}
 
 // Handler exposes Service over HTTP.
 type Handler struct {
@@ -29,8 +37,17 @@ func NewHandler(service *Service) *Handler {
 // level Picking's own Confirm uses), Cancel sits on order.approve (the
 // same "ends the document without completing it" authority level every
 // other workflow package's own Cancel uses).
-func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
-	group := rg.Group("/orders", middleware.RequireJWT(jwtSecret))
+//
+// Phase 30 Batch 3 upgrades the chain from RequireJWT-only to
+// RequireJWT -> RequireTenantContext -> RequirePermission, matching
+// internal/picking's own Batch 2 chain — every handler method below now
+// extracts tenantID via middleware.EnforcedTenantID and threads it
+// through to Service.
+func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChecker middleware.MembershipChecker, membershipCacheTTL time.Duration) {
+	group := rg.Group("/orders",
+		middleware.RequireJWT(jwtSecret),
+		middleware.RequireTenantContext(membershipChecker, membershipCacheTTL),
+	)
 	group.GET("", middleware.RequirePermission("order.view"), h.List)
 	group.GET("/:id", middleware.RequirePermission("order.view"), h.Get)
 	group.POST("", middleware.RequirePermission("order.create"), h.Create)
@@ -56,11 +73,17 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
 //	@Failure		403				{object}	apihttp.ErrorResponse
 //	@Router			/orders [get]
 func (h *Handler) List(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	page, _ := strconv.Atoi(c.Query("page"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	warehouseID, _ := strconv.ParseInt(c.Query("warehouse_id"), 10, 64)
 
-	rows, total, err := h.service.List(c.Request.Context(), ListParams{
+	rows, total, err := h.service.List(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), Status: Status(c.Query("status")),
 		WarehouseID: warehouseID, Page: page, Limit: limit,
 	})
@@ -100,12 +123,18 @@ func (h *Handler) List(c *gin.Context) {
 //	@Failure		404	{object}	apihttp.ErrorResponse
 //	@Router			/orders/{id} [get]
 func (h *Handler) Get(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid order id", "INVALID_REQUEST")
 		return
 	}
-	resp, err := h.service.Get(c.Request.Context(), id)
+	resp, err := h.service.Get(c.Request.Context(), tenantID, id)
 	if errors.Is(err, ErrNotFound) {
 		apihttp.Fail(c, http.StatusNotFound, "order not found", "NOT_FOUND")
 		return
@@ -135,6 +164,12 @@ func (h *Handler) Get(c *gin.Context) {
 //	@Failure		409		{object}	apihttp.ErrorResponse	"external_reference already used by another order"
 //	@Router			/orders [post]
 func (h *Handler) Create(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	var req CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid request body", "INVALID_REQUEST")
@@ -143,7 +178,7 @@ func (h *Handler) Create(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Create(ctx, req, userID)
+	resp, err := h.service.Create(ctx, tenantID, req, userID)
 	if err == nil {
 		apihttp.Status(c, http.StatusCreated, resp, "order created")
 		return
@@ -170,6 +205,12 @@ func (h *Handler) Create(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/orders/{id} [put]
 func (h *Handler) Update(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid order id", "INVALID_REQUEST")
@@ -182,7 +223,7 @@ func (h *Handler) Update(c *gin.Context) {
 	}
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Update(ctx, id, req)
+	resp, err := h.service.Update(ctx, tenantID, id, req)
 	if err == nil {
 		apihttp.OK(c, resp, "order updated")
 		return
@@ -209,6 +250,12 @@ func (h *Handler) Update(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse	"assignment mismatch, or insufficient available stock to reserve"
 //	@Router			/orders/{id}/create-picking-task [post]
 func (h *Handler) CreatePickingTask(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid order id", "INVALID_REQUEST")
@@ -222,7 +269,7 @@ func (h *Handler) CreatePickingTask(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.CreatePickingTask(ctx, id, req, userID)
+	resp, err := h.service.CreatePickingTask(ctx, tenantID, id, req, userID)
 	if err == nil {
 		apihttp.OK(c, resp, "picking task created")
 		return
@@ -247,6 +294,12 @@ func (h *Handler) CreatePickingTask(c *gin.Context) {
 //	@Failure		409		{object}	apihttp.ErrorResponse	"order is not in a cancellable status"
 //	@Router			/orders/{id}/cancel [post]
 func (h *Handler) Cancel(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid order id", "INVALID_REQUEST")
@@ -262,7 +315,7 @@ func (h *Handler) Cancel(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Cancel(ctx, id, req, userID)
+	resp, err := h.service.Cancel(ctx, tenantID, id, req, userID)
 	if err == nil {
 		apihttp.OK(c, resp, "order cancelled")
 		return

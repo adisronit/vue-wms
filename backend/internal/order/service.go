@@ -8,7 +8,6 @@ import (
 
 	"gorm.io/gorm"
 
-	"wms-backend/internal/inventory"
 	"wms-backend/internal/picking"
 	"wms-backend/internal/platform/dbctx"
 	"wms-backend/internal/product"
@@ -31,13 +30,23 @@ var (
 	ErrNotReleasable     = errors.New("order: order is not in a status that can create a picking task")
 )
 
-// productChecker and warehouseChecker are the narrow slices of the
-// Phase 3/4 repositories this package needs — the same narrow-interface
-// pattern every prior phase established.
+// productChecker is the narrow slice of internal/product's own
+// Repository this package needs. Phase 30 Batch 3 upgrades this from the
+// old unscoped FindByID to FindByIDForTenant (added in Batch 1, already
+// used by internal/picking's own Batch 2 fix) so an order line's
+// product_id is verified to belong to the caller's own tenant, not
+// merely to exist.
 type productChecker interface {
-	FindByID(ctx context.Context, id int64) (*product.Product, error)
+	FindByIDForTenant(ctx context.Context, tenantID, id int64) (*product.Product, error)
 }
 
+// warehouseChecker is still the old, unscoped Phase 3 lookup — the
+// Warehouse module itself has not been tenant-scoped in any Phase 30
+// batch yet (no tenant-scoped warehouse repository method exists
+// anywhere in the codebase), so warehouse ownership remains unverified
+// here, exactly like internal/picking's own warehouseChecker (Batch 2).
+// Reported as a remaining gap, not silently treated as secure — see this
+// package's final Phase 30 Batch 3 report.
 type warehouseChecker interface {
 	FindByID(ctx context.Context, id int64) (*warehouse.Warehouse, error)
 }
@@ -50,13 +59,12 @@ type warehouseChecker interface {
 // status for FulfillmentStatus without internal/order ever storing or
 // syncing that state itself.
 //
-// Phase 30 Batch 2 added a required tenantID parameter to both methods;
-// internal/order is not itself tenant-scoped yet (Batch 3, explicitly
-// out of scope for Batch 2 — "No unrelated Order/Shipping refactor") and
-// has no verified per-request tenant context to hand down, so its call
-// sites below pass inventory.UnverifiedCallerTenantID. This means the
-// Order->Picking boundary remains unverified until Order itself is
-// scoped — reported, not silently treated as secure.
+// Phase 30 Batch 3: Order Management is now itself tenant-scoped, so
+// both calls below pass the caller's own verified tenantID (extracted by
+// the handler from the authenticated request's tenant context) instead
+// of Batch 2's inventory.UnverifiedCallerTenantID placeholder — closing
+// the Order->Picking boundary that Batch 2's own report flagged as the
+// deferred half of this gap.
 type pickingOrchestrator interface {
 	CreateTx(ctx context.Context, tenantID int64, tx *gorm.DB, req picking.CreateRequest, userID int64) (int64, error)
 	Get(ctx context.Context, tenantID, id int64) (*picking.Response, error)
@@ -66,6 +74,24 @@ type pickingOrchestrator interface {
 // this package needs — FindByPickingTaskID, added specifically for this
 // phase (see that method's own doc) so Service.Get can resolve whether
 // (and how) a linked picking task has since been shipped.
+//
+// FindByPickingTaskID itself takes no tenantID — internal/shipping has
+// not been tenant-scoped in any Phase 30 batch (explicitly out of scope
+// for Batch 3 — "No Shipping refactor except required safe caller
+// adaptation"), so its own repository query carries no tenant_id
+// predicate. This call site is still safe by construction, not merely
+// unverified: row.PickingTaskID is read from this package's own
+// tenant-scoped FindDetail, and a picking_tasks.id value only ever
+// reaches an order's picking_task_id column via this same package's
+// CreatePickingTask, which (as of this batch) only ever creates that
+// task through picking.Service.CreateTx using the caller's own verified
+// tenantID. Because picking_tasks.id is a single globally-unique
+// IDENTITY column, no other tenant's order can ever hold the same id, so
+// looking up "the shipment linked to this exact id" cannot cross a
+// tenant boundary even though the shipping query itself does not filter
+// on tenant_id. Reported, not silently assumed: if internal/shipping
+// ever gains a path that creates shipments or picking-task links outside
+// that invariant, this reasoning must be re-checked.
 type shippingReader interface {
 	FindByPickingTaskID(ctx context.Context, pickingTaskID int64) (*shipping.Response, error)
 }
@@ -88,7 +114,7 @@ func NewService(repo *Repository, products productChecker, warehouses warehouseC
 	return &Service{repo: repo, products: products, warehouses: warehouses, picking: pickingSvc, shipping: shippingSvc}
 }
 
-func (s *Service) List(ctx context.Context, params ListParams) ([]ListResponse, int64, error) {
+func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
 	page, limit := params.Page, params.Limit
 	if page < 1 {
 		page = 1
@@ -98,7 +124,7 @@ func (s *Service) List(ctx context.Context, params ListParams) ([]ListResponse, 
 	}
 	params.Page, params.Limit = page, limit
 
-	rows, total, err := s.repo.List(ctx, params)
+	rows, total, err := s.repo.List(ctx, tenantID, params)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -119,13 +145,16 @@ func (s *Service) List(ctx context.Context, params ListParams) ([]ListResponse, 
 // FulfillmentStatus — via picking.Service.Get and shipping.Service.
 // FindByPickingTaskID (only when a picking task is actually linked; both
 // are cheap single-row lookups, unlike List's own bulk SQL join — see
-// Repository.List's doc for why the two paths differ).
-func (s *Service) Get(ctx context.Context, id int64) (*Response, error) {
-	row, err := s.repo.FindDetail(ctx, id)
+// Repository.List's doc for why the two paths differ). Phase 30 Batch 3:
+// tenantID is the caller's own verified tenant — a cross-tenant id is
+// rejected by Repository.FindDetail as ErrNotFound before any of this
+// runs.
+func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error) {
+	row, err := s.repo.FindDetail(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
-	items, err := s.repo.FindItemsDetail(ctx, id)
+	items, err := s.repo.FindItemsDetail(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -133,14 +162,18 @@ func (s *Service) Get(ctx context.Context, id int64) (*Response, error) {
 	var pickingStatus *picking.Status
 	var shipmentStatus *shipping.Status
 	if row.PickingTaskID != nil {
-		// TenantID: inventory.UnverifiedCallerTenantID — see
-		// pickingOrchestrator's own doc above for why.
-		pickingResp, err := s.picking.Get(ctx, inventory.UnverifiedCallerTenantID, *row.PickingTaskID)
+		// Phase 30 Batch 3: real verified tenantID, not
+		// inventory.UnverifiedCallerTenantID — see pickingOrchestrator's
+		// own doc above.
+		pickingResp, err := s.picking.Get(ctx, tenantID, *row.PickingTaskID)
 		if err != nil {
 			return nil, err
 		}
 		pickingStatus = &pickingResp.Status
 
+		// shippingReader's own doc above explains why this call site is
+		// safe by construction despite shipping.Service.FindByPickingTaskID
+		// itself not taking a tenantID.
 		shipResp, err := s.shipping.FindByPickingTaskID(ctx, *row.PickingTaskID)
 		if err != nil {
 			return nil, err
@@ -188,8 +221,11 @@ func shipmentStatusPtr(s *string) *shipping.Status {
 // Create validates and persists a header + its lines. Never touches
 // inventory: an order is a plain (product, ordered_qty) intent until
 // CreatePickingTask orchestrates a real picking.Service task against
-// chosen locations/lots.
-func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (*Response, error) {
+// chosen locations/lots. Phase 30 Batch 3: tenantID is the caller's own
+// verified tenant — stamped onto the header and every line, and used to
+// verify each line's product_id actually belongs to it (see
+// productChecker's own doc).
+func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest, userID int64) (*Response, error) {
 	if _, err := s.warehouses.FindByID(ctx, req.WarehouseID); err != nil {
 		return nil, ErrWarehouseNotFound
 	}
@@ -207,7 +243,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 			Customer: req.Customer, ExternalReference: req.ExternalReference,
 			WarehouseID: req.WarehouseID, Status: StatusPending, Remark: req.Remark, CreatedBy: &userID,
 		}
-		if err := txRepo.CreateOrder(ctx, o); err != nil {
+		if err := txRepo.CreateOrder(ctx, tenantID, o); err != nil {
 			if isUniqueViolation(err) {
 				return ErrDuplicateExternalReference
 			}
@@ -216,7 +252,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 		orderID = o.ID
 
 		for _, itemReq := range req.Items {
-			if err := s.createItem(ctx, txRepo, o.ID, itemReq); err != nil {
+			if err := s.createItem(ctx, tenantID, txRepo, o.ID, itemReq); err != nil {
 				return err
 			}
 		}
@@ -226,14 +262,17 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, orderID)
+	return s.Get(ctx, tenantID, orderID)
 }
 
-func (s *Service) createItem(ctx context.Context, txRepo *Repository, orderID int64, req CreateItemRequest) error {
+func (s *Service) createItem(ctx context.Context, tenantID int64, txRepo *Repository, orderID int64, req CreateItemRequest) error {
 	if req.OrderedQty <= 0 {
 		return ErrValidation{Message: "ordered_qty must be greater than zero"}
 	}
-	p, err := s.products.FindByID(ctx, req.ProductID)
+	// Phase 30 Batch 3: verified against the caller's own tenant via
+	// FindByIDForTenant — a product belonging to another tenant now
+	// returns ErrProductNotFound exactly like a nonexistent one.
+	p, err := s.products.FindByIDForTenant(ctx, tenantID, req.ProductID)
 	if err != nil {
 		return ErrProductNotFound
 	}
@@ -241,14 +280,16 @@ func (s *Service) createItem(ctx context.Context, txRepo *Repository, orderID in
 	if uom == "" {
 		uom = string(p.BaseUOM)
 	}
-	return txRepo.CreateItem(ctx, &Item{OrderID: orderID, ProductID: req.ProductID, OrderedQty: req.OrderedQty, UOM: uom})
+	return txRepo.CreateItem(ctx, tenantID, &Item{OrderID: orderID, ProductID: req.ProductID, OrderedQty: req.OrderedQty, UOM: uom})
 }
 
 // Update replaces the header fields and every line at once — full-
 // replace, not a per-line diff, safe only because Status.CanUpdate
 // (PENDING) means CreatePickingTask has never reserved anything against
-// these lines yet.
-func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Response, error) {
+// these lines yet. Phase 30 Batch 3: tenantID is the caller's own
+// verified tenant — a cross-tenant id is rejected by the tenant-scoped
+// FindByID as ErrNotFound before any write.
+func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequest) (*Response, error) {
 	if _, err := s.warehouses.FindByID(ctx, req.WarehouseID); err != nil {
 		return nil, ErrWarehouseNotFound
 	}
@@ -258,7 +299,7 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Res
 
 	start := time.Now()
 	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
-		o, err := txRepo.FindByID(ctx, id)
+		o, err := txRepo.FindByID(ctx, tenantID, id)
 		if err != nil {
 			return err
 		}
@@ -270,18 +311,18 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Res
 		o.ExternalReference = req.ExternalReference
 		o.WarehouseID = req.WarehouseID
 		o.Remark = req.Remark
-		if err := txRepo.UpdateHeader(ctx, o); err != nil {
+		if err := txRepo.UpdateHeader(ctx, tenantID, o); err != nil {
 			if isUniqueViolation(err) {
 				return ErrDuplicateExternalReference
 			}
 			return err
 		}
 
-		if err := txRepo.DeleteItemsByOrder(ctx, id); err != nil {
+		if err := txRepo.DeleteItemsByOrder(ctx, tenantID, id); err != nil {
 			return err
 		}
 		for _, itemReq := range req.Items {
-			if err := s.createItem(ctx, txRepo, id, itemReq); err != nil {
+			if err := s.createItem(ctx, tenantID, txRepo, id, itemReq); err != nil {
 				return err
 			}
 		}
@@ -291,7 +332,7 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Res
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, id)
+	return s.Get(ctx, tenantID, id)
 }
 
 // CreatePickingTask is the orchestration action: validate the client's
@@ -305,8 +346,18 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Res
 // effect here is picking.Service's own Phase 12 reservation, run for
 // this order's items exactly as if they had been typed directly into
 // PickingView.vue's own "+ New Picking Task" form.
-func (s *Service) CreatePickingTask(ctx context.Context, id int64, req CreatePickingTaskRequest, userID int64) (*Response, error) {
-	order, err := s.repo.FindByID(ctx, id)
+//
+// Phase 30 Batch 3: tenantID is the caller's own verified tenant. It is
+// threaded into ClaimForPickingTask (so a cross-tenant orderID can never
+// be claimed) and into picking.CreateTx (so the resulting picking task,
+// and everything it in turn verifies — Product/Location ownership,
+// Inventory reservation — is created in the SAME tenant this order
+// belongs to, never inventory.UnverifiedCallerTenantID). Location
+// ownership for req.Items' location_id values is verified inside
+// picking.Service.CreateTx itself (resolveLocation, Batch 2) using this
+// same tenantID — internal/order never queries locations directly.
+func (s *Service) CreatePickingTask(ctx context.Context, tenantID, id int64, req CreatePickingTaskRequest, userID int64) (*Response, error) {
+	order, err := s.repo.FindByID(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +365,7 @@ func (s *Service) CreatePickingTask(ctx context.Context, id int64, req CreatePic
 		return nil, ErrNotReleasable
 	}
 
-	items, err := s.repo.FindItemsByOrder(ctx, id)
+	items, err := s.repo.FindItemsByOrder(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +383,7 @@ func (s *Service) CreatePickingTask(ctx context.Context, id int64, req CreatePic
 
 	start := time.Now()
 	err = s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
-		rows, err := txRepo.ClaimForPickingTask(ctx, id)
+		rows, err := txRepo.ClaimForPickingTask(ctx, tenantID, id)
 		if err != nil {
 			return err
 		}
@@ -343,12 +394,17 @@ func (s *Service) CreatePickingTask(ctx context.Context, id int64, req CreatePic
 			// doc calls this out explicitly: this status check exists so a
 			// second call gets a clean 409 instead of the raw
 			// UQ_orders_picking_task_id violation it would otherwise hit.
+			// Also covers a cross-tenant orderID (ClaimForPickingTask's own
+			// tenant_id predicate), indistinguishable here from any other
+			// non-releasable state by design — never reveals whether the id
+			// exists in another tenant.
 			return ErrNotReleasable
 		}
 
-		// TenantID: inventory.UnverifiedCallerTenantID — see
-		// pickingOrchestrator's own doc above for why.
-		pickingTaskID, err := s.picking.CreateTx(ctx, inventory.UnverifiedCallerTenantID, tx, picking.CreateRequest{
+		// Phase 30 Batch 3: real verified tenantID, not
+		// inventory.UnverifiedCallerTenantID — see pickingOrchestrator's
+		// own doc above.
+		pickingTaskID, err := s.picking.CreateTx(ctx, tenantID, tx, picking.CreateRequest{
 			OrderNo: order.OrderNo, Customer: order.Customer, WarehouseID: order.WarehouseID,
 			Priority: picking.Priority(req.Priority), DueDate: req.DueDate, Remark: order.Remark, Items: pickingItems,
 		}, userID)
@@ -358,13 +414,13 @@ func (s *Service) CreatePickingTask(ctx context.Context, id int64, req CreatePic
 			// stuck in a half-released state.
 			return err
 		}
-		return txRepo.LinkPickingTask(ctx, id, pickingTaskID)
+		return txRepo.LinkPickingTask(ctx, tenantID, id, pickingTaskID)
 	})
 	dbctx.LogTransaction(ctx, "order.create_picking_task", start, err)
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, id)
+	return s.Get(ctx, tenantID, id)
 }
 
 // buildPickingItems is CreatePickingTask's pure validation core,
@@ -406,14 +462,16 @@ func buildPickingItems(items []Item, assignmentReqs []LocationAssignment) ([]pic
 // internal/picking's own Cancel (which already releases its own
 // reservation), not a second, competing cancel path here. Order's Cancel
 // never calls ReleaseReservationTx or touches inventory at all: nothing
-// was ever reserved by Order itself.
-func (s *Service) Cancel(ctx context.Context, id int64, req CancelRequest, userID int64) (*Response, error) {
+// was ever reserved by Order itself. Phase 30 Batch 3: tenantID is the
+// caller's own verified tenant — a cross-tenant id is rejected by the
+// tenant-scoped FindByID as ErrNotFound before any write.
+func (s *Service) Cancel(ctx context.Context, tenantID, id int64, req CancelRequest, userID int64) (*Response, error) {
 	ctx, cancel := dbctx.Detach(ctx)
 	defer cancel()
 
 	start := time.Now()
 	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
-		o, err := txRepo.FindByID(ctx, id)
+		o, err := txRepo.FindByID(ctx, tenantID, id)
 		if err != nil {
 			return err
 		}
@@ -421,11 +479,11 @@ func (s *Service) Cancel(ctx context.Context, id int64, req CancelRequest, userI
 			return ErrNotCancellable
 		}
 		o.applyCancel(userID, req.Remark, time.Now().UTC())
-		return txRepo.CancelOrder(ctx, o)
+		return txRepo.CancelOrder(ctx, tenantID, o)
 	})
 	dbctx.LogTransaction(ctx, "order.cancel", start, err)
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, id)
+	return s.Get(ctx, tenantID, id)
 }
