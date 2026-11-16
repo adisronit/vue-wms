@@ -34,12 +34,23 @@ const (
 	// both Quantity and HoldQuantity together. See RejectHoldTx's own
 	// doc for the full QC PASS/HOLD/REJECT model.
 	TransactionReject TransactionType = "REJECT"
+	// TransactionTransferReceive (migrations/0115, Phase 33E.2) is
+	// internal/transferreceipt's own ReceiveItem action — the ledger
+	// entry AddStockTx writes when it credits the DESTINATION warehouse
+	// once an INTERNAL_TRANSFER order's dispatched shipment physically
+	// arrives. The corresponding debit at the SOURCE warehouse already
+	// happened at Picking.Confirm(PICKED) time as an ordinary
+	// TransactionPick row (see 33E.1's own transfer_pipeline_test.go) —
+	// this is the first and only transaction type that represents the
+	// credit side of an inter-warehouse transfer.
+	TransactionTransferReceive TransactionType = "TRANSFER_RECEIVE"
 )
 
 func (t TransactionType) IsValid() bool {
 	switch t {
 	case TransactionReceive, TransactionPutaway, TransactionMove, TransactionPick,
-		TransactionShip, TransactionAdjust, TransactionReturn, TransactionCount, TransactionReject:
+		TransactionShip, TransactionAdjust, TransactionReturn, TransactionCount, TransactionReject,
+		TransactionTransferReceive:
 		return true
 	default:
 		return false

@@ -172,6 +172,32 @@ var Modules = []ModuleDef{
 	// relocation.confirm already were. "approve" stays on Cancel, its
 	// pre-existing authority level.
 	{Code: "order", Name: "Order Management", Actions: []string{"view", "create", "update", "confirm", "approve"}},
+	// Phase 33E.2 — Destination Receiving: a new, lightweight module
+	// (internal/transferreceipt) that closes the inter-warehouse
+	// transfer loop 33E.1 proved — crediting the DESTINATION warehouse
+	// via inventory.AddStockTx once a dispatched transfer shipment
+	// physically arrives. Kept as its own module rather than folded into
+	// "receiving" above — that module is deeply supplier-centric
+	// (vendor, PO reference, QC/hold integration), the same reasoning
+	// relocation/packing/picking_batch/loading each got their own module
+	// instead of distorting an existing one. No "update": the header has
+	// nothing to edit after creation (every field is either copied from
+	// the source shipment/order or stamped by a mutating action) and no
+	// "delete". "create" gates creating a receipt from a DISPATCHED (or
+	// later) transfer shipment; "confirm" gates BOTH of this module's
+	// stock/status-mutating actions — ReceiveItem (the AddStockTx-calling
+	// action, called incrementally) and Confirm (DRAFT -> COMPLETED,
+	// once every line is fully received or has a recorded discrepancy) —
+	// the same elevated authority level receiving.confirm/putaway.
+	// confirm/relocation.confirm/packing.confirm already established for
+	// their own module's primary stock-mutating action; "approve" gates
+	// Cancel (DRAFT only), matching loading.approve/picking_batch's own
+	// "cancel"-at-elevated-authority precedent rather than relocation's
+	// own "update gates Cancel" choice. No default grant for any
+	// operational staff role yet (matches every other new module's own
+	// precedent) — only ADMIN (every code) and WAREHOUSE_MANAGER (every
+	// non-delete code) get it automatically.
+	{Code: "transfer_receipt", Name: "Destination Receiving", Actions: []string{"view", "create", "confirm", "approve"}},
 	{Code: "users", Name: "User Management", Actions: []string{"view", "create", "update", "delete"}},
 	{Code: "roles", Name: "Roles & Permissions", Actions: []string{"view", "create", "update", "delete", "approve"}},
 	{Code: "warehouse", Name: "Warehouse Setup", Actions: []string{"view", "create", "update", "delete"}},

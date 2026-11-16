@@ -63,6 +63,7 @@ import (
 	"wms-backend/internal/stockcount"
 	"wms-backend/internal/supplier"
 	"wms-backend/internal/tenant"
+	"wms-backend/internal/transferreceipt"
 	"wms-backend/internal/user"
 	"wms-backend/internal/warehouse"
 	"wms-backend/internal/zone"
@@ -421,6 +422,19 @@ func main() {
 	orderPDFService := order.NewPDFService(orderService, tenantRepo, userRepo)
 	orderPDFService.SetDocRender(docrenderService)
 	order.NewHandler(orderService, orderPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 33E.2 — Destination Receiving: closes the inter-warehouse
+	// transfer loop 33E.1 proved. Depends only on existing read methods
+	// of shippingService (resolve a shipment's own items/order) and
+	// orderRepo (resolve that order's own order_type/destination_
+	// warehouse_id by order_no) — neither internal/shipping nor
+	// internal/order is modified by this phase. Never a direct
+	// dependency on orderService/pickingService/packingService: this
+	// module only ever reads a shipment already dispatched by the
+	// existing pipeline, it never orchestrates any part of it.
+	transferReceiptRepo := transferreceipt.NewRepository(dbManager.DB())
+	transferReceiptService := transferreceipt.NewService(transferReceiptRepo, shippingService, orderRepo, inventoryService)
+	transferreceipt.NewHandler(transferReceiptService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Phase 33C.1 — Batch Picking / Wave Management. Shares the exact
 	// same pickingService (and its own CreateTx/SuggestLots/Get) every

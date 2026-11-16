@@ -7,6 +7,7 @@ import DashboardView from '../views/dashboard/DashboardView.vue'
 import ReceiveView from '../views/inbound/ReceiveView.vue'
 import QualityCheckView from '../views/inbound/QualityCheckView.vue'
 import PutawayView from '../views/inbound/PutawayView.vue'
+import TransferReceivingView from '../views/inbound/TransferReceivingView.vue'
 import StockInquiryView from '../views/inventory/StockInquiryView.vue'
 import StockAdjustmentView from '../views/inventory/StockAdjustmentView.vue'
 import OrderView from '../views/outbound/OrderView.vue'
@@ -75,6 +76,11 @@ const routes = [
         path: 'inbound/put-away',
         name: 'PutAway',
         component: PutawayView,
+      },
+      {
+        path: 'inbound/transfer-receiving',
+        name: 'TransferReceiving',
+        component: TransferReceivingView,
       },
       {
         path: 'inventory/stock-inquiry',

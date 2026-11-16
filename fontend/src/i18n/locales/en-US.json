@@ -91,6 +91,7 @@
     "receiving": "Receiving",
     "qualityCheck": "Quality Check",
     "putaway": "Putaway",
+    "transferReceiving": "Transfer Receiving",
     "sectionInventory": "Inventory",
     "stockInquiry": "Stock Inquiry",
     "stockAdjustment": "Stock Adjustment",
@@ -2885,6 +2886,68 @@
       "draftSaved": "Relocation draft saved",
       "markedReady": "Relocation task saved and marked ready",
       "confirmSubmitDialog": "This will save the task and mark it ready for execution. Continue?"
+    }
+  },
+  "transferReceiving": {
+    "title": "Transfer Receiving",
+    "subtitle": "Receive a dispatched inter-warehouse transfer shipment and credit the destination warehouse",
+    "newButton": "+ New Receipt",
+    "selectWarehouseFirst": "Select a destination warehouse first",
+    "selectWarehouseHint": "Select a destination warehouse above to view and create transfer receipts.",
+    "filters": {
+      "searchPlaceholder": "Search Receipt, Shipment, Order No...",
+      "allStatus": "All Status",
+      "selectDestinationWarehouse": "Select Destination Warehouse"
+    },
+    "table": {
+      "receiptNo": "Receipt No.",
+      "shipmentNo": "Shipment No.",
+      "orderNo": "Order No.",
+      "transferReference": "Transfer Reference",
+      "destinationWarehouse": "Destination Warehouse",
+      "lotNo": "Lot No.",
+      "action": "Action"
+    },
+    "loadingReceipts": "Loading transfer receipts…",
+    "noReceipts": "No transfer receipts found",
+    "lineStatus": {
+      "discrepancy": "Discrepancy"
+    },
+    "drawer": {
+      "newReceiptTitle": "New Transfer Receipt",
+      "detailTitle": "Transfer Receipt",
+      "sourceShipment": "Source Shipment",
+      "selectSourceShipment": "Select a dispatched transfer shipment",
+      "noSourceShipments": "No dispatched transfer shipments awaiting receipt for this warehouse",
+      "itemCountSuffix": "{count} item(s)",
+      "createButton": "Create Receipt",
+      "receivedAt": "Received At",
+      "receivedBy": "Received By",
+      "cancelledAt": "Cancelled At",
+      "cancelledBy": "Cancelled By",
+      "cancellationRemark": "Cancellation Remark",
+      "lines": "Receipt Lines",
+      "dispatchedReceived": "Received / Dispatched",
+      "discrepancy": "Discrepancy",
+      "selectStagingLocation": "Select staging location",
+      "quantityPlaceholder": "Quantity to receive",
+      "closeShortLabel": "Close this line short / damaged (no more expected)",
+      "discrepancyReasonPlaceholder": "Reason for the shortfall or damage",
+      "receiveButton": "Receive",
+      "confirmButton": "Confirm Receipt",
+      "cancelButton": "Cancel Receipt",
+      "notReadyToConfirm": "Every line must be fully received or closed with a discrepancy before confirming"
+    },
+    "messages": {
+      "selectSourceRequired": "Select a source shipment",
+      "locationRequired": "Staging location is required",
+      "quantityRequired": "Quantity is required",
+      "discrepancyReasonRequired": "A discrepancy reason is required to close a line short",
+      "receiptCreated": "Transfer receipt created",
+      "itemReceived": "Item received",
+      "receiptConfirmed": "Transfer receipt confirmed",
+      "receiptCancelled": "Transfer receipt cancelled",
+      "confirmCancelReceipt": "This transfer receipt will be cancelled. Continue?"
     }
   },
   "sortation": {

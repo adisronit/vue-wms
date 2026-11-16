@@ -91,6 +91,7 @@
     "receiving": "收货",
     "qualityCheck": "质量检查",
     "putaway": "上架",
+    "transferReceiving": "调拨收货",
     "sectionInventory": "库存",
     "stockInquiry": "库存查询",
     "stockAdjustment": "库存调整",
@@ -2885,6 +2886,68 @@
       "draftSaved": "调拨草稿已保存",
       "markedReady": "调拨任务已保存并标记为待执行",
       "confirmSubmitDialog": "此操作将保存任务并标记为待执行。是否继续？"
+    }
+  },
+  "transferReceiving": {
+    "title": "跨仓调拨收货",
+    "subtitle": "接收已发运的跨仓调拨货物并为目的仓库增加库存",
+    "newButton": "+ 新建收货单",
+    "selectWarehouseFirst": "请先选择目的仓库",
+    "selectWarehouseHint": "请在上方选择目的仓库以查看和创建调拨收货单。",
+    "filters": {
+      "searchPlaceholder": "搜索收货单号、发运单号、订单号...",
+      "allStatus": "全部状态",
+      "selectDestinationWarehouse": "选择目的仓库"
+    },
+    "table": {
+      "receiptNo": "收货单号",
+      "shipmentNo": "发运单号",
+      "orderNo": "订单号",
+      "transferReference": "调拨参考号",
+      "destinationWarehouse": "目的仓库",
+      "lotNo": "批次号",
+      "action": "操作"
+    },
+    "loadingReceipts": "正在加载调拨收货单…",
+    "noReceipts": "未找到调拨收货单",
+    "lineStatus": {
+      "discrepancy": "存在差异"
+    },
+    "drawer": {
+      "newReceiptTitle": "新建调拨收货单",
+      "detailTitle": "调拨收货单",
+      "sourceShipment": "来源发运单",
+      "selectSourceShipment": "选择已发运的调拨发运单",
+      "noSourceShipments": "该仓库没有待收货的已发运调拨发运单",
+      "itemCountSuffix": "{count} 项",
+      "createButton": "创建收货单",
+      "receivedAt": "收货时间",
+      "receivedBy": "收货人",
+      "cancelledAt": "取消时间",
+      "cancelledBy": "取消人",
+      "cancellationRemark": "取消备注",
+      "lines": "收货明细",
+      "dispatchedReceived": "已收 / 已发",
+      "discrepancy": "差异数量",
+      "selectStagingLocation": "选择暂存货位",
+      "quantityPlaceholder": "本次收货数量",
+      "closeShortLabel": "按短缺/损坏结案此明细（不再等待后续到货）",
+      "discrepancyReasonPlaceholder": "短缺或损坏原因",
+      "receiveButton": "收货",
+      "confirmButton": "确认收货单",
+      "cancelButton": "取消收货单",
+      "notReadyToConfirm": "每条明细必须已全部收货或已记录差异原因才能确认"
+    },
+    "messages": {
+      "selectSourceRequired": "请选择来源发运单",
+      "locationRequired": "暂存货位为必填项",
+      "quantityRequired": "数量为必填项",
+      "discrepancyReasonRequired": "按短缺结案此明细时必须填写差异原因",
+      "receiptCreated": "调拨收货单已创建",
+      "itemReceived": "已收货",
+      "receiptConfirmed": "调拨收货单已确认",
+      "receiptCancelled": "调拨收货单已取消",
+      "confirmCancelReceipt": "此调拨收货单将被取消，是否继续？"
     }
   },
   "sortation": {

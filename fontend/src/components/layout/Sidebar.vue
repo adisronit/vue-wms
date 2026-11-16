@@ -26,6 +26,9 @@
       <router-link to="/inbound/put-away" class="menu-item" active-class="menu-active">
         {{ $t('nav.putaway') }}
       </router-link>
+      <router-link v-if="canViewTransferReceipt" to="/inbound/transfer-receiving" class="menu-item" active-class="menu-active">
+        {{ $t('nav.transferReceiving') }}
+      </router-link>
 
       <p class="menu-title">{{ $t('nav.sectionInventory') }}</p>
       <router-link to="/inventory/stock-inquiry" class="menu-item" active-class="menu-active">
@@ -143,6 +146,7 @@ export default {
     canViewProductFamilies: { type: Boolean, default: false },
     canViewReplenishment: { type: Boolean, default: false },
     canViewRelocation: { type: Boolean, default: false },
+    canViewTransferReceipt: { type: Boolean, default: false },
     canViewPacking: { type: Boolean, default: false },
     canViewLoading: { type: Boolean, default: false },
     canViewPickingBatches: { type: Boolean, default: false },
