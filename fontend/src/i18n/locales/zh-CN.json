@@ -316,7 +316,44 @@
       "sumOfQty": "拆分合计：{sum} / {total}"
     },
     "review": {
-      "documentTitle": "单据摘要"
+      "documentTitle": "单据摘要",
+      "validationTitle": "校验结果",
+      "itemsTitle": "产品明细审核",
+      "searchPlaceholder": "搜索 SKU、产品名称或条码…",
+      "brand": "品牌",
+      "packSize": "包装规格",
+      "packs": "包",
+      "storageType": "存储类型",
+      "difference": "差异",
+      "status": "状态",
+      "splitsLabel": "个批次",
+      "mfgDate": "生产日期",
+      "temperature": "温度",
+      "countryOfOrigin": "原产国",
+      "condition": "状况",
+      "errorCount": "有 {count} 个错误需要在确认前解决",
+      "warningCount": "{count} 个警告",
+      "readyToConfirm": "可以确认",
+      "editDocument": "编辑单据",
+      "editItems": "编辑项目",
+      "acknowledgeWarnings": "本人已知悉以上警告，并批准将此次收货作为受控例外处理。",
+      "acknowledgeWarningsNeedsApproval": "需要具有收货例外审批权限的角色。",
+      "storageTypeOptions": {
+        "ambient": "常温",
+        "chilled": "冷藏",
+        "frozen": "冷冻"
+      },
+      "statusOptions": {
+        "error": "错误",
+        "warning": "警告",
+        "qcRequired": "需质检",
+        "normal": "正常"
+      },
+      "issueScopes": {
+        "header": "单据",
+        "line": "{sku}",
+        "split": "{sku} — 批次 {split}"
+      }
     },
     "itemsSection": {
       "title": "收货明细",
@@ -351,7 +388,12 @@
       "totalLines": "总行数",
       "expectedQty": "预计数量",
       "receiveQty": "收货数量",
-      "variance": "差异"
+      "variance": "差异",
+      "skuCount": "SKU 数",
+      "splitCount": "批次数",
+      "shortageOverage": "短缺 / 超收",
+      "qcRequiredCount": "需质检",
+      "uom": "单位"
     },
     "actions": {
       "saveDraft": "保存草稿",
@@ -376,6 +418,23 @@
       "receivingConfirmed": "收货确认成功",
       "confirmSubmitDialog": "此操作将确认收货并更新库存数量。是否继续？"
     }
+  },
+  "reviewValidation": {
+    "supplierOrVendorRequired": "请选择供应商或填写供应商名称",
+    "warehouseRequired": "请选择仓库",
+    "stagingLocationRequired": "请选择暂存货位",
+    "atLeastOneItem": "至少需要一个项目",
+    "productUnresolved": "此行尚未匹配到已知产品",
+    "locationRequired": "此行没有货位",
+    "negativeQuantity": "数量不能为负数",
+    "splitQtyMustMatch": "此行的拆分数量合计与收货数量不一致",
+    "lotRequired": "该产品需要批号",
+    "expiryRequired": "该产品需要有效期",
+    "splitQuantityPositive": "每个批次的数量必须大于零",
+    "expiryBeforeMfg": "有效期早于生产日期",
+    "expiryAlreadyPassed": "有效期已过期",
+    "temperatureOutOfRange": "记录的温度超出该产品存储类型的预期范围",
+    "duplicatePalletId": "该托盘/LPN 被分配给了多个批次"
   },
   "picking": {
     "title": "拣货",

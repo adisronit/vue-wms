@@ -316,7 +316,44 @@
       "sumOfQty": "รวมการแยก: {sum} / {total}"
     },
     "review": {
-      "documentTitle": "สรุปเอกสาร"
+      "documentTitle": "สรุปเอกสาร",
+      "validationTitle": "การตรวจสอบความถูกต้อง",
+      "itemsTitle": "ตรวจสอบรายการสินค้า",
+      "searchPlaceholder": "ค้นหา SKU, ชื่อสินค้า หรือบาร์โค้ด…",
+      "brand": "แบรนด์",
+      "packSize": "ขนาดแพ็ค",
+      "packs": "แพ็ค",
+      "storageType": "ประเภทการจัดเก็บ",
+      "difference": "ผลต่าง",
+      "status": "สถานะ",
+      "splitsLabel": "ล็อต/พาเลท",
+      "mfgDate": "วันผลิต",
+      "temperature": "อุณหภูมิ",
+      "countryOfOrigin": "ประเทศต้นกำเนิด",
+      "condition": "สภาพสินค้า",
+      "errorCount": "มี {count} ข้อผิดพลาดที่ต้องแก้ไขก่อนยืนยัน",
+      "warningCount": "มีคำเตือน {count} รายการ",
+      "readyToConfirm": "พร้อมยืนยัน",
+      "editDocument": "แก้ไขเอกสาร",
+      "editItems": "แก้ไขรายการสินค้า",
+      "acknowledgeWarnings": "ข้าพเจ้ารับทราบคำเตือนข้างต้นและอนุมัติให้รับสินค้านี้เป็นกรณีพิเศษที่ควบคุมได้",
+      "acknowledgeWarningsNeedsApproval": "ต้องใช้สิทธิ์ของผู้ที่ได้รับอนุญาตให้อนุมัติกรณีพิเศษในการรับสินค้า",
+      "storageTypeOptions": {
+        "ambient": "อุณหภูมิห้อง",
+        "chilled": "แช่เย็น",
+        "frozen": "แช่แข็ง"
+      },
+      "statusOptions": {
+        "error": "ข้อผิดพลาด",
+        "warning": "คำเตือน",
+        "qcRequired": "ต้องตรวจสอบคุณภาพ",
+        "normal": "ปกติ"
+      },
+      "issueScopes": {
+        "header": "เอกสาร",
+        "line": "{sku}",
+        "split": "{sku} — การแยกที่ {split}"
+      }
     },
     "itemsSection": {
       "title": "รายการสินค้ารับเข้า",
@@ -351,7 +388,12 @@
       "totalLines": "จำนวนรายการ",
       "expectedQty": "จำนวนที่คาดไว้",
       "receiveQty": "จำนวนที่รับ",
-      "variance": "ผลต่าง"
+      "variance": "ผลต่าง",
+      "skuCount": "SKU",
+      "splitCount": "การแยกล็อต",
+      "shortageOverage": "ขาด / เกิน",
+      "qcRequiredCount": "ต้องตรวจสอบคุณภาพ",
+      "uom": "หน่วย"
     },
     "actions": {
       "saveDraft": "บันทึกฉบับร่าง",
@@ -376,6 +418,23 @@
       "receivingConfirmed": "ยืนยันการรับสินค้าสำเร็จ",
       "confirmSubmitDialog": "การดำเนินการนี้จะยืนยันการรับสินค้าและปรับปรุงจำนวนสต็อก ต้องการดำเนินการต่อหรือไม่?"
     }
+  },
+  "reviewValidation": {
+    "supplierOrVendorRequired": "เลือกผู้จำหน่ายหรือกรอกชื่อผู้จำหน่าย",
+    "warehouseRequired": "กรุณาเลือกคลังสินค้า",
+    "stagingLocationRequired": "กรุณาเลือกตำแหน่งพักสินค้า",
+    "atLeastOneItem": "ต้องมีรายการสินค้าอย่างน้อยหนึ่งรายการ",
+    "productUnresolved": "รายการนี้ยังไม่ตรงกับสินค้าที่มีอยู่",
+    "locationRequired": "รายการนี้ไม่มีตำแหน่งจัดเก็บ",
+    "negativeQuantity": "จำนวนต้องไม่เป็นค่าลบ",
+    "splitQtyMustMatch": "ยอดรวมของการแยกในรายการนี้ไม่เท่ากับจำนวนที่รับ",
+    "lotRequired": "สินค้านี้ต้องระบุเลขที่ล็อต",
+    "expiryRequired": "สินค้านี้ต้องระบุวันหมดอายุ",
+    "splitQuantityPositive": "จำนวนของแต่ละการแยกต้องมากกว่าศูนย์",
+    "expiryBeforeMfg": "วันหมดอายุเร็วกว่าวันผลิต",
+    "expiryAlreadyPassed": "วันหมดอายุผ่านไปแล้ว",
+    "temperatureOutOfRange": "อุณหภูมิที่บันทึกอยู่นอกช่วงที่กำหนดสำหรับประเภทการจัดเก็บของสินค้านี้",
+    "duplicatePalletId": "พาเลท/LPN นี้ถูกกำหนดให้มากกว่าหนึ่งการแยก"
   },
   "picking": {
     "title": "หยิบสินค้า",

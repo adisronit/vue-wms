@@ -372,24 +372,38 @@
               {{ $t('newReceiving.splits.none') }}
             </p>
 
-            <div v-else class="space-y-2">
+            <div v-else class="space-y-3">
               <div
                 v-for="(split, sIdx) in item.splits"
                 :key="sIdx"
-                class="grid grid-cols-2 md:grid-cols-7 gap-2 items-center bg-white border border-slate-200 rounded-xl p-2"
+                class="bg-white border border-slate-200 rounded-xl p-3 space-y-2"
               >
-                <input v-model.number="split.quantity" type="number" class="table-input input-number" :placeholder="$t('newReceiving.splits.qty')" />
-                <input v-model="split.lotNo" class="table-input" :placeholder="$t('newReceiving.table.lotNo')" />
-                <input v-model="split.expiryDate" type="date" class="table-input" />
-                <input v-model="split.palletId" class="table-input" :placeholder="$t('newReceiving.splits.palletId')" />
-                <input v-model.number="split.cartonCount" type="number" class="table-input input-number" :placeholder="$t('newReceiving.splits.cartonCount')" />
-                <select v-model="split.locationId" class="table-input">
-                  <option value="">{{ $t('newReceiving.scan.selectLocation') }}</option>
-                  <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
-                </select>
-                <button @click="removeSplit(item, sIdx)" class="text-red-600 hover:text-red-700 font-semibold text-sm text-right">
-                  {{ $t('newReceiving.table.remove') }}
-                </button>
+                <div class="grid grid-cols-2 md:grid-cols-6 gap-2 items-center">
+                  <input v-model.number="split.quantity" type="number" class="table-input input-number" :placeholder="$t('newReceiving.splits.qty')" />
+                  <input v-model="split.lotNo" class="table-input" :placeholder="$t('newReceiving.table.lotNo')" />
+                  <input v-model="split.mfgDate" type="date" class="table-input" :title="$t('newReceiving.review.mfgDate')" />
+                  <input v-model="split.expiryDate" type="date" class="table-input" :title="$t('newReceiving.table.expiryDate')" />
+                  <input v-model="split.palletId" class="table-input" :placeholder="$t('newReceiving.splits.palletId')" />
+                  <input v-model.number="split.cartonCount" type="number" class="table-input input-number" :placeholder="$t('newReceiving.splits.cartonCount')" />
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-2 items-center">
+                  <select v-model="split.locationId" class="table-input">
+                    <option value="">{{ $t('newReceiving.scan.selectLocation') }}</option>
+                    <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.code }}</option>
+                  </select>
+                  <input
+                    v-model.number="split.temperatureC"
+                    type="number"
+                    step="0.1"
+                    class="table-input input-number"
+                    :placeholder="$t('newReceiving.review.temperature') + ' (°C)'"
+                  />
+                  <input v-model="split.countryOfOrigin" class="table-input" :placeholder="$t('newReceiving.review.countryOfOrigin')" />
+                  <input v-model="split.conditionNote" class="table-input md:col-span-1" :placeholder="$t('newReceiving.review.condition')" />
+                  <button @click="removeSplit(item, sIdx)" class="text-red-600 hover:text-red-700 font-semibold text-sm text-right">
+                    {{ $t('newReceiving.table.remove') }}
+                  </button>
+                </div>
               </div>
 
               <p
@@ -433,79 +447,21 @@
 
     <!-- Step 3: Review -->
     <template v-if="step === 3">
-      <FormSection :title="$t('newReceiving.review.documentTitle')">
-        <dl class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div><dt class="text-slate-500">{{ $t('newReceiving.fields.receivingType') }}</dt><dd class="font-semibold">{{ form.receivingType }}</dd></div>
-          <div><dt class="text-slate-500">{{ $t('newReceiving.fields.referenceNo') }}</dt><dd class="font-semibold">{{ form.referenceNo || '—' }}</dd></div>
-          <div><dt class="text-slate-500">{{ $t('newReceiving.fields.supplier') }}</dt><dd class="font-semibold">{{ supplierDisplayName || form.vendor || '—' }}</dd></div>
-          <div><dt class="text-slate-500">{{ $t('newReceiving.fields.warehouse') }}</dt><dd class="font-semibold">{{ warehouseLabel }}</dd></div>
-          <div><dt class="text-slate-500">{{ $t('newReceiving.fields.stagingLocation') }}</dt><dd class="font-semibold">{{ stagingLocationLabel }}</dd></div>
-          <div><dt class="text-slate-500">{{ $t('newReceiving.logistics.invoiceNo') }}</dt><dd class="font-semibold">{{ form.invoiceNo || '—' }}</dd></div>
-        </dl>
-      </FormSection>
-
-    <!-- Summary -->
-    <FormSection :title="$t('newReceiving.summary.title')">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <div class="summary-card">
-          <p class="summary-label">{{ $t('newReceiving.summary.totalLines') }}</p>
-          <h2 class="summary-value">{{ items.length }}</h2>
-        </div>
-
-        <div class="summary-card">
-          <p class="summary-label">{{ $t('newReceiving.summary.expectedQty') }}</p>
-          <h2 class="summary-value">{{ totalExpectedQty }}</h2>
-        </div>
-
-        <div class="summary-card">
-          <p class="summary-label">{{ $t('newReceiving.summary.receiveQty') }}</p>
-          <h2 class="summary-value text-orange-600">{{ totalReceiveQty }}</h2>
-        </div>
-
-        <div class="summary-card">
-          <p class="summary-label">{{ $t('newReceiving.summary.variance') }}</p>
-          <h2
-            class="summary-value"
-            :class="totalVariance < 0 ? 'text-red-600' : 'text-green-600'"
-          >
-            {{ totalVariance }}
-          </h2>
-        </div>
-      </div>
-    </FormSection>
-
-    <!-- Action Bar -->
-    <FormSection>
-      <div class="flex flex-col md:flex-row justify-between gap-3">
-        <button
-          @click="step = 2"
-          class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-6 py-3 rounded-xl font-semibold"
-        >
-          {{ $t('newReceiving.wizard.back') }}
-        </button>
-        <div class="flex flex-col md:flex-row gap-3">
-        <button
-          @click="saveDraft"
-          :disabled="submitting"
-          class="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 px-6 py-3 rounded-xl font-semibold disabled:opacity-60"
-        >
-          {{ $t('newReceiving.actions.saveDraft') }}
-        </button>
-
-        <button
-          v-if="canConfirm"
-          @click="confirmReceivingClick"
-          :disabled="submitting"
-          class="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold disabled:opacity-60"
-        >
-          {{ $t('newReceiving.actions.confirmReceiving') }}
-        </button>
-        <p v-else class="text-sm text-slate-500 self-center">
-          {{ $t('newReceiving.actions.viewOnlyNote') }}
-        </p>
-        </div>
-      </div>
-    </FormSection>
+      <ReceivingReviewStep
+        :form="form"
+        :items="items"
+        :locations="locations"
+        :warehouse-label="warehouseLabel"
+        :staging-location-label="stagingLocationLabel"
+        :supplier-display-name="supplierDisplayName"
+        :submitting="submitting"
+        :can-confirm="canConfirm"
+        :can-approve-exceptions="canApproveExceptions"
+        @edit-document="editDocument"
+        @edit-items="editItems"
+        @save-draft="saveDraft"
+        @confirm="confirmReceivingClick"
+      />
     </template>
 
     <ConfirmDialog
@@ -527,6 +483,7 @@
 import { listWarehouses, listZones, listLocations } from '../../services/warehouses'
 import { listProducts } from '../../services/products'
 import { listSuppliers } from '../../services/suppliers'
+import { getBrand } from '../../services/brands'
 import { createReceipt, confirmReceipt, newIdempotencyKey } from '../../services/receiving'
 import { hasPermission } from '../../services/auth'
 import { showToast } from '../../services/toast'
@@ -535,6 +492,8 @@ import FormSection from '../../components/ui/FormSection.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
 import SearchableSelect from '../../components/ui/SearchableSelect.vue'
+import ReceivingReviewStep from './ReceivingReviewStep.vue'
+import { validateReceivingReview } from './receivingReview'
 
 function todayDate() {
   return new Date().toISOString().slice(0, 10)
@@ -556,7 +515,7 @@ function toApiDateTime(dateTimeStr) {
 export default {
   name: 'NewReceivingView',
 
-  components: { PageHeader, FormSection, DataTable, ConfirmDialog, SearchableSelect },
+  components: { PageHeader, FormSection, DataTable, ConfirmDialog, SearchableSelect, ReceivingReviewStep },
 
   data() {
     return {
@@ -570,6 +529,12 @@ export default {
       warehouses: [],
       locations: [],
       supplierDisplayName: '',
+
+      // brandCache resolves product.brand_id -> display name on demand
+      // (lazy, one lookup per distinct brand actually used on this
+      // receipt) — the Step 3 review needs a brand name, not just the
+      // id the product list endpoint already returns.
+      brandCache: {},
 
       formError: '',
       submitting: false,
@@ -605,24 +570,22 @@ export default {
   },
 
   computed: {
-    totalExpectedQty() {
-      return this.items.reduce((sum, item) => {
-        return sum + Number(item.expectedQty || 0)
-      }, 0)
-    },
-
     totalReceiveQty() {
       return this.items.reduce((sum, item) => {
         return sum + Number(item.receiveQty || 0)
       }, 0)
     },
 
-    totalVariance() {
-      return this.totalReceiveQty - this.totalExpectedQty
-    },
-
     canConfirm() {
       return hasPermission('receiving.confirm')
+    },
+
+    // receiving.approve is reserved for supervisor-level exceptions
+    // (see internal/rbac/catalog.go's own doc) — reused here, unchanged,
+    // to gate the Step 3 review's "acknowledge warnings" override rather
+    // than inventing a new permission for it.
+    canApproveExceptions() {
+      return hasPermission('receiving.approve')
     },
 
     itemsWithOpenSplits() {
@@ -695,16 +658,47 @@ export default {
           item.productId = null
           item.productName = ''
           item.barcode = ''
+          item.product = null
+          item.brandName = ''
           this.formError = this.$t('newReceiving.messages.noProductFound', { value: item.sku })
           return
         }
-        item.productId = product.id
-        item.sku = product.sku
-        item.productName = product.name
-        item.barcode = product.barcode || ''
-        item.uom = product.base_uom || item.uom
+        this.applyProductToItem(item, product)
       } catch (err) {
         this.formError = err.message
+      }
+    },
+
+    // applyProductToItem is shared by lookupItemProduct (SKU typed/
+    // blurred) and scanItem (barcode scan) — both resolve the same
+    // product.Response shape and need the same full set of fields on
+    // the item for Step 3's review to have real data to show, not just
+    // the handful of columns Step 2's own table displays.
+    applyProductToItem(item, product) {
+      item.productId = product.id
+      item.sku = product.sku
+      item.productName = product.name
+      item.barcode = product.barcode || ''
+      item.uom = product.base_uom || item.uom
+      item.product = product
+      item.brandName = ''
+      if (product.brand_id) this.resolveBrandName(item, product.brand_id)
+    },
+
+    // resolveBrandName is a lazy, per-brand-id-cached lookup — the
+    // product list/search endpoint only returns brand_id, not a
+    // resolved name, and most receipts touch only one or two distinct
+    // brands, so caching avoids repeat GET /brands/{id} calls across
+    // items/rescans of the same brand.
+    async resolveBrandName(item, brandId) {
+      try {
+        if (!(brandId in this.brandCache)) {
+          const res = await getBrand(brandId)
+          this.brandCache[brandId] = res.data.name
+        }
+        item.brandName = this.brandCache[brandId] || ''
+      } catch {
+        // Non-critical: the review simply shows "—" for brand.
       }
     },
 
@@ -722,6 +716,20 @@ export default {
 
     goToStep(target) {
       if (target <= this.furthestStepReached) this.step = target
+    },
+
+    // editDocument/editItems back Step 3's own named buttons — always
+    // allowed (the furthestStepReached gate above only exists to stop
+    // jumping AHEAD before a step's own validation has passed; going
+    // BACK from the review step never needs that check). Neither resets
+    // any form/items state, so every value the user already entered is
+    // exactly as they left it when they return to Step 3.
+    editDocument() {
+      this.step = 1
+    },
+
+    editItems() {
+      this.step = 2
     },
 
     goNextFromDocument() {
@@ -752,8 +760,10 @@ export default {
 
     addSplit(item) {
       item.splits.push({
-        quantity: 0, lotNo: '', expiryDate: '', palletId: '', cartonCount: 0,
-        locationId: item.locationId || this.form.stagingLocationId || ''
+        quantity: 0, lotNo: '', mfgDate: '', expiryDate: '', palletId: '', cartonCount: 0,
+        locationId: item.locationId || this.form.stagingLocationId || '',
+        temperatureC: null, conditionNote: '',
+        countryOfOrigin: (item.product && item.product.country_of_origin) || ''
       })
     },
 
@@ -772,6 +782,8 @@ export default {
         sku: '',
         productName: '',
         barcode: '',
+        product: null,
+        brandName: '',
         expectedQty: 0,
         receiveQty: 0,
         uom: 'PCS',
@@ -802,21 +814,25 @@ export default {
         if (existingItem) {
           existingItem.receiveQty = Number(existingItem.receiveQty || 0) + Number(this.scanQty || 1)
         } else {
-          this.items.push({
+          const newItem = {
             id: Date.now(),
-            productId: product.id,
-            sku: product.sku,
-            productName: product.name,
-            barcode: product.barcode || '',
+            productId: null,
+            sku: '',
+            productName: '',
+            barcode: '',
+            product: null,
+            brandName: '',
             expectedQty: 0,
             receiveQty: Number(this.scanQty || 1),
-            uom: product.base_uom || 'PCS',
+            uom: 'PCS',
             lotNo: '',
             expiryDate: '',
             locationId: this.scanLocationId || this.form.stagingLocationId || '',
             splits: [],
             splitsOpen: false
-          })
+          }
+          this.applyProductToItem(newItem, product)
+          this.items.push(newItem)
         }
 
         this.scanText = ''
@@ -910,14 +926,23 @@ export default {
       }
     },
 
-    // Validates the form up front (same rule as before) and, if it
-    // passes, opens the confirmation dialog instead of submitting
-    // immediately — the actual submit logic is unchanged and now runs
-    // from submitReceiving() when the dialog is confirmed.
+    // Validates the form up front and, if it passes, opens the
+    // confirmation dialog instead of submitting immediately — the
+    // actual submit logic runs from submitReceiving() when the dialog
+    // is confirmed. Uses the exact same validateReceivingReview errors
+    // the Step 3 review screen itself renders and gates its own Confirm
+    // button on, so this is a defense-in-depth re-check (e.g. if this
+    // method is ever invoked directly, as the existing test suite
+    // does), not a second, differently-worded source of truth.
     confirmReceivingClick() {
-      const error = this.validateForm({ requireReceiveQty: true, requireItems: true })
-      if (error) {
-        this.formError = error
+      const basicError = this.validateForm({ requireReceiveQty: true, requireItems: true })
+      if (basicError) {
+        this.formError = basicError
+        return
+      }
+      const { errors } = validateReceivingReview(this.form, this.items)
+      if (errors.length > 0) {
+        this.formError = this.$t(errors[0].message)
         return
       }
       this.formError = ''
@@ -951,10 +976,14 @@ export default {
               ? srcItem.splits.map((s) => ({
                   quantity: Number(s.quantity || 0),
                   lot_no: s.lotNo || '',
+                  mfg_date: toApiDate(s.mfgDate),
                   expiry_date: toApiDate(s.expiryDate),
                   location_id: s.locationId || srcItem.locationId,
                   pallet_id: s.palletId || '',
-                  carton_count: Number(s.cartonCount || 0)
+                  carton_count: Number(s.cartonCount || 0),
+                  temperature_c: s.temperatureC === '' || s.temperatureC === null || s.temperatureC === undefined ? null : Number(s.temperatureC),
+                  condition_note: s.conditionNote || '',
+                  country_of_origin: s.countryOfOrigin || ''
                 }))
               : undefined
           }))

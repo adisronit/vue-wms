@@ -445,6 +445,99 @@ func TestService_Confirm_MultipleSplits_PostsEachLotSeparately(t *testing.T) {
 	}
 }
 
+// TestService_Confirm_LotRequired_EnforcedOnEverySplitNotJustLast guards
+// against a real regression: the lot-required check used to look only
+// at the LAST resolved split (since that split's values become the
+// line's own denormalized display fields), which let an earlier split
+// in the same call through with no lot number at all as long as the
+// final split had one.
+func TestService_Confirm_LotRequired_EnforcedOnEverySplitNotJustLast(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+
+	a := newReceivingFixture(t, tx, "lot-every-split", false)
+
+	svc, _ := newReceivingServiceAndRepo(tx)
+	receiptID := createReceipt(t, svc, a, 100)
+	receipt, err := svc.Get(context.Background(), a.tenantID, receiptID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	itemID := receipt.Items[0].ID
+
+	// Lot tracking turned on AFTER Create (Create's own createItem has
+	// its own, unrelated lot-required check against the line's single
+	// lot_no field — flipping this before Create would trip that one
+	// instead of exercising Confirm's per-split check this test targets).
+	if err := tx.Exec("UPDATE products SET lot_required = 1 WHERE id = ?", a.productID).Error; err != nil {
+		t.Fatalf("set lot_required: %v", err)
+	}
+
+	_, err = svc.Confirm(context.Background(), a.tenantID, receiptID, ConfirmRequest{
+		IdempotencyKey: "key-lot-every-split",
+		Items: []ConfirmItemRequest{{
+			ItemID: itemID, Quantity: 100,
+			Splits: []ConfirmSplitRequest{
+				{Quantity: 60, LotNo: ""}, // first split has no lot — must be rejected
+				{Quantity: 40, LotNo: "LOT-Y"},
+			},
+		}},
+	}, 1)
+	var validationErr ErrValidation
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("Confirm(first split missing lot_no) = %v, want ErrValidation", err)
+	}
+
+	// Nothing from the rejected call should have posted.
+	invRepo := inventory.NewRepository(tx)
+	if _, err := invRepo.FindBalance(context.Background(), a.tenantID, a.productID, a.locationID, "LOT-Y"); !errors.Is(err, inventory.ErrNotFound) {
+		t.Errorf("FindBalance(LOT-Y) after rejected Confirm = %v, want ErrNotFound (no partial post)", err)
+	}
+}
+
+// TestService_Confirm_RejectsDuplicatePalletIDAcrossSplits — the same
+// physical pallet/LPN must never be assigned to two different splits
+// within one Confirm call, including across two different lines.
+func TestService_Confirm_RejectsDuplicatePalletIDAcrossSplits(t *testing.T) {
+	db := testsupport.ConnectDB(t)
+	tx := testsupport.BeginRollbackTx(t, db)
+
+	a := newReceivingFixture(t, tx, "dup-pallet", false)
+	svc, _ := newReceivingServiceAndRepo(tx)
+
+	resp, err := svc.Create(context.Background(), a.tenantID, CreateRequest{
+		ReceivingType: TypePO, WarehouseID: a.warehouseID, StagingLocationID: a.locationID,
+		Items: []CreateItemRequest{
+			{ProductID: a.productID, LocationID: a.locationID, ExpectedQty: 100, UOM: "PCS"},
+			{ProductID: a.productID, LocationID: a.locationID, ExpectedQty: 50, UOM: "PCS"},
+		},
+	}, 1)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	_, err = svc.Confirm(context.Background(), a.tenantID, resp.ID, ConfirmRequest{
+		IdempotencyKey: "key-dup-pallet",
+		Items: []ConfirmItemRequest{
+			{ItemID: resp.Items[0].ID, Quantity: 100, Splits: []ConfirmSplitRequest{
+				{Quantity: 100, LotNo: "LOT-A", PalletID: "PLT-SHARED"},
+			}},
+			{ItemID: resp.Items[1].ID, Quantity: 50, Splits: []ConfirmSplitRequest{
+				{Quantity: 50, LotNo: "LOT-B", PalletID: "PLT-SHARED"},
+			}},
+		},
+	}, 1)
+	var validationErr ErrValidation
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("Confirm(same PalletID on two lines) = %v, want ErrValidation", err)
+	}
+
+	invRepo := inventory.NewRepository(tx)
+	if _, err := invRepo.FindBalance(context.Background(), a.tenantID, a.productID, a.locationID, "LOT-A"); !errors.Is(err, inventory.ErrNotFound) {
+		t.Errorf("FindBalance(LOT-A) after rejected Confirm = %v, want ErrNotFound (no partial post)", err)
+	}
+}
+
 // --- Idempotency ---
 
 func TestService_Confirm_DuplicateIdempotencyKey_DoesNotDoubleAddStock(t *testing.T) {

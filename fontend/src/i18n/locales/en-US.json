@@ -316,7 +316,44 @@
       "sumOfQty": "Split total: {sum} / {total}"
     },
     "review": {
-      "documentTitle": "Document Summary"
+      "documentTitle": "Document Summary",
+      "validationTitle": "Validation",
+      "itemsTitle": "Product Review",
+      "searchPlaceholder": "Search SKU, product name, or barcode…",
+      "brand": "Brand",
+      "packSize": "Pack Size",
+      "packs": "packs",
+      "storageType": "Storage Type",
+      "difference": "Difference",
+      "status": "Status",
+      "splitsLabel": "splits",
+      "mfgDate": "MFG Date",
+      "temperature": "Temperature",
+      "countryOfOrigin": "Country of Origin",
+      "condition": "Condition",
+      "errorCount": "{count} error(s) must be resolved before confirming",
+      "warningCount": "{count} warning(s)",
+      "readyToConfirm": "Ready to confirm",
+      "editDocument": "Edit Document",
+      "editItems": "Edit Items",
+      "acknowledgeWarnings": "I acknowledge the warnings above and approve this receipt as a controlled exception.",
+      "acknowledgeWarningsNeedsApproval": "Requires a role authorized to approve receiving exceptions.",
+      "storageTypeOptions": {
+        "ambient": "Ambient",
+        "chilled": "Chilled",
+        "frozen": "Frozen"
+      },
+      "statusOptions": {
+        "error": "Error",
+        "warning": "Warning",
+        "qcRequired": "QC Required",
+        "normal": "Normal"
+      },
+      "issueScopes": {
+        "header": "Document",
+        "line": "{sku}",
+        "split": "{sku} — split {split}"
+      }
     },
     "itemsSection": {
       "title": "Receiving Items",
@@ -351,7 +388,12 @@
       "totalLines": "Total Lines",
       "expectedQty": "Expected Qty",
       "receiveQty": "Receive Qty",
-      "variance": "Variance"
+      "variance": "Variance",
+      "skuCount": "SKUs",
+      "splitCount": "Splits",
+      "shortageOverage": "Shortages / Overages",
+      "qcRequiredCount": "QC Required",
+      "uom": "UOM"
     },
     "actions": {
       "saveDraft": "Save Draft",
@@ -376,6 +418,23 @@
       "receivingConfirmed": "Receiving confirmed successfully",
       "confirmSubmitDialog": "This will confirm the receiving and update stock quantities. Continue?"
     }
+  },
+  "reviewValidation": {
+    "supplierOrVendorRequired": "Select a supplier or enter a vendor name",
+    "warehouseRequired": "Warehouse is required",
+    "stagingLocationRequired": "Staging location is required",
+    "atLeastOneItem": "At least one item is required",
+    "productUnresolved": "This line has not resolved to a known product",
+    "locationRequired": "This line has no location",
+    "negativeQuantity": "Quantity cannot be negative",
+    "splitQtyMustMatch": "This line's split quantities do not add up to its Receive Qty",
+    "lotRequired": "This product requires a lot number",
+    "expiryRequired": "This product requires an expiry date",
+    "splitQuantityPositive": "Each split quantity must be greater than zero",
+    "expiryBeforeMfg": "Expiry date is earlier than the manufacture date",
+    "expiryAlreadyPassed": "Expiry date has already passed",
+    "temperatureOutOfRange": "Recorded temperature is outside the expected range for this product's storage type",
+    "duplicatePalletId": "This pallet/LPN is assigned to more than one split"
   },
   "picking": {
     "title": "Picking",
