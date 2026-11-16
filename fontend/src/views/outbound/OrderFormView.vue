@@ -41,6 +41,14 @@
               <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.code }} — {{ w.name }}</option>
             </select>
           </div>
+          <div>
+            <label class="label">{{ $t('orders.form.pickingModeLabel') }}</label>
+            <select v-model="form.pickingMode" class="input">
+              <option value="PICK_BY_ORDER">{{ $t('orders.form.pickingModeByOrder') }}</option>
+              <option value="PICK_BY_PRODUCT">{{ $t('orders.form.pickingModeByProduct') }}</option>
+            </select>
+            <p class="text-xs text-slate-400 mt-1">{{ $t('orders.form.pickingModeHint') }}</p>
+          </div>
 
           <div>
             <label class="label">{{ $t('orders.form.customerLabel') }}</label>
@@ -193,7 +201,7 @@ export default {
       addingItem: false,
       warehouses: [],
       form: {
-        orderType: 'SALES_ORDER', priority: 'NORMAL', warehouseId: '',
+        orderType: 'SALES_ORDER', priority: 'NORMAL', pickingMode: 'PICK_BY_ORDER', warehouseId: '',
         customer: '', customerId: null, shipToId: '',
         externalReference: '', requiredShippingDate: '', requiredDeliveryDate: '',
         carrier: '', shippingMethod: '', deliveryInstructions: '',
@@ -241,7 +249,8 @@ export default {
           return
         }
         this.form = {
-          orderType: o.order_type || 'SALES_ORDER', priority: o.priority || 'NORMAL', warehouseId: o.warehouse_id,
+          orderType: o.order_type || 'SALES_ORDER', priority: o.priority || 'NORMAL',
+          pickingMode: o.picking_mode || 'PICK_BY_ORDER', warehouseId: o.warehouse_id,
           customer: o.customer || '', customerId: o.customer_id || null, shipToId: o.ship_to_id || '',
           externalReference: o.external_reference || '',
           requiredShippingDate: (o.required_shipping_date || '').slice(0, 10),
@@ -364,6 +373,7 @@ export default {
       return {
         order_type: this.form.orderType,
         priority: this.form.priority,
+        picking_mode: this.form.pickingMode,
         warehouse_id: this.form.warehouseId,
         customer: this.form.customerId ? undefined : (this.form.customer || undefined),
         customer_id: this.form.customerId || undefined,

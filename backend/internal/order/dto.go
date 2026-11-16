@@ -94,48 +94,53 @@ type ItemResponse struct {
 
 // Response is a full order with its lines — GET /orders/{id}.
 type Response struct {
-	ID                   int64             `json:"id,string" example:"1"`
-	OrderNo              string            `json:"order_no" example:"ORD-000001"`
-	OrderType            string            `json:"order_type" example:"SALES_ORDER"`
-	Priority             string            `json:"priority" example:"NORMAL"`
-	Customer             *string           `json:"customer"`
-	CustomerID           *int64            `json:"customer_id,string"`
-	ShipToID             *int64            `json:"ship_to_id,string"`
-	ShipToName           *string           `json:"ship_to_name"`
-	ShipToAddress        *string           `json:"ship_to_address"`
-	ShipToProvince       *string           `json:"ship_to_province"`
-	ShipToDistrict       *string           `json:"ship_to_district"`
-	ShipToPostalCode     *string           `json:"ship_to_postal_code"`
-	ShipToContactPerson  *string           `json:"ship_to_contact_person"`
-	ShipToContactPhone   *string           `json:"ship_to_contact_phone"`
-	ExternalReference    *string           `json:"external_reference"`
-	RequiredShippingDate *time.Time        `json:"required_shipping_date"`
-	RequiredDeliveryDate *time.Time        `json:"required_delivery_date"`
-	Carrier              *string           `json:"carrier"`
-	ShippingMethod       *string           `json:"shipping_method"`
-	DeliveryInstructions *string           `json:"delivery_instructions"`
-	PreparedBy           *string           `json:"prepared_by"`
-	ApprovedBy           *string           `json:"approved_by"`
-	WarehouseID          int64             `json:"warehouse_id,string" example:"1"`
-	WarehouseCode        string            `json:"warehouse_code" example:"WH-01"`
-	PickingTaskID        *int64            `json:"picking_task_id,string"`
-	PickNo               *string           `json:"pick_no"`
-	Status               Status            `json:"status" example:"PENDING"`
-	FulfillmentStatus    FulfillmentStatus `json:"fulfillment_status" example:"PENDING"`
-	Remark               *string           `json:"remark"`
-	ReleasedAt           *time.Time        `json:"released_at"`
-	ReleasedBy           *int64            `json:"released_by,string"`
-	ReleasedByName       *string           `json:"released_by_name"`
-	ShortageApproved     bool              `json:"shortage_approved" example:"false"`
-	CreatedBy            *int64            `json:"created_by,string"`
-	CreatedByName        *string           `json:"created_by_name"`
-	CreatedAt            time.Time         `json:"created_at"`
-	UpdatedAt            time.Time         `json:"updated_at"`
-	CancelledAt          *time.Time        `json:"cancelled_at"`
-	CancelledBy          *int64            `json:"cancelled_by,string"`
-	CancelledByName      *string           `json:"cancelled_by_name"`
-	CancelRemark         *string           `json:"cancel_remark"`
-	Items                []ItemResponse    `json:"items"`
+	ID                   int64      `json:"id,string" example:"1"`
+	OrderNo              string     `json:"order_no" example:"ORD-000001"`
+	OrderType            string     `json:"order_type" example:"SALES_ORDER"`
+	Priority             string     `json:"priority" example:"NORMAL"`
+	Customer             *string    `json:"customer"`
+	CustomerID           *int64     `json:"customer_id,string"`
+	ShipToID             *int64     `json:"ship_to_id,string"`
+	ShipToName           *string    `json:"ship_to_name"`
+	ShipToAddress        *string    `json:"ship_to_address"`
+	ShipToProvince       *string    `json:"ship_to_province"`
+	ShipToDistrict       *string    `json:"ship_to_district"`
+	ShipToPostalCode     *string    `json:"ship_to_postal_code"`
+	ShipToContactPerson  *string    `json:"ship_to_contact_person"`
+	ShipToContactPhone   *string    `json:"ship_to_contact_phone"`
+	ExternalReference    *string    `json:"external_reference"`
+	RequiredShippingDate *time.Time `json:"required_shipping_date"`
+	RequiredDeliveryDate *time.Time `json:"required_delivery_date"`
+	Carrier              *string    `json:"carrier"`
+	ShippingMethod       *string    `json:"shipping_method"`
+	DeliveryInstructions *string    `json:"delivery_instructions"`
+	PreparedBy           *string    `json:"prepared_by"`
+	ApprovedBy           *string    `json:"approved_by"`
+	WarehouseID          int64      `json:"warehouse_id,string" example:"1"`
+	WarehouseCode        string     `json:"warehouse_code" example:"WH-01"`
+	PickingTaskID        *int64     `json:"picking_task_id,string"`
+	PickNo               *string    `json:"pick_no"`
+	// PickingMode/PickingBatchID (Phase 33C.1) — see Order.PickingMode's
+	// own doc. PickingBatchID is nil until internal/pickingbatch's own
+	// Service.Confirm has claimed this order into a consolidated task.
+	PickingMode       PickingMode       `json:"picking_mode" example:"PICK_BY_ORDER"`
+	PickingBatchID    *int64            `json:"picking_batch_id,string"`
+	Status            Status            `json:"status" example:"PENDING"`
+	FulfillmentStatus FulfillmentStatus `json:"fulfillment_status" example:"PENDING"`
+	Remark            *string           `json:"remark"`
+	ReleasedAt        *time.Time        `json:"released_at"`
+	ReleasedBy        *int64            `json:"released_by,string"`
+	ReleasedByName    *string           `json:"released_by_name"`
+	ShortageApproved  bool              `json:"shortage_approved" example:"false"`
+	CreatedBy         *int64            `json:"created_by,string"`
+	CreatedByName     *string           `json:"created_by_name"`
+	CreatedAt         time.Time         `json:"created_at"`
+	UpdatedAt         time.Time         `json:"updated_at"`
+	CancelledAt       *time.Time        `json:"cancelled_at"`
+	CancelledBy       *int64            `json:"cancelled_by,string"`
+	CancelledByName   *string           `json:"cancelled_by_name"`
+	CancelRemark      *string           `json:"cancel_remark"`
+	Items             []ItemResponse    `json:"items"`
 } //	@name	OrderResponse
 
 // ListResponse is one row of GET /orders.
@@ -189,8 +194,13 @@ type CreateRequest struct {
 	// is also accepted (CK_orders_order_type) but Phase 33A builds no
 	// transfer-specific behavior around it — see model.go's own
 	// Order.OrderType doc.
-	OrderType            string              `json:"order_type" example:"SALES_ORDER"`
-	Priority             string              `json:"priority" example:"NORMAL"`
+	OrderType string `json:"order_type" example:"SALES_ORDER"`
+	Priority  string `json:"priority" example:"NORMAL"`
+	// PickingMode (Phase 33C.1) defaults to PICK_BY_ORDER when omitted —
+	// see Order.PickingMode's own doc. Setting PICK_BY_PRODUCT here does
+	// not do anything by itself; it only makes the order eligible for a
+	// future internal/pickingbatch consolidation once RELEASED.
+	PickingMode          string              `json:"picking_mode" example:"PICK_BY_ORDER"`
 	RequiredShippingDate *time.Time          `json:"required_shipping_date"`
 	RequiredDeliveryDate *time.Time          `json:"required_delivery_date"`
 	Carrier              *string             `json:"carrier"`
@@ -227,10 +237,14 @@ type UpdateRequest struct {
 	// them clears the order's existing customer/ship-to link, the same
 	// convention Carrier/TrackingNo already follow in
 	// internal/shipping's own UpdateRequest).
-	CustomerID           *int64              `json:"customer_id,string" example:"1"`
-	ShipToID             *int64              `json:"ship_to_id,string" example:"1"`
-	OrderType            string              `json:"order_type" example:"SALES_ORDER"`
-	Priority             string              `json:"priority" example:"NORMAL"`
+	CustomerID *int64 `json:"customer_id,string" example:"1"`
+	ShipToID   *int64 `json:"ship_to_id,string" example:"1"`
+	OrderType  string `json:"order_type" example:"SALES_ORDER"`
+	Priority   string `json:"priority" example:"NORMAL"`
+	// PickingMode: see CreateRequest's own doc — identical semantics,
+	// re-set on every Update (full-replace, matching every other header
+	// field here).
+	PickingMode          string              `json:"picking_mode" example:"PICK_BY_ORDER"`
 	RequiredShippingDate *time.Time          `json:"required_shipping_date"`
 	RequiredDeliveryDate *time.Time          `json:"required_delivery_date"`
 	Carrier              *string             `json:"carrier"`

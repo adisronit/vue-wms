@@ -14,6 +14,9 @@ import OrderFormView from '../views/outbound/OrderFormView.vue'
 import OrderDetailView from '../views/outbound/OrderDetailView.vue'
 import OrderReviewView from '../views/outbound/OrderReviewView.vue'
 import PickingView from '../views/outbound/PickingView.vue'
+import PickingBatchView from '../views/outbound/PickingBatchView.vue'
+import NewPickingBatchView from '../views/outbound/NewPickingBatchView.vue'
+import PickingBatchDetailView from '../views/outbound/PickingBatchDetailView.vue'
 import PackingView from '../views/outbound/PackingView.vue'
 import PackingDetailView from '../views/outbound/PackingDetailView.vue'
 import ShippingView from '../views/outbound/ShippingView.vue'
@@ -112,6 +115,22 @@ const routes = [
         path: 'outbound/picking',
         name: 'Picking',
         component: PickingView,
+      },
+      {
+        path: 'outbound/picking-batches',
+        name: 'PickingBatches',
+        component: PickingBatchView,
+      },
+      {
+        path: 'outbound/picking-batches/new',
+        name: 'NewPickingBatch',
+        component: NewPickingBatchView,
+      },
+      {
+        path: 'outbound/picking-batches/:id',
+        name: 'PickingBatchDetail',
+        component: PickingBatchDetailView,
+        props: true,
       },
       {
         path: 'outbound/packing',

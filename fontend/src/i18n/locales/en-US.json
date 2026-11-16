@@ -99,6 +99,7 @@
     "sectionOutbound": "Outbound",
     "orders": "Orders",
     "picking": "Picking",
+    "pickingBatches": "Batch Picking",
     "packing": "Packing",
     "shipping": "Shipping",
     "sectionAdministration": "Administration",
@@ -563,6 +564,90 @@
       "wrongLot": "Wrong Lot",
       "miscount": "Miscount",
       "other": "Other"
+    }
+  },
+  "pickingBatches": {
+    "title": "Batch Picking",
+    "subtitle": "Consolidate demand from multiple released orders into one picking task, by product/location/lot",
+    "newButton": "+ New Batch",
+    "loading": "Loading picking batches…",
+    "noBatches": "No picking batches found",
+    "table": {
+      "batchNo": "Batch No.",
+      "warehouse": "Warehouse",
+      "orders": "Orders",
+      "lines": "Lines",
+      "pickNo": "Pick No.",
+      "status": "Status",
+      "createdAt": "Created At",
+      "action": "Action"
+    },
+    "filters": {
+      "allStatus": "All Status",
+      "allWarehouses": "All Warehouses"
+    },
+    "statusLabels": {
+      "draft": "Draft",
+      "confirmed": "Confirmed",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "new": {
+      "title": "New Picking Batch",
+      "subtitle": "Select two or more released, batch-eligible orders to consolidate",
+      "backButton": "Back",
+      "selectWarehouseLabel": "Warehouse",
+      "selectWarehouse": "Select warehouse",
+      "availableOrdersTitle": "Eligible Orders",
+      "noAvailableOrders": "No eligible orders (RELEASED and Picking Mode = By Product) in this warehouse",
+      "orderNo": "Order No.",
+      "customer": "Customer",
+      "shipTo": "Ship To",
+      "items": "Items",
+      "selectedCount": "{count} selected",
+      "minOrdersHint": "Select at least two orders to consolidate",
+      "createButton": "Create Consolidation Preview",
+      "createSuccess": "Picking batch created"
+    },
+    "detail": {
+      "backButton": "Back",
+      "ordersTitle": "Included Orders",
+      "ordersTable": {
+        "orderNo": "Order No.",
+        "customer": "Customer",
+        "shipTo": "Ship To",
+        "status": "Status"
+      },
+      "linesTitle": "Consolidated Lines",
+      "linesTable": {
+        "sku": "SKU",
+        "product": "Product",
+        "lot": "Lot No.",
+        "location": "Location",
+        "qty": "Qty",
+        "uom": "UOM"
+      },
+      "allocationsTitle": "Order Allocation Breakdown",
+      "allocationsTable": {
+        "orderNo": "Order No.",
+        "qty": "Allocated Qty"
+      },
+      "confirmButton": "Confirm Batch",
+      "cancelButton": "Cancel Batch",
+      "confirmSuccess": "Picking batch confirmed",
+      "cancelSuccess": "Picking batch cancelled",
+      "confirmedNote": "This batch has been confirmed into one picking task. From here, execute it through the Picking module (pick, scan, confirm).",
+      "goToPicking": "Go to Picking",
+      "confirmCancelMessage": "Cancel this DRAFT batch? Its orders will become available for a new batch."
+    },
+    "messages": {
+      "loadFailed": "Failed to load picking batches",
+      "loadDetailFailed": "Failed to load picking batch",
+      "loadWarehousesFailed": "Failed to load warehouses",
+      "loadAvailableOrdersFailed": "Failed to load eligible orders",
+      "createFailed": "Failed to create picking batch",
+      "confirmFailed": "Failed to confirm picking batch",
+      "cancelFailed": "Failed to cancel picking batch"
     }
   },
   "packing": {
@@ -1139,6 +1224,10 @@
       "orderTypeSales": "Sales Order",
       "orderTypeTransfer": "Internal Transfer",
       "priorityLabel": "Priority",
+      "pickingModeLabel": "Picking Mode",
+      "pickingModeByOrder": "By Order (one task per order)",
+      "pickingModeByProduct": "By Product (eligible for batch picking)",
+      "pickingModeHint": "By Product allows this order to be consolidated with other orders into one Picking Batch once released.",
       "requiredShippingDateLabel": "Required Shipping Date",
       "requiredDeliveryDateLabel": "Required Delivery Date",
       "carrierPlaceholder": "Carrier (optional)",

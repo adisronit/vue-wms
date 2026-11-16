@@ -39,6 +39,7 @@ import (
 	"wms-backend/internal/order"
 	"wms-backend/internal/packing"
 	"wms-backend/internal/picking"
+	"wms-backend/internal/pickingbatch"
 	"wms-backend/internal/platform/database"
 	"wms-backend/internal/platform/dbctx"
 	apihttp "wms-backend/internal/platform/http"
@@ -377,6 +378,15 @@ func main() {
 	orderService := order.NewService(orderRepo, productRepo, warehouseRepo, customerRepo, customerDeliveryLocationRepo, pickingService, shippingService, inventoryService)
 	orderPDFService := order.NewPDFService(orderService, tenantRepo, userRepo)
 	order.NewHandler(orderService, orderPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 33C.1 — Batch Picking / Wave Management. Shares the exact
+	// same pickingService (and its own CreateTx/SuggestLots/Get) every
+	// other orchestrator above already uses — never a second
+	// picking.Service instance, never a direct call into
+	// inventoryService.
+	pickingBatchRepo := pickingbatch.NewRepository(dbManager.DB())
+	pickingBatchService := pickingbatch.NewService(pickingBatchRepo, warehouseRepo, pickingService)
+	pickingbatch.NewHandler(pickingBatchService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	if cfg.SwaggerEnabled {
 		engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

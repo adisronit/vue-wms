@@ -98,6 +98,24 @@ var Modules = []ModuleDef{
 	// (operator assignment, scan validation). "approve" stays on Cancel,
 	// its pre-existing authority level.
 	{Code: "picking", Name: "Picking", Actions: []string{"view", "create", "update", "confirm", "approve"}},
+	// Phase 33C.1 — Batch Picking / Wave Management: kept as its own
+	// module rather than folded into "picking" above — a batch is its
+	// own header/workflow object (consolidation preview, atomic
+	// multi-order claim) distinct from executing a single already-
+	// created task, the same reasoning relocation/packing each got
+	// their own module instead of folding into an existing one.
+	// "create" gates the DRAFT consolidation step (read-only against
+	// inventory); "confirm" gates the real commit (claims every
+	// included order, creates one real picking_tasks row via
+	// internal/picking's own unmodified Service.CreateTx); "cancel"
+	// gates Cancel (DRAFT only — a CONFIRMED batch's own task is
+	// cancelled via picking.approve's existing Cancel instead). No
+	// default grant for any operational staff role yet (matches
+	// relocation/packing's own precedent) — only ADMIN (every code) and
+	// WAREHOUSE_MANAGER (every non-delete code) get it automatically; a
+	// future phase could extend PICKING's own RoleDefaultGrants if
+	// batch-picking duties are assigned to existing picking staff.
+	{Code: "picking_batch", Name: "Batch Picking", Actions: []string{"view", "create", "confirm", "cancel"}},
 	{Code: "replenishment", Name: "Replenishment", Actions: []string{"view", "create", "update", "approve"}},
 	{Code: "shipping", Name: "Shipping", Actions: []string{"view", "create", "update", "approve"}},
 	// "confirm" (Phase 33A) gates the new Review & Release action
@@ -151,6 +169,7 @@ var actionLabels = map[string]string{
 	"confirm": "Confirm",
 	"approve": "Approve",
 	"export":  "Export",
+	"cancel":  "Cancel",
 }
 
 // PermissionCatalog expands Modules into the full flat list of
