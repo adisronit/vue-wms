@@ -33,21 +33,27 @@ func (r *Repository) Transaction(ctx context.Context, fn func(tx *gorm.DB, txRep
 	})
 }
 
-// CreateShipment inserts the header, then derives shipment_no from the
-// new IDENTITY id in the same transaction — the same race-free-by-
-// construction approach as receipt_no/putaway_no/pick_no.
-func (r *Repository) CreateShipment(ctx context.Context, s *Shipment) error {
+// CreateShipment stamps tenantID onto the header, inserts it, then
+// derives shipment_no from the new IDENTITY id in the same transaction —
+// the same race-free-by-construction approach as receipt_no/putaway_no/
+// pick_no. Phase 30 Batch 4: tenantID must be the caller's own verified
+// tenant, never read from the request body.
+func (r *Repository) CreateShipment(ctx context.Context, tenantID int64, s *Shipment) error {
+	s.TenantID = tenantID
 	if err := r.db.WithContext(ctx).Create(s).Error; err != nil {
 		return err
 	}
 	s.ShipmentNo = fmt.Sprintf("SHP-%06d", s.ID)
-	return r.db.WithContext(ctx).Model(&Shipment{}).Where("id = ?", s.ID).
+	return r.db.WithContext(ctx).Model(&Shipment{}).Where("id = ? AND tenant_id = ?", s.ID, tenantID).
 		Update("shipment_no", s.ShipmentNo).Error
 }
 
-func (r *Repository) FindByID(ctx context.Context, id int64) (*Shipment, error) {
+// FindByID scopes to tenantID — Phase 30 Batch 4 closes the IDOR this
+// query previously had: a cross-tenant id now returns ErrNotFound
+// exactly like a nonexistent one.
+func (r *Repository) FindByID(ctx context.Context, tenantID, id int64) (*Shipment, error) {
 	var s Shipment
-	err := r.db.WithContext(ctx).First(&s, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&s, "id = ? AND tenant_id = ?", id, tenantID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
 	}
@@ -60,10 +66,14 @@ func (r *Repository) FindByID(ctx context.Context, id int64) (*Shipment, error) 
 // FindByPickingTaskID returns the shipment already linked to a picking
 // task, if any — used by Create for a friendly pre-check ahead of the
 // UNIQUE constraint (migrations/0020) that makes "one shipment per
-// picking task" authoritative regardless.
-func (r *Repository) FindByPickingTaskID(ctx context.Context, pickingTaskID int64) (*Shipment, error) {
+// picking task" authoritative regardless. Phase 30 Batch 4: scoped to
+// tenantID — internal/order's own Service.Get (the other caller, via
+// FindByPickingTaskID at the Service layer) now also passes its own
+// verified tenantID, closing the Order->Shipping boundary [[wms_30c_order_tenant_isolation]]'s
+// own report flagged as deferred until Shipping itself was scoped.
+func (r *Repository) FindByPickingTaskID(ctx context.Context, tenantID, pickingTaskID int64) (*Shipment, error) {
 	var s Shipment
-	err := r.db.WithContext(ctx).First(&s, "picking_task_id = ?", pickingTaskID).Error
+	err := r.db.WithContext(ctx).First(&s, "picking_task_id = ? AND tenant_id = ?", pickingTaskID, tenantID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
 	}
@@ -104,8 +114,10 @@ type headerRow struct {
 // used internally by Update/Confirm where the joined display fields
 // aren't needed). The LEFT JOIN to users (Phase 18) resolves
 // cancelled_by to a display name, the same pattern Phase 14 established
-// for created_by_name on stock counts.
-func (r *Repository) FindDetail(ctx context.Context, id int64) (*headerRow, error) {
+// for created_by_name on stock counts. Phase 30 Batch 4: scoped to
+// tenantID on the shipment's own row — a cross-tenant id now returns
+// ErrNotFound exactly like a nonexistent one.
+func (r *Repository) FindDetail(ctx context.Context, tenantID, id int64) (*headerRow, error) {
 	var row headerRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT s.id AS id, s.shipment_no AS shipment_no, s.picking_task_id AS picking_task_id,
@@ -119,8 +131,8 @@ func (r *Repository) FindDetail(ctx context.Context, id int64) (*headerRow, erro
 		FROM shipments s
 		JOIN picking_tasks pt ON pt.id = s.picking_task_id
 		LEFT JOIN users cu ON cu.id = s.cancelled_by
-		WHERE s.id = ?
-	`, id).Scan(&row).Error
+		WHERE s.id = ? AND s.tenant_id = ?
+	`, id, tenantID).Scan(&row).Error
 	if err != nil {
 		return nil, err
 	}
@@ -131,9 +143,12 @@ func (r *Repository) FindDetail(ctx context.Context, id int64) (*headerRow, erro
 }
 
 // UpdateHeader writes the editable header fields — used by both the PUT
-// endpoint and Create (nothing else touches these columns).
-func (r *Repository) UpdateHeader(ctx context.Context, s *Shipment) error {
-	return r.db.WithContext(ctx).Model(&Shipment{}).Where("id = ?", s.ID).Updates(map[string]any{
+// endpoint and Create (nothing else touches these columns). Scoped to
+// tenantID as defense in depth — the caller's own FindByID already
+// proved ownership, matching every other workflow package's own
+// write-layer precedent.
+func (r *Repository) UpdateHeader(ctx context.Context, tenantID int64, s *Shipment) error {
+	return r.db.WithContext(ctx).Model(&Shipment{}).Where("id = ? AND tenant_id = ?", s.ID, tenantID).Updates(map[string]any{
 		"carrier":     s.Carrier,
 		"tracking_no": s.TrackingNo,
 		"packages":    s.Packages,
@@ -147,9 +162,10 @@ func (r *Repository) UpdateHeader(ctx context.Context, s *Shipment) error {
 // UpdateStatus writes the status transition fields Confirm derives —
 // deliberately excludes every editable header field above so a confirm
 // action can never clobber a concurrent header edit (the same
-// field-scoped-write discipline Phase 9's race fix established).
-func (r *Repository) UpdateStatus(ctx context.Context, s *Shipment) error {
-	return r.db.WithContext(ctx).Model(&Shipment{}).Where("id = ?", s.ID).Updates(map[string]any{
+// field-scoped-write discipline Phase 9's race fix established). Scoped
+// to tenantID as defense in depth.
+func (r *Repository) UpdateStatus(ctx context.Context, tenantID int64, s *Shipment) error {
+	return r.db.WithContext(ctx).Model(&Shipment{}).Where("id = ? AND tenant_id = ?", s.ID, tenantID).Updates(map[string]any{
 		"status":        s.Status,
 		"remark":        s.Remark,
 		"dispatched_at": s.DispatchedAt,
@@ -163,9 +179,10 @@ func (r *Repository) UpdateStatus(ctx context.Context, s *Shipment) error {
 // actions also call, and which has no business ever touching
 // cancellation columns). Never called except from a Cancel that has
 // already passed Status.CanCancel, so cancelled_at/cancelled_by/
-// cancel_remark are only ever written once per shipment.
-func (r *Repository) CancelShipment(ctx context.Context, s *Shipment) error {
-	return r.db.WithContext(ctx).Model(&Shipment{}).Where("id = ?", s.ID).Updates(map[string]any{
+// cancel_remark are only ever written once per shipment. Scoped to
+// tenantID as defense in depth.
+func (r *Repository) CancelShipment(ctx context.Context, tenantID int64, s *Shipment) error {
+	return r.db.WithContext(ctx).Model(&Shipment{}).Where("id = ? AND tenant_id = ?", s.ID, tenantID).Updates(map[string]any{
 		"status":        s.Status,
 		"cancelled_at":  s.CancelledAt,
 		"cancelled_by":  s.CancelledBy,
@@ -188,18 +205,22 @@ type listRow struct {
 
 // List returns shipment-level rows joined with the linked picking
 // task's order_no/customer — matches ShippingView.vue's table directly.
-func (r *Repository) List(ctx context.Context, params ListParams) ([]ListResponse, int64, error) {
+// Phase 30 Batch 4: scoped to tenantID so one tenant's shipping history
+// never leaks into another's list/export.
+func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
 	base := `
 		FROM shipments s
 		JOIN picking_tasks pt ON pt.id = s.picking_task_id
 	`
-	where := `WHERE (? = '' OR s.shipment_no LIKE ? OR pt.order_no LIKE ? OR pt.customer LIKE ? OR s.tracking_no LIKE ?)
+	where := `WHERE s.tenant_id = ?
+		AND (? = '' OR s.shipment_no LIKE ? OR pt.order_no LIKE ? OR pt.customer LIKE ? OR s.tracking_no LIKE ?)
 		AND (? = '' OR s.status = ?)
 		AND (? = '' OR s.carrier = ?)
 		AND (? IS NULL OR s.ship_date = ?)`
 
 	like := "%" + params.Search + "%"
 	args := []any{
+		tenantID,
 		params.Search, like, like, like, like,
 		string(params.Status), string(params.Status),
 		params.Carrier, params.Carrier,
@@ -251,7 +272,11 @@ type itemRow struct {
 	CreatedAt    time.Time
 }
 
-func (r *Repository) ListItems(ctx context.Context, shipmentID int64) ([]ItemResponse, error) {
+// ListItems is only ever called right after a tenant-scoped FindDetail
+// already proved shipmentID belongs to tenantID, but the tenant_id
+// predicate here is defense in depth, matching internal/picking's own
+// ListItems precedent (Batch 2).
+func (r *Repository) ListItems(ctx context.Context, tenantID, shipmentID int64) ([]ItemResponse, error) {
 	var rows []itemRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT si.id AS id, si.product_id AS product_id, p.sku AS sku, p.name AS product_name,
@@ -260,9 +285,9 @@ func (r *Repository) ListItems(ctx context.Context, shipmentID int64) ([]ItemRes
 		FROM shipment_items si
 		JOIN products p ON p.id = si.product_id
 		JOIN locations l ON l.id = si.location_id
-		WHERE si.shipment_id = ?
+		WHERE si.shipment_id = ? AND si.tenant_id = ?
 		ORDER BY si.id ASC
-	`, shipmentID).Scan(&rows).Error
+	`, shipmentID, tenantID).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +303,8 @@ func (r *Repository) ListItems(ctx context.Context, shipmentID int64) ([]ItemRes
 	return items, nil
 }
 
-func (r *Repository) CreateItem(ctx context.Context, item *Item) error {
+func (r *Repository) CreateItem(ctx context.Context, tenantID int64, item *Item) error {
+	item.TenantID = tenantID
 	return r.db.WithContext(ctx).Create(item).Error
 }
 
@@ -293,19 +319,26 @@ type sourceRow struct {
 // Sources returns completed (or partially-completed, i.e. SHORT_PICK
 // with at least one COMPLETED line) picking tasks that have no shipment
 // yet — powers GET /shipping/sources, replacing ShippingView.vue's lack
-// of any source picker at all (see dto.go's SourceResponse doc).
-func (r *Repository) Sources(ctx context.Context) ([]SourceResponse, error) {
+// of any source picker at all (see dto.go's SourceResponse doc). Phase
+// 30 Batch 4: scoped to tenantID on the picking task itself — the
+// correlated NOT EXISTS subquery needs no separate tenant_id predicate
+// since a shipment can only ever be linked to a picking task that
+// shares its own tenant (shipments.picking_task_id -> picking_tasks.id
+// is a 1:1 FK, and Service.Create verifies the picking task's tenant
+// via pickingChecker.Get before ever creating one).
+func (r *Repository) Sources(ctx context.Context, tenantID int64) ([]SourceResponse, error) {
 	var rows []sourceRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT pt.id AS picking_task_id, pt.pick_no AS pick_no, pt.order_no AS order_no, pt.customer AS customer,
 			COUNT(pti.id) AS item_count
 		FROM picking_tasks pt
 		JOIN picking_task_items pti ON pti.picking_task_id = pt.id AND pti.status = 'COMPLETED'
-		WHERE pt.status IN ('COMPLETED', 'SHORT_PICK')
+		WHERE pt.tenant_id = ?
+			AND pt.status IN ('COMPLETED', 'SHORT_PICK')
 			AND NOT EXISTS (SELECT 1 FROM shipments sh WHERE sh.picking_task_id = pt.id)
 		GROUP BY pt.id, pt.pick_no, pt.order_no, pt.customer
 		ORDER BY pt.id DESC
-	`).Scan(&rows).Error
+	`, tenantID).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -323,8 +356,8 @@ func (r *Repository) Sources(ctx context.Context) ([]SourceResponse, error) {
 // InsertConfirmation is the idempotency guard itself — see
 // migrations/0022's doc. Must be called inside the same transaction as
 // the status transition it's guarding.
-func (r *Repository) InsertConfirmation(ctx context.Context, idempotencyKey string, shipmentID int64) error {
-	err := r.db.WithContext(ctx).Create(&Confirmation{IdempotencyKey: idempotencyKey, ShipmentID: shipmentID}).Error
+func (r *Repository) InsertConfirmation(ctx context.Context, tenantID int64, idempotencyKey string, shipmentID int64) error {
+	err := r.db.WithContext(ctx).Create(&Confirmation{TenantID: tenantID, IdempotencyKey: idempotencyKey, ShipmentID: shipmentID}).Error
 	if err != nil && isUniqueViolation(err) {
 		return ErrDuplicateIdempotencyKey
 	}

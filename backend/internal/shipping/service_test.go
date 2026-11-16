@@ -171,7 +171,7 @@ func (f *fakePicking) Get(context.Context, int64, int64) (*picking.Response, err
 func TestCreate_RejectsUnknownPickingTask(t *testing.T) {
 	svc := NewService(nil, &fakePicking{err: errors.New("not found")})
 
-	_, err := svc.Create(context.Background(), CreateRequest{PickingTaskID: 999}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{PickingTaskID: 999}, 1)
 
 	if !errors.Is(err, ErrPickingTaskNotFound) {
 		t.Fatalf("error = %v, want ErrPickingTaskNotFound", err)
@@ -181,7 +181,7 @@ func TestCreate_RejectsUnknownPickingTask(t *testing.T) {
 func TestCreate_RejectsNonShippableTask(t *testing.T) {
 	svc := NewService(nil, &fakePicking{resp: &picking.Response{ID: 1, Status: picking.StatusInProgress}})
 
-	_, err := svc.Create(context.Background(), CreateRequest{PickingTaskID: 1}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{PickingTaskID: 1}, 1)
 
 	if !errors.Is(err, ErrNotShippable) {
 		t.Fatalf("error = %v, want ErrNotShippable", err)
@@ -194,7 +194,7 @@ func TestCreate_RejectsTaskWithNoCompletedLines(t *testing.T) {
 		Items: []picking.ItemResponse{{ID: 1, Status: picking.ItemStatusShort, PickedQty: 0}},
 	}})
 
-	_, err := svc.Create(context.Background(), CreateRequest{PickingTaskID: 1}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{PickingTaskID: 1}, 1)
 
 	if !errors.Is(err, ErrNoShippableItems) {
 		t.Fatalf("error = %v, want ErrNoShippableItems", err)
@@ -208,7 +208,7 @@ func TestCreate_RejectsInvalidCarrier(t *testing.T) {
 	}})
 	badCarrier := "UPS"
 
-	_, err := svc.Create(context.Background(), CreateRequest{PickingTaskID: 1, Carrier: &badCarrier}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{PickingTaskID: 1, Carrier: &badCarrier}, 1)
 
 	var validationErr ErrValidation
 	if !errors.As(err, &validationErr) {

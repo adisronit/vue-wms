@@ -75,25 +75,13 @@ type pickingOrchestrator interface {
 // phase (see that method's own doc) so Service.Get can resolve whether
 // (and how) a linked picking task has since been shipped.
 //
-// FindByPickingTaskID itself takes no tenantID — internal/shipping has
-// not been tenant-scoped in any Phase 30 batch (explicitly out of scope
-// for Batch 3 — "No Shipping refactor except required safe caller
-// adaptation"), so its own repository query carries no tenant_id
-// predicate. This call site is still safe by construction, not merely
-// unverified: row.PickingTaskID is read from this package's own
-// tenant-scoped FindDetail, and a picking_tasks.id value only ever
-// reaches an order's picking_task_id column via this same package's
-// CreatePickingTask, which (as of this batch) only ever creates that
-// task through picking.Service.CreateTx using the caller's own verified
-// tenantID. Because picking_tasks.id is a single globally-unique
-// IDENTITY column, no other tenant's order can ever hold the same id, so
-// looking up "the shipment linked to this exact id" cannot cross a
-// tenant boundary even though the shipping query itself does not filter
-// on tenant_id. Reported, not silently assumed: if internal/shipping
-// ever gains a path that creates shipments or picking-task links outside
-// that invariant, this reasoning must be re-checked.
+// Phase 30 Batch 4: internal/shipping is now itself tenant-scoped, so
+// this call passes the caller's own verified tenantID instead of being
+// omitted entirely — closing the Order->Shipping boundary this
+// package's own Batch 3 report flagged as deferred until Shipping
+// itself was scoped.
 type shippingReader interface {
-	FindByPickingTaskID(ctx context.Context, pickingTaskID int64) (*shipping.Response, error)
+	FindByPickingTaskID(ctx context.Context, tenantID, pickingTaskID int64) (*shipping.Response, error)
 }
 
 // Service holds Order Management's business rules — a lightweight
@@ -171,10 +159,10 @@ func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error
 		}
 		pickingStatus = &pickingResp.Status
 
-		// shippingReader's own doc above explains why this call site is
-		// safe by construction despite shipping.Service.FindByPickingTaskID
-		// itself not taking a tenantID.
-		shipResp, err := s.shipping.FindByPickingTaskID(ctx, *row.PickingTaskID)
+		// Phase 30 Batch 4: real verified tenantID, now that
+		// internal/shipping is itself tenant-scoped — see shippingReader's
+		// own doc above.
+		shipResp, err := s.shipping.FindByPickingTaskID(ctx, tenantID, *row.PickingTaskID)
 		if err != nil {
 			return nil, err
 		}
