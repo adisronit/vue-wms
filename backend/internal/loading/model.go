@@ -126,13 +126,6 @@ func (s CartonStatus) IsValid() bool {
 	}
 }
 
-// cartonResolved reports whether a trip carton has reached a terminal
-// outcome (LOADED or SHORT) — the precondition ConfirmTrip checks
-// across every carton on the trip.
-func cartonResolved(s CartonStatus) bool {
-	return s == CartonStatusLoaded || s == CartonStatusShort
-}
-
 // ShortReason is a closed set for the "unable to load" exception —
 // mirrors packing.ExceptionReason's own closed-set shape, adapted to
 // this phase's own loading-dock discovery (damaged in transit from the
@@ -159,27 +152,27 @@ func (r ShortReason) IsValid() bool {
 
 // Trip is the GORM model for the loading_trips table (migrations/0109).
 type Trip struct {
-	ID                    int64      `gorm:"column:id;primaryKey"`
-	TenantID              int64      `gorm:"column:tenant_id;not null"`
-	TripNo                string     `gorm:"column:trip_no"`
-	VehicleNo             *string    `gorm:"column:vehicle_no"`
-	DriverName            *string    `gorm:"column:driver_name"`
-	Carrier               *string    `gorm:"column:carrier"`
-	LoadingDock           *string    `gorm:"column:loading_dock"`
-	Route                 *string    `gorm:"column:route"`
-	ScheduledLoadingTime  *time.Time `gorm:"column:scheduled_loading_time"`
-	ActualLoadingStartAt  *time.Time `gorm:"column:actual_loading_start_at"`
-	ActualLoadingEndAt    *time.Time `gorm:"column:actual_loading_end_at"`
-	VehicleSeal           *string    `gorm:"column:vehicle_seal"`
-	Status                Status     `gorm:"column:status"`
-	Remark                *string    `gorm:"column:remark"`
-	CreatedBy             *int64     `gorm:"column:created_by"`
-	CreatedAt             time.Time  `gorm:"column:created_at"`
-	UpdatedAt             time.Time  `gorm:"column:updated_at"`
-	CompletedAt           *time.Time `gorm:"column:completed_at"`
-	CancelledAt           *time.Time `gorm:"column:cancelled_at"`
-	CancelledBy           *int64     `gorm:"column:cancelled_by"`
-	CancelRemark          *string    `gorm:"column:cancel_remark"`
+	ID                   int64      `gorm:"column:id;primaryKey"`
+	TenantID             int64      `gorm:"column:tenant_id;not null"`
+	TripNo               string     `gorm:"column:trip_no"`
+	VehicleNo            *string    `gorm:"column:vehicle_no"`
+	DriverName           *string    `gorm:"column:driver_name"`
+	Carrier              *string    `gorm:"column:carrier"`
+	LoadingDock          *string    `gorm:"column:loading_dock"`
+	Route                *string    `gorm:"column:route"`
+	ScheduledLoadingTime *time.Time `gorm:"column:scheduled_loading_time"`
+	ActualLoadingStartAt *time.Time `gorm:"column:actual_loading_start_at"`
+	ActualLoadingEndAt   *time.Time `gorm:"column:actual_loading_end_at"`
+	VehicleSeal          *string    `gorm:"column:vehicle_seal"`
+	Status               Status     `gorm:"column:status"`
+	Remark               *string    `gorm:"column:remark"`
+	CreatedBy            *int64     `gorm:"column:created_by"`
+	CreatedAt            time.Time  `gorm:"column:created_at"`
+	UpdatedAt            time.Time  `gorm:"column:updated_at"`
+	CompletedAt          *time.Time `gorm:"column:completed_at"`
+	CancelledAt          *time.Time `gorm:"column:cancelled_at"`
+	CancelledBy          *int64     `gorm:"column:cancelled_by"`
+	CancelRemark         *string    `gorm:"column:cancel_remark"`
 }
 
 func (Trip) TableName() string { return "loading_trips" }

@@ -21,15 +21,15 @@ type CartonResponse struct {
 // ShipmentSummaryResponse is one shipment assigned to a trip, with its
 // own planned/loaded/short carton counts.
 type ShipmentSummaryResponse struct {
-	ShipmentID   int64  `json:"shipment_id,string" example:"1"`
-	ShipmentNo   string `json:"shipment_no" example:"SHP-000001"`
-	OrderNo      string `json:"order_no" example:"SO-20260608-001"`
+	ShipmentID   int64   `json:"shipment_id,string" example:"1"`
+	ShipmentNo   string  `json:"shipment_no" example:"SHP-000001"`
+	OrderNo      string  `json:"order_no" example:"SO-20260608-001"`
 	Customer     *string `json:"customer" example:"ABC Customer"`
-	PackingJobID int64  `json:"packing_job_id,string" example:"1"`
-	JobNo        string `json:"job_no" example:"PACK-000001"`
-	PlannedCount int    `json:"planned_count" example:"3"`
-	LoadedCount  int    `json:"loaded_count" example:"2"`
-	ShortCount   int    `json:"short_count" example:"0"`
+	PackingJobID int64   `json:"packing_job_id,string" example:"1"`
+	JobNo        string  `json:"job_no" example:"PACK-000001"`
+	PlannedCount int     `json:"planned_count" example:"3"`
+	LoadedCount  int     `json:"loaded_count" example:"2"`
+	ShortCount   int     `json:"short_count" example:"0"`
 } //	@name	LoadingTripShipmentResponse
 
 // Response is a full loading trip with its assigned shipments and
