@@ -1,0 +1,15 @@
+-- Phase 33C.1 -- orders.picking_batch_id is the display/traceability
+-- link from a batch-picked order back to the picking_batches row that
+-- consolidated it, written ONLY at Service.Confirm's own atomic
+-- multi-order claim (internal/pickingbatch), alongside status ->
+-- PICKING. Deliberately NOT orders.picking_task_id: migrations/0060's
+-- own filtered unique index on that column allows only ONE order to
+-- ever reference a given picking_task_id, but a batch-created task is
+-- linked from MANY orders at once -- reusing picking_task_id here would
+-- violate UQ_orders_picking_task_id the moment a second order in the
+-- same batch was claimed. picking_batch_id carries no such constraint:
+-- many orders may share one batch_id, a plain (non-unique) FK+index.
+--
+-- Bare ADD COLUMN only in this file -- see migrations/0092's own doc on
+-- why the FK constraint is split into its own transaction (0098).
+ALTER TABLE orders ADD picking_batch_id BIGINT NULL;

@@ -332,6 +332,7 @@ func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error
 		PreparedBy: row.PreparedBy, ApprovedBy: row.ApprovedBy,
 		WarehouseID: row.WarehouseID, WarehouseCode: row.WarehouseCode,
 		PickingTaskID: row.PickingTaskID, PickNo: row.PickNo,
+		PickingMode: PickingMode(row.PickingMode), PickingBatchID: row.PickingBatchID,
 		Status:            Status(row.Status),
 		FulfillmentStatus: deriveFulfillmentStatus(Status(row.Status), pickingStatus, shipmentStatus),
 		Remark:            row.Remark,
@@ -380,10 +381,14 @@ func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest,
 	if err != nil {
 		return nil, err
 	}
+	pickingMode, err := normalizePickingMode(req.PickingMode)
+	if err != nil {
+		return nil, err
+	}
 
 	o := &Order{
 		Customer: req.Customer, ExternalReference: req.ExternalReference,
-		OrderType: orderType, Priority: priority,
+		OrderType: orderType, Priority: priority, PickingMode: pickingMode,
 		RequiredShippingDate: req.RequiredShippingDate, RequiredDeliveryDate: req.RequiredDeliveryDate,
 		Carrier: req.Carrier, ShippingMethod: req.ShippingMethod, DeliveryInstructions: req.DeliveryInstructions,
 		PreparedBy: req.PreparedBy, ApprovedBy: req.ApprovedBy,
@@ -478,6 +483,22 @@ func normalizeOrderTypeAndPriority(orderType, priority string) (string, string, 
 	return orderType, priority, nil
 }
 
+// normalizePickingMode defaults and validates Create/Update's own
+// picking_mode (Phase 33C.1) — empty input defaults to PICK_BY_ORDER;
+// any non-empty value must still be one of PickingMode.IsValid's
+// vocabulary. See Order.PickingMode's own doc — this flag never changes
+// CreatePickingTask's own behavior, only internal/pickingbatch's.
+func normalizePickingMode(mode string) (PickingMode, error) {
+	if mode == "" {
+		return PickingModeByOrder, nil
+	}
+	m := PickingMode(mode)
+	if !m.IsValid() {
+		return "", ErrValidation{Message: "picking_mode must be PICK_BY_ORDER or PICK_BY_PRODUCT"}
+	}
+	return m, nil
+}
+
 // Update replaces the header fields and every line at once — full-
 // replace, not a per-line diff, safe only because Status.CanUpdate
 // (PENDING) means CreatePickingTask has never reserved anything against
@@ -489,6 +510,10 @@ func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequ
 		return nil, ErrWarehouseNotFound
 	}
 	orderType, priority, err := normalizeOrderTypeAndPriority(req.OrderType, req.Priority)
+	if err != nil {
+		return nil, err
+	}
+	pickingMode, err := normalizePickingMode(req.PickingMode)
 	if err != nil {
 		return nil, err
 	}
@@ -510,6 +535,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequ
 		o.ExternalReference = req.ExternalReference
 		o.OrderType = orderType
 		o.Priority = priority
+		o.PickingMode = pickingMode
 		o.RequiredShippingDate = req.RequiredShippingDate
 		o.RequiredDeliveryDate = req.RequiredDeliveryDate
 		o.Carrier = req.Carrier

@@ -1,0 +1,15 @@
+-- Phase 33C.1 -- Batch Picking / Wave Management. picking_mode is a
+-- per-order flag the order creator/releaser sets (PICK_BY_ORDER default,
+-- PICK_BY_PRODUCT opts the order into eligibility for consolidation into
+-- a Picking Batch -- see internal/pickingbatch's own package doc).
+-- PICK_BY_ORDER orders are completely unaffected: Service.
+-- CreatePickingTask's existing one-order-per-task flow is untouched by
+-- this phase -- picking_mode is only ever read by internal/pickingbatch,
+-- never by internal/order's own CreatePickingTask.
+--
+-- Bare ADD COLUMN only, no CHECK constraint in this same batch -- see
+-- migrations/0053's own note on the "Invalid column name" SQL Server
+-- batch-compilation bug a same-batch ADD CONSTRAINT referencing a
+-- column just added would hit. The CHECK constraint follows in
+-- migrations/0093, its own transaction.
+ALTER TABLE orders ADD picking_mode VARCHAR(20) NOT NULL CONSTRAINT DF_orders_picking_mode DEFAULT ('PICK_BY_ORDER');

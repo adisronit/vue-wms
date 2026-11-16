@@ -149,6 +149,7 @@ func (r *Repository) UpdateHeader(ctx context.Context, tenantID int64, o *Order)
 		"external_reference":     o.ExternalReference,
 		"order_type":             o.OrderType,
 		"priority":               o.Priority,
+		"picking_mode":           o.PickingMode,
 		"required_shipping_date": o.RequiredShippingDate,
 		"required_delivery_date": o.RequiredDeliveryDate,
 		"carrier":                o.Carrier,
@@ -288,6 +289,8 @@ type detailRow struct {
 	PickNo               *string
 	PickingStatus        *string
 	ShipmentStatus       *string
+	PickingMode          string
+	PickingBatchID       *int64
 	Status               string
 	Remark               *string
 	ReleasedAt           *time.Time
@@ -323,6 +326,7 @@ func (r *Repository) FindDetail(ctx context.Context, tenantID, id int64) (*detai
 			o.warehouse_id AS warehouse_id, w.code AS warehouse_code,
 			o.picking_task_id AS picking_task_id, pt.pick_no AS pick_no, pt.status AS picking_status,
 			sh.status AS shipment_status,
+			o.picking_mode AS picking_mode, o.picking_batch_id AS picking_batch_id,
 			o.status AS status, o.remark AS remark,
 			o.released_at AS released_at, o.released_by AS released_by, ru.full_name AS released_by_name,
 			o.shortage_approved AS shortage_approved,

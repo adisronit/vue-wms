@@ -75,6 +75,31 @@ func (s Status) CanUpdate() bool {
 	return s == StatusPending
 }
 
+// PickingMode (migrations/0092-0093, Phase 33C.1) is a per-order flag the
+// order creator/releaser sets — PICK_BY_ORDER (default) keeps using the
+// existing one-order-per-task CreatePickingTask flow completely
+// unchanged; PICK_BY_PRODUCT opts the order into eligibility for
+// consolidation into a Picking Batch (internal/pickingbatch) alongside
+// other RELEASED, PICK_BY_PRODUCT orders in the same warehouse. Setting
+// this flag never changes how CreatePickingTask itself behaves — it is
+// only ever read by internal/pickingbatch's own Service when it
+// validates which orders may be included in a new batch.
+type PickingMode string
+
+const (
+	PickingModeByOrder   PickingMode = "PICK_BY_ORDER"
+	PickingModeByProduct PickingMode = "PICK_BY_PRODUCT"
+)
+
+func (m PickingMode) IsValid() bool {
+	switch m {
+	case PickingModeByOrder, PickingModeByProduct:
+		return true
+	default:
+		return false
+	}
+}
+
 // Order is the GORM model for the orders table (migrations/0038).
 type Order struct {
 	ID int64 `gorm:"column:id;primaryKey"`
@@ -103,8 +128,19 @@ type Order struct {
 	ExternalReference   *string `gorm:"column:external_reference"`
 	WarehouseID         int64   `gorm:"column:warehouse_id"`
 	PickingTaskID       *int64  `gorm:"column:picking_task_id"`
-	Status              Status  `gorm:"column:status"`
-	Remark              *string `gorm:"column:remark"`
+	// PickingMode (migrations/0092-0093, Phase 33C.1) — see its own doc
+	// above. PickingBatchID (migrations/0097-0098) is the display/
+	// traceability link back to internal/pickingbatch's own
+	// picking_batches row, written only by that package's own Service.
+	// Confirm (the atomic multi-order claim) — never by anything in this
+	// package. Deliberately NOT PickingTaskID: migrations/0060's own
+	// filtered unique index on that column allows only one order per
+	// task, but a batch-created task is linked from MANY orders at once
+	// — see migrations/0097's own doc for why a separate column exists.
+	PickingMode    PickingMode `gorm:"column:picking_mode"`
+	PickingBatchID *int64      `gorm:"column:picking_batch_id"`
+	Status         Status      `gorm:"column:status"`
+	Remark         *string     `gorm:"column:remark"`
 	// OrderType (migrations/0079, Phase 33A) defaults to SALES_ORDER.
 	// INTERNAL_TRANSFER is also a valid value (CK_orders_order_type) so
 	// Phase 33E can reuse this same column later — nothing in this
