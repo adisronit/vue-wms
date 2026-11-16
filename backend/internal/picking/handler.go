@@ -563,10 +563,17 @@ func (h *Handler) SuggestLots(c *gin.Context) {
 	apihttp.OK(c, resp, "")
 }
 
-// servePDF writes data as an inline PDF response — matching
-// internal/relocation and internal/order's own servePDF helper exactly.
+// servePDF writes data as a PDF response — inline by default (a "View
+// PDF" button can open it in a new tab without forcing a save dialog),
+// attachment when ?download=true, matching internal/relocation and
+// internal/order's own servePDF helper exactly.
 func servePDF(c *gin.Context, data []byte, filename string) {
-	c.Header("Content-Disposition", "inline; filename=\""+filename+"\"")
+	disposition := "inline"
+	if c.Query("download") == "true" {
+		disposition = "attachment"
+	}
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", disposition+"; filename=\""+filename+"\"")
 	c.Data(http.StatusOK, "application/pdf", data)
 }
 
@@ -577,7 +584,8 @@ func servePDF(c *gin.Context, data []byte, filename string) {
 //	@Tags			Picking
 //	@Produce		application/pdf
 //	@Security		BearerAuth
-//	@Param			id	path	int	true	"Picking task ID"
+//	@Param			id			path	int		true	"Picking task ID"
+//	@Param			download	query	boolean	false	"true for a download, omitted for inline viewing"
 //	@Success		200	{file}	file
 //	@Failure		401	{object}	apihttp.ErrorResponse
 //	@Failure		403	{object}	apihttp.ErrorResponse
