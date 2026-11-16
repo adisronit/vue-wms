@@ -14,8 +14,19 @@
         <button v-if="job && job.cartons.length > 0" @click="viewLabels()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold">
           {{ $t('packing.detail.viewCartonLabels') }}
         </button>
+        <button v-if="job" @click="showHistory = true" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold">
+          📜 {{ $t('packing.detail.historyButton') }}
+        </button>
       </template>
     </PageHeader>
+
+    <DocumentHistoryPanel
+      :open="showHistory"
+      document-type="PACKING_LIST"
+      :source-id="id"
+      :title="$t('packing.detail.historyButton')"
+      @close="showHistory = false"
+    />
 
     <div v-if="loadError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm">{{ loadError }}</div>
     <div v-else-if="loading" class="text-sm text-slate-400">{{ $t('packing.loadingJobs') }}</div>
@@ -93,6 +104,7 @@
             <div class="flex gap-2 items-center">
               <StatusBadge :tone="carton.status === 'OPEN' ? 'green' : 'gray'">{{ cartonStatusLabel(carton.status) }}</StatusBadge>
               <button @click="viewLabels(carton.id)" class="text-orange-600 hover:underline text-sm font-semibold">{{ $t('packing.detail.printLabel') }}</button>
+              <button @click="viewLabelsA4(carton.id)" class="text-orange-600 hover:underline text-sm font-semibold">{{ $t('packing.detail.printLabelA4') }}</button>
               <button v-if="canUpdate && carton.status === 'OPEN'" @click="closeCarton(carton)" class="text-slate-500 hover:underline text-sm font-semibold">
                 {{ $t('packing.detail.closeCarton') }}
               </button>
@@ -242,7 +254,8 @@
 <script>
 import {
   getPackingJob, assignPacker, packItem, flagPackingException, createCarton, updateCarton,
-  checkerConfirmPackingJob, cancelPackingJob, newIdempotencyKey, viewPackingList, downloadPackingList, viewCartonLabels
+  checkerConfirmPackingJob, cancelPackingJob, newIdempotencyKey, viewPackingList, downloadPackingList,
+  viewCartonLabels, viewCartonLabelsA4
 } from '../../services/packing'
 import { listUsers } from '../../services/users'
 import { hasPermission } from '../../services/auth'
@@ -251,10 +264,11 @@ import PageHeader from '../../components/ui/PageHeader.vue'
 import FormSection from '../../components/ui/FormSection.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
+import DocumentHistoryPanel from '../../components/documents/DocumentHistoryPanel.vue'
 
 export default {
   name: 'PackingDetailView',
-  components: { PageHeader, FormSection, StatusBadge, ConfirmDialog },
+  components: { PageHeader, FormSection, StatusBadge, ConfirmDialog, DocumentHistoryPanel },
   props: { id: { type: [String, Number], required: true } },
 
   data() {
@@ -262,6 +276,7 @@ export default {
       loading: false,
       loadError: '',
       job: null,
+      showHistory: false,
 
       packers: [],
       assignPackerId: '',
@@ -538,6 +553,14 @@ export default {
     async viewLabels(cartonId) {
       try {
         await viewCartonLabels(this.job.id, cartonId)
+      } catch (err) {
+        showToast(err.message || this.$t('packing.detail.pdfFailed'), 'error')
+      }
+    },
+
+    async viewLabelsA4(cartonId) {
+      try {
+        await viewCartonLabelsA4(this.job.id, cartonId)
       } catch (err) {
         showToast(err.message || this.$t('packing.detail.pdfFailed'), 'error')
       }

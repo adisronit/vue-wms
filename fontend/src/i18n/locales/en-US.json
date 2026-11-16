@@ -555,7 +555,9 @@
       "pickerAssigned": "Picker assigned successfully"
     },
     "documents": {
-      "printPickList": "Print Pick List"
+      "printPickList": "Print Pick List",
+      "printConfirmationReport": "Print Confirmation Report",
+      "historyButton": "Document History"
     },
     "shortReason": {
       "outOfStock": "Out of Stock",
@@ -639,7 +641,9 @@
       "confirmedNote": "This batch has been confirmed into one picking task. From here, execute it through the Picking module (pick, scan, confirm).",
       "goToPicking": "Go to Picking",
       "confirmCancelMessage": "Cancel this DRAFT batch? Its orders will become available for a new batch.",
-      "goToSortation": "Go to Sortation"
+      "goToSortation": "Go to Sortation",
+      "printPickListButton": "Print Consolidated Pick List",
+      "historyButton": "Document History"
     },
     "messages": {
       "loadFailed": "Failed to load picking batches",
@@ -762,7 +766,9 @@
       "cancelJobButton": "Cancel Job",
       "cancelConfirmMessage": "This packing job will be cancelled. Cartons already packed are left as they are. Continue?",
       "cancelSuccess": "Packing job cancelled",
-      "pdfFailed": "Failed to generate PDF"
+      "pdfFailed": "Failed to generate PDF",
+      "historyButton": "Document History",
+      "printLabelA4": "Print Label (A4)"
     },
     "itemStatus": {
       "pending": "Pending",
@@ -1297,7 +1303,8 @@
       "reviewAndRelease": "Review & Release",
       "cancelConfirmMessage": "Cancel this order? This cannot be undone.",
       "cancelSuccess": "Order cancelled",
-      "pickingTaskCreated": "Picking task created"
+      "pickingTaskCreated": "Picking task created",
+      "historyButton": "Document History"
     },
     "review": {
       "title": "Review & Release",
@@ -2818,5 +2825,17 @@
     "exceptionFlagged": "Exception flagged",
     "exceptionFailed": "Failed to flag exception",
     "completedBanner": "Sortation is complete for this batch — every order’s own share has been accounted for."
+  },
+  "documentHistory": {
+    "title": "Document History",
+    "loading": "Loading history...",
+    "empty": "No past renders yet.",
+    "draftBadge": "DRAFT",
+    "renderedBy": "Rendered by {name}",
+    "unknownUser": "Unknown",
+    "view": "View",
+    "download": "Download",
+    "loadFailed": "Failed to load document history",
+    "actionFailed": "Failed to open document"
   }
 }

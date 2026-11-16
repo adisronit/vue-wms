@@ -58,8 +58,29 @@
           >
             {{ $t('pickingBatches.detail.goToSortation') }}
           </button>
+          <button
+            v-if="batch.status === 'CONFIRMED' || batch.status === 'COMPLETED'"
+            @click="printPickList"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold"
+          >
+            📄 {{ $t('pickingBatches.detail.printPickListButton') }}
+          </button>
+          <button
+            @click="showHistory = true"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-semibold"
+          >
+            📜 {{ $t('pickingBatches.detail.historyButton') }}
+          </button>
         </div>
       </div>
+
+      <DocumentHistoryPanel
+        :open="showHistory"
+        document-type="PICKING_BATCH_LIST"
+        :source-id="id"
+        :title="$t('pickingBatches.detail.historyButton')"
+        @close="showHistory = false"
+      />
 
       <div v-if="batch.status !== 'DRAFT' && batch.status !== 'CANCELLED'" class="bg-orange-50 border border-orange-200 text-orange-700 rounded-xl p-3 text-sm">
         {{ $t('pickingBatches.detail.confirmedNote') }}
@@ -144,17 +165,18 @@
 </template>
 
 <script>
-import { getPickingBatch, confirmPickingBatch, cancelPickingBatch } from '../../services/pickingBatches'
+import { getPickingBatch, confirmPickingBatch, cancelPickingBatch, viewConsolidatedPickList } from '../../services/pickingBatches'
 import { hasPermission } from '../../services/auth'
 import { showToast } from '../../services/toast'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import FormSection from '../../components/ui/FormSection.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
 import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
+import DocumentHistoryPanel from '../../components/documents/DocumentHistoryPanel.vue'
 
 export default {
   name: 'PickingBatchDetailPage',
-  components: { PageHeader, FormSection, StatusBadge, ConfirmDialog },
+  components: { PageHeader, FormSection, StatusBadge, ConfirmDialog, DocumentHistoryPanel },
   props: { id: { type: [String, Number], required: true } },
   data() {
     return {
@@ -162,7 +184,8 @@ export default {
       loadError: '',
       batch: null,
       submitting: false,
-      showCancelConfirm: false
+      showCancelConfirm: false,
+      showHistory: false
     }
   },
   computed: {
@@ -210,6 +233,14 @@ export default {
         showToast(err.message || this.$t('pickingBatches.messages.cancelFailed'), 'error')
       } finally {
         this.submitting = false
+      }
+    },
+
+    async printPickList() {
+      try {
+        await viewConsolidatedPickList(this.id)
+      } catch (err) {
+        showToast(err.message || this.$t('pickingBatches.messages.loadDetailFailed'), 'error')
       }
     },
 

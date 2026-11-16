@@ -165,15 +165,35 @@
           </button>
         </div>
 
-        <!-- Phase 33B: Print Pick List -->
-        <div v-if="!isNewTask" class="mb-6 flex items-center gap-3">
+        <!-- Phase 33B: Print Pick List; Phase 33C.3: Confirmation Report + Document History -->
+        <div v-if="!isNewTask" class="mb-6 flex items-center gap-3 flex-wrap">
           <button
             @click="printPickList"
             class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm px-3 py-2 rounded-lg font-semibold"
           >
             📄 {{ $t('picking.documents.printPickList') }}
           </button>
+          <button
+            @click="printConfirmationReport"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm px-3 py-2 rounded-lg font-semibold"
+          >
+            📄 {{ $t('picking.documents.printConfirmationReport') }}
+          </button>
+          <button
+            @click="showHistory = true"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm px-3 py-2 rounded-lg font-semibold"
+          >
+            📜 {{ $t('picking.documents.historyButton') }}
+          </button>
         </div>
+
+        <DocumentHistoryPanel
+          :open="showHistory"
+          document-type="PICK_LIST"
+          :source-id="selectedPicking && selectedPicking.id"
+          :title="$t('picking.documents.historyButton')"
+          @close="showHistory = false"
+        />
 
         <div v-if="drawerError" class="bg-red-50 border border-red-200 text-red-600 rounded-xl p-3 text-sm mb-4">
           {{ drawerError }}
@@ -504,7 +524,7 @@
 import {
   listPicking, getPickingTask, createPickingTask, confirmPickingTask, cancelPickingTask,
   newIdempotencyKey, exportPicking, assignPicker, scanConfirmPickingItem, repickPickingItem,
-  viewPickList
+  viewPickList, viewConfirmationReport
 } from '../../services/picking'
 import { listWarehouses, listZones, listLocations } from '../../services/warehouses'
 import { listProducts } from '../../services/products'
@@ -515,6 +535,7 @@ import PageHeader from '../../components/ui/PageHeader.vue'
 import FilterBar from '../../components/ui/FilterBar.vue'
 import DataTable from '../../components/ui/DataTable.vue'
 import StatusBadge from '../../components/ui/StatusBadge.vue'
+import DocumentHistoryPanel from '../../components/documents/DocumentHistoryPanel.vue'
 import i18n from '../../i18n'
 
 let searchDebounce = null
@@ -569,7 +590,7 @@ function mapPickingRow(r) {
 export default {
   name: 'PickingView',
 
-  components: { PageHeader, FilterBar, DataTable, StatusBadge },
+  components: { PageHeader, FilterBar, DataTable, StatusBadge, DocumentHistoryPanel },
 
   data() {
     return {
@@ -582,6 +603,7 @@ export default {
 
       selectedPicking: null,
       isNewTask: false,
+      showHistory: false,
       drawerError: '',
       drawerLocations: [],
       submitting: false,
@@ -875,6 +897,7 @@ export default {
     closeDrawer() {
       this.selectedPicking = null
       this.isNewTask = false
+      this.showHistory = false
     },
 
     async findProduct(text) {
@@ -1107,6 +1130,14 @@ export default {
     async printPickList() {
       try {
         await viewPickList(this.selectedPicking.id)
+      } catch (err) {
+        showToast(err.message, 'error')
+      }
+    },
+
+    async printConfirmationReport() {
+      try {
+        await viewConfirmationReport(this.selectedPicking.id)
       } catch (err) {
         showToast(err.message, 'error')
       }

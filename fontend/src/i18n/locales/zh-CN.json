@@ -555,7 +555,9 @@
       "pickerAssigned": "拣货员分配成功"
     },
     "documents": {
-      "printPickList": "打印拣货单"
+      "printPickList": "打印拣货单",
+      "printConfirmationReport": "打印确认报告",
+      "historyButton": "文档历史"
     },
     "shortReason": {
       "outOfStock": "缺货",
@@ -639,7 +641,9 @@
       "confirmedNote": "该批次已确认为一个拣货任务。请通过拣货模块继续执行（拣货、扫描、确认）。",
       "goToPicking": "前往拣货",
       "confirmCancelMessage": "是否取消此草稿批次？其中的订单将可重新加入新的批次。",
-      "goToSortation": "前往分拣"
+      "goToSortation": "前往分拣",
+      "printPickListButton": "打印合并拣货单",
+      "historyButton": "文档历史"
     },
     "messages": {
       "loadFailed": "加载拣货批次失败",
@@ -762,7 +766,9 @@
       "cancelJobButton": "取消作业",
       "cancelConfirmMessage": "此打包作业将被取消。已打包的箱子将保持不变。是否继续？",
       "cancelSuccess": "打包作业已取消",
-      "pdfFailed": "生成 PDF 失败"
+      "pdfFailed": "生成 PDF 失败",
+      "historyButton": "文档历史",
+      "printLabelA4": "打印标签 (A4)"
     },
     "itemStatus": {
       "pending": "待处理",
@@ -1297,7 +1303,8 @@
       "reviewAndRelease": "审核并释放",
       "cancelConfirmMessage": "确定取消此订单吗？此操作无法撤销。",
       "cancelSuccess": "订单已取消",
-      "pickingTaskCreated": "拣货任务已创建"
+      "pickingTaskCreated": "拣货任务已创建",
+      "historyButton": "文档历史"
     },
     "review": {
       "title": "审核并释放",
@@ -2818,5 +2825,17 @@
     "exceptionFlagged": "异常已标记",
     "exceptionFailed": "标记异常失败",
     "completedBanner": "此批次的分拣已完成 — 所有订单的份额均已处理完毕。"
+  },
+  "documentHistory": {
+    "title": "文档历史",
+    "loading": "正在加载历史记录...",
+    "empty": "暂无历史打印记录",
+    "draftBadge": "草稿",
+    "renderedBy": "打印人：{name}",
+    "unknownUser": "未知用户",
+    "view": "查看",
+    "download": "下载",
+    "loadFailed": "加载文档历史失败",
+    "actionFailed": "打开文档失败"
   }
 }

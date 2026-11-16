@@ -107,3 +107,20 @@ export async function downloadCartonLabels(jobId, cartonId) {
   const { blob, filename } = await apiDownload(`/packing-jobs/${jobId}/cartons/label?${query}`)
   triggerDownload(blob, filename)
 }
+
+// Phase 33C.3 — A4 fallback for the Carton/Pallet Label: the exact same
+// label content rendered on a full A4 page instead of the 4x6" media,
+// for warehouses without a dedicated label printer.
+export async function viewCartonLabelsA4(jobId, cartonId) {
+  const params = new URLSearchParams({ format: 'A4' })
+  if (cartonId) params.set('carton_id', cartonId)
+  const { blob } = await apiDownload(`/packing-jobs/${jobId}/cartons/label?${params.toString()}`)
+  openInNewTab(blob)
+}
+
+export async function downloadCartonLabelsA4(jobId, cartonId) {
+  const params = new URLSearchParams({ format: 'A4', download: 'true' })
+  if (cartonId) params.set('carton_id', cartonId)
+  const { blob, filename } = await apiDownload(`/packing-jobs/${jobId}/cartons/label?${params.toString()}`)
+  triggerDownload(blob, filename)
+}
