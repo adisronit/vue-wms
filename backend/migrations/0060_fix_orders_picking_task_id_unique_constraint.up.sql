@@ -1,0 +1,22 @@
+-- Fixes a pre-existing bug in migrations/0038_create_orders_tables:
+-- orders.picking_task_id's own "CONSTRAINT UQ_orders_picking_task_id
+-- UNIQUE (picking_task_id)" is a plain UNIQUE constraint, not a filtered
+-- index. SQL Server treats multiple NULLs in a plain UNIQUE constraint
+-- as duplicates (unlike the ANSI-standard "NULLs are distinct"
+-- behavior most other databases use), so no two orders in the entire
+-- table — regardless of tenant, since this constraint carries no
+-- tenant_id column at all — could ever both be PENDING/unlinked at the
+-- same time. Discovered during Phase 30 Batch 3 while writing
+-- internal/order/tenant_isolation_test.go (see
+-- TestRepository_List_ScopedToTenant's own doc comment there for the
+-- reproduction), confirmed directly against a real SQL Server.
+--
+-- Same fix 0008/0048 already applied to products.barcode for the
+-- identical reason (see 0048's own comment on UQ_products_barcode):
+-- swap the constraint for a filtered unique index that only enforces
+-- uniqueness across non-NULL values, preserving the original intent
+-- (one picking task may only ever be linked from a single order) while
+-- allowing any number of orders to simultaneously have no linked task
+-- yet.
+ALTER TABLE orders DROP CONSTRAINT UQ_orders_picking_task_id;
+CREATE UNIQUE INDEX UQ_orders_picking_task_id ON orders(picking_task_id) WHERE picking_task_id IS NOT NULL;
