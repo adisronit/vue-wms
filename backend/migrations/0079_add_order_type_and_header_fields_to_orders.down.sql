@@ -1,0 +1,12 @@
+ALTER TABLE orders DROP COLUMN order_type;
+ALTER TABLE orders DROP COLUMN priority;
+ALTER TABLE orders DROP COLUMN required_shipping_date;
+ALTER TABLE orders DROP COLUMN required_delivery_date;
+ALTER TABLE orders DROP COLUMN carrier;
+ALTER TABLE orders DROP COLUMN shipping_method;
+ALTER TABLE orders DROP COLUMN delivery_instructions;
+ALTER TABLE orders DROP COLUMN prepared_by;
+ALTER TABLE orders DROP COLUMN approved_by;
+ALTER TABLE orders DROP COLUMN released_at;
+ALTER TABLE orders DROP COLUMN released_by;
+ALTER TABLE orders DROP COLUMN shortage_approved;

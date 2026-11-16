@@ -357,8 +357,9 @@ func main() {
 	replenishment.NewHandler(replenishmentService).Register(v1, cfg.JWTSecret)
 
 	orderRepo := order.NewRepository(dbManager.DB())
-	orderService := order.NewService(orderRepo, productRepo, warehouseRepo, customerRepo, customerDeliveryLocationRepo, pickingService, shippingService)
-	order.NewHandler(orderService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+	orderService := order.NewService(orderRepo, productRepo, warehouseRepo, customerRepo, customerDeliveryLocationRepo, pickingService, shippingService, inventoryService)
+	orderPDFService := order.NewPDFService(orderService, tenantRepo, userRepo)
+	order.NewHandler(orderService, orderPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	if cfg.SwaggerEnabled {
 		engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

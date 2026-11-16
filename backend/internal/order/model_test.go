@@ -5,9 +5,20 @@ import (
 	"time"
 )
 
+func TestStatus_CanRelease(t *testing.T) {
+	cases := map[Status]bool{
+		StatusPending: true, StatusReleased: false, StatusPicking: false, StatusCancelled: false,
+	}
+	for status, want := range cases {
+		if got := status.CanRelease(); got != want {
+			t.Errorf("Status(%q).CanRelease() = %v, want %v", status, got, want)
+		}
+	}
+}
+
 func TestStatus_CanCreatePickingTask(t *testing.T) {
 	cases := map[Status]bool{
-		StatusPending: true, StatusPicking: false, StatusCancelled: false,
+		StatusPending: false, StatusReleased: true, StatusPicking: false, StatusCancelled: false,
 	}
 	for status, want := range cases {
 		if got := status.CanCreatePickingTask(); got != want {
@@ -18,7 +29,7 @@ func TestStatus_CanCreatePickingTask(t *testing.T) {
 
 func TestStatus_CanCancel(t *testing.T) {
 	cases := map[Status]bool{
-		StatusPending: true, StatusPicking: false, StatusCancelled: false,
+		StatusPending: true, StatusReleased: true, StatusPicking: false, StatusCancelled: false,
 	}
 	for status, want := range cases {
 		if got := status.CanCancel(); got != want {
@@ -29,7 +40,7 @@ func TestStatus_CanCancel(t *testing.T) {
 
 func TestStatus_CanUpdate(t *testing.T) {
 	cases := map[Status]bool{
-		StatusPending: true, StatusPicking: false, StatusCancelled: false,
+		StatusPending: true, StatusReleased: false, StatusPicking: false, StatusCancelled: false,
 	}
 	for status, want := range cases {
 		if got := status.CanUpdate(); got != want {

@@ -102,7 +102,7 @@ func (f *fakeWarehouses) FindByID(context.Context, int64) (*warehouse.Warehouse,
 }
 
 func TestCreate_RejectsUnknownWarehouse(t *testing.T) {
-	svc := NewService(nil, nil, &fakeWarehouses{err: errors.New("not found")}, nil, nil, nil, nil)
+	svc := NewService(nil, nil, &fakeWarehouses{err: errors.New("not found")}, nil, nil, nil, nil, nil)
 
 	_, err := svc.Create(context.Background(), 1, CreateRequest{WarehouseID: 999}, 1)
 
@@ -111,8 +111,44 @@ func TestCreate_RejectsUnknownWarehouse(t *testing.T) {
 	}
 }
 
+// --- normalizeOrderTypeAndPriority: Create/Update's pure validation
+// core for the new order_type/priority header fields (Phase 33A) ---
+
+func TestNormalizeOrderTypeAndPriority_DefaultsEmptyToSalesOrderNormal(t *testing.T) {
+	orderType, priority, err := normalizeOrderTypeAndPriority("", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if orderType != "SALES_ORDER" || priority != "NORMAL" {
+		t.Errorf("got (%q, %q), want (SALES_ORDER, NORMAL)", orderType, priority)
+	}
+}
+
+func TestNormalizeOrderTypeAndPriority_AcceptsInternalTransfer(t *testing.T) {
+	// INTERNAL_TRANSFER must be accepted by this package's own validation
+	// (and by migrations/0081's CK_orders_order_type) even though no
+	// transfer-specific behavior is built around it yet — Phase 33E will
+	// build on top of this same column.
+	orderType, priority, err := normalizeOrderTypeAndPriority("INTERNAL_TRANSFER", "HIGH")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if orderType != "INTERNAL_TRANSFER" || priority != "HIGH" {
+		t.Errorf("got (%q, %q), want (INTERNAL_TRANSFER, HIGH)", orderType, priority)
+	}
+}
+
+func TestNormalizeOrderTypeAndPriority_RejectsUnknownValues(t *testing.T) {
+	if _, _, err := normalizeOrderTypeAndPriority("BOGUS", ""); err == nil {
+		t.Error("normalizeOrderTypeAndPriority(bogus order_type) = nil error, want ErrValidation")
+	}
+	if _, _, err := normalizeOrderTypeAndPriority("", "URGENT"); err == nil {
+		t.Error("normalizeOrderTypeAndPriority(bogus priority) = nil error, want ErrValidation")
+	}
+}
+
 func TestUpdate_RejectsUnknownWarehouse(t *testing.T) {
-	svc := NewService(nil, nil, &fakeWarehouses{err: errors.New("not found")}, nil, nil, nil, nil)
+	svc := NewService(nil, nil, &fakeWarehouses{err: errors.New("not found")}, nil, nil, nil, nil, nil)
 
 	_, err := svc.Update(context.Background(), 1, 1, UpdateRequest{WarehouseID: 999})
 

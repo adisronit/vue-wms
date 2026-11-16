@@ -100,6 +100,7 @@ func TestOrdersConstraint_DuplicateNonNullPickingTaskID_StillRejected(t *testing
 	svc, repo := newOrderServiceAndRepo(tx)
 
 	orderOne := createOrderWithRef(t, svc, a.tenantID, a, 10, "EXT-DUP-1")
+	releaseOrder(t, svc, a.tenantID, orderOne.ID, false)
 	resp, err := svc.CreatePickingTask(context.Background(), a.tenantID, orderOne.ID, CreatePickingTaskRequest{
 		Items: []LocationAssignment{{OrderItemID: orderOne.Items[0].ID, LocationID: a.locationID, LotNo: "LOT-A"}},
 	}, 1)
@@ -152,6 +153,7 @@ func TestOrdersConstraint_ExistingWorkflow_Unaffected(t *testing.T) {
 	svc, _ := newOrderServiceAndRepo(tx)
 
 	linked := createOrderWithRef(t, svc, a.tenantID, a, 10, "EXT-WORKFLOW-1")
+	releaseOrder(t, svc, a.tenantID, linked.ID, false)
 	linkedResp, err := svc.CreatePickingTask(context.Background(), a.tenantID, linked.ID, CreatePickingTaskRequest{
 		Items: []LocationAssignment{{OrderItemID: linked.Items[0].ID, LocationID: a.locationID, LotNo: "LOT-A"}},
 	}, 1)

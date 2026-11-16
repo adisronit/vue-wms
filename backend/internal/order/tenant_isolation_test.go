@@ -129,7 +129,7 @@ func newOrderServiceAndRepo(tx *gorm.DB) (*Service, *Repository) {
 	customerRepo := customer.NewRepository(tx)
 	shipToRepo := customerdeliverylocation.NewRepository(tx)
 
-	return NewService(repo, productRepo, warehouseRepo, customerRepo, shipToRepo, pickingSvc, shippingSvc), repo
+	return NewService(repo, productRepo, warehouseRepo, customerRepo, shipToRepo, pickingSvc, shippingSvc, invSvc), repo
 }
 
 // createOrder runs Service.Create end-to-end (through the real
@@ -144,6 +144,21 @@ func createOrder(t *testing.T, svc *Service, tenantID int64, f orderFixture, ord
 	}, 1)
 	if err != nil {
 		t.Fatalf("createOrder: Create: %v", err)
+	}
+	return resp
+}
+
+// releaseOrder runs Service.Release end-to-end (PENDING -> RELEASED) —
+// Phase 33A's own gate CreatePickingTask now requires in front of it
+// (Status.CanCreatePickingTask). approveShortage is forwarded as-is so
+// a fixture with deliberately no inventory balance (testing a
+// downstream picking failure, not Release's own gating) can still
+// reach RELEASED despite a known shortage.
+func releaseOrder(t *testing.T, svc *Service, tenantID, orderID int64, approveShortage bool) *Response {
+	t.Helper()
+	resp, err := svc.Release(context.Background(), tenantID, orderID, ReleaseRequest{ApproveShortage: approveShortage}, 1)
+	if err != nil {
+		t.Fatalf("releaseOrder: Release: %v", err)
 	}
 	return resp
 }
@@ -224,6 +239,7 @@ func TestRepository_List_ScopedToTenant(t *testing.T) {
 
 	svc, repo := newOrderServiceAndRepo(tx)
 	orderA := createOrder(t, svc, a.tenantID, a, 5)
+	releaseOrder(t, svc, a.tenantID, orderA.ID, false)
 	if _, err := svc.CreatePickingTask(context.Background(), a.tenantID, orderA.ID, CreatePickingTaskRequest{
 		Items: []LocationAssignment{{OrderItemID: orderA.Items[0].ID, LocationID: a.locationID, LotNo: "LOT-A"}},
 	}, 1); err != nil {
@@ -409,6 +425,7 @@ func TestService_CreatePickingTask_CrossTenant_NotFound(t *testing.T) {
 
 	svc, _ := newOrderServiceAndRepo(tx)
 	order := createOrder(t, svc, b.tenantID, b, 10)
+	releaseOrder(t, svc, b.tenantID, order.ID, false)
 
 	_, err := svc.CreatePickingTask(context.Background(), a.tenantID, order.ID, CreatePickingTaskRequest{
 		Items: []LocationAssignment{{OrderItemID: order.Items[0].ID, LocationID: b.locationID, LotNo: "LOT-B"}},
@@ -421,8 +438,8 @@ func TestService_CreatePickingTask_CrossTenant_NotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get after rejected cross-tenant CreatePickingTask: %v", err)
 	}
-	if reloaded.Status != StatusPending {
-		t.Errorf("order status after rejected cross-tenant CreatePickingTask = %v, want still PENDING", reloaded.Status)
+	if reloaded.Status != StatusReleased {
+		t.Errorf("order status after rejected cross-tenant CreatePickingTask = %v, want still RELEASED", reloaded.Status)
 	}
 }
 
@@ -435,6 +452,7 @@ func TestService_CreatePickingTask_OwnTenant_Succeeds(t *testing.T) {
 
 	svc, _ := newOrderServiceAndRepo(tx)
 	order := createOrder(t, svc, a.tenantID, a, 10)
+	releaseOrder(t, svc, a.tenantID, order.ID, false)
 
 	resp, err := svc.CreatePickingTask(context.Background(), a.tenantID, order.ID, CreatePickingTaskRequest{
 		Items: []LocationAssignment{{OrderItemID: order.Items[0].ID, LocationID: a.locationID, LotNo: "LOT-A"}},
@@ -487,6 +505,11 @@ func TestService_CreatePickingTask_RollsBackOnPickingFailure(t *testing.T) {
 
 	svc, _ := newOrderServiceAndRepo(tx)
 	order := createOrder(t, svc, a.tenantID, a, 10)
+	// No stock exists yet, so the availability check itself finds a
+	// shortage — approve it explicitly to reach RELEASED anyway; this
+	// test is about CreatePickingTask's own downstream rollback, not
+	// Release's own shortage gate.
+	releaseOrder(t, svc, a.tenantID, order.ID, true)
 
 	_, err := svc.CreatePickingTask(context.Background(), a.tenantID, order.ID, CreatePickingTaskRequest{
 		Items: []LocationAssignment{{OrderItemID: order.Items[0].ID, LocationID: a.locationID, LotNo: "LOT-A"}},
@@ -499,8 +522,8 @@ func TestService_CreatePickingTask_RollsBackOnPickingFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get after rolled-back CreatePickingTask: %v", err)
 	}
-	if reloaded.Status != StatusPending || reloaded.PickingTaskID != nil {
-		t.Fatalf("order after rolled-back CreatePickingTask = %+v, want still PENDING with no linked picking task", reloaded)
+	if reloaded.Status != StatusReleased || reloaded.PickingTaskID != nil {
+		t.Fatalf("order after rolled-back CreatePickingTask = %+v, want still RELEASED with no linked picking task", reloaded)
 	}
 
 	// The order must still be claimable after the rollback — proves the
@@ -595,6 +618,7 @@ func TestService_CreatePickingTask_ConcurrentClaims_OnlyOneWins(t *testing.T) {
 
 	svc, _ := newOrderServiceAndRepo(db)
 	order := createOrder(t, svc, tenantID, f, 10)
+	releaseOrder(t, svc, tenantID, order.ID, false)
 
 	const attempts = 10
 	results := make([]error, attempts)

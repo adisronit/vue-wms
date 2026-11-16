@@ -20,6 +20,7 @@ func TestDeriveFulfillmentStatus(t *testing.T) {
 	}{
 		{"cancelled order is always CANCELLED regardless of any linked task", StatusCancelled, ps(picking.StatusInProgress), nil, FulfillmentCancelled},
 		{"no picking task yet", StatusPending, nil, nil, FulfillmentPending},
+		{"released, no picking task yet", StatusReleased, nil, nil, FulfillmentReleased},
 		{"picking task pending", StatusPicking, ps(picking.StatusPending), nil, FulfillmentPicking},
 		{"picking task in progress", StatusPicking, ps(picking.StatusInProgress), nil, FulfillmentPicking},
 		{"picking task cancelled", StatusPicking, ps(picking.StatusCancelled), nil, FulfillmentPickingCancelled},

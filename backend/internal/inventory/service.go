@@ -662,6 +662,31 @@ func (s *Service) ListTransactionsByReference(ctx context.Context, tenantID int6
 	return s.repo.ListTransactionsByReference(ctx, tenantID, referenceType, referenceID)
 }
 
+// ProductAvailability is AvailabilityByProductWarehouse's result — a
+// pure, read-only snapshot, never a reservation or any other mutation.
+type ProductAvailability struct {
+	AvailableQty float64
+	ReservedQty  float64
+	HoldQty      float64
+	OnHandQty    float64
+}
+
+// AvailabilityByProductWarehouse exposes Repository.
+// AvailabilityByProductWarehouse through Service — added in Phase 33A
+// for internal/order's Review & Release step. Deliberately has no
+// side effect whatsoever: it issues one SELECT and returns, never
+// touching AdjustReservation/AdjustBalance/AdjustHold — Order 33A must
+// never reserve or mutate inventory itself, only read it (see this
+// package's own doc and internal/order/service.go's CheckAvailability
+// doc).
+func (s *Service) AvailabilityByProductWarehouse(ctx context.Context, tenantID, productID, warehouseID int64) (ProductAvailability, error) {
+	available, reserved, hold, onHand, err := s.repo.AvailabilityByProductWarehouse(ctx, tenantID, productID, warehouseID)
+	if err != nil {
+		return ProductAvailability{}, err
+	}
+	return ProductAvailability{AvailableQty: available, ReservedQty: reserved, HoldQty: hold, OnHandQty: onHand}, nil
+}
+
 func validateMoveStock(req MoveStockRequest) error {
 	if req.TenantID == 0 {
 		return ErrValidation{Message: "tenant_id is required"}

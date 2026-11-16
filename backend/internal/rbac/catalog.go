@@ -75,7 +75,14 @@ var Modules = []ModuleDef{
 	{Code: "picking", Name: "Picking", Actions: []string{"view", "create", "update", "approve"}},
 	{Code: "replenishment", Name: "Replenishment", Actions: []string{"view", "create", "update", "approve"}},
 	{Code: "shipping", Name: "Shipping", Actions: []string{"view", "create", "update", "approve"}},
-	{Code: "order", Name: "Order Management", Actions: []string{"view", "create", "update", "approve"}},
+	// "confirm" (Phase 33A) gates the new Review & Release action
+	// (Service.Release: PENDING -> RELEASED, the availability-check +
+	// controlled-shortage-approval gate in front of the existing
+	// CreatePickingTask orchestration) — split out of "approve" the same
+	// way receiving.confirm/quality_check.confirm/putaway.confirm/
+	// relocation.confirm already were. "approve" stays on Cancel, its
+	// pre-existing authority level.
+	{Code: "order", Name: "Order Management", Actions: []string{"view", "create", "update", "confirm", "approve"}},
 	{Code: "users", Name: "User Management", Actions: []string{"view", "create", "update", "delete"}},
 	{Code: "roles", Name: "Roles & Permissions", Actions: []string{"view", "create", "update", "delete", "approve"}},
 	{Code: "warehouse", Name: "Warehouse Setup", Actions: []string{"view", "create", "update", "delete"}},
