@@ -45,6 +45,7 @@ import TenantManagementView from '../views/platform/TenantManagementView.vue'
 import TenantDetailView from '../views/platform/TenantDetailView.vue'
 import ReportComingSoonView from '../views/reports/ReportComingSoonView.vue'
 import ReceivingReportView from '../views/reports/ReceivingReportView.vue'
+import StockCountReportView from '../views/reports/StockCountReportView.vue'
 
 const routes = [
   {
@@ -285,8 +286,7 @@ const routes = [
       {
         path: 'reports/stock-count',
         name: 'ReportsStockCount',
-        component: ReportComingSoonView,
-        props: { reportKey: 'stockCount' }
+        component: StockCountReportView
       },
       {
         path: 'reports/picking-issue',

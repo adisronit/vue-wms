@@ -62,6 +62,7 @@ import (
 	"wms-backend/internal/shipping"
 	"wms-backend/internal/stockadjustment"
 	"wms-backend/internal/stockcount"
+	"wms-backend/internal/stockcountreport"
 	"wms-backend/internal/supplier"
 	"wms-backend/internal/tenant"
 	"wms-backend/internal/transferreceipt"
@@ -340,6 +341,13 @@ func main() {
 	receivingReportRepo := receivingreport.NewRepository(dbManager.DB())
 	receivingReportService := receivingreport.NewService(receivingReportRepo, tenantRepo, userRepo)
 	receivingreport.NewHandler(receivingReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 34C: stockcountreport mirrors receivingreport's own shape —
+	// raw SQL against stock_counts/stock_count_items/stock_adjustments,
+	// no Go dependency on internal/stockcount/internal/stockadjustment.
+	stockCountReportRepo := stockcountreport.NewRepository(dbManager.DB())
+	stockCountReportService := stockcountreport.NewService(stockCountReportRepo, tenantRepo, userRepo)
+	stockcountreport.NewHandler(stockCountReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	pickingRepo := picking.NewRepository(dbManager.DB())
 	pickingService := picking.NewService(pickingRepo, productRepo, warehouseRepo, inventoryService)

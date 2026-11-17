@@ -3131,5 +3131,39 @@
       "pendingPutaway": "Pending Putaway Qty",
       "notAvailable": "N/A"
     }
+  },
+  "reportsStockCount": {
+    "title": "Stock Count Report",
+    "filters": {
+      "searchPlaceholder": "Count no., SKU, or product name"
+    },
+    "presets": {
+      "detail": "Detail",
+      "varianceOnly": "Variance Only",
+      "recount": "Recount",
+      "countSheet": "Count Sheet (Pending)",
+      "adjustmentReference": "Has Adjustment"
+    },
+    "table": {
+      "countNo": "Count No.",
+      "countDate": "Count Date",
+      "location": "Location",
+      "systemQty": "System Qty",
+      "countedQty": "Counted Qty",
+      "variance": "Variance",
+      "itemStatus": "Status",
+      "countedBy": "Counted By",
+      "approvedBy": "Approved By",
+      "adjustmentRef": "Adjustment Ref."
+    },
+    "kpi": {
+      "totalSessions": "Total Count Sessions",
+      "countedLocations": "Counted Locations",
+      "countedSkus": "Counted SKUs",
+      "accuracy": "Stock Count Accuracy",
+      "quantityVariance": "Quantity Variance",
+      "recountRate": "Recount Rate",
+      "pendingApproval": "Pending Approval"
+    }
   }
 }

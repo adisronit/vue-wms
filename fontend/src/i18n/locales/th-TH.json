@@ -3131,5 +3131,39 @@
       "pendingPutaway": "จำนวนรอจัดเก็บ",
       "notAvailable": "ไม่มีข้อมูล"
     }
+  },
+  "reportsStockCount": {
+    "title": "รายงานการตรวจนับสต็อก",
+    "filters": {
+      "searchPlaceholder": "เลขที่นับสต็อก, SKU หรือชื่อสินค้า"
+    },
+    "presets": {
+      "detail": "รายละเอียด",
+      "varianceOnly": "เฉพาะผลต่าง",
+      "recount": "นับซ้ำ",
+      "countSheet": "ใบนับสต็อก (รอดำเนินการ)",
+      "adjustmentReference": "มีการปรับปรุง"
+    },
+    "table": {
+      "countNo": "เลขที่นับสต็อก",
+      "countDate": "วันที่นับสต็อก",
+      "location": "ตำแหน่งจัดเก็บ",
+      "systemQty": "จำนวนในระบบ",
+      "countedQty": "จำนวนที่นับได้",
+      "variance": "ผลต่าง",
+      "itemStatus": "สถานะ",
+      "countedBy": "ผู้นับ",
+      "approvedBy": "ผู้อนุมัติ",
+      "adjustmentRef": "เลขที่ปรับปรุงสต็อก"
+    },
+    "kpi": {
+      "totalSessions": "จำนวนรอบการนับทั้งหมด",
+      "countedLocations": "ตำแหน่งที่นับแล้ว",
+      "countedSkus": "SKU ที่นับแล้ว",
+      "accuracy": "ความถูกต้องของการนับสต็อก",
+      "quantityVariance": "ผลต่างจำนวน",
+      "recountRate": "อัตราการนับซ้ำ",
+      "pendingApproval": "รออนุมัติ"
+    }
   }
 }

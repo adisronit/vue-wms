@@ -3131,5 +3131,39 @@
       "pendingPutaway": "待上架数量",
       "notAvailable": "暂无数据"
     }
+  },
+  "reportsStockCount": {
+    "title": "盘点报表",
+    "filters": {
+      "searchPlaceholder": "盘点单号、SKU 或产品名称"
+    },
+    "presets": {
+      "detail": "明细",
+      "varianceOnly": "仅差异",
+      "recount": "复盘",
+      "countSheet": "盘点清单(待处理)",
+      "adjustmentReference": "已生成调整单"
+    },
+    "table": {
+      "countNo": "盘点单号",
+      "countDate": "盘点日期",
+      "location": "库位",
+      "systemQty": "系统数量",
+      "countedQty": "盘点数量",
+      "variance": "差异",
+      "itemStatus": "状态",
+      "countedBy": "盘点人",
+      "approvedBy": "审批人",
+      "adjustmentRef": "调整单号"
+    },
+    "kpi": {
+      "totalSessions": "盘点场次总数",
+      "countedLocations": "已盘点库位数",
+      "countedSkus": "已盘点 SKU 数",
+      "accuracy": "盘点准确率",
+      "quantityVariance": "数量差异",
+      "recountRate": "复盘率",
+      "pendingApproval": "待审批"
+    }
   }
 }
