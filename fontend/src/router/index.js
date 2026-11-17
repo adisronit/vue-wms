@@ -48,6 +48,7 @@ import ReceivingReportView from '../views/reports/ReceivingReportView.vue'
 import StockCountReportView from '../views/reports/StockCountReportView.vue'
 import PickingReportView from '../views/reports/PickingReportView.vue'
 import InventoryReportView from '../views/reports/InventoryReportView.vue'
+import PickingKpiView from '../views/reports/PickingKpiView.vue'
 
 const routes = [
   {
@@ -303,8 +304,7 @@ const routes = [
       {
         path: 'reports/picking-kpi',
         name: 'ReportsPickingKpi',
-        component: ReportComingSoonView,
-        props: { reportKey: 'pickingKpi' }
+        component: PickingKpiView
       },
       {
         path: 'reports/qc',

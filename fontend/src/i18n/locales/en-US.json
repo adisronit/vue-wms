@@ -3247,5 +3247,34 @@
       "expiredCount": "Expired Count",
       "nonMovingCount": "Non-Moving Count"
     }
+  },
+  "reportsPickingKpi": {
+    "title": "Picking KPI Dashboard",
+    "unsupportedNote": "Shift Performance and Target vs Actual are not shown — no shift/schedule or quota field exists anywhere in this system, so these KPIs cannot be reliably measured. Picking Accuracy is measured only over the subset of lines that were barcode-scanned.",
+    "charts": {
+      "dailyTrend": "Picking Trend",
+      "cycleTimeDistribution": "Cycle Time Distribution"
+    },
+    "tables": {
+      "byOperator": "Productivity by Operator",
+      "byPickingMode": "Picking Mode Comparison"
+    },
+    "table": {
+      "operator": "Operator",
+      "linesPerHour": "Lines / Hour",
+      "unitsPerHour": "Units / Hour",
+      "completionRate": "Completion Rate",
+      "avgCycleTime": "Avg. Cycle Time"
+    },
+    "kpi": {
+      "linesPerHour": "Picked Lines / Hour",
+      "unitsPerHour": "Picked Units / Hour",
+      "accuracy": "Picking Accuracy",
+      "scansLabel": "scans",
+      "onTimeRate": "On-Time Picking Rate",
+      "noDueDateLabel": "tasks without a due date",
+      "avgCycleTime": "Avg. Picking Cycle Time",
+      "repickRate": "Re-pick Rate"
+    }
   }
 }

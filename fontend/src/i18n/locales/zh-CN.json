@@ -3247,5 +3247,34 @@
       "expiredCount": "已过期数量",
       "nonMovingCount": "滞销数量"
     }
+  },
+  "reportsPickingKpi": {
+    "title": "拣货 KPI 仪表板",
+    "unsupportedNote": "未显示班次绩效和目标对比实际 —— 本系统不存在任何班次/排班或配额字段,因此无法可靠地衡量这些指标。拣货准确率仅基于已进行条码扫描的拣货行计算。",
+    "charts": {
+      "dailyTrend": "拣货趋势",
+      "cycleTimeDistribution": "周转时间分布"
+    },
+    "tables": {
+      "byOperator": "按操作员统计效率",
+      "byPickingMode": "拣货模式对比"
+    },
+    "table": {
+      "operator": "操作员",
+      "linesPerHour": "行数/小时",
+      "unitsPerHour": "件数/小时",
+      "completionRate": "完成率",
+      "avgCycleTime": "平均周转时间"
+    },
+    "kpi": {
+      "linesPerHour": "每小时拣货行数",
+      "unitsPerHour": "每小时拣货件数",
+      "accuracy": "拣货准确率",
+      "scansLabel": "次扫描",
+      "onTimeRate": "按时拣货率",
+      "noDueDateLabel": "个任务无截止日期",
+      "avgCycleTime": "平均拣货周转时间",
+      "repickRate": "复拣率"
+    }
   }
 }

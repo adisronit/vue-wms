@@ -43,6 +43,7 @@ import (
 	"wms-backend/internal/packing"
 	"wms-backend/internal/picking"
 	"wms-backend/internal/pickingbatch"
+	"wms-backend/internal/pickingkpi"
 	"wms-backend/internal/pickingreport"
 	"wms-backend/internal/platform/database"
 	"wms-backend/internal/platform/dbctx"
@@ -374,6 +375,15 @@ func main() {
 	inventoryReportRepo := inventoryreport.NewRepository(dbManager.DB())
 	inventoryReportService := inventoryreport.NewService(inventoryReportRepo, tenantRepo, userRepo)
 	inventoryreport.NewHandler(inventoryReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 34F: pickingkpi is a KPI dashboard, not a detail-row report
+	// — it computes real aggregates (never fabricated) from the same
+	// picking_tasks/picking_task_items/picking_scan_log/picking_batches
+	// tables pickingreport (34D) already reads, via its own raw SQL, no
+	// Go dependency on internal/picking or internal/pickingreport.
+	pickingKPIRepo := pickingkpi.NewRepository(dbManager.DB())
+	pickingKPIService := pickingkpi.NewService(pickingKPIRepo, tenantRepo, userRepo)
+	pickingkpi.NewHandler(pickingKPIService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Phase 33C — Packing: a pure physical-handling/traceability layer
 	// over already-picked stock, sitting between Picking and Shipping.
