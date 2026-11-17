@@ -55,6 +55,7 @@ import (
 	"wms-backend/internal/productcategory"
 	"wms-backend/internal/productfamily"
 	"wms-backend/internal/putaway"
+	"wms-backend/internal/qcreport"
 	"wms-backend/internal/qualitycheck"
 	"wms-backend/internal/receiving"
 	"wms-backend/internal/receivingreport"
@@ -384,6 +385,14 @@ func main() {
 	pickingKPIRepo := pickingkpi.NewRepository(dbManager.DB())
 	pickingKPIService := pickingkpi.NewService(pickingKPIRepo, tenantRepo, userRepo)
 	pickingkpi.NewHandler(pickingKPIService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 34G: qcreport mirrors receivingreport's own shape — reads
+	// qc_inspections/qc_inspection_items/qc_dispositions/receipts/
+	// receipt_item_splits/inventory directly via raw SQL, no Go
+	// dependency on internal/qualitycheck.
+	qcReportRepo := qcreport.NewRepository(dbManager.DB())
+	qcReportService := qcreport.NewService(qcReportRepo, tenantRepo, userRepo)
+	qcreport.NewHandler(qcReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Phase 33C — Packing: a pure physical-handling/traceability layer
 	// over already-picked stock, sitting between Picking and Shipping.

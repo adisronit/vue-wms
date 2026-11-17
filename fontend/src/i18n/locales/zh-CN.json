@@ -3276,5 +3276,53 @@
       "avgCycleTime": "平均拣货周转时间",
       "repickRate": "复拣率"
     }
+  },
+  "reportsQc": {
+    "title": "质检报告",
+    "grainNote": "每行对应一个已开始质检的检验项目。已登记待检但尚未创建检验单的批次,仅计入“待质检-未开始”指标,不会出现在此表格中。",
+    "filters": {
+      "supplier": "供应商",
+      "inspector": "检验员",
+      "qcType": "质检类型",
+      "search": "搜索",
+      "searchPlaceholder": "检验单号、收货单号、SKU 或产品名称",
+      "resolutionStatus": "处理状态",
+      "defectCode": "缺陷代码"
+    },
+    "charts": {
+      "topDefects": "主要缺陷类型",
+      "supplierRejectionTrend": "供应商拒收趋势",
+      "byQcType": "按质检类型统计"
+    },
+    "table": {
+      "inspectionNo": "检验单号",
+      "receiptNo": "收货单号",
+      "inspector": "检验员",
+      "qcType": "质检类型",
+      "sku": "SKU",
+      "lotNo": "批号",
+      "expiry": "到期日",
+      "location": "货位",
+      "heldQty": "冻结数量",
+      "passQty": "合格数量",
+      "rejectQty": "拒收数量",
+      "remainingHold": "剩余冻结数量",
+      "resolutionStatus": "处理状态",
+      "defectCode": "缺陷代码",
+      "turnaround": "质检周转时间(小时)",
+      "holdAging": "冻结时长(小时)"
+    },
+    "kpi": {
+      "totalItems": "检验项目总数",
+      "passRate": "质检合格率",
+      "rejectionRate": "拒收率",
+      "holdRate": "冻结率",
+      "pendingNotStarted": "待质检-未开始",
+      "pendingAwaitingDecision": "待质检-待判定",
+      "avgTurnaround": "平均质检周转时间",
+      "avgHoldAging": "平均冻结时长",
+      "maxHoldAging": "最长冻结时长",
+      "notAvailable": "无数据"
+    }
   }
 }

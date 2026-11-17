@@ -3276,5 +3276,53 @@
       "avgCycleTime": "เวลาเฉลี่ยในการหยิบต่อรอบ",
       "repickRate": "อัตราการหยิบซ้ำ"
     }
+  },
+  "reportsQc": {
+    "title": "รายงานการตรวจสอบคุณภาพ (QC)",
+    "grainNote": "หนึ่งแถวต่อหนึ่งรายการตรวจสอบที่เริ่มตรวจแล้ว ล็อตที่รอตรวจแต่ยังไม่มีการสร้างใบตรวจสอบจะแสดงเฉพาะใน KPI \"รอตรวจ - ยังไม่เริ่ม\" เท่านั้น ไม่แสดงในตารางนี้",
+    "filters": {
+      "supplier": "ผู้จำหน่าย",
+      "inspector": "ผู้ตรวจสอบ",
+      "qcType": "ประเภทการตรวจสอบ",
+      "search": "ค้นหา",
+      "searchPlaceholder": "เลขที่ตรวจสอบ, เลขที่รับสินค้า, SKU หรือชื่อสินค้า",
+      "resolutionStatus": "สถานะผลตรวจ",
+      "defectCode": "รหัสข้อบกพร่อง"
+    },
+    "charts": {
+      "topDefects": "ข้อบกพร่องที่พบมากที่สุด",
+      "supplierRejectionTrend": "แนวโน้มการปฏิเสธตามผู้จำหน่าย",
+      "byQcType": "การตรวจสอบตามประเภท QC"
+    },
+    "table": {
+      "inspectionNo": "เลขที่ตรวจสอบ",
+      "receiptNo": "เลขที่รับสินค้า",
+      "inspector": "ผู้ตรวจสอบ",
+      "qcType": "ประเภท QC",
+      "sku": "SKU",
+      "lotNo": "เลขที่ล็อต",
+      "expiry": "วันหมดอายุ",
+      "location": "ตำแหน่ง",
+      "heldQty": "จำนวนที่ถูกกัก",
+      "passQty": "จำนวนที่ผ่าน",
+      "rejectQty": "จำนวนที่ปฏิเสธ",
+      "remainingHold": "จำนวนที่ยังถูกกัก",
+      "resolutionStatus": "สถานะผลตรวจ",
+      "defectCode": "รหัสข้อบกพร่อง",
+      "turnaround": "เวลาตรวจสอบ (ชม.)",
+      "holdAging": "ระยะเวลาที่ถูกกัก (ชม.)"
+    },
+    "kpi": {
+      "totalItems": "รายการตรวจสอบทั้งหมด",
+      "passRate": "อัตราผ่าน QC",
+      "rejectionRate": "อัตราการปฏิเสธ",
+      "holdRate": "อัตราการกัก",
+      "pendingNotStarted": "รอตรวจ - ยังไม่เริ่ม",
+      "pendingAwaitingDecision": "รอตรวจ - รอผลตัดสิน",
+      "avgTurnaround": "เวลาตรวจสอบเฉลี่ย",
+      "avgHoldAging": "ระยะเวลาถูกกักเฉลี่ย",
+      "maxHoldAging": "ระยะเวลาถูกกักสูงสุด",
+      "notAvailable": "ไม่มีข้อมูล"
+    }
   }
 }

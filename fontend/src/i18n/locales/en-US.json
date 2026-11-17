@@ -3276,5 +3276,53 @@
       "avgCycleTime": "Avg. Picking Cycle Time",
       "repickRate": "Re-pick Rate"
     }
+  },
+  "reportsQc": {
+    "title": "QC Report",
+    "grainNote": "One row per inspection item that has at least started QC. A split awaiting QC with no inspection created yet appears only in the Pending QC - Not Started KPI, not in this table.",
+    "filters": {
+      "supplier": "Supplier",
+      "inspector": "Inspector",
+      "qcType": "QC Type",
+      "search": "Search",
+      "searchPlaceholder": "Inspection no., receipt no., SKU, or product name",
+      "resolutionStatus": "Resolution Status",
+      "defectCode": "Defect Code"
+    },
+    "charts": {
+      "topDefects": "Top Defect Types",
+      "supplierRejectionTrend": "Supplier Rejection Trend",
+      "byQcType": "Inspections by QC Type"
+    },
+    "table": {
+      "inspectionNo": "Inspection No.",
+      "receiptNo": "Receipt No.",
+      "inspector": "Inspector",
+      "qcType": "QC Type",
+      "sku": "SKU",
+      "lotNo": "Lot No.",
+      "expiry": "Expiry",
+      "location": "Location",
+      "heldQty": "Held Qty",
+      "passQty": "Pass Qty",
+      "rejectQty": "Reject Qty",
+      "remainingHold": "Remaining Hold",
+      "resolutionStatus": "Resolution Status",
+      "defectCode": "Defect Code",
+      "turnaround": "QC Turnaround (h)",
+      "holdAging": "Hold Aging (h)"
+    },
+    "kpi": {
+      "totalItems": "Total Inspection Items",
+      "passRate": "QC Pass Rate",
+      "rejectionRate": "Rejection Rate",
+      "holdRate": "Hold Rate",
+      "pendingNotStarted": "Pending QC - Not Started",
+      "pendingAwaitingDecision": "Pending QC - Awaiting Decision",
+      "avgTurnaround": "Avg. QC Turnaround",
+      "avgHoldAging": "Avg. Hold Aging",
+      "maxHoldAging": "Max. Hold Aging",
+      "notAvailable": "N/A"
+    }
   }
 }
