@@ -105,6 +105,34 @@
         </router-link>
       </template>
 
+      <template v-if="canViewReports">
+        <p class="menu-title">{{ $t('nav.sectionReports') }}</p>
+        <router-link to="/reports/receiving" class="menu-item" active-class="menu-active">
+          {{ $t('nav.reportsReceiving') }}
+        </router-link>
+        <router-link to="/reports/stock-count" class="menu-item" active-class="menu-active">
+          {{ $t('nav.reportsStockCount') }}
+        </router-link>
+        <router-link to="/reports/picking-issue" class="menu-item" active-class="menu-active">
+          {{ $t('nav.reportsPickingIssue') }}
+        </router-link>
+        <router-link to="/reports/inventory" class="menu-item" active-class="menu-active">
+          {{ $t('nav.reportsInventory') }}
+        </router-link>
+        <router-link to="/reports/picking-kpi" class="menu-item" active-class="menu-active">
+          {{ $t('nav.reportsPickingKpi') }}
+        </router-link>
+        <router-link to="/reports/qc" class="menu-item" active-class="menu-active">
+          {{ $t('nav.reportsQc') }}
+        </router-link>
+        <router-link to="/reports/delivery" class="menu-item" active-class="menu-active">
+          {{ $t('nav.reportsDelivery') }}
+        </router-link>
+        <router-link to="/reports/warehouse-layout" class="menu-item" active-class="menu-active">
+          {{ $t('nav.reportsWarehouseLayout') }}
+        </router-link>
+      </template>
+
       <template v-if="canViewPlatformAdmin">
         <p class="menu-title">{{ $t('nav.sectionPlatformAdmin') }}</p>
         <router-link to="/platform/tenants" class="menu-item" active-class="menu-active">
@@ -150,7 +178,8 @@ export default {
     canViewPacking: { type: Boolean, default: false },
     canViewLoading: { type: Boolean, default: false },
     canViewPickingBatches: { type: Boolean, default: false },
-    canViewPlatformAdmin: { type: Boolean, default: false }
+    canViewPlatformAdmin: { type: Boolean, default: false },
+    canViewReports: { type: Boolean, default: false }
   },
 
   emits: ['logout']

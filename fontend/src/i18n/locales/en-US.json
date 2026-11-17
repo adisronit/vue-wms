@@ -119,7 +119,16 @@
     "logout": "Logout",
     "sectionPlatformAdmin": "Platform Administration",
     "platformTenants": "Tenants",
-    "relocation": "Stock Relocation"
+    "relocation": "Stock Relocation",
+    "sectionReports": "Reports & Analytics",
+    "reportsReceiving": "Receiving Report",
+    "reportsStockCount": "Stock Count Report",
+    "reportsPickingIssue": "Picking & Issue Report",
+    "reportsInventory": "Inventory Report",
+    "reportsPickingKpi": "Picking KPI",
+    "reportsQc": "QC Report",
+    "reportsDelivery": "Delivery & Shipping Report",
+    "reportsWarehouseLayout": "Warehouse Layout 2D"
   },
   "layout": {
     "headerTitle": "Warehouse Management System",
@@ -1588,7 +1597,8 @@
       "roles": "Roles & Permissions",
       "warehouse": "Warehouse Setup",
       "product": "Product Master",
-      "tenantUsers": "Tenant User Management"
+      "tenantUsers": "Tenant User Management",
+      "report": "Reports & Analytics"
     },
     "selectRolePrompt": "Select a role to configure permissions",
     "permissionConfigLabel": "{code} permission configuration",
@@ -3033,5 +3043,57 @@
     "download": "Download",
     "loadFailed": "Failed to load document history",
     "actionFailed": "Failed to open document"
+  },
+  "reports": {
+    "sectionTitle": "Reports & Analytics",
+    "comingSoon": {
+      "title": "Coming Soon",
+      "message": "This report is scheduled for a later Phase 34 batch and is not available yet.",
+      "frameworkNote": "The filters, date range, table, chart and export controls below are the shared Reports framework — wiring them to real data happens when this report's own batch is implemented."
+    },
+    "filterBar": {
+      "apply": "Apply Filters",
+      "reset": "Reset",
+      "moreFilters": "More Filters",
+      "fewerFilters": "Fewer Filters"
+    },
+    "dateRange": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "last7Days": "Last 7 Days",
+      "last30Days": "Last 30 Days",
+      "thisMonth": "This Month",
+      "lastMonth": "Last Month",
+      "custom": "Custom",
+      "from": "From",
+      "to": "To",
+      "timezoneNote": "Times shown in Asia/Bangkok (UTC+7)."
+    },
+    "summaryCards": {
+      "empty": "No summary metrics yet"
+    },
+    "table": {
+      "noData": "No report data to display",
+      "loading": "Loading report data…",
+      "totalRows": "Total rows",
+      "page": "Page {page} of {totalPages}"
+    },
+    "chart": {
+      "noData": "No chart data to display"
+    },
+    "export": {
+      "previewPdf": "Preview PDF",
+      "downloadPdf": "Download PDF",
+      "print": "Print",
+      "exportExcel": "Export Excel",
+      "exportCsv": "Export CSV",
+      "generatedAt": "Generated at {timestamp}",
+      "notAvailableYet": "Not available in this phase yet"
+    },
+    "printPreview": {
+      "title": "Print Preview",
+      "close": "Close",
+      "print": "Print"
+    }
   }
 }

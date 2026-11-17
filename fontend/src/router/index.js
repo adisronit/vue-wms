@@ -43,6 +43,7 @@ import RelocationView from '../views/inventory/RelocationView.vue'
 import NewRelocationView from '../views/inventory/NewRelocationView.vue'
 import TenantManagementView from '../views/platform/TenantManagementView.vue'
 import TenantDetailView from '../views/platform/TenantDetailView.vue'
+import ReportComingSoonView from '../views/reports/ReportComingSoonView.vue'
 
 const routes = [
   {
@@ -270,6 +271,58 @@ const routes = [
         name: 'PlatformTenantDetail',
         component: TenantDetailView,
         meta: { requiresPlatformAdmin: true }
+      },
+      // Phase 34A: every Reports & Analytics submenu routes to the same
+      // framework-demo placeholder, parameterized by reportKey — each
+      // gets replaced with its own real view in its own later Phase 34
+      // batch (see ReportComingSoonView.vue's REPORT_META).
+      {
+        path: 'reports/receiving',
+        name: 'ReportsReceiving',
+        component: ReportComingSoonView,
+        props: { reportKey: 'receiving' }
+      },
+      {
+        path: 'reports/stock-count',
+        name: 'ReportsStockCount',
+        component: ReportComingSoonView,
+        props: { reportKey: 'stockCount' }
+      },
+      {
+        path: 'reports/picking-issue',
+        name: 'ReportsPickingIssue',
+        component: ReportComingSoonView,
+        props: { reportKey: 'pickingIssue' }
+      },
+      {
+        path: 'reports/inventory',
+        name: 'ReportsInventory',
+        component: ReportComingSoonView,
+        props: { reportKey: 'inventory' }
+      },
+      {
+        path: 'reports/picking-kpi',
+        name: 'ReportsPickingKpi',
+        component: ReportComingSoonView,
+        props: { reportKey: 'pickingKpi' }
+      },
+      {
+        path: 'reports/qc',
+        name: 'ReportsQc',
+        component: ReportComingSoonView,
+        props: { reportKey: 'qc' }
+      },
+      {
+        path: 'reports/delivery',
+        name: 'ReportsDelivery',
+        component: ReportComingSoonView,
+        props: { reportKey: 'delivery' }
+      },
+      {
+        path: 'reports/warehouse-layout',
+        name: 'ReportsWarehouseLayout',
+        component: ReportComingSoonView,
+        props: { reportKey: 'warehouseLayout' }
       }
     ]
   }

@@ -17,6 +17,7 @@
       :can-view-loading="canViewLoading"
       :can-view-picking-batches="canViewPickingBatches"
       :can-view-platform-admin="canViewPlatformAdmin"
+      :can-view-reports="canViewReports"
       @logout="logout"
     />
 
@@ -178,6 +179,9 @@ export default {
     },
     canViewPlatformAdmin() {
       return this.platformAdmin
+    },
+    canViewReports() {
+      return hasPermission('report.view')
     }
   },
 

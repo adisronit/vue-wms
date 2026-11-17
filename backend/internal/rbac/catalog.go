@@ -231,6 +231,17 @@ var Modules = []ModuleDef{
 	// Register doc.
 	{Code: "brand", Name: "Brands", Actions: []string{"view", "create", "update", "delete"}},
 	{Code: "product_family", Name: "Product Families", Actions: []string{"view", "create", "update", "delete"}},
+	// Phase 34A — Reports & Analytics: one module gates the whole Reports
+	// menu (view) and every report's PDF/Excel/CSV export action
+	// (export), the same coarse, module-level granularity stock_inquiry
+	// already uses, rather than minting a separate code per report family
+	// (receiving report, QC report, ...) — there is no per-report access
+	// control requirement yet, and splitting now would be a speculative
+	// abstraction with no caller. No default grant for any operational
+	// staff role yet (matches relocation/packing/loading/transfer_receipt's
+	// own precedent) — only ADMIN (every code) and WAREHOUSE_MANAGER
+	// (every non-delete code) get it automatically.
+	{Code: "report", Name: "Reports & Analytics", Actions: []string{"view", "export"}},
 }
 
 var actionLabels = map[string]string{

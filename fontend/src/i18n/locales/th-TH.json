@@ -119,7 +119,16 @@
     "logout": "ออกจากระบบ",
     "sectionPlatformAdmin": "การบริหารแพลตฟอร์ม",
     "platformTenants": "ผู้เช่า",
-    "relocation": "ย้ายสต็อกภายในคลัง"
+    "relocation": "ย้ายสต็อกภายในคลัง",
+    "sectionReports": "รายงานและการวิเคราะห์",
+    "reportsReceiving": "รายงานการรับสินค้า",
+    "reportsStockCount": "รายงานการตรวจนับสต็อก",
+    "reportsPickingIssue": "รายงานการหยิบและเบิกสินค้า",
+    "reportsInventory": "รายงานสต็อกสินค้า",
+    "reportsPickingKpi": "KPI การหยิบสินค้า",
+    "reportsQc": "รายงานการตรวจสอบคุณภาพ",
+    "reportsDelivery": "รายงานการจัดส่งสินค้า",
+    "reportsWarehouseLayout": "แผนผังคลังสินค้า 2D"
   },
   "layout": {
     "headerTitle": "ระบบจัดการคลังสินค้า",
@@ -1588,7 +1597,8 @@
       "roles": "สิทธิ์และบทบาท",
       "warehouse": "ตั้งค่าคลังสินค้า",
       "product": "ข้อมูลสินค้าหลัก",
-      "tenantUsers": "จัดการผู้ใช้งานในองค์กร"
+      "tenantUsers": "จัดการผู้ใช้งานในองค์กร",
+      "report": "รายงานและการวิเคราะห์"
     },
     "selectRolePrompt": "เลือกบทบาทเพื่อตั้งค่าสิทธิ์การเข้าถึง",
     "permissionConfigLabel": "การตั้งค่าสิทธิ์ของ {code}",
@@ -3033,5 +3043,57 @@
     "download": "ดาวน์โหลด",
     "loadFailed": "โหลดประวัติเอกสารล้มเหลว",
     "actionFailed": "เปิดเอกสารล้มเหลว"
+  },
+  "reports": {
+    "sectionTitle": "รายงานและการวิเคราะห์",
+    "comingSoon": {
+      "title": "เร็ว ๆ นี้",
+      "message": "รายงานนี้มีกำหนดส่งมอบในช่วง Phase 34 ถัดไป และยังไม่พร้อมใช้งานในขณะนี้",
+      "frameworkNote": "ตัวกรอง ช่วงวันที่ ตาราง กราฟ และปุ่มส่งออกด้านล่างคือเฟรมเวิร์กรายงานที่ใช้ร่วมกัน — การเชื่อมต่อกับข้อมูลจริงจะดำเนินการเมื่อถึง Phase ของรายงานนี้"
+    },
+    "filterBar": {
+      "apply": "ใช้ตัวกรอง",
+      "reset": "ล้างตัวกรอง",
+      "moreFilters": "ตัวกรองเพิ่มเติม",
+      "fewerFilters": "ตัวกรองน้อยลง"
+    },
+    "dateRange": {
+      "today": "วันนี้",
+      "yesterday": "เมื่อวาน",
+      "last7Days": "7 วันที่แล้ว",
+      "last30Days": "30 วันที่แล้ว",
+      "thisMonth": "เดือนนี้",
+      "lastMonth": "เดือนที่แล้ว",
+      "custom": "กำหนดเอง",
+      "from": "จาก",
+      "to": "ถึง",
+      "timezoneNote": "เวลาที่แสดงเป็นเขตเวลา Asia/Bangkok (UTC+7)"
+    },
+    "summaryCards": {
+      "empty": "ยังไม่มีข้อมูลสรุป"
+    },
+    "table": {
+      "noData": "ไม่มีข้อมูลรายงานให้แสดง",
+      "loading": "กำลังโหลดข้อมูลรายงาน…",
+      "totalRows": "จำนวนแถวทั้งหมด",
+      "page": "หน้า {page} จาก {totalPages}"
+    },
+    "chart": {
+      "noData": "ไม่มีข้อมูลกราฟให้แสดง"
+    },
+    "export": {
+      "previewPdf": "ดูตัวอย่าง PDF",
+      "downloadPdf": "ดาวน์โหลด PDF",
+      "print": "พิมพ์",
+      "exportExcel": "ส่งออก Excel",
+      "exportCsv": "ส่งออก CSV",
+      "generatedAt": "สร้างเมื่อ {timestamp}",
+      "notAvailableYet": "ยังไม่พร้อมใช้งานใน Phase นี้"
+    },
+    "printPreview": {
+      "title": "ตัวอย่างก่อนพิมพ์",
+      "close": "ปิด",
+      "print": "พิมพ์"
+    }
   }
 }
