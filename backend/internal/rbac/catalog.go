@@ -231,6 +231,39 @@ var Modules = []ModuleDef{
 	// Register doc.
 	{Code: "brand", Name: "Brands", Actions: []string{"view", "create", "update", "delete"}},
 	{Code: "product_family", Name: "Product Families", Actions: []string{"view", "create", "update", "delete"}},
+	// Phase 34A — Reports & Analytics: one module gates the whole Reports
+	// menu (view) and every report's PDF/Excel/CSV export action
+	// (export), the same coarse, module-level granularity stock_inquiry
+	// already uses, rather than minting a separate code per report family
+	// (receiving report, QC report, ...) — there is no per-report access
+	// control requirement yet, and splitting now would be a speculative
+	// abstraction with no caller. No default grant for any operational
+	// staff role yet (matches relocation/packing/loading/transfer_receipt's
+	// own precedent) — only ADMIN (every code) and WAREHOUSE_MANAGER
+	// (every non-delete code) get it automatically.
+	{Code: "report", Name: "Reports & Analytics", Actions: []string{"view", "export"}},
+	// "layout" (Phase 34I) gates the Interactive 2D Warehouse Layout
+	// editor — deliberately its own module, separate from both
+	// "report" (viewing KPI dashboards implies nothing about authoring
+	// physical layout data) and "warehouse" (managing warehouse/zone/
+	// location master data implies nothing about who may reposition
+	// their visual representation). Only two real actions exist:
+	// "view" the current/historical layout, and "update" (save a new
+	// version, upload a calibration background image) — named "update"
+	// rather than the more natural-sounding "edit" to match every other
+	// module's own convention (RolePermissionView.vue's Roles &
+	// Permissions matrix hardcodes its "Edit" column to the action code
+	// "update" for every module uniformly; a per-module override would
+	// be far more invasive than just following the existing convention
+	// here). There is no meaningful create/update/delete distinction
+	// the way a list-of-records module has, since a layout is a single
+	// mutable resource per warehouse, always upserted via one Save
+	// endpoint (see internal/warehouselayout's own package doc). No
+	// default grant for any operational staff role yet (matches report/
+	// relocation/packing's own precedent) — only ADMIN (every code) and
+	// WAREHOUSE_MANAGER (every non-delete code, which for this module
+	// is both codes) get it automatically.
+	{Code: "layout", Name: "Warehouse Layout", Actions: []string{"view", "update"}},
 }
 
 var actionLabels = map[string]string{

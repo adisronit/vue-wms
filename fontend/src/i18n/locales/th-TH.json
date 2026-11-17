@@ -137,7 +137,16 @@
     "newQualityCheck": "ตรวจสอบคุณภาพใหม่",
     "newPutaway": "จัดเก็บสินค้าใหม่",
     "newRelocation": "ย้ายสต็อกใหม่",
-    "platformTenantDetail": "รายละเอียดผู้เช่า"
+    "platformTenantDetail": "รายละเอียดผู้เช่า",
+    "sectionReports": "รายงานและการวิเคราะห์",
+    "reportsReceiving": "รายงานการรับสินค้า",
+    "reportsStockCount": "รายงานการตรวจนับสต็อก",
+    "reportsPickingIssue": "รายงานการหยิบและเบิกสินค้า",
+    "reportsInventory": "รายงานสต็อกสินค้า",
+    "reportsPickingKpi": "KPI การหยิบสินค้า",
+    "reportsQc": "รายงานการตรวจสอบคุณภาพ",
+    "reportsDelivery": "รายงานการจัดส่งสินค้า",
+    "reportsWarehouseLayout": "แผนผังคลังสินค้า 2D"
   },
   "tabs": {
     "maxReached": "เปิดได้สูงสุด 10 แท็บ กรุณาปิดแท็บที่เปิดอยู่ก่อนเปิดแท็บใหม่",
@@ -1613,7 +1622,9 @@
       "roles": "สิทธิ์และบทบาท",
       "warehouse": "ตั้งค่าคลังสินค้า",
       "product": "ข้อมูลสินค้าหลัก",
-      "tenantUsers": "จัดการผู้ใช้งานในองค์กร"
+      "tenantUsers": "จัดการผู้ใช้งานในองค์กร",
+      "report": "รายงานและการวิเคราะห์",
+      "layout": "ผังคลังสินค้า"
     },
     "selectRolePrompt": "เลือกบทบาทเพื่อตั้งค่าสิทธิ์การเข้าถึง",
     "permissionConfigLabel": "การตั้งค่าสิทธิ์ของ {code}",
@@ -3058,5 +3069,396 @@
     "download": "ดาวน์โหลด",
     "loadFailed": "โหลดประวัติเอกสารล้มเหลว",
     "actionFailed": "เปิดเอกสารล้มเหลว"
+  },
+  "reports": {
+    "sectionTitle": "รายงานและการวิเคราะห์",
+    "comingSoon": {
+      "title": "เร็ว ๆ นี้",
+      "message": "รายงานนี้มีกำหนดส่งมอบในช่วง Phase 34 ถัดไป และยังไม่พร้อมใช้งานในขณะนี้",
+      "frameworkNote": "ตัวกรอง ช่วงวันที่ ตาราง กราฟ และปุ่มส่งออกด้านล่างคือเฟรมเวิร์กรายงานที่ใช้ร่วมกัน — การเชื่อมต่อกับข้อมูลจริงจะดำเนินการเมื่อถึง Phase ของรายงานนี้"
+    },
+    "filterBar": {
+      "apply": "ใช้ตัวกรอง",
+      "reset": "ล้างตัวกรอง",
+      "moreFilters": "ตัวกรองเพิ่มเติม",
+      "fewerFilters": "ตัวกรองน้อยลง"
+    },
+    "dateRange": {
+      "today": "วันนี้",
+      "yesterday": "เมื่อวาน",
+      "last7Days": "7 วันที่แล้ว",
+      "last30Days": "30 วันที่แล้ว",
+      "thisMonth": "เดือนนี้",
+      "lastMonth": "เดือนที่แล้ว",
+      "custom": "กำหนดเอง",
+      "from": "จาก",
+      "to": "ถึง",
+      "timezoneNote": "เวลาที่แสดงเป็นเขตเวลา Asia/Bangkok (UTC+7)"
+    },
+    "summaryCards": {
+      "empty": "ยังไม่มีข้อมูลสรุป"
+    },
+    "table": {
+      "noData": "ไม่มีข้อมูลรายงานให้แสดง",
+      "loading": "กำลังโหลดข้อมูลรายงาน…",
+      "totalRows": "จำนวนแถวทั้งหมด",
+      "page": "หน้า {page} จาก {totalPages}"
+    },
+    "chart": {
+      "noData": "ไม่มีข้อมูลกราฟให้แสดง"
+    },
+    "export": {
+      "previewPdf": "ดูตัวอย่าง PDF",
+      "downloadPdf": "ดาวน์โหลด PDF",
+      "print": "พิมพ์",
+      "exportExcel": "ส่งออก Excel",
+      "exportCsv": "ส่งออก CSV",
+      "generatedAt": "สร้างเมื่อ {timestamp}",
+      "notAvailableYet": "ยังไม่พร้อมใช้งานใน Phase นี้"
+    },
+    "printPreview": {
+      "title": "ตัวอย่างก่อนพิมพ์",
+      "close": "ปิด",
+      "print": "พิมพ์"
+    }
+  },
+  "reportsReceiving": {
+    "title": "รายงานการรับสินค้า",
+    "filters": {
+      "supplier": "ผู้จัดจำหน่าย",
+      "search": "ค้นหา",
+      "searchPlaceholder": "เลขที่รับสินค้า, เลขที่อ้างอิง, SKU หรือชื่อสินค้า",
+      "lotNo": "เลขที่ล็อต / แบตช์"
+    },
+    "charts": {
+      "trend": "แนวโน้มการรับสินค้า",
+      "bySupplier": "การรับสินค้าตามผู้จัดจำหน่าย",
+      "byWarehouse": "การรับสินค้าตามคลังสินค้า",
+      "byOperator": "การรับสินค้าตามผู้ปฏิบัติงาน"
+    },
+    "table": {
+      "receiptNo": "เลขที่รับสินค้า",
+      "receivingDate": "วันที่รับสินค้า",
+      "sku": "SKU",
+      "expectedQty": "จำนวนที่คาดหวัง",
+      "receivedQty": "จำนวนที่รับจริง",
+      "shortOverQty": "ขาด / เกิน",
+      "lotNo": "เลขที่ล็อต",
+      "receivingStatus": "สถานะการรับสินค้า",
+      "qcStatus": "สถานะการตรวจสอบคุณภาพ",
+      "putawayStatus": "สถานะการจัดเก็บ"
+    },
+    "kpi": {
+      "totalReceipts": "จำนวนการรับสินค้าทั้งหมด",
+      "totalReceivedQty": "จำนวนที่รับทั้งหมด",
+      "completionRate": "อัตราความสมบูรณ์",
+      "leadTime": "เวลาเฉลี่ยในการรับสินค้า",
+      "pendingQc": "จำนวนรอตรวจสอบคุณภาพ",
+      "pendingPutaway": "จำนวนรอจัดเก็บ",
+      "notAvailable": "ไม่มีข้อมูล"
+    }
+  },
+  "reportsStockCount": {
+    "title": "รายงานการตรวจนับสต็อก",
+    "filters": {
+      "searchPlaceholder": "เลขที่นับสต็อก, SKU หรือชื่อสินค้า"
+    },
+    "presets": {
+      "detail": "รายละเอียด",
+      "varianceOnly": "เฉพาะผลต่าง",
+      "recount": "นับซ้ำ",
+      "countSheet": "ใบนับสต็อก (รอดำเนินการ)",
+      "adjustmentReference": "มีการปรับปรุง"
+    },
+    "table": {
+      "countNo": "เลขที่นับสต็อก",
+      "countDate": "วันที่นับสต็อก",
+      "location": "ตำแหน่งจัดเก็บ",
+      "systemQty": "จำนวนในระบบ",
+      "countedQty": "จำนวนที่นับได้",
+      "variance": "ผลต่าง",
+      "itemStatus": "สถานะ",
+      "countedBy": "ผู้นับ",
+      "approvedBy": "ผู้อนุมัติ",
+      "adjustmentRef": "เลขที่ปรับปรุงสต็อก"
+    },
+    "kpi": {
+      "totalSessions": "จำนวนรอบการนับทั้งหมด",
+      "countedLocations": "ตำแหน่งที่นับแล้ว",
+      "countedSkus": "SKU ที่นับแล้ว",
+      "accuracy": "ความถูกต้องของการนับสต็อก",
+      "quantityVariance": "ผลต่างจำนวน",
+      "recountRate": "อัตราการนับซ้ำ",
+      "pendingApproval": "รออนุมัติ"
+    }
+  },
+  "reportsPicking": {
+    "title": "รายงานการหยิบและเบิกสินค้า",
+    "batchAllocationNote": "แต่ละแถวคือส่วนแบ่งของออเดอร์หนึ่งจากการหยิบแบบรวมชุด (batch) shared_task_picked_qty เป็นข้อมูลอ้างอิงเท่านั้น — ยอดรวมของรายการที่หยิบจริงที่ใช้ร่วมกัน ไม่ใช่จำนวนเฉพาะของแถวนี้ — การรวม allocated qty ของทุกแถวในงานเดียวกันจะได้ยอดรวมที่ถูกต้องโดยไม่นับซ้ำ",
+    "tabs": {
+      "detail": "รายละเอียดการหยิบ",
+      "batchAllocation": "การแบ่งส่วน Batch / Wave"
+    },
+    "filters": {
+      "searchPlaceholder": "เลขที่หยิบ, เลขที่ออเดอร์, SKU หรือชื่อสินค้า",
+      "batchSearchPlaceholder": "เลขที่ Batch หรือเลขที่ออเดอร์"
+    },
+    "presets": {
+      "shortOnly": "เฉพาะที่หยิบขาด"
+    },
+    "table": {
+      "pickNo": "เลขที่ใบหยิบ",
+      "orderNo": "เลขที่ออเดอร์",
+      "pickingMode": "รูปแบบการหยิบ",
+      "customer": "ลูกค้า",
+      "requestedQty": "จำนวนที่ต้องการ",
+      "pickedQty": "จำนวนที่หยิบได้",
+      "shortQty": "จำนวนที่ขาด",
+      "dispatchedQty": "จำนวนที่จัดส่ง",
+      "status": "สถานะ",
+      "picker": "ผู้หยิบสินค้า",
+      "batchNo": "เลขที่ Batch",
+      "allocatedQty": "จำนวนที่จัดสรร",
+      "sortedQty": "จำนวนที่คัดแยกแล้ว",
+      "shortageQty": "จำนวนที่ขาด",
+      "sharedPickedQty": "จำนวนที่หยิบได้ของรายการร่วม"
+    },
+    "kpi": {
+      "totalTasks": "จำนวนงานทั้งหมด",
+      "completedTasks": "งานที่เสร็จสมบูรณ์",
+      "totalRequested": "จำนวนที่ต้องการทั้งหมด",
+      "totalPicked": "จำนวนที่หยิบได้ทั้งหมด",
+      "totalShort": "จำนวนที่ขาดทั้งหมด",
+      "shortPickRate": "อัตราการหยิบขาด"
+    }
+  },
+  "reportsInventory": {
+    "title": "รายงานยอดคงเหลือสินค้า",
+    "asOfCaveat": "คำนวณย้อนหลังจากบันทึกรายการเคลื่อนไหวสินค้าจนถึงเวลาที่เลือก มีความน่าเชื่อถือเฉพาะเมื่อประวัติทั้งหมดของยอดคงเหลือถูกบันทึกไว้ในบันทึกรายการตั้งแต่หน่วยแรก — ถือเป็นข้อสันนิษฐานที่บันทึกไว้ ไม่ใช่การยืนยันที่ตรวจสอบแล้ว",
+    "tabs": {
+      "balance": "ยอดคงเหลือปัจจุบัน",
+      "movement": "การเคลื่อนไหวสินค้า",
+      "asOf": "ย้อนหลังตามวันที่"
+    },
+    "filters": {
+      "searchPlaceholder": "SKU, ชื่อสินค้า หรือเลขที่ล็อต",
+      "movementType": "ประเภทการเคลื่อนไหว",
+      "asOfDateTime": "ณ วันที่ / เวลา"
+    },
+    "lenses": {
+      "all": "ทั้งหมด",
+      "lowStock": "สต็อกต่ำ (น้อยกว่า)",
+      "nearExpiry": "ใกล้หมดอายุ (วัน)",
+      "expired": "หมดอายุแล้ว",
+      "nonMoving": "ไม่เคลื่อนไหว (วัน)"
+    },
+    "table": {
+      "storageType": "ประเภทการจัดเก็บ",
+      "expiry": "วันหมดอายุ",
+      "onHand": "คงเหลือในมือ",
+      "reserved": "สำรอง",
+      "hold": "พักสินค้า",
+      "available": "พร้อมใช้งาน",
+      "status": "สถานะ",
+      "dateTime": "วันที่ / เวลา",
+      "quantity": "จำนวน",
+      "reference": "เอกสารอ้างอิง",
+      "asOfQty": "จำนวน ณ วันที่"
+    },
+    "kpi": {
+      "totalOnHand": "คงเหลือในมือทั้งหมด",
+      "totalAvailable": "พร้อมใช้งานทั้งหมด",
+      "lowStockCount": "จำนวนสต็อกต่ำ",
+      "nearExpiryCount": "จำนวนใกล้หมดอายุ",
+      "expiredCount": "จำนวนหมดอายุ",
+      "nonMovingCount": "จำนวนไม่เคลื่อนไหว"
+    }
+  },
+  "reportsPickingKpi": {
+    "title": "แดชบอร์ด KPI การหยิบสินค้า",
+    "unsupportedNote": "ไม่แสดงผลด้านประสิทธิภาพตามกะทำงานและเป้าหมายเทียบผลจริง — ระบบนี้ไม่มีข้อมูลกะทำงานหรือโควต้าใด ๆ จึงไม่สามารถวัดค่า KPI เหล่านี้ได้อย่างน่าเชื่อถือ ความถูกต้องในการหยิบสินค้าคำนวณจากรายการที่ผ่านการสแกนบาร์โค้ดเท่านั้น",
+    "charts": {
+      "dailyTrend": "แนวโน้มการหยิบสินค้า",
+      "cycleTimeDistribution": "การกระจายตัวของเวลาในการหยิบ"
+    },
+    "tables": {
+      "byOperator": "ประสิทธิภาพตามผู้ปฏิบัติงาน",
+      "byPickingMode": "เปรียบเทียบรูปแบบการหยิบ"
+    },
+    "table": {
+      "operator": "ผู้ปฏิบัติงาน",
+      "linesPerHour": "รายการ / ชั่วโมง",
+      "unitsPerHour": "หน่วย / ชั่วโมง",
+      "completionRate": "อัตราความสำเร็จ",
+      "avgCycleTime": "เวลาเฉลี่ยต่อรอบ"
+    },
+    "kpi": {
+      "linesPerHour": "รายการที่หยิบ / ชั่วโมง",
+      "unitsPerHour": "หน่วยที่หยิบ / ชั่วโมง",
+      "accuracy": "ความถูกต้องในการหยิบสินค้า",
+      "scansLabel": "การสแกน",
+      "onTimeRate": "อัตราการหยิบตรงเวลา",
+      "noDueDateLabel": "งานที่ไม่มีกำหนดส่ง",
+      "avgCycleTime": "เวลาเฉลี่ยในการหยิบต่อรอบ",
+      "repickRate": "อัตราการหยิบซ้ำ"
+    }
+  },
+  "reportsQc": {
+    "title": "รายงานการตรวจสอบคุณภาพ (QC)",
+    "grainNote": "หนึ่งแถวต่อหนึ่งรายการตรวจสอบที่เริ่มตรวจแล้ว ล็อตที่รอตรวจแต่ยังไม่มีการสร้างใบตรวจสอบจะแสดงเฉพาะใน KPI \"รอตรวจ - ยังไม่เริ่ม\" เท่านั้น ไม่แสดงในตารางนี้",
+    "filters": {
+      "supplier": "ผู้จำหน่าย",
+      "inspector": "ผู้ตรวจสอบ",
+      "qcType": "ประเภทการตรวจสอบ",
+      "search": "ค้นหา",
+      "searchPlaceholder": "เลขที่ตรวจสอบ, เลขที่รับสินค้า, SKU หรือชื่อสินค้า",
+      "resolutionStatus": "สถานะผลตรวจ",
+      "defectCode": "รหัสข้อบกพร่อง"
+    },
+    "charts": {
+      "topDefects": "ข้อบกพร่องที่พบมากที่สุด",
+      "supplierRejectionTrend": "แนวโน้มการปฏิเสธตามผู้จำหน่าย",
+      "byQcType": "การตรวจสอบตามประเภท QC"
+    },
+    "table": {
+      "inspectionNo": "เลขที่ตรวจสอบ",
+      "receiptNo": "เลขที่รับสินค้า",
+      "inspector": "ผู้ตรวจสอบ",
+      "qcType": "ประเภท QC",
+      "sku": "SKU",
+      "lotNo": "เลขที่ล็อต",
+      "expiry": "วันหมดอายุ",
+      "location": "ตำแหน่ง",
+      "heldQty": "จำนวนที่ถูกกัก",
+      "passQty": "จำนวนที่ผ่าน",
+      "rejectQty": "จำนวนที่ปฏิเสธ",
+      "remainingHold": "จำนวนที่ยังถูกกัก",
+      "resolutionStatus": "สถานะผลตรวจ",
+      "defectCode": "รหัสข้อบกพร่อง",
+      "turnaround": "เวลาตรวจสอบ (ชม.)",
+      "holdAging": "ระยะเวลาที่ถูกกัก (ชม.)"
+    },
+    "kpi": {
+      "totalItems": "รายการตรวจสอบทั้งหมด",
+      "passRate": "อัตราผ่าน QC",
+      "rejectionRate": "อัตราการปฏิเสธ",
+      "holdRate": "อัตราการกัก",
+      "pendingNotStarted": "รอตรวจ - ยังไม่เริ่ม",
+      "pendingAwaitingDecision": "รอตรวจ - รอผลตัดสิน",
+      "avgTurnaround": "เวลาตรวจสอบเฉลี่ย",
+      "avgHoldAging": "ระยะเวลาถูกกักเฉลี่ย",
+      "maxHoldAging": "ระยะเวลาถูกกักสูงสุด",
+      "notAvailable": "ไม่มีข้อมูล"
+    }
+  },
+  "reportsDelivery": {
+    "title": "รายงานการจัดส่งและขนส่ง",
+    "deliveryCaveat": "สถานะ \"จัดส่งแล้ว\" มาจากการกดปุ่ม \"บันทึกว่าจัดส่งแล้ว\" ด้วยมือในระบบนี้เท่านั้น ไม่มีหลักฐานการส่งมอบ (ไม่มีลายเซ็น ไม่มีการเชื่อมต่อระบบติดตามของผู้ขนส่ง) และไม่เคยอนุมานจากสถานะ \"จัดส่งออกแล้ว\" หรือ \"อยู่ระหว่างขนส่ง\"",
+    "tabs": {
+      "detail": "รายละเอียดสินค้าในการจัดส่ง",
+      "trips": "การโหลดสินค้าและการจัดส่ง"
+    },
+    "filters": {
+      "carrier": "ผู้ขนส่ง",
+      "orderType": "ประเภทคำสั่งซื้อ",
+      "search": "ค้นหา",
+      "searchPlaceholder": "เลขที่จัดส่ง, เลขที่คำสั่งซื้อ, เลขพัสดุ, SKU หรือชื่อสินค้า",
+      "tripSearchPlaceholder": "เลขที่ทริป, เลขรถ หรือชื่อคนขับ"
+    },
+    "orderTypes": {
+      "SALES_ORDER": "คำสั่งขาย",
+      "INTERNAL_TRANSFER": "โยกย้ายภายใน"
+    },
+    "charts": {
+      "trend": "แนวโน้มการจัดส่ง",
+      "byStatus": "การจัดส่งตามสถานะ",
+      "byCarrier": "การจัดส่งตามผู้ขนส่ง",
+      "byWarehouse": "การจัดส่งตามคลังสินค้า"
+    },
+    "table": {
+      "shipmentNo": "เลขที่จัดส่ง",
+      "orderNo": "เลขที่คำสั่งซื้อ",
+      "orderType": "ประเภทคำสั่งซื้อ",
+      "customer": "ลูกค้า",
+      "shipTo": "ที่อยู่จัดส่ง",
+      "carrier": "ผู้ขนส่ง",
+      "trackingNo": "เลขพัสดุ",
+      "sku": "SKU",
+      "qty": "จำนวน",
+      "status": "สถานะ",
+      "shipDate": "วันที่จัดส่ง",
+      "dispatchedAt": "เวลาจัดส่งออก",
+      "deliveredAt": "เวลาจัดส่งถึง",
+      "leadTime": "เวลานำส่ง (ชม.)",
+      "exception": "ข้อผิดพลาด",
+      "tripNo": "เลขที่ทริป",
+      "vehicleNo": "เลขรถ",
+      "driver": "คนขับ",
+      "dock": "ท่าขนถ่าย",
+      "route": "เส้นทาง",
+      "shipments": "จำนวนการจัดส่ง",
+      "cartons": "จำนวนกล่อง",
+      "shortCartons": "กล่องขาด",
+      "loadingDuration": "เวลาที่ใช้ในการโหลด (ชม.)"
+    },
+    "kpi": {
+      "totalShipments": "การจัดส่งทั้งหมด",
+      "dispatchRate": "อัตราการจัดส่งออก",
+      "deliveryConfirmationRate": "อัตราการยืนยันการจัดส่งถึง",
+      "exceptionRate": "อัตราข้อผิดพลาด",
+      "avgLeadTime": "เวลานำส่งเฉลี่ย",
+      "totalTrips": "จำนวนทริปโหลดสินค้า",
+      "avgLoadingDuration": "เวลาโหลดสินค้าเฉลี่ย",
+      "notAvailable": "ไม่มีข้อมูล"
+    }
+  },
+  "warehouseLayout": {
+    "title": "ผังคลังสินค้า 2 มิติแบบโต้ตอบ",
+    "selectWarehousePrompt": "เลือกคลังสินค้าเพื่อดูหรือแก้ไขผัง",
+    "viewingHistoricalVersion": "กำลังดูเวอร์ชัน {n} (อ่านอย่างเดียว)",
+    "actions": {
+      "edit": "แก้ไขผัง",
+      "save": "บันทึกผัง",
+      "saving": "กำลังบันทึก…",
+      "delete": "ลบรูปทรง",
+      "history": "ประวัติเวอร์ชัน",
+      "backToLatest": "กลับไปเวอร์ชันล่าสุด"
+    },
+    "toolbar": {
+      "addShape": "เพิ่มรูปทรง",
+      "backgroundImage": "ภาพพื้นหลัง",
+      "uploading": "กำลังอัปโหลด…",
+      "scale": "มาตราส่วน (พิกเซลต่อเมตร)",
+      "notCalibrated": "ยังไม่ได้ปรับมาตราส่วน",
+      "properties": "คุณสมบัติ"
+    },
+    "properties": {
+      "label": "ป้ายชื่อ",
+      "width": "ความกว้าง",
+      "height": "ความสูง",
+      "rotation": "การหมุน (องศา)",
+      "fillColor": "สีพื้น",
+      "strokeColor": "สีเส้นขอบ",
+      "linkedZone": "โซนที่เชื่อมโยง (ไม่บังคับ)"
+    },
+    "objectTypes": {
+      "ZONE": "โซน",
+      "LOCATION": "ตำแหน่งจัดเก็บ",
+      "RACK": "ชั้นวาง",
+      "AISLE": "ช่องทางเดิน",
+      "DOCK": "ท่าขนถ่าย",
+      "WALL": "ผนัง",
+      "LABEL": "ป้ายชื่อ",
+      "SHAPE": "รูปทรง"
+    },
+    "history": {
+      "title": "ประวัติเวอร์ชัน",
+      "version": "เวอร์ชัน",
+      "objectCount": "จำนวนรูปทรง",
+      "remark": "หมายเหตุ",
+      "createdBy": "สร้างโดย",
+      "createdAt": "สร้างเมื่อ",
+      "view": "ดู"
+    }
   }
 }

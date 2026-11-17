@@ -137,7 +137,16 @@
     "newQualityCheck": "New Quality Check",
     "newPutaway": "New Put Away",
     "newRelocation": "New Relocation",
-    "platformTenantDetail": "Tenant Detail"
+    "platformTenantDetail": "Tenant Detail",
+    "sectionReports": "Reports & Analytics",
+    "reportsReceiving": "Receiving Report",
+    "reportsStockCount": "Stock Count Report",
+    "reportsPickingIssue": "Picking & Issue Report",
+    "reportsInventory": "Inventory Report",
+    "reportsPickingKpi": "Picking KPI",
+    "reportsQc": "QC Report",
+    "reportsDelivery": "Delivery & Shipping Report",
+    "reportsWarehouseLayout": "Warehouse Layout 2D"
   },
   "tabs": {
     "maxReached": "Maximum 10 tabs allowed. Please close an existing tab before opening another.",
@@ -1613,7 +1622,9 @@
       "roles": "Roles & Permissions",
       "warehouse": "Warehouse Setup",
       "product": "Product Master",
-      "tenantUsers": "Tenant User Management"
+      "tenantUsers": "Tenant User Management",
+      "report": "Reports & Analytics",
+      "layout": "Warehouse Layout"
     },
     "selectRolePrompt": "Select a role to configure permissions",
     "permissionConfigLabel": "{code} permission configuration",
@@ -3058,5 +3069,396 @@
     "download": "Download",
     "loadFailed": "Failed to load document history",
     "actionFailed": "Failed to open document"
+  },
+  "reports": {
+    "sectionTitle": "Reports & Analytics",
+    "comingSoon": {
+      "title": "Coming Soon",
+      "message": "This report is scheduled for a later Phase 34 batch and is not available yet.",
+      "frameworkNote": "The filters, date range, table, chart and export controls below are the shared Reports framework — wiring them to real data happens when this report's own batch is implemented."
+    },
+    "filterBar": {
+      "apply": "Apply Filters",
+      "reset": "Reset",
+      "moreFilters": "More Filters",
+      "fewerFilters": "Fewer Filters"
+    },
+    "dateRange": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "last7Days": "Last 7 Days",
+      "last30Days": "Last 30 Days",
+      "thisMonth": "This Month",
+      "lastMonth": "Last Month",
+      "custom": "Custom",
+      "from": "From",
+      "to": "To",
+      "timezoneNote": "Times shown in Asia/Bangkok (UTC+7)."
+    },
+    "summaryCards": {
+      "empty": "No summary metrics yet"
+    },
+    "table": {
+      "noData": "No report data to display",
+      "loading": "Loading report data…",
+      "totalRows": "Total rows",
+      "page": "Page {page} of {totalPages}"
+    },
+    "chart": {
+      "noData": "No chart data to display"
+    },
+    "export": {
+      "previewPdf": "Preview PDF",
+      "downloadPdf": "Download PDF",
+      "print": "Print",
+      "exportExcel": "Export Excel",
+      "exportCsv": "Export CSV",
+      "generatedAt": "Generated at {timestamp}",
+      "notAvailableYet": "Not available in this phase yet"
+    },
+    "printPreview": {
+      "title": "Print Preview",
+      "close": "Close",
+      "print": "Print"
+    }
+  },
+  "reportsReceiving": {
+    "title": "Receiving Report",
+    "filters": {
+      "supplier": "Supplier",
+      "search": "Search",
+      "searchPlaceholder": "Receipt no., reference no., SKU, or product name",
+      "lotNo": "Lot / Batch No."
+    },
+    "charts": {
+      "trend": "Receiving Trend",
+      "bySupplier": "Receipts by Supplier",
+      "byWarehouse": "Receiving by Warehouse",
+      "byOperator": "Receiving by Operator"
+    },
+    "table": {
+      "receiptNo": "Receiving No.",
+      "receivingDate": "Receiving Date",
+      "sku": "SKU",
+      "expectedQty": "Expected Qty",
+      "receivedQty": "Received Qty",
+      "shortOverQty": "Short / Over",
+      "lotNo": "Lot No.",
+      "receivingStatus": "Receiving Status",
+      "qcStatus": "QC Status",
+      "putawayStatus": "Putaway Status"
+    },
+    "kpi": {
+      "totalReceipts": "Total Receipts",
+      "totalReceivedQty": "Total Received Qty",
+      "completionRate": "Completion Rate",
+      "leadTime": "Avg. Receiving Lead Time",
+      "pendingQc": "Pending QC Qty",
+      "pendingPutaway": "Pending Putaway Qty",
+      "notAvailable": "N/A"
+    }
+  },
+  "reportsStockCount": {
+    "title": "Stock Count Report",
+    "filters": {
+      "searchPlaceholder": "Count no., SKU, or product name"
+    },
+    "presets": {
+      "detail": "Detail",
+      "varianceOnly": "Variance Only",
+      "recount": "Recount",
+      "countSheet": "Count Sheet (Pending)",
+      "adjustmentReference": "Has Adjustment"
+    },
+    "table": {
+      "countNo": "Count No.",
+      "countDate": "Count Date",
+      "location": "Location",
+      "systemQty": "System Qty",
+      "countedQty": "Counted Qty",
+      "variance": "Variance",
+      "itemStatus": "Status",
+      "countedBy": "Counted By",
+      "approvedBy": "Approved By",
+      "adjustmentRef": "Adjustment Ref."
+    },
+    "kpi": {
+      "totalSessions": "Total Count Sessions",
+      "countedLocations": "Counted Locations",
+      "countedSkus": "Counted SKUs",
+      "accuracy": "Stock Count Accuracy",
+      "quantityVariance": "Quantity Variance",
+      "recountRate": "Recount Rate",
+      "pendingApproval": "Pending Approval"
+    }
+  },
+  "reportsPicking": {
+    "title": "Picking & Stock Issue Report",
+    "batchAllocationNote": "Each row is one order's own share of a batch-consolidated pick. shared_task_picked_qty is cross-reference context — the shared physical line's total pick — not this row's own exclusive quantity; summing allocated qty across rows of the same task reconstructs the total without double-counting.",
+    "tabs": {
+      "detail": "Picking Detail",
+      "batchAllocation": "Batch / Wave Allocation"
+    },
+    "filters": {
+      "searchPlaceholder": "Pick no., order no., SKU, or product name",
+      "batchSearchPlaceholder": "Batch no. or order no."
+    },
+    "presets": {
+      "shortOnly": "Short Pick Only"
+    },
+    "table": {
+      "pickNo": "Pick No.",
+      "orderNo": "Order No.",
+      "pickingMode": "Picking Mode",
+      "customer": "Customer",
+      "requestedQty": "Requested",
+      "pickedQty": "Picked",
+      "shortQty": "Short",
+      "dispatchedQty": "Dispatched",
+      "status": "Status",
+      "picker": "Picker",
+      "batchNo": "Batch No.",
+      "allocatedQty": "Allocated",
+      "sortedQty": "Sorted",
+      "shortageQty": "Shortage",
+      "sharedPickedQty": "Shared Line Picked"
+    },
+    "kpi": {
+      "totalTasks": "Total Tasks",
+      "completedTasks": "Completed Tasks",
+      "totalRequested": "Total Requested Qty",
+      "totalPicked": "Total Picked Qty",
+      "totalShort": "Total Short Qty",
+      "shortPickRate": "Short Pick Rate"
+    }
+  },
+  "reportsInventory": {
+    "title": "Inventory Balance Report",
+    "asOfCaveat": "Reconstructed from the inventory transaction ledger up to the chosen timestamp. Reliable only if every balance's full history was captured in the ledger from its first unit — treat as a documented assumption, not a verified guarantee.",
+    "tabs": {
+      "balance": "Current Balance",
+      "movement": "Stock Movement",
+      "asOf": "Historical As-of"
+    },
+    "filters": {
+      "searchPlaceholder": "SKU, product name, or lot no.",
+      "movementType": "Movement Type",
+      "asOfDateTime": "As of Date/Time"
+    },
+    "lenses": {
+      "all": "All",
+      "lowStock": "Low Stock (below)",
+      "nearExpiry": "Near Expiry (days)",
+      "expired": "Expired",
+      "nonMoving": "Non-Moving (days)"
+    },
+    "table": {
+      "storageType": "Storage Type",
+      "expiry": "Expiry",
+      "onHand": "On-Hand",
+      "reserved": "Reserved",
+      "hold": "Hold",
+      "available": "Available",
+      "status": "Status",
+      "dateTime": "Date / Time",
+      "quantity": "Quantity",
+      "reference": "Reference",
+      "asOfQty": "As-of Qty"
+    },
+    "kpi": {
+      "totalOnHand": "Total On-Hand",
+      "totalAvailable": "Total Available",
+      "lowStockCount": "Low Stock Count",
+      "nearExpiryCount": "Near Expiry Count",
+      "expiredCount": "Expired Count",
+      "nonMovingCount": "Non-Moving Count"
+    }
+  },
+  "reportsPickingKpi": {
+    "title": "Picking KPI Dashboard",
+    "unsupportedNote": "Shift Performance and Target vs Actual are not shown — no shift/schedule or quota field exists anywhere in this system, so these KPIs cannot be reliably measured. Picking Accuracy is measured only over the subset of lines that were barcode-scanned.",
+    "charts": {
+      "dailyTrend": "Picking Trend",
+      "cycleTimeDistribution": "Cycle Time Distribution"
+    },
+    "tables": {
+      "byOperator": "Productivity by Operator",
+      "byPickingMode": "Picking Mode Comparison"
+    },
+    "table": {
+      "operator": "Operator",
+      "linesPerHour": "Lines / Hour",
+      "unitsPerHour": "Units / Hour",
+      "completionRate": "Completion Rate",
+      "avgCycleTime": "Avg. Cycle Time"
+    },
+    "kpi": {
+      "linesPerHour": "Picked Lines / Hour",
+      "unitsPerHour": "Picked Units / Hour",
+      "accuracy": "Picking Accuracy",
+      "scansLabel": "scans",
+      "onTimeRate": "On-Time Picking Rate",
+      "noDueDateLabel": "tasks without a due date",
+      "avgCycleTime": "Avg. Picking Cycle Time",
+      "repickRate": "Re-pick Rate"
+    }
+  },
+  "reportsQc": {
+    "title": "QC Report",
+    "grainNote": "One row per inspection item that has at least started QC. A split awaiting QC with no inspection created yet appears only in the Pending QC - Not Started KPI, not in this table.",
+    "filters": {
+      "supplier": "Supplier",
+      "inspector": "Inspector",
+      "qcType": "QC Type",
+      "search": "Search",
+      "searchPlaceholder": "Inspection no., receipt no., SKU, or product name",
+      "resolutionStatus": "Resolution Status",
+      "defectCode": "Defect Code"
+    },
+    "charts": {
+      "topDefects": "Top Defect Types",
+      "supplierRejectionTrend": "Supplier Rejection Trend",
+      "byQcType": "Inspections by QC Type"
+    },
+    "table": {
+      "inspectionNo": "Inspection No.",
+      "receiptNo": "Receipt No.",
+      "inspector": "Inspector",
+      "qcType": "QC Type",
+      "sku": "SKU",
+      "lotNo": "Lot No.",
+      "expiry": "Expiry",
+      "location": "Location",
+      "heldQty": "Held Qty",
+      "passQty": "Pass Qty",
+      "rejectQty": "Reject Qty",
+      "remainingHold": "Remaining Hold",
+      "resolutionStatus": "Resolution Status",
+      "defectCode": "Defect Code",
+      "turnaround": "QC Turnaround (h)",
+      "holdAging": "Hold Aging (h)"
+    },
+    "kpi": {
+      "totalItems": "Total Inspection Items",
+      "passRate": "QC Pass Rate",
+      "rejectionRate": "Rejection Rate",
+      "holdRate": "Hold Rate",
+      "pendingNotStarted": "Pending QC - Not Started",
+      "pendingAwaitingDecision": "Pending QC - Awaiting Decision",
+      "avgTurnaround": "Avg. QC Turnaround",
+      "avgHoldAging": "Avg. Hold Aging",
+      "maxHoldAging": "Max. Hold Aging",
+      "notAvailable": "N/A"
+    }
+  },
+  "reportsDelivery": {
+    "title": "Delivery & Shipping Report",
+    "deliveryCaveat": "Delivered reflects a manual \"Mark Delivered\" action in this system with no proof-of-delivery evidence behind it (no signature, no carrier tracking integration) — it is never inferred from Dispatched or In Transit status.",
+    "tabs": {
+      "detail": "Shipment Item Detail",
+      "trips": "Loading & Dispatch"
+    },
+    "filters": {
+      "carrier": "Carrier",
+      "orderType": "Order Type",
+      "search": "Search",
+      "searchPlaceholder": "Shipment no., order no., tracking no., SKU, or product name",
+      "tripSearchPlaceholder": "Trip no., vehicle no., or driver name"
+    },
+    "orderTypes": {
+      "SALES_ORDER": "Sales Order",
+      "INTERNAL_TRANSFER": "Internal Transfer"
+    },
+    "charts": {
+      "trend": "Shipment Trend",
+      "byStatus": "Shipments by Status",
+      "byCarrier": "Shipments by Carrier",
+      "byWarehouse": "Shipments by Warehouse"
+    },
+    "table": {
+      "shipmentNo": "Shipment No.",
+      "orderNo": "Order No.",
+      "orderType": "Order Type",
+      "customer": "Customer",
+      "shipTo": "Ship To",
+      "carrier": "Carrier",
+      "trackingNo": "Tracking No.",
+      "sku": "SKU",
+      "qty": "Qty",
+      "status": "Status",
+      "shipDate": "Ship Date",
+      "dispatchedAt": "Dispatched At",
+      "deliveredAt": "Delivered At",
+      "leadTime": "Delivery Lead Time (h)",
+      "exception": "Exception",
+      "tripNo": "Trip No.",
+      "vehicleNo": "Vehicle No.",
+      "driver": "Driver",
+      "dock": "Dock",
+      "route": "Route",
+      "shipments": "Shipments",
+      "cartons": "Cartons",
+      "shortCartons": "Short Cartons",
+      "loadingDuration": "Loading Duration (h)"
+    },
+    "kpi": {
+      "totalShipments": "Total Shipments",
+      "dispatchRate": "Dispatch Rate",
+      "deliveryConfirmationRate": "Delivery Confirmation Rate",
+      "exceptionRate": "Exception Rate",
+      "avgLeadTime": "Avg. Delivery Lead Time",
+      "totalTrips": "Total Loading Trips",
+      "avgLoadingDuration": "Avg. Loading Duration",
+      "notAvailable": "N/A"
+    }
+  },
+  "warehouseLayout": {
+    "title": "Interactive 2D Warehouse Layout",
+    "selectWarehousePrompt": "Select a warehouse to view or edit its layout.",
+    "viewingHistoricalVersion": "Viewing version {n} (read-only)",
+    "actions": {
+      "edit": "Edit Layout",
+      "save": "Save Layout",
+      "saving": "Saving…",
+      "delete": "Delete Shape",
+      "history": "Version History",
+      "backToLatest": "Back to latest"
+    },
+    "toolbar": {
+      "addShape": "Add Shape",
+      "backgroundImage": "Background Image",
+      "uploading": "Uploading…",
+      "scale": "Scale (pixels per meter)",
+      "notCalibrated": "Not calibrated",
+      "properties": "Properties"
+    },
+    "properties": {
+      "label": "Label",
+      "width": "Width",
+      "height": "Height",
+      "rotation": "Rotation (degrees)",
+      "fillColor": "Fill Color",
+      "strokeColor": "Stroke Color",
+      "linkedZone": "Linked Zone (optional)"
+    },
+    "objectTypes": {
+      "ZONE": "Zone",
+      "LOCATION": "Location",
+      "RACK": "Rack",
+      "AISLE": "Aisle",
+      "DOCK": "Dock",
+      "WALL": "Wall",
+      "LABEL": "Label",
+      "SHAPE": "Shape"
+    },
+    "history": {
+      "title": "Version History",
+      "version": "Version",
+      "objectCount": "Shapes",
+      "remark": "Remark",
+      "createdBy": "Created By",
+      "createdAt": "Created At",
+      "view": "View"
+    }
   }
 }

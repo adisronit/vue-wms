@@ -137,7 +137,16 @@
     "newQualityCheck": "新建质检",
     "newPutaway": "新建上架",
     "newRelocation": "新建库内调拨",
-    "platformTenantDetail": "租户详情"
+    "platformTenantDetail": "租户详情",
+    "sectionReports": "报表与分析",
+    "reportsReceiving": "收货报表",
+    "reportsStockCount": "盘点报表",
+    "reportsPickingIssue": "拣货与出库报表",
+    "reportsInventory": "库存报表",
+    "reportsPickingKpi": "拣货 KPI",
+    "reportsQc": "质检报表",
+    "reportsDelivery": "配送与发货报表",
+    "reportsWarehouseLayout": "仓库 2D 布局"
   },
   "tabs": {
     "maxReached": "最多只能打开 10 个标签页，请先关闭一个现有标签页再打开新的。",
@@ -1613,7 +1622,9 @@
       "roles": "角色与权限",
       "warehouse": "仓库设置",
       "product": "产品主数据",
-      "tenantUsers": "租户用户管理"
+      "tenantUsers": "租户用户管理",
+      "report": "报表与分析",
+      "layout": "仓库布局"
     },
     "selectRolePrompt": "选择一个角色以配置权限",
     "permissionConfigLabel": "{code} 权限配置",
@@ -3058,5 +3069,396 @@
     "download": "下载",
     "loadFailed": "加载文档历史失败",
     "actionFailed": "打开文档失败"
+  },
+  "reports": {
+    "sectionTitle": "报表与分析",
+    "comingSoon": {
+      "title": "即将推出",
+      "message": "此报表计划在后续的 Phase 34 批次中交付,目前尚不可用。",
+      "frameworkNote": "下方的筛选器、日期范围、表格、图表和导出控件是共享的报表框架 —— 连接真实数据将在该报表自己的批次实现时进行。"
+    },
+    "filterBar": {
+      "apply": "应用筛选",
+      "reset": "重置",
+      "moreFilters": "更多筛选条件",
+      "fewerFilters": "收起筛选条件"
+    },
+    "dateRange": {
+      "today": "今天",
+      "yesterday": "昨天",
+      "last7Days": "最近 7 天",
+      "last30Days": "最近 30 天",
+      "thisMonth": "本月",
+      "lastMonth": "上月",
+      "custom": "自定义",
+      "from": "从",
+      "to": "到",
+      "timezoneNote": "时间显示为 Asia/Bangkok(UTC+7)。"
+    },
+    "summaryCards": {
+      "empty": "暂无汇总指标"
+    },
+    "table": {
+      "noData": "暂无报表数据",
+      "loading": "正在加载报表数据…",
+      "totalRows": "总行数",
+      "page": "第 {page} 页,共 {totalPages} 页"
+    },
+    "chart": {
+      "noData": "暂无图表数据"
+    },
+    "export": {
+      "previewPdf": "预览 PDF",
+      "downloadPdf": "下载 PDF",
+      "print": "打印",
+      "exportExcel": "导出 Excel",
+      "exportCsv": "导出 CSV",
+      "generatedAt": "生成于 {timestamp}",
+      "notAvailableYet": "此阶段尚不可用"
+    },
+    "printPreview": {
+      "title": "打印预览",
+      "close": "关闭",
+      "print": "打印"
+    }
+  },
+  "reportsReceiving": {
+    "title": "收货报表",
+    "filters": {
+      "supplier": "供应商",
+      "search": "搜索",
+      "searchPlaceholder": "收货单号、参考号、SKU 或产品名称",
+      "lotNo": "批号"
+    },
+    "charts": {
+      "trend": "收货趋势",
+      "bySupplier": "按供应商统计收货",
+      "byWarehouse": "按仓库统计收货",
+      "byOperator": "按操作员统计收货"
+    },
+    "table": {
+      "receiptNo": "收货单号",
+      "receivingDate": "收货日期",
+      "sku": "SKU",
+      "expectedQty": "预期数量",
+      "receivedQty": "实收数量",
+      "shortOverQty": "短溢数量",
+      "lotNo": "批号",
+      "receivingStatus": "收货状态",
+      "qcStatus": "质检状态",
+      "putawayStatus": "上架状态"
+    },
+    "kpi": {
+      "totalReceipts": "总收货单数",
+      "totalReceivedQty": "总收货数量",
+      "completionRate": "完成率",
+      "leadTime": "平均收货周期",
+      "pendingQc": "待质检数量",
+      "pendingPutaway": "待上架数量",
+      "notAvailable": "暂无数据"
+    }
+  },
+  "reportsStockCount": {
+    "title": "盘点报表",
+    "filters": {
+      "searchPlaceholder": "盘点单号、SKU 或产品名称"
+    },
+    "presets": {
+      "detail": "明细",
+      "varianceOnly": "仅差异",
+      "recount": "复盘",
+      "countSheet": "盘点清单(待处理)",
+      "adjustmentReference": "已生成调整单"
+    },
+    "table": {
+      "countNo": "盘点单号",
+      "countDate": "盘点日期",
+      "location": "库位",
+      "systemQty": "系统数量",
+      "countedQty": "盘点数量",
+      "variance": "差异",
+      "itemStatus": "状态",
+      "countedBy": "盘点人",
+      "approvedBy": "审批人",
+      "adjustmentRef": "调整单号"
+    },
+    "kpi": {
+      "totalSessions": "盘点场次总数",
+      "countedLocations": "已盘点库位数",
+      "countedSkus": "已盘点 SKU 数",
+      "accuracy": "盘点准确率",
+      "quantityVariance": "数量差异",
+      "recountRate": "复盘率",
+      "pendingApproval": "待审批"
+    }
+  },
+  "reportsPicking": {
+    "title": "拣货与出库报表",
+    "batchAllocationNote": "每行代表一个订单在批量合并拣货中的自有份额。shared_task_picked_qty 仅作参考 —— 共享实物拣货行的总拣货量 —— 并非该行自身的独占数量;对同一拣货行的所有行的 allocated qty 求和即可还原总量而不会重复计算。",
+    "tabs": {
+      "detail": "拣货明细",
+      "batchAllocation": "批量/波次分配"
+    },
+    "filters": {
+      "searchPlaceholder": "拣货单号、订单号、SKU 或产品名称",
+      "batchSearchPlaceholder": "批次号或订单号"
+    },
+    "presets": {
+      "shortOnly": "仅显示缺拣"
+    },
+    "table": {
+      "pickNo": "拣货单号",
+      "orderNo": "订单号",
+      "pickingMode": "拣货模式",
+      "customer": "客户",
+      "requestedQty": "需求数量",
+      "pickedQty": "已拣数量",
+      "shortQty": "缺拣数量",
+      "dispatchedQty": "已发货数量",
+      "status": "状态",
+      "picker": "拣货员",
+      "batchNo": "批次号",
+      "allocatedQty": "分配数量",
+      "sortedQty": "已分拣数量",
+      "shortageQty": "缺口数量",
+      "sharedPickedQty": "共享行已拣数量"
+    },
+    "kpi": {
+      "totalTasks": "任务总数",
+      "completedTasks": "已完成任务数",
+      "totalRequested": "需求总数量",
+      "totalPicked": "已拣总数量",
+      "totalShort": "缺拣总数量",
+      "shortPickRate": "缺拣率"
+    }
+  },
+  "reportsInventory": {
+    "title": "库存余额报表",
+    "asOfCaveat": "根据库存交易台账截至所选时间点重新计算得出。仅当某余额从第一件起的全部历史都被台账完整记录时才可靠 —— 请视为一项已记录的假设,而非经过验证的保证。",
+    "tabs": {
+      "balance": "当前余额",
+      "movement": "库存变动",
+      "asOf": "历史回溯"
+    },
+    "filters": {
+      "searchPlaceholder": "SKU、产品名称或批号",
+      "movementType": "变动类型",
+      "asOfDateTime": "截止日期/时间"
+    },
+    "lenses": {
+      "all": "全部",
+      "lowStock": "低库存(低于)",
+      "nearExpiry": "即将到期(天)",
+      "expired": "已过期",
+      "nonMoving": "滞销(天)"
+    },
+    "table": {
+      "storageType": "存储类型",
+      "expiry": "到期日",
+      "onHand": "在库数量",
+      "reserved": "已预留",
+      "hold": "冻结",
+      "available": "可用数量",
+      "status": "状态",
+      "dateTime": "日期/时间",
+      "quantity": "数量",
+      "reference": "参考单据",
+      "asOfQty": "截止数量"
+    },
+    "kpi": {
+      "totalOnHand": "在库总数量",
+      "totalAvailable": "可用总数量",
+      "lowStockCount": "低库存数量",
+      "nearExpiryCount": "即将到期数量",
+      "expiredCount": "已过期数量",
+      "nonMovingCount": "滞销数量"
+    }
+  },
+  "reportsPickingKpi": {
+    "title": "拣货 KPI 仪表板",
+    "unsupportedNote": "未显示班次绩效和目标对比实际 —— 本系统不存在任何班次/排班或配额字段,因此无法可靠地衡量这些指标。拣货准确率仅基于已进行条码扫描的拣货行计算。",
+    "charts": {
+      "dailyTrend": "拣货趋势",
+      "cycleTimeDistribution": "周转时间分布"
+    },
+    "tables": {
+      "byOperator": "按操作员统计效率",
+      "byPickingMode": "拣货模式对比"
+    },
+    "table": {
+      "operator": "操作员",
+      "linesPerHour": "行数/小时",
+      "unitsPerHour": "件数/小时",
+      "completionRate": "完成率",
+      "avgCycleTime": "平均周转时间"
+    },
+    "kpi": {
+      "linesPerHour": "每小时拣货行数",
+      "unitsPerHour": "每小时拣货件数",
+      "accuracy": "拣货准确率",
+      "scansLabel": "次扫描",
+      "onTimeRate": "按时拣货率",
+      "noDueDateLabel": "个任务无截止日期",
+      "avgCycleTime": "平均拣货周转时间",
+      "repickRate": "复拣率"
+    }
+  },
+  "reportsQc": {
+    "title": "质检报告",
+    "grainNote": "每行对应一个已开始质检的检验项目。已登记待检但尚未创建检验单的批次,仅计入“待质检-未开始”指标,不会出现在此表格中。",
+    "filters": {
+      "supplier": "供应商",
+      "inspector": "检验员",
+      "qcType": "质检类型",
+      "search": "搜索",
+      "searchPlaceholder": "检验单号、收货单号、SKU 或产品名称",
+      "resolutionStatus": "处理状态",
+      "defectCode": "缺陷代码"
+    },
+    "charts": {
+      "topDefects": "主要缺陷类型",
+      "supplierRejectionTrend": "供应商拒收趋势",
+      "byQcType": "按质检类型统计"
+    },
+    "table": {
+      "inspectionNo": "检验单号",
+      "receiptNo": "收货单号",
+      "inspector": "检验员",
+      "qcType": "质检类型",
+      "sku": "SKU",
+      "lotNo": "批号",
+      "expiry": "到期日",
+      "location": "货位",
+      "heldQty": "冻结数量",
+      "passQty": "合格数量",
+      "rejectQty": "拒收数量",
+      "remainingHold": "剩余冻结数量",
+      "resolutionStatus": "处理状态",
+      "defectCode": "缺陷代码",
+      "turnaround": "质检周转时间(小时)",
+      "holdAging": "冻结时长(小时)"
+    },
+    "kpi": {
+      "totalItems": "检验项目总数",
+      "passRate": "质检合格率",
+      "rejectionRate": "拒收率",
+      "holdRate": "冻结率",
+      "pendingNotStarted": "待质检-未开始",
+      "pendingAwaitingDecision": "待质检-待判定",
+      "avgTurnaround": "平均质检周转时间",
+      "avgHoldAging": "平均冻结时长",
+      "maxHoldAging": "最长冻结时长",
+      "notAvailable": "无数据"
+    }
+  },
+  "reportsDelivery": {
+    "title": "配送与发货报表",
+    "deliveryCaveat": "“已送达”仅表示系统中有人手动点击了“标记为已送达”,背后没有任何送达证明(无签收签名,无承运商物流跟踪对接),绝不会从“已发货”或“运输中”状态推断得出。",
+    "tabs": {
+      "detail": "发货商品明细",
+      "trips": "装车与发车"
+    },
+    "filters": {
+      "carrier": "承运商",
+      "orderType": "订单类型",
+      "search": "搜索",
+      "searchPlaceholder": "发货单号、订单号、物流单号、SKU 或产品名称",
+      "tripSearchPlaceholder": "车次号、车牌号或司机姓名"
+    },
+    "orderTypes": {
+      "SALES_ORDER": "销售订单",
+      "INTERNAL_TRANSFER": "内部调拨"
+    },
+    "charts": {
+      "trend": "发货趋势",
+      "byStatus": "按状态统计发货",
+      "byCarrier": "按承运商统计发货",
+      "byWarehouse": "按仓库统计发货"
+    },
+    "table": {
+      "shipmentNo": "发货单号",
+      "orderNo": "订单号",
+      "orderType": "订单类型",
+      "customer": "客户",
+      "shipTo": "收货地址",
+      "carrier": "承运商",
+      "trackingNo": "物流单号",
+      "sku": "SKU",
+      "qty": "数量",
+      "status": "状态",
+      "shipDate": "发货日期",
+      "dispatchedAt": "发货时间",
+      "deliveredAt": "送达时间",
+      "leadTime": "送达时长(小时)",
+      "exception": "异常",
+      "tripNo": "车次号",
+      "vehicleNo": "车牌号",
+      "driver": "司机",
+      "dock": "装货月台",
+      "route": "路线",
+      "shipments": "发货单数",
+      "cartons": "箱数",
+      "shortCartons": "缺箱数",
+      "loadingDuration": "装车用时(小时)"
+    },
+    "kpi": {
+      "totalShipments": "发货单总数",
+      "dispatchRate": "发货率",
+      "deliveryConfirmationRate": "送达确认率",
+      "exceptionRate": "异常率",
+      "avgLeadTime": "平均送达时长",
+      "totalTrips": "装车车次总数",
+      "avgLoadingDuration": "平均装车用时",
+      "notAvailable": "无数据"
+    }
+  },
+  "warehouseLayout": {
+    "title": "交互式二维仓库布局",
+    "selectWarehousePrompt": "请选择一个仓库以查看或编辑其布局",
+    "viewingHistoricalVersion": "正在查看版本 {n}(只读)",
+    "actions": {
+      "edit": "编辑布局",
+      "save": "保存布局",
+      "saving": "保存中…",
+      "delete": "删除图形",
+      "history": "版本历史",
+      "backToLatest": "返回最新版本"
+    },
+    "toolbar": {
+      "addShape": "添加图形",
+      "backgroundImage": "背景图片",
+      "uploading": "上传中…",
+      "scale": "比例(像素/米)",
+      "notCalibrated": "尚未校准",
+      "properties": "属性"
+    },
+    "properties": {
+      "label": "标签",
+      "width": "宽度",
+      "height": "高度",
+      "rotation": "旋转角度",
+      "fillColor": "填充颜色",
+      "strokeColor": "边框颜色",
+      "linkedZone": "关联区域(可选)"
+    },
+    "objectTypes": {
+      "ZONE": "区域",
+      "LOCATION": "货位",
+      "RACK": "货架",
+      "AISLE": "通道",
+      "DOCK": "装卸口",
+      "WALL": "墙体",
+      "LABEL": "标签",
+      "SHAPE": "图形"
+    },
+    "history": {
+      "title": "版本历史",
+      "version": "版本",
+      "objectCount": "图形数量",
+      "remark": "备注",
+      "createdBy": "创建人",
+      "createdAt": "创建时间",
+      "view": "查看"
+    }
   }
 }

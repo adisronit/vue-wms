@@ -17,6 +17,8 @@
       :can-view-loading="canViewLoading"
       :can-view-picking-batches="canViewPickingBatches"
       :can-view-platform-admin="canViewPlatformAdmin"
+      :can-view-reports="canViewReports"
+      :can-view-warehouse-layout="canViewWarehouseLayout"
       @logout="logout"
     />
 
@@ -196,6 +198,15 @@ export default {
     },
     canViewPlatformAdmin() {
       return this.platformAdmin
+    },
+    canViewReports() {
+      return hasPermission('report.view')
+    },
+    // Deliberately separate from canViewReports — see Sidebar.vue's prop
+    // comment: Warehouse Layout's backend requires its own layout.view
+    // permission, not report.view.
+    canViewWarehouseLayout() {
+      return hasPermission('layout.view')
     },
 
     // Drives both <keep-alive :include> and tabComponentCache's pruning

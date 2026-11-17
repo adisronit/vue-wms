@@ -54,7 +54,19 @@ export const ROUTE_PERMISSIONS = {
   Brands: 'brand.view',
   ProductFamilies: 'product_family.view',
   PlatformTenants: PLATFORM_ADMIN,
-  PlatformTenantDetail: PLATFORM_ADMIN
+  PlatformTenantDetail: PLATFORM_ADMIN,
+  // Phase 34B-34I. ReportsWarehouseLayout deliberately uses layout.view,
+  // not report.view — its backend requires a separate permission (see
+  // internal/warehouselayout), and Sidebar.vue/MainLayout.vue gate its
+  // menu item the same way via canViewWarehouseLayout.
+  ReportsReceiving: 'report.view',
+  ReportsStockCount: 'report.view',
+  ReportsPickingIssue: 'report.view',
+  ReportsInventory: 'report.view',
+  ReportsPickingKpi: 'report.view',
+  ReportsQc: 'report.view',
+  ReportsDelivery: 'report.view',
+  ReportsWarehouseLayout: 'layout.view'
 }
 
 // isRouteAllowed fails closed: an unrecognized route name (e.g. a route

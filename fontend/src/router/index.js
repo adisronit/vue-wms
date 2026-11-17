@@ -48,6 +48,14 @@ import RelocationView from '../views/inventory/RelocationView.vue'
 import NewRelocationView from '../views/inventory/NewRelocationView.vue'
 import TenantManagementView from '../views/platform/TenantManagementView.vue'
 import TenantDetailView from '../views/platform/TenantDetailView.vue'
+import ReceivingReportView from '../views/reports/ReceivingReportView.vue'
+import StockCountReportView from '../views/reports/StockCountReportView.vue'
+import PickingReportView from '../views/reports/PickingReportView.vue'
+import InventoryReportView from '../views/reports/InventoryReportView.vue'
+import PickingKpiView from '../views/reports/PickingKpiView.vue'
+import QCReportView from '../views/reports/QCReportView.vue'
+import DeliveryReportView from '../views/reports/DeliveryReportView.vue'
+import WarehouseLayoutView from '../views/reports/WarehouseLayoutView.vue'
 
 const routes = [
   {
@@ -314,6 +322,62 @@ const routes = [
         name: 'PlatformTenantDetail',
         component: TenantDetailView,
         meta: { requiresPlatformAdmin: true, titleKey: 'nav.platformTenantDetail' }
+      },
+      // Phase 34B-34I report & warehouse-layout routes. Each needs
+      // meta.titleKey (for the tab bar) and a matching entry in
+      // router/permissions.js's ROUTE_PERMISSIONS (for tab-restore
+      // revalidation) — both added as part of reconciling Phase 34
+      // against Navigation Enhancement's architecture.
+      {
+        path: 'reports/receiving',
+        name: 'ReportsReceiving',
+        component: ReceivingReportView,
+        meta: { titleKey: 'nav.reportsReceiving' }
+      },
+      {
+        path: 'reports/stock-count',
+        name: 'ReportsStockCount',
+        component: StockCountReportView,
+        meta: { titleKey: 'nav.reportsStockCount' }
+      },
+      {
+        path: 'reports/picking-issue',
+        name: 'ReportsPickingIssue',
+        component: PickingReportView,
+        meta: { titleKey: 'nav.reportsPickingIssue' }
+      },
+      {
+        path: 'reports/inventory',
+        name: 'ReportsInventory',
+        component: InventoryReportView,
+        meta: { titleKey: 'nav.reportsInventory' }
+      },
+      {
+        path: 'reports/picking-kpi',
+        name: 'ReportsPickingKpi',
+        component: PickingKpiView,
+        meta: { titleKey: 'nav.reportsPickingKpi' }
+      },
+      {
+        path: 'reports/qc',
+        name: 'ReportsQc',
+        component: QCReportView,
+        meta: { titleKey: 'nav.reportsQc' }
+      },
+      {
+        path: 'reports/delivery',
+        name: 'ReportsDelivery',
+        component: DeliveryReportView,
+        meta: { titleKey: 'nav.reportsDelivery' }
+      },
+      {
+        // Gated on layout.view at the router/permissions.js level, not
+        // report.view — see Sidebar.vue/MainLayout.vue's
+        // canViewWarehouseLayout for why.
+        path: 'reports/warehouse-layout',
+        name: 'ReportsWarehouseLayout',
+        component: WarehouseLayoutView,
+        meta: { titleKey: 'nav.reportsWarehouseLayout' }
       }
     ]
   }

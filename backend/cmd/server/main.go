@@ -30,10 +30,12 @@ import (
 	"wms-backend/internal/customer"
 	"wms-backend/internal/customerdeliverylocation"
 	"wms-backend/internal/dashboard"
+	"wms-backend/internal/deliveryreport"
 	"wms-backend/internal/docrender"
 	"wms-backend/internal/health"
 	"wms-backend/internal/inbounddoc"
 	"wms-backend/internal/inventory"
+	"wms-backend/internal/inventoryreport"
 	"wms-backend/internal/loading"
 	"wms-backend/internal/location"
 	"wms-backend/internal/messaging/rabbitmq"
@@ -42,6 +44,8 @@ import (
 	"wms-backend/internal/packing"
 	"wms-backend/internal/picking"
 	"wms-backend/internal/pickingbatch"
+	"wms-backend/internal/pickingkpi"
+	"wms-backend/internal/pickingreport"
 	"wms-backend/internal/platform/database"
 	"wms-backend/internal/platform/dbctx"
 	apihttp "wms-backend/internal/platform/http"
@@ -52,8 +56,10 @@ import (
 	"wms-backend/internal/productcategory"
 	"wms-backend/internal/productfamily"
 	"wms-backend/internal/putaway"
+	"wms-backend/internal/qcreport"
 	"wms-backend/internal/qualitycheck"
 	"wms-backend/internal/receiving"
+	"wms-backend/internal/receivingreport"
 	"wms-backend/internal/relocation"
 	"wms-backend/internal/replenishment"
 	"wms-backend/internal/report"
@@ -61,11 +67,13 @@ import (
 	"wms-backend/internal/shipping"
 	"wms-backend/internal/stockadjustment"
 	"wms-backend/internal/stockcount"
+	"wms-backend/internal/stockcountreport"
 	"wms-backend/internal/supplier"
 	"wms-backend/internal/tenant"
 	"wms-backend/internal/transferreceipt"
 	"wms-backend/internal/user"
 	"wms-backend/internal/warehouse"
+	"wms-backend/internal/warehouselayout"
 	"wms-backend/internal/zone"
 )
 
@@ -330,12 +338,82 @@ func main() {
 	inbounddocService := inbounddoc.NewService(receivingService, qualitycheckService, putawayService, inventoryService, locationRepo, tenantRepo, userRepo)
 	inbounddoc.NewHandler(inbounddocService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
+	// Phase 34B: receivingreport reads receipts/receipt_items/
+	// receipt_item_splits/qc_inspection_items/qc_dispositions/
+	// putaway_task_items directly via raw SQL, the same "no Go
+	// dependency on the owning write-side package" shape qualitycheck
+	// established above — see its own package doc. Gated on the Phase
+	// 34A report module, not receiving.*/qualitycheck.*/putaway.*.
+	receivingReportRepo := receivingreport.NewRepository(dbManager.DB())
+	receivingReportService := receivingreport.NewService(receivingReportRepo, tenantRepo, userRepo)
+	receivingreport.NewHandler(receivingReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 34C: stockcountreport mirrors receivingreport's own shape —
+	// raw SQL against stock_counts/stock_count_items/stock_adjustments,
+	// no Go dependency on internal/stockcount/internal/stockadjustment.
+	stockCountReportRepo := stockcountreport.NewRepository(dbManager.DB())
+	stockCountReportService := stockcountreport.NewService(stockCountReportRepo, tenantRepo, userRepo)
+	stockcountreport.NewHandler(stockCountReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
 	pickingRepo := picking.NewRepository(dbManager.DB())
 	pickingService := picking.NewService(pickingRepo, productRepo, warehouseRepo, inventoryService)
 	pickingService.SetUsers(userRepo)
 	pickingPDFService := picking.NewPDFService(pickingService, tenantRepo, userRepo)
 	pickingPDFService.SetDocRender(docrenderService)
 	picking.NewHandler(pickingService, pickingPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 34D: pickingreport mirrors receivingreport/stockcountreport's
+	// own shape — raw SQL against picking_tasks/picking_task_items/
+	// picking_batches/picking_batch_allocations/shipment_items, no Go
+	// dependency on internal/picking/internal/pickingbatch/internal/
+	// shipping.
+	pickingReportRepo := pickingreport.NewRepository(dbManager.DB())
+	pickingReportService := pickingreport.NewService(pickingReportRepo, tenantRepo, userRepo)
+	pickingreport.NewHandler(pickingReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 34E: inventoryreport mirrors every other Phase 34 report
+	// package's own shape — raw SQL against inventory/
+	// inventory_transactions/locations/zones/warehouses/products, no Go
+	// dependency on internal/inventory.
+	inventoryReportRepo := inventoryreport.NewRepository(dbManager.DB())
+	inventoryReportService := inventoryreport.NewService(inventoryReportRepo, tenantRepo, userRepo)
+	inventoryreport.NewHandler(inventoryReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 34F: pickingkpi is a KPI dashboard, not a detail-row report
+	// — it computes real aggregates (never fabricated) from the same
+	// picking_tasks/picking_task_items/picking_scan_log/picking_batches
+	// tables pickingreport (34D) already reads, via its own raw SQL, no
+	// Go dependency on internal/picking or internal/pickingreport.
+	pickingKPIRepo := pickingkpi.NewRepository(dbManager.DB())
+	pickingKPIService := pickingkpi.NewService(pickingKPIRepo, tenantRepo, userRepo)
+	pickingkpi.NewHandler(pickingKPIService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 34G: qcreport mirrors receivingreport's own shape — reads
+	// qc_inspections/qc_inspection_items/qc_dispositions/receipts/
+	// receipt_item_splits/inventory directly via raw SQL, no Go
+	// dependency on internal/qualitycheck.
+	qcReportRepo := qcreport.NewRepository(dbManager.DB())
+	qcReportService := qcreport.NewService(qcReportRepo, tenantRepo, userRepo)
+	qcreport.NewHandler(qcReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 34H: deliveryreport mirrors receivingreport's own shape —
+	// reads shipments/shipment_items/packing_jobs/orders/loading_trips/
+	// loading_trip_shipments/loading_trip_cartons directly via raw SQL,
+	// no Go dependency on internal/shipping/internal/loading/internal/
+	// packing/internal/order.
+	deliveryReportRepo := deliveryreport.NewRepository(dbManager.DB())
+	deliveryReportService := deliveryreport.NewService(deliveryReportRepo, tenantRepo, userRepo)
+	deliveryreport.NewHandler(deliveryReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 34I: warehouselayout — unlike every other Phase 34 package,
+	// this one has a real write path (an authorized editor saves
+	// shapes/positions/a calibrated background image), gated on its
+	// own "layout" RBAC module rather than report.view/export. Reuses
+	// the same IMAGE_STORAGE_DIR config internal/product's own image
+	// upload already uses.
+	warehouseLayoutRepo := warehouselayout.NewRepository(dbManager.DB())
+	warehouseLayoutService := warehouselayout.NewService(warehouseLayoutRepo, userRepo, cfg.ImageStorageDir, cfg.ImageMaxUploadBytes)
+	warehouselayout.NewHandler(warehouseLayoutService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Phase 33C — Packing: a pure physical-handling/traceability layer
 	// over already-picked stock, sitting between Picking and Shipping.

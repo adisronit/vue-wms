@@ -74,9 +74,10 @@
 
 <script>
 // Primary navigation, grouped by workflow (Dashboard / Inbound /
-// Inventory / Outbound / Master Data / Administration / Platform
-// Administration) rather than the previous flat "Administration"
-// bucket that mixed Warehouse/Product Master in with Users/Roles.
+// Inventory / Outbound / Master Data / Administration / Reports &
+// Analytics / Platform Administration) rather than the previous flat
+// "Administration" bucket that mixed Warehouse/Product Master in with
+// Users/Roles.
 // Deliberately text-only, no per-item decorative icon: a left-accent
 // background on the active item (see .menu-active) is enough to orient
 // the eye without the inconsistent emoji glyphs the previous sidebar
@@ -101,7 +102,13 @@ export default {
     canViewPacking: { type: Boolean, default: false },
     canViewLoading: { type: Boolean, default: false },
     canViewPickingBatches: { type: Boolean, default: false },
-    canViewPlatformAdmin: { type: Boolean, default: false }
+    canViewPlatformAdmin: { type: Boolean, default: false },
+    canViewReports: { type: Boolean, default: false },
+    // Deliberately separate from canViewReports: the Warehouse Layout
+    // backend endpoints require their own layout.view/layout.update
+    // permissions, not report.view (see internal/warehouselayout's own
+    // code comments — report.view alone must never imply layout access).
+    canViewWarehouseLayout: { type: Boolean, default: false }
   },
 
   emits: ['logout'],
@@ -183,6 +190,23 @@ export default {
           items: [
             { labelKey: 'nav.userManagement', to: '/administration/user-management', visible: this.canViewUsers },
             { labelKey: 'nav.roles', to: '/administration/roles', visible: this.canViewRoles }
+          ]
+        },
+        {
+          key: 'reports',
+          titleKey: 'nav.sectionReports',
+          items: [
+            { labelKey: 'nav.reportsReceiving', to: '/reports/receiving', visible: this.canViewReports },
+            { labelKey: 'nav.reportsStockCount', to: '/reports/stock-count', visible: this.canViewReports },
+            { labelKey: 'nav.reportsPickingIssue', to: '/reports/picking-issue', visible: this.canViewReports },
+            { labelKey: 'nav.reportsInventory', to: '/reports/inventory', visible: this.canViewReports },
+            { labelKey: 'nav.reportsPickingKpi', to: '/reports/picking-kpi', visible: this.canViewReports },
+            { labelKey: 'nav.reportsQc', to: '/reports/qc', visible: this.canViewReports },
+            { labelKey: 'nav.reportsDelivery', to: '/reports/delivery', visible: this.canViewReports },
+            // Gated on layout.view, not report.view — a report-viewer
+            // must not see (and tab-restoration must not revalidate as
+            // open) a page whose backend requires a separate permission.
+            { labelKey: 'nav.reportsWarehouseLayout', to: '/reports/warehouse-layout', visible: this.canViewWarehouseLayout }
           ]
         },
         {
