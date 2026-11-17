@@ -54,7 +54,7 @@ func NewHandler(service *Service) *Handler {
 // of both "can view KPI reports" and "can manage warehouse master
 // data."
 func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChecker middleware.MembershipChecker, membershipCacheTTL time.Duration) {
-	g := rg.Group("/warehouses/:warehouseId/layout",
+	g := rg.Group("/warehouses/:id/layout",
 		middleware.RequireJWT(jwtSecret),
 		middleware.RequireTenantContext(membershipChecker, membershipCacheTTL),
 	)
@@ -68,7 +68,7 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChec
 }
 
 func pathWarehouseID(c *gin.Context) (int64, bool) {
-	id, err := strconv.ParseInt(c.Param("warehouseId"), 10, 64)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid warehouse id", "INVALID_REQUEST")
 		return 0, false
@@ -83,12 +83,12 @@ func pathWarehouseID(c *gin.Context) (int64, bool) {
 //	@Tags			Warehouse Layout
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			warehouseId	path		int	true	"Warehouse ID"
+//	@Param			id	path		int	true	"Warehouse ID"
 //	@Success		200			{object}	apihttp.SuccessResponse{data=VersionResponse}
 //	@Failure		401			{object}	apihttp.ErrorResponse
 //	@Failure		403			{object}	apihttp.ErrorResponse
 //	@Failure		404			{object}	apihttp.ErrorResponse
-//	@Router			/warehouses/{warehouseId}/layout [get]
+//	@Router			/warehouses/{id}/layout [get]
 func (h *Handler) GetLayout(c *gin.Context) {
 	tenantID, ok := middleware.EnforcedTenantID(c)
 	if !ok {
@@ -116,14 +116,14 @@ func (h *Handler) GetLayout(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			warehouseId	path		int					true	"Warehouse ID"
+//	@Param			id	path		int					true	"Warehouse ID"
 //	@Param			body		body		SaveLayoutRequest	true	"Full layout object graph"
 //	@Success		200			{object}	apihttp.SuccessResponse{data=VersionResponse}
 //	@Failure		401			{object}	apihttp.ErrorResponse
 //	@Failure		403			{object}	apihttp.ErrorResponse
 //	@Failure		404			{object}	apihttp.ErrorResponse
 //	@Failure		422			{object}	apihttp.ErrorResponse
-//	@Router			/warehouses/{warehouseId}/layout [put]
+//	@Router			/warehouses/{id}/layout [put]
 func (h *Handler) SaveLayout(c *gin.Context) {
 	tenantID, ok := middleware.EnforcedTenantID(c)
 	if !ok {
@@ -160,12 +160,12 @@ func (h *Handler) SaveLayout(c *gin.Context) {
 //	@Tags			Warehouse Layout
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			warehouseId	path		int	true	"Warehouse ID"
+//	@Param			id	path		int	true	"Warehouse ID"
 //	@Success		200			{object}	apihttp.SuccessResponse{data=[]VersionSummaryResponse}
 //	@Failure		401			{object}	apihttp.ErrorResponse
 //	@Failure		403			{object}	apihttp.ErrorResponse
 //	@Failure		404			{object}	apihttp.ErrorResponse
-//	@Router			/warehouses/{warehouseId}/layout/versions [get]
+//	@Router			/warehouses/{id}/layout/versions [get]
 func (h *Handler) ListVersions(c *gin.Context) {
 	tenantID, ok := middleware.EnforcedTenantID(c)
 	if !ok {
@@ -191,13 +191,13 @@ func (h *Handler) ListVersions(c *gin.Context) {
 //	@Tags			Warehouse Layout
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			warehouseId	path		int	true	"Warehouse ID"
+//	@Param			id	path		int	true	"Warehouse ID"
 //	@Param			versionId	path		int	true	"Layout version ID"
 //	@Success		200			{object}	apihttp.SuccessResponse{data=VersionResponse}
 //	@Failure		401			{object}	apihttp.ErrorResponse
 //	@Failure		403			{object}	apihttp.ErrorResponse
 //	@Failure		404			{object}	apihttp.ErrorResponse
-//	@Router			/warehouses/{warehouseId}/layout/versions/{versionId} [get]
+//	@Router			/warehouses/{id}/layout/versions/{versionId} [get]
 func (h *Handler) GetVersion(c *gin.Context) {
 	tenantID, ok := middleware.EnforcedTenantID(c)
 	if !ok {
@@ -230,13 +230,13 @@ func (h *Handler) GetVersion(c *gin.Context) {
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			warehouseId	path		int		true	"Warehouse ID"
+//	@Param			id	path		int		true	"Warehouse ID"
 //	@Param			image		formData	file	true	"Image file"
 //	@Success		200			{object}	apihttp.SuccessResponse{data=ImageResponse}
 //	@Failure		401			{object}	apihttp.ErrorResponse
 //	@Failure		403			{object}	apihttp.ErrorResponse
 //	@Failure		422			{object}	apihttp.ErrorResponse
-//	@Router			/warehouses/{warehouseId}/layout/images [post]
+//	@Router			/warehouses/{id}/layout/images [post]
 func (h *Handler) UploadImage(c *gin.Context) {
 	tenantID, ok := middleware.EnforcedTenantID(c)
 	if !ok {
@@ -285,13 +285,13 @@ func (h *Handler) UploadImage(c *gin.Context) {
 //	@Tags			Warehouse Layout
 //	@Produce		image/jpeg,image/png
 //	@Security		BearerAuth
-//	@Param			warehouseId	path	int	true	"Warehouse ID"
+//	@Param			id	path	int	true	"Warehouse ID"
 //	@Param			imageId		path	int	true	"Image ID"
 //	@Success		200			{file}	binary
 //	@Failure		401			{object}	apihttp.ErrorResponse
 //	@Failure		403			{object}	apihttp.ErrorResponse
 //	@Failure		404			{object}	apihttp.ErrorResponse
-//	@Router			/warehouses/{warehouseId}/layout/images/{imageId} [get]
+//	@Router			/warehouses/{id}/layout/images/{imageId} [get]
 func (h *Handler) ServeImage(c *gin.Context) {
 	tenantID, ok := middleware.EnforcedTenantID(c)
 	if !ok {
@@ -323,13 +323,13 @@ func (h *Handler) ServeImage(c *gin.Context) {
 //	@Tags			Warehouse Layout
 //	@Produce		application/pdf
 //	@Security		BearerAuth
-//	@Param			warehouseId	path	int		true	"Warehouse ID"
+//	@Param			id	path	int		true	"Warehouse ID"
 //	@Param			download	query	boolean	false	"true for a download, omitted for inline viewing"
 //	@Success		200			{file}	file
 //	@Failure		401			{object}	apihttp.ErrorResponse
 //	@Failure		403			{object}	apihttp.ErrorResponse
 //	@Failure		404			{object}	apihttp.ErrorResponse
-//	@Router			/warehouses/{warehouseId}/layout/pdf [get]
+//	@Router			/warehouses/{id}/layout/pdf [get]
 func (h *Handler) PDF(c *gin.Context) {
 	tenantID, ok := middleware.EnforcedTenantID(c)
 	if !ok {
