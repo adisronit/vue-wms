@@ -417,9 +417,13 @@ func main() {
 	dashboardService := dashboard.NewService(receivingService, pickingService, inventoryService)
 	dashboard.NewHandler(dashboardService).Register(v1, cfg.JWTSecret)
 
+	// Batch 1c (tenant isolation): productRepo/warehouseRepo already
+	// implement FindByIDForTenant (used by stockadjustment/stockcount
+	// above), so no new adapter is needed here — only Register's own
+	// signature gained the tenant-context middleware arguments.
 	replenishmentRepo := replenishment.NewRepository(dbManager.DB())
 	replenishmentService := replenishment.NewService(replenishmentRepo, productRepo, warehouseRepo, inventoryService)
-	replenishment.NewHandler(replenishmentService).Register(v1, cfg.JWTSecret)
+	replenishment.NewHandler(replenishmentService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	orderRepo := order.NewRepository(dbManager.DB())
 	orderService := order.NewService(orderRepo, productRepo, warehouseRepo, customerRepo, customerDeliveryLocationRepo, pickingService, shippingService, inventoryService)
