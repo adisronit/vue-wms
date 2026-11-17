@@ -23,6 +23,13 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
+// writeTenantUnauthorized is shared by every handler method's
+// EnforcedTenantID guard below — matches internal/picking/internal/
+// order's own identically-named helper.
+func writeTenantUnauthorized(c *gin.Context) {
+	apihttp.Fail(c, http.StatusUnauthorized, "tenant context required", "UNAUTHORIZED")
+}
+
 // Register mounts the Stock Adjustment endpoints on rg. Permissions
 // reuse the existing "stock_adjustment" module from Phase 2's catalog
 // exactly as-is — no new codes. Confirm (Approve/Reject — the action
@@ -35,8 +42,17 @@ func NewHandler(service *Service) *Handler {
 // RolePermissionView.vue's own createDefaultPermissions() never had a
 // branch granting stock_adjustment to any operational role either, so
 // nothing was silently narrowed — see PROJECT_STATUS.md.
-func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
-	group := rg.Group("/stock-adjustments", middleware.RequireJWT(jwtSecret))
+//
+// Batch 1a (tenant isolation) upgrades the chain from RequireJWT-only
+// to RequireJWT -> RequireTenantContext -> RequirePermission, matching
+// internal/picking/internal/order's own chain exactly — every handler
+// method below now extracts tenantID via middleware.EnforcedTenantID
+// and threads it through to Service.
+func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChecker middleware.MembershipChecker, membershipCacheTTL time.Duration) {
+	group := rg.Group("/stock-adjustments",
+		middleware.RequireJWT(jwtSecret),
+		middleware.RequireTenantContext(membershipChecker, membershipCacheTTL),
+	)
 	group.GET("", middleware.RequirePermission("stock_adjustment.view"), h.List)
 	group.GET("/export", middleware.RequirePermission("stock_adjustment.view"), h.Export)
 	group.GET("/:id", middleware.RequirePermission("stock_adjustment.view"), h.Get)
@@ -67,6 +83,12 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
 //	@Failure		403				{object}	apihttp.ErrorResponse
 //	@Router			/stock-adjustments [get]
 func (h *Handler) List(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	page, _ := strconv.Atoi(c.Query("page"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
 
@@ -81,7 +103,7 @@ func (h *Handler) List(c *gin.Context) {
 	olderThanDays, _ := strconv.Atoi(c.Query("older_than_days"))
 	overdue, _ := strconv.ParseBool(c.Query("overdue"))
 
-	responses, total, err := h.service.List(c.Request.Context(), ListParams{
+	responses, total, err := h.service.List(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), Type: AdjustType(c.Query("type")), Status: Status(c.Query("status")),
 		Date: date, Reason: Reason(c.Query("reason")), CreatedBy: createdBy,
 		OlderThanDays: olderThanDays, Overdue: overdue, Page: page, Limit: limit,
@@ -128,6 +150,12 @@ func (h *Handler) List(c *gin.Context) {
 //	@Failure		403				{object}	apihttp.ErrorResponse
 //	@Router			/stock-adjustments/export [get]
 func (h *Handler) Export(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	var date *time.Time
 	if raw := c.Query("date"); raw != "" {
 		if parsed, err := time.Parse("2006-01-02", raw); err == nil {
@@ -138,7 +166,7 @@ func (h *Handler) Export(c *gin.Context) {
 	olderThanDays, _ := strconv.Atoi(c.Query("older_than_days"))
 	overdue, _ := strconv.ParseBool(c.Query("overdue"))
 
-	rows, err := h.service.ListForExport(c.Request.Context(), ListParams{
+	rows, err := h.service.ListForExport(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), Type: AdjustType(c.Query("type")), Status: Status(c.Query("status")),
 		Date: date, Reason: Reason(c.Query("reason")), CreatedBy: createdBy,
 		OlderThanDays: olderThanDays, Overdue: overdue,
@@ -184,13 +212,19 @@ func (h *Handler) Export(c *gin.Context) {
 //	@Failure		404	{object}	apihttp.ErrorResponse
 //	@Router			/stock-adjustments/{id} [get]
 func (h *Handler) Get(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid adjustment id", "INVALID_REQUEST")
 		return
 	}
 
-	resp, err := h.service.Get(c.Request.Context(), id)
+	resp, err := h.service.Get(c.Request.Context(), tenantID, id)
 	if errors.Is(err, ErrNotFound) {
 		apihttp.Fail(c, http.StatusNotFound, "stock adjustment not found", "NOT_FOUND")
 		return
@@ -219,6 +253,12 @@ func (h *Handler) Get(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/stock-adjustments [post]
 func (h *Handler) Create(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	var req CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid request body", "INVALID_REQUEST")
@@ -228,7 +268,7 @@ func (h *Handler) Create(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Create(ctx, req, userID)
+	resp, err := h.service.Create(ctx, tenantID, req, userID)
 	if err == nil {
 		apihttp.Status(c, http.StatusCreated, resp, "stock adjustment created")
 		return
@@ -255,6 +295,12 @@ func (h *Handler) Create(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/stock-adjustments/{id} [put]
 func (h *Handler) Update(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid adjustment id", "INVALID_REQUEST")
@@ -267,7 +313,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.Update(c.Request.Context(), id, req)
+	resp, err := h.service.Update(c.Request.Context(), tenantID, id, req)
 	if err == nil {
 		apihttp.OK(c, resp, "")
 		return
@@ -294,6 +340,12 @@ func (h *Handler) Update(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/stock-adjustments/{id}/confirm [post]
 func (h *Handler) Confirm(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid adjustment id", "INVALID_REQUEST")
@@ -309,7 +361,7 @@ func (h *Handler) Confirm(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Confirm(ctx, id, req, userID)
+	resp, err := h.service.Confirm(ctx, tenantID, id, req, userID)
 	if err == nil {
 		apihttp.OK(c, resp, "stock adjustment updated")
 		return

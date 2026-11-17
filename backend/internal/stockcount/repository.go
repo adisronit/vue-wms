@@ -35,21 +35,28 @@ func (r *Repository) Transaction(ctx context.Context, fn func(tx *gorm.DB, txRep
 	})
 }
 
-// CreateCount inserts the header, then derives count_no from the new
-// IDENTITY id in the same transaction — the same race-free-by-
-// construction approach as every prior document number in this codebase.
-func (r *Repository) CreateCount(ctx context.Context, c *Count) error {
+// CreateCount stamps tenantID onto the header, inserts it, then derives
+// count_no from the new IDENTITY id in the same transaction — the same
+// race-free-by-construction approach as every prior document number in
+// this codebase. Batch 1b: tenantID must be the caller's own verified
+// tenant, never read from the request body.
+func (r *Repository) CreateCount(ctx context.Context, tenantID int64, c *Count) error {
+	c.TenantID = tenantID
 	if err := r.db.WithContext(ctx).Create(c).Error; err != nil {
 		return err
 	}
 	c.CountNo = fmt.Sprintf("CNT-%06d", c.ID)
-	return r.db.WithContext(ctx).Model(&Count{}).Where("id = ?", c.ID).
+	return r.db.WithContext(ctx).Model(&Count{}).Where("id = ? AND tenant_id = ?", c.ID, tenantID).
 		Update("count_no", c.CountNo).Error
 }
 
-func (r *Repository) FindByID(ctx context.Context, id int64) (*Count, error) {
+// FindByID returns id's row scoped to tenantID, or ErrNotFound — never
+// "found but belongs to another tenant" vs. "doesn't exist at all"
+// (tenant-isolation-security.md §6). A cross-tenant id now returns the
+// identical error a nonexistent one does.
+func (r *Repository) FindByID(ctx context.Context, tenantID, id int64) (*Count, error) {
 	var c Count
-	err := r.db.WithContext(ctx).First(&c, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&c, "id = ? AND tenant_id = ?", id, tenantID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
 	}
@@ -59,8 +66,11 @@ func (r *Repository) FindByID(ctx context.Context, id int64) (*Count, error) {
 	return &c, nil
 }
 
-func (r *Repository) UpdateStatus(ctx context.Context, c *Count) error {
-	return r.db.WithContext(ctx).Model(&Count{}).Where("id = ?", c.ID).Updates(map[string]any{
+// UpdateStatus is scoped to tenantID: a mismatched tenantID against a
+// real id affects zero rows rather than silently updating a wrong-tenant
+// row.
+func (r *Repository) UpdateStatus(ctx context.Context, tenantID int64, c *Count) error {
+	return r.db.WithContext(ctx).Model(&Count{}).Where("id = ? AND tenant_id = ?", c.ID, tenantID).Updates(map[string]any{
 		"status":       c.Status,
 		"confirmed_at": c.ConfirmedAt,
 	}).Error
@@ -77,23 +87,30 @@ func (r *Repository) UpdateStatus(ctx context.Context, c *Count) error {
 // never a Go-side "read DRAFT, then blindly overwrite" window. This
 // closes both the sequential case (one path already ran) and the
 // genuine-concurrency case (two requests racing each other) with the
-// same guard.
-func (r *Repository) ClaimStatus(ctx context.Context, countID int64, newStatus Status) (int64, error) {
+// same guard. Batch 1b: scoped to tenantID too, so a cross-tenant
+// countID (which should never reach here once the earlier FindByID call
+// has already rejected it, but kept consistent defensively) can never
+// claim another tenant's row.
+func (r *Repository) ClaimStatus(ctx context.Context, tenantID, countID int64, newStatus Status) (int64, error) {
 	result := r.db.WithContext(ctx).Exec(`
 		UPDATE stock_counts
 		SET status = ?, updated_at = SYSUTCDATETIME()
-		WHERE id = ? AND status = 'DRAFT'
-	`, string(newStatus), countID)
+		WHERE id = ? AND tenant_id = ? AND status = 'DRAFT'
+	`, string(newStatus), countID, tenantID)
 	return result.RowsAffected, result.Error
 }
 
-func (r *Repository) CreateItem(ctx context.Context, item *Item) error {
+// CreateItem stamps tenantID onto the row, matching every other write
+// this package makes.
+func (r *Repository) CreateItem(ctx context.Context, tenantID int64, item *Item) error {
+	item.TenantID = tenantID
 	return r.db.WithContext(ctx).Create(item).Error
 }
 
-func (r *Repository) FindItemByID(ctx context.Context, id int64) (*Item, error) {
+// FindItemByID is scoped to tenantID, same reasoning as FindByID above.
+func (r *Repository) FindItemByID(ctx context.Context, tenantID, id int64) (*Item, error) {
 	var item Item
-	err := r.db.WithContext(ctx).First(&item, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&item, "id = ? AND tenant_id = ?", id, tenantID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrItemNotFound
 	}
@@ -105,18 +122,19 @@ func (r *Repository) FindItemByID(ctx context.Context, id int64) (*Item, error) 
 
 // FindItemsByCount returns the raw Item rows (not the joined response
 // shape) — used internally by Confirm to walk every line and apply its
-// variance.
-func (r *Repository) FindItemsByCount(ctx context.Context, countID int64) ([]Item, error) {
+// variance. Scoped to tenantID.
+func (r *Repository) FindItemsByCount(ctx context.Context, tenantID, countID int64) ([]Item, error) {
 	var items []Item
-	err := r.db.WithContext(ctx).Where("stock_count_id = ?", countID).Find(&items).Error
+	err := r.db.WithContext(ctx).Where("stock_count_id = ? AND tenant_id = ?", countID, tenantID).Find(&items).Error
 	return items, err
 }
 
 // RecordCount writes count_qty/variance_qty/condition/status/remark —
 // deliberately excludes system_qty entirely (see model.go's doc: it is
-// frozen at creation and must never be touched again).
-func (r *Repository) RecordCount(ctx context.Context, item *Item) error {
-	return r.db.WithContext(ctx).Model(&Item{}).Where("id = ?", item.ID).Updates(map[string]any{
+// frozen at creation and must never be touched again). Scoped to
+// tenantID.
+func (r *Repository) RecordCount(ctx context.Context, tenantID int64, item *Item) error {
+	return r.db.WithContext(ctx).Model(&Item{}).Where("id = ? AND tenant_id = ?", item.ID, tenantID).Updates(map[string]any{
 		"count_qty":    item.CountQty,
 		"variance_qty": item.VarianceQty,
 		"condition":    item.Condition,
@@ -149,7 +167,9 @@ type listRow struct {
 // users and zones are both Phase 14 additions purely for extra display
 // columns (created_by_name, zone_code) — neither changes which rows are
 // returned or how many, since both are 0/1 rows per stock_counts id.
-func (r *Repository) List(ctx context.Context, params ListParams) ([]ListResponse, int64, error) {
+// Scoped to tenantID: a cross-tenant row can never appear in another
+// tenant's list.
+func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
 	base := `
 		FROM stock_counts sc
 		JOIN warehouses w ON w.id = sc.warehouse_id
@@ -157,13 +177,15 @@ func (r *Repository) List(ctx context.Context, params ListParams) ([]ListRespons
 		LEFT JOIN users u ON u.id = sc.created_by
 		LEFT JOIN stock_count_items sci ON sci.stock_count_id = sc.id
 	`
-	where := `WHERE (? = '' OR sc.count_no LIKE ?)
+	where := `WHERE sc.tenant_id = ?
+		AND (? = '' OR sc.count_no LIKE ?)
 		AND (? = 0 OR sc.warehouse_id = ?)
 		AND (? = '' OR sc.status = ?)
 		AND (? IS NULL OR sc.count_date = ?)`
 
 	like := "%" + params.Search + "%"
 	args := []any{
+		tenantID,
 		params.Search, like,
 		params.WarehouseID, params.WarehouseID,
 		string(params.Status), string(params.Status),
@@ -225,7 +247,8 @@ type itemRow struct {
 	UpdatedAt    time.Time
 }
 
-func (r *Repository) ListItems(ctx context.Context, countID int64) ([]ItemResponse, error) {
+// ListItems is scoped to tenantID.
+func (r *Repository) ListItems(ctx context.Context, tenantID, countID int64) ([]ItemResponse, error) {
 	var rows []itemRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT sci.id AS id, sci.product_id AS product_id, p.sku AS sku, p.name AS product_name,
@@ -236,9 +259,9 @@ func (r *Repository) ListItems(ctx context.Context, countID int64) ([]ItemRespon
 		FROM stock_count_items sci
 		JOIN products p ON p.id = sci.product_id
 		JOIN locations l ON l.id = sci.location_id
-		WHERE sci.stock_count_id = ?
+		WHERE sci.stock_count_id = ? AND sci.tenant_id = ?
 		ORDER BY sci.id ASC
-	`, countID).Scan(&rows).Error
+	`, countID, tenantID).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -277,8 +300,10 @@ type headerRow struct {
 // GET /stock-counts/{id}'s response. The LEFT JOIN to users (Phase 14)
 // resolves created_by to a display name for the History detail view —
 // added the same way zones already was in Phase 11, and for the same
-// reason: a display-only column no business logic depends on.
-func (r *Repository) FindDetail(ctx context.Context, id int64) (*headerRow, error) {
+// reason: a display-only column no business logic depends on. Scoped to
+// tenantID — a cross-tenant id now returns ErrNotFound exactly like a
+// nonexistent one.
+func (r *Repository) FindDetail(ctx context.Context, tenantID, id int64) (*headerRow, error) {
 	var row headerRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT sc.id AS id, sc.count_no AS count_no, sc.count_type AS count_type,
@@ -291,8 +316,8 @@ func (r *Repository) FindDetail(ctx context.Context, id int64) (*headerRow, erro
 		JOIN warehouses w ON w.id = sc.warehouse_id
 		LEFT JOIN zones z ON z.id = sc.zone_id
 		LEFT JOIN users u ON u.id = sc.created_by
-		WHERE sc.id = ?
-	`, id).Scan(&row).Error
+		WHERE sc.id = ? AND sc.tenant_id = ?
+	`, id, tenantID).Scan(&row).Error
 	if err != nil {
 		return nil, err
 	}
@@ -304,9 +329,10 @@ func (r *Repository) FindDetail(ctx context.Context, id int64) (*headerRow, erro
 
 // InsertConfirmation is the idempotency guard itself — see
 // migrations/0028's doc. Must be called inside the same transaction as
-// the stock mutations it's guarding.
-func (r *Repository) InsertConfirmation(ctx context.Context, idempotencyKey string, countID int64) error {
-	err := r.db.WithContext(ctx).Create(&Confirmation{IdempotencyKey: idempotencyKey, CountID: countID}).Error
+// the stock mutations it's guarding. Stamps tenantID onto the guard row
+// too, matching every other row this package writes.
+func (r *Repository) InsertConfirmation(ctx context.Context, tenantID int64, idempotencyKey string, countID int64) error {
+	err := r.db.WithContext(ctx).Create(&Confirmation{IdempotencyKey: idempotencyKey, TenantID: tenantID, CountID: countID}).Error
 	if err != nil && isUniqueViolation(err) {
 		return ErrDuplicateIdempotencyKey
 	}
