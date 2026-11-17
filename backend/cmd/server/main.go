@@ -30,6 +30,7 @@ import (
 	"wms-backend/internal/customer"
 	"wms-backend/internal/customerdeliverylocation"
 	"wms-backend/internal/dashboard"
+	"wms-backend/internal/deliveryreport"
 	"wms-backend/internal/docrender"
 	"wms-backend/internal/health"
 	"wms-backend/internal/inbounddoc"
@@ -393,6 +394,15 @@ func main() {
 	qcReportRepo := qcreport.NewRepository(dbManager.DB())
 	qcReportService := qcreport.NewService(qcReportRepo, tenantRepo, userRepo)
 	qcreport.NewHandler(qcReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 34H: deliveryreport mirrors receivingreport's own shape —
+	// reads shipments/shipment_items/packing_jobs/orders/loading_trips/
+	// loading_trip_shipments/loading_trip_cartons directly via raw SQL,
+	// no Go dependency on internal/shipping/internal/loading/internal/
+	// packing/internal/order.
+	deliveryReportRepo := deliveryreport.NewRepository(dbManager.DB())
+	deliveryReportService := deliveryreport.NewService(deliveryReportRepo, tenantRepo, userRepo)
+	deliveryreport.NewHandler(deliveryReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Phase 33C — Packing: a pure physical-handling/traceability layer
 	// over already-picked stock, sitting between Picking and Shipping.

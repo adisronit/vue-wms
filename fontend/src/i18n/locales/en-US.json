@@ -3324,5 +3324,66 @@
       "maxHoldAging": "Max. Hold Aging",
       "notAvailable": "N/A"
     }
+  },
+  "reportsDelivery": {
+    "title": "Delivery & Shipping Report",
+    "deliveryCaveat": "Delivered reflects a manual \"Mark Delivered\" action in this system with no proof-of-delivery evidence behind it (no signature, no carrier tracking integration) — it is never inferred from Dispatched or In Transit status.",
+    "tabs": {
+      "detail": "Shipment Item Detail",
+      "trips": "Loading & Dispatch"
+    },
+    "filters": {
+      "carrier": "Carrier",
+      "orderType": "Order Type",
+      "search": "Search",
+      "searchPlaceholder": "Shipment no., order no., tracking no., SKU, or product name",
+      "tripSearchPlaceholder": "Trip no., vehicle no., or driver name"
+    },
+    "orderTypes": {
+      "SALES_ORDER": "Sales Order",
+      "INTERNAL_TRANSFER": "Internal Transfer"
+    },
+    "charts": {
+      "trend": "Shipment Trend",
+      "byStatus": "Shipments by Status",
+      "byCarrier": "Shipments by Carrier",
+      "byWarehouse": "Shipments by Warehouse"
+    },
+    "table": {
+      "shipmentNo": "Shipment No.",
+      "orderNo": "Order No.",
+      "orderType": "Order Type",
+      "customer": "Customer",
+      "shipTo": "Ship To",
+      "carrier": "Carrier",
+      "trackingNo": "Tracking No.",
+      "sku": "SKU",
+      "qty": "Qty",
+      "status": "Status",
+      "shipDate": "Ship Date",
+      "dispatchedAt": "Dispatched At",
+      "deliveredAt": "Delivered At",
+      "leadTime": "Delivery Lead Time (h)",
+      "exception": "Exception",
+      "tripNo": "Trip No.",
+      "vehicleNo": "Vehicle No.",
+      "driver": "Driver",
+      "dock": "Dock",
+      "route": "Route",
+      "shipments": "Shipments",
+      "cartons": "Cartons",
+      "shortCartons": "Short Cartons",
+      "loadingDuration": "Loading Duration (h)"
+    },
+    "kpi": {
+      "totalShipments": "Total Shipments",
+      "dispatchRate": "Dispatch Rate",
+      "deliveryConfirmationRate": "Delivery Confirmation Rate",
+      "exceptionRate": "Exception Rate",
+      "avgLeadTime": "Avg. Delivery Lead Time",
+      "totalTrips": "Total Loading Trips",
+      "avgLoadingDuration": "Avg. Loading Duration",
+      "notAvailable": "N/A"
+    }
   }
 }

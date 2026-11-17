@@ -3324,5 +3324,66 @@
       "maxHoldAging": "最长冻结时长",
       "notAvailable": "无数据"
     }
+  },
+  "reportsDelivery": {
+    "title": "配送与发货报表",
+    "deliveryCaveat": "“已送达”仅表示系统中有人手动点击了“标记为已送达”,背后没有任何送达证明(无签收签名,无承运商物流跟踪对接),绝不会从“已发货”或“运输中”状态推断得出。",
+    "tabs": {
+      "detail": "发货商品明细",
+      "trips": "装车与发车"
+    },
+    "filters": {
+      "carrier": "承运商",
+      "orderType": "订单类型",
+      "search": "搜索",
+      "searchPlaceholder": "发货单号、订单号、物流单号、SKU 或产品名称",
+      "tripSearchPlaceholder": "车次号、车牌号或司机姓名"
+    },
+    "orderTypes": {
+      "SALES_ORDER": "销售订单",
+      "INTERNAL_TRANSFER": "内部调拨"
+    },
+    "charts": {
+      "trend": "发货趋势",
+      "byStatus": "按状态统计发货",
+      "byCarrier": "按承运商统计发货",
+      "byWarehouse": "按仓库统计发货"
+    },
+    "table": {
+      "shipmentNo": "发货单号",
+      "orderNo": "订单号",
+      "orderType": "订单类型",
+      "customer": "客户",
+      "shipTo": "收货地址",
+      "carrier": "承运商",
+      "trackingNo": "物流单号",
+      "sku": "SKU",
+      "qty": "数量",
+      "status": "状态",
+      "shipDate": "发货日期",
+      "dispatchedAt": "发货时间",
+      "deliveredAt": "送达时间",
+      "leadTime": "送达时长(小时)",
+      "exception": "异常",
+      "tripNo": "车次号",
+      "vehicleNo": "车牌号",
+      "driver": "司机",
+      "dock": "装货月台",
+      "route": "路线",
+      "shipments": "发货单数",
+      "cartons": "箱数",
+      "shortCartons": "缺箱数",
+      "loadingDuration": "装车用时(小时)"
+    },
+    "kpi": {
+      "totalShipments": "发货单总数",
+      "dispatchRate": "发货率",
+      "deliveryConfirmationRate": "送达确认率",
+      "exceptionRate": "异常率",
+      "avgLeadTime": "平均送达时长",
+      "totalTrips": "装车车次总数",
+      "avgLoadingDuration": "平均装车用时",
+      "notAvailable": "无数据"
+    }
   }
 }
