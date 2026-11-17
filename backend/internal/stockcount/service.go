@@ -50,12 +50,22 @@ var (
 // productChecker, locationChecker, warehouseChecker, and zoneChecker are
 // the narrow slices of the Phase 3/4 repositories this package needs —
 // the same narrow-interface pattern every prior phase established.
+//
+// Batch 1b (tenant isolation): locationChecker is upgraded to
+// location.Repository's real tenant-scoped FindByID(ctx, tenantID, id) —
+// see CreateAdjustments'/addItem's own doc and main.go's locationRepo
+// wiring. productChecker/warehouseChecker/zoneChecker are left on their
+// existing unscoped FindByID(ctx, id) shape for this batch — out of
+// scope here; the real tenant isolation this batch closes is on
+// stock_counts/stock_count_items' own rows and every inventory mutation
+// Confirm/CreateAdjustments perform, not on these reference-data
+// existence checks.
 type productChecker interface {
 	FindByID(ctx context.Context, id int64) (*product.Product, error)
 }
 
 type locationChecker interface {
-	FindByID(ctx context.Context, id int64) (*location.Location, error)
+	FindByID(ctx context.Context, tenantID, id int64) (*location.Location, error)
 }
 
 type warehouseChecker interface {
@@ -75,10 +85,15 @@ type zoneChecker interface {
 // transaction (see that method's doc) instead of each one committing
 // independently via Create. FindBySourceCountID was added in Phase 17
 // for GeneratedAdjustments (see Service.Get's doc).
+//
+// Batch 1b: every method now takes tenantID as its own required
+// parameter, matching internal/stockadjustment.Service's own Batch 1a
+// signatures exactly — CreateAdjustments threads its caller's verified
+// tenantID through to all three.
 type adjustmentCreator interface {
-	Create(ctx context.Context, req stockadjustment.CreateRequest, userID int64) (*stockadjustment.Response, error)
-	CreateTx(ctx context.Context, tx *gorm.DB, req stockadjustment.CreateRequest, userID int64) (int64, error)
-	FindBySourceCountID(ctx context.Context, countID int64) ([]stockadjustment.SourceCountSummary, error)
+	Create(ctx context.Context, tenantID int64, req stockadjustment.CreateRequest, userID int64) (*stockadjustment.Response, error)
+	CreateTx(ctx context.Context, tenantID int64, tx *gorm.DB, req stockadjustment.CreateRequest, userID int64) (int64, error)
+	FindBySourceCountID(ctx context.Context, tenantID, countID int64) ([]stockadjustment.SourceCountSummary, error)
 }
 
 // Service holds the Stock Count workflow's business rules — snapshot-
@@ -103,7 +118,7 @@ func NewService(repo *Repository, warehouses warehouseChecker, zones zoneChecker
 	}
 }
 
-func (s *Service) List(ctx context.Context, params ListParams) ([]ListResponse, int64, error) {
+func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
 	page, limit := params.Page, params.Limit
 	if page < 1 {
 		page = 1
@@ -112,15 +127,15 @@ func (s *Service) List(ctx context.Context, params ListParams) ([]ListResponse, 
 		limit = 20
 	}
 	params.Page, params.Limit = page, limit
-	return s.repo.List(ctx, params)
+	return s.repo.List(ctx, tenantID, params)
 }
 
 // ListForExport is Phase 22's CSV-export path — see internal/receiving's
 // own ListForExport doc for the shared reasoning.
-func (s *Service) ListForExport(ctx context.Context, params ListParams) ([]ListResponse, error) {
+func (s *Service) ListForExport(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, error) {
 	params.Page = 1
 	params.Limit = csvexport.MaxExportRows
-	rows, _, err := s.repo.List(ctx, params)
+	rows, _, err := s.repo.List(ctx, tenantID, params)
 	return rows, err
 }
 
@@ -132,17 +147,19 @@ func (s *Service) ListForExport(ctx context.Context, params ListParams) ([]ListR
 // hasn't been acted on yet, and populated only once Create Adjustment
 // has actually run for this count. Since that path is now claimed
 // exactly once per count (Phase 16's ClaimStatus), this can never show
-// a stale or duplicated set of documents.
-func (s *Service) Get(ctx context.Context, id int64) (*Response, error) {
-	header, err := s.repo.FindDetail(ctx, id)
+// a stale or duplicated set of documents. tenantID must be the caller's
+// own verified tenant — a cross-tenant id now returns ErrNotFound
+// exactly like a nonexistent one.
+func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error) {
+	header, err := s.repo.FindDetail(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
-	items, err := s.repo.ListItems(ctx, id)
+	items, err := s.repo.ListItems(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
-	generated, err := s.adjustments.FindBySourceCountID(ctx, id)
+	generated, err := s.adjustments.FindBySourceCountID(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -166,8 +183,11 @@ func (s *Service) Get(ctx context.Context, id int64) (*Response, error) {
 // any items supplied up front (each one snapshotted the same way
 // AddItem does). A count with zero items is valid — "+ Add Item"/the
 // scan bar can populate it afterward, matching the mock's own
-// mounted()-populated-then-editable table.
-func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (*Response, error) {
+// mounted()-populated-then-editable table. tenantID must be the
+// caller's own verified tenant (middleware.EnforcedTenantID at the
+// handler) — never a value read from the request body (CreateRequest
+// carries no tenant_id field at all).
+func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest, userID int64) (*Response, error) {
 	if !req.CountType.IsValid() {
 		return nil, ErrValidation{Message: "count_type must be one of CYCLE_COUNT, FULL_COUNT, LOCATION_COUNT, SKU_COUNT"}
 	}
@@ -190,13 +210,13 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 			CountType: req.CountType, WarehouseID: req.WarehouseID, ZoneID: req.ZoneID,
 			CountDate: req.CountDate, Status: StatusDraft, CreatedBy: &userID,
 		}
-		if err := txRepo.CreateCount(ctx, count); err != nil {
+		if err := txRepo.CreateCount(ctx, tenantID, count); err != nil {
 			return err
 		}
 		countID = count.ID
 
 		for _, itemReq := range req.Items {
-			if err := s.addItem(ctx, txRepo, count.ID, itemReq); err != nil {
+			if err := s.addItem(ctx, txRepo, tenantID, count.ID, itemReq); err != nil {
 				return err
 			}
 		}
@@ -206,14 +226,15 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, countID)
+	return s.Get(ctx, tenantID, countID)
 }
 
 // AddItem is POST /stock-counts/{id}/items — the real backing for
 // "+ Add Item" and, once a matching line exists, the scan bar's own
-// lookup. Only allowed while the count is still DRAFT.
-func (s *Service) AddItem(ctx context.Context, countID int64, req CreateItemRequest) (*Response, error) {
-	count, err := s.repo.FindByID(ctx, countID)
+// lookup. Only allowed while the count is still DRAFT. tenantID must be
+// the caller's own verified tenant.
+func (s *Service) AddItem(ctx context.Context, tenantID, countID int64, req CreateItemRequest) (*Response, error) {
+	count, err := s.repo.FindByID(ctx, tenantID, countID)
 	if err != nil {
 		return nil, err
 	}
@@ -226,13 +247,13 @@ func (s *Service) AddItem(ctx context.Context, countID int64, req CreateItemRequ
 
 	start := time.Now()
 	err = s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
-		return s.addItem(ctx, txRepo, countID, req)
+		return s.addItem(ctx, txRepo, tenantID, countID, req)
 	})
 	dbctx.LogTransaction(ctx, "stockcount.add_item", start, err)
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, countID)
+	return s.Get(ctx, tenantID, countID)
 }
 
 // addItem snapshots the line's expected quantity from Inventory Core's
@@ -241,21 +262,20 @@ func (s *Service) AddItem(ctx context.Context, countID int64, req CreateItemRequ
 // point, by construction: nothing in this package ever writes to that
 // column again). A missing balance is not an error — it simply means
 // zero is the expected quantity (a legitimate count scenario: verifying
-// an empty bin actually has nothing in it).
-func (s *Service) addItem(ctx context.Context, txRepo *Repository, countID int64, req CreateItemRequest) error {
+// an empty bin actually has nothing in it). tenantID must be the
+// caller's own verified tenant — threaded into every lookup/mutation
+// below.
+func (s *Service) addItem(ctx context.Context, txRepo *Repository, tenantID, countID int64, req CreateItemRequest) error {
 	p, err := s.products.FindByID(ctx, req.ProductID)
 	if err != nil {
 		return ErrProductNotFound
 	}
-	if _, err := s.locations.FindByID(ctx, req.LocationID); err != nil {
+	if _, err := s.locations.FindByID(ctx, tenantID, req.LocationID); err != nil {
 		return ErrLocationNotFound
 	}
 
 	systemQty := 0.0
-	// TenantID: inventory.UnverifiedCallerTenantID — stockcount has no
-	// verified per-request tenant context of its own yet (not yet a
-	// scheduled Phase 30 batch; see that constant's own doc).
-	if bal, err := s.inventory.FindBalance(ctx, inventory.UnverifiedCallerTenantID, req.ProductID, req.LocationID, req.LotNo); err == nil {
+	if bal, err := s.inventory.FindBalance(ctx, tenantID, req.ProductID, req.LocationID, req.LotNo); err == nil {
 		systemQty = bal.Quantity
 	} else if !errors.Is(err, inventory.ErrNotFound) {
 		return err
@@ -266,7 +286,7 @@ func (s *Service) addItem(ctx context.Context, txRepo *Repository, countID int64
 		uom = string(p.BaseUOM)
 	}
 
-	return txRepo.CreateItem(ctx, &Item{
+	return txRepo.CreateItem(ctx, tenantID, &Item{
 		CountID: countID, ProductID: req.ProductID, LocationID: req.LocationID, LotNo: req.LotNo,
 		UOM: uom, SystemQty: systemQty, Condition: ConditionGood, Status: ItemStatusPending,
 	})
@@ -277,9 +297,10 @@ func (s *Service) addItem(ctx context.Context, txRepo *Repository, countID int64
 // Condition/Remark cells both call this. Computes and stores
 // VarianceQty immediately (CountQty - the line's frozen SystemQty) so
 // it is traceable without being recomputed later — see model.go's doc.
-// Only allowed while the count is still DRAFT.
-func (s *Service) RecordCount(ctx context.Context, countID, itemID int64, req RecordCountRequest) (*Response, error) {
-	count, err := s.repo.FindByID(ctx, countID)
+// Only allowed while the count is still DRAFT. tenantID must be the
+// caller's own verified tenant.
+func (s *Service) RecordCount(ctx context.Context, tenantID, countID, itemID int64, req RecordCountRequest) (*Response, error) {
+	count, err := s.repo.FindByID(ctx, tenantID, countID)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +308,7 @@ func (s *Service) RecordCount(ctx context.Context, countID, itemID int64, req Re
 		return nil, ErrNotEditable
 	}
 
-	item, err := s.repo.FindItemByID(ctx, itemID)
+	item, err := s.repo.FindItemByID(ctx, tenantID, itemID)
 	if err != nil {
 		return nil, err
 	}
@@ -320,10 +341,10 @@ func (s *Service) RecordCount(ctx context.Context, countID, itemID int64, req Re
 	item.Status = status
 	item.Remark = req.Remark
 
-	if err := s.repo.RecordCount(ctx, item); err != nil {
+	if err := s.repo.RecordCount(ctx, tenantID, item); err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, countID)
+	return s.Get(ctx, tenantID, countID)
 }
 
 // Confirm is "Confirm Count" — the atomic core of this phase: validate
@@ -336,8 +357,12 @@ func (s *Service) RecordCount(ctx context.Context, countID, itemID int64, req Re
 // entirely if zero) -> mark the count CONFIRMED. Any failure —
 // including a stale line found partway through — rolls back everything
 // in this call, including lines already applied earlier in the same
-// call. Never writes inventory.quantity directly.
-func (s *Service) Confirm(ctx context.Context, countID int64, req ConfirmRequest, userID int64) (*Response, error) {
+// call. Never writes inventory.quantity directly. tenantID must be the
+// caller's own verified tenant — a cross-tenant id now rejects with the
+// identical ErrNotFound a nonexistent id would, and the
+// AddStockTx/RemoveStockTx mutation below always lands under the
+// caller's own tenant's inventory balance, never tenant 1's.
+func (s *Service) Confirm(ctx context.Context, tenantID, countID int64, req ConfirmRequest, userID int64) (*Response, error) {
 	ctx, cancel := dbctx.Detach(ctx)
 	defer cancel()
 
@@ -352,7 +377,7 @@ func (s *Service) Confirm(ctx context.Context, countID int64, req ConfirmRequest
 		// PROJECT_STATUS.md's Known issues for the cross-package scope).
 		// This SELECT has no side effect, so moving it ahead of the
 		// INSERT does not weaken the idempotency guarantee at all.
-		count, err := txRepo.FindByID(ctx, countID)
+		count, err := txRepo.FindByID(ctx, tenantID, countID)
 		if err != nil {
 			return err
 		}
@@ -360,7 +385,7 @@ func (s *Service) Confirm(ctx context.Context, countID int64, req ConfirmRequest
 		// Idempotency guard: if this key was already used, the INSERT
 		// fails on the PRIMARY KEY constraint and everything below is
 		// skipped and rolled back — see migrations/0028's doc.
-		if err := txRepo.InsertConfirmation(ctx, req.IdempotencyKey, countID); err != nil {
+		if err := txRepo.InsertConfirmation(ctx, tenantID, req.IdempotencyKey, countID); err != nil {
 			return err
 		}
 
@@ -373,7 +398,7 @@ func (s *Service) Confirm(ctx context.Context, countID int64, req ConfirmRequest
 		// the race to claim it first. Any of those is correctly reported
 		// as ErrInvalidTransition — from the caller's perspective, this
 		// count simply isn't confirmable right now.
-		rows, err := txRepo.ClaimStatus(ctx, countID, StatusConfirmed)
+		rows, err := txRepo.ClaimStatus(ctx, tenantID, countID, StatusConfirmed)
 		if err != nil {
 			return err
 		}
@@ -381,7 +406,7 @@ func (s *Service) Confirm(ctx context.Context, countID int64, req ConfirmRequest
 			return ErrInvalidTransition
 		}
 
-		items, err := txRepo.FindItemsByCount(ctx, countID)
+		items, err := txRepo.FindItemsByCount(ctx, tenantID, countID)
 		if err != nil {
 			return err
 		}
@@ -411,9 +436,7 @@ func (s *Service) Confirm(ctx context.Context, countID int64, req ConfirmRequest
 			// drifted balance shouldn't have a now-stale variance silently
 			// applied on top of it. See ErrStaleCount's doc.
 			currentQty := 0.0
-			// TenantID: inventory.UnverifiedCallerTenantID — see the
-			// FindBalance call site earlier in this file for why.
-			if bal, err := s.inventory.FindBalance(ctx, inventory.UnverifiedCallerTenantID, it.ProductID, it.LocationID, it.LotNo); err == nil {
+			if bal, err := s.inventory.FindBalance(ctx, tenantID, it.ProductID, it.LocationID, it.LotNo); err == nil {
 				currentQty = bal.Quantity
 			} else if !errors.Is(err, inventory.ErrNotFound) {
 				return err
@@ -428,19 +451,20 @@ func (s *Service) Confirm(ctx context.Context, countID int64, req ConfirmRequest
 			}
 
 			reason := "Stock count variance"
-			// TenantID: inventory.UnverifiedCallerTenantID on both branches —
-			// see the FindBalance call site earlier in this file for why.
+			// tenantID is the caller's own verified tenant (Batch 1b) — the
+			// mutation below is guaranteed to land under this tenant's own
+			// inventory balance, never tenant 1's regardless of who calls.
 			var mutErr error
 			if variance > 0 {
 				_, mutErr = s.inventory.AddStockTx(ctx, invRepo, inventory.StockChangeRequest{
-					TenantID:  inventory.UnverifiedCallerTenantID,
+					TenantID:  tenantID,
 					ProductID: it.ProductID, LocationID: it.LocationID, LotNo: it.LotNo,
 					Quantity: variance, Type: inventory.TransactionCount,
 					ReferenceType: &refType, ReferenceID: &refID, Reason: &reason, CreatedBy: &userID,
 				})
 			} else {
 				_, mutErr = s.inventory.RemoveStockTx(ctx, invRepo, inventory.StockChangeRequest{
-					TenantID:  inventory.UnverifiedCallerTenantID,
+					TenantID:  tenantID,
 					ProductID: it.ProductID, LocationID: it.LocationID, LotNo: it.LotNo,
 					Quantity: -variance, Type: inventory.TransactionCount,
 					ReferenceType: &refType, ReferenceID: &refID, Reason: &reason, CreatedBy: &userID,
@@ -457,7 +481,7 @@ func (s *Service) Confirm(ctx context.Context, countID int64, req ConfirmRequest
 		now := time.Now().UTC()
 		count.Status = StatusConfirmed
 		count.ConfirmedAt = &now
-		return txRepo.UpdateStatus(ctx, count)
+		return txRepo.UpdateStatus(ctx, tenantID, count)
 	})
 	dbctx.LogTransaction(ctx, "stockcount.confirm", start, err)
 
@@ -465,12 +489,12 @@ func (s *Service) Confirm(ctx context.Context, countID int64, req ConfirmRequest
 		// Already processed by an earlier call with this same key —
 		// return the current (already-correct) state as a successful,
 		// idempotent no-op rather than an error or a second mutation.
-		return s.Get(ctx, countID)
+		return s.Get(ctx, tenantID, countID)
 	}
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, countID)
+	return s.Get(ctx, tenantID, countID)
 }
 
 // CreateAdjustments is "Create Adjustment" — the mock's alternate path
@@ -492,20 +516,24 @@ func (s *Service) Confirm(ctx context.Context, countID int64, req ConfirmRequest
 // documents mutate inventory by themselves — only
 // internal/stockadjustment's own Confirm (APPROVE action) does, at
 // whatever later point someone approves them, exactly as if they had
-// been created by hand.
-func (s *Service) CreateAdjustments(ctx context.Context, countID int64, userID int64) (*CreateAdjustmentsResponse, error) {
+// been created by hand. tenantID must be the caller's own verified
+// tenant — threaded through to every repository call and to
+// adjustmentCreator's own tenant-scoped methods, so every generated
+// stock_adjustments row is correctly tagged to this tenant, never a
+// hardcoded or mismatched one.
+func (s *Service) CreateAdjustments(ctx context.Context, tenantID, countID int64, userID int64) (*CreateAdjustmentsResponse, error) {
 	ctx, cancel := dbctx.Detach(ctx)
 	defer cancel()
 
 	var ids []int64
 	start := time.Now()
 	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
-		count, err := txRepo.FindByID(ctx, countID)
+		count, err := txRepo.FindByID(ctx, tenantID, countID)
 		if err != nil {
 			return err
 		}
 
-		items, err := txRepo.FindItemsByCount(ctx, countID)
+		items, err := txRepo.FindItemsByCount(ctx, tenantID, countID)
 		if err != nil {
 			return err
 		}
@@ -520,7 +548,7 @@ func (s *Service) CreateAdjustments(ctx context.Context, countID int64, userID i
 			return ErrValidation{Message: "no variance found"}
 		}
 
-		rows, err := txRepo.ClaimStatus(ctx, countID, StatusAdjustmentCreated)
+		rows, err := txRepo.ClaimStatus(ctx, tenantID, countID, StatusAdjustmentCreated)
 		if err != nil {
 			return err
 		}
@@ -541,7 +569,7 @@ func (s *Service) CreateAdjustments(ctx context.Context, countID int64, userID i
 			}
 			remark := fmt.Sprintf("Generated from stock count %s", count.CountNo)
 
-			id, err := s.adjustments.CreateTx(ctx, tx, stockadjustment.CreateRequest{
+			id, err := s.adjustments.CreateTx(ctx, tenantID, tx, stockadjustment.CreateRequest{
 				ProductID: it.ProductID, LocationID: it.LocationID, LotNo: it.LotNo,
 				AdjustType: adjustType, AdjustQty: qty, Reason: stockadjustment.ReasonCycleCountVariance,
 				Remark: &remark, Status: stockadjustment.StatusPending,
