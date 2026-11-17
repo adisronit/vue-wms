@@ -35,21 +35,28 @@ func (r *Repository) Transaction(ctx context.Context, fn func(tx *gorm.DB, txRep
 	})
 }
 
-// CreateAdjustment inserts the header, then derives adjustment_no from
-// the new IDENTITY id in the same transaction — the same race-free-by-
-// construction approach as every prior document number in this codebase.
-func (r *Repository) CreateAdjustment(ctx context.Context, a *Adjustment) error {
+// CreateAdjustment stamps tenantID onto the header, inserts it, then
+// derives adjustment_no from the new IDENTITY id in the same
+// transaction — the same race-free-by-construction approach as every
+// prior document number in this codebase. Batch 1a: tenantID must be
+// the caller's own verified tenant, never read from the request body.
+func (r *Repository) CreateAdjustment(ctx context.Context, tenantID int64, a *Adjustment) error {
+	a.TenantID = tenantID
 	if err := r.db.WithContext(ctx).Create(a).Error; err != nil {
 		return err
 	}
 	a.AdjustmentNo = fmt.Sprintf("ADJ-%06d", a.ID)
-	return r.db.WithContext(ctx).Model(&Adjustment{}).Where("id = ?", a.ID).
+	return r.db.WithContext(ctx).Model(&Adjustment{}).Where("id = ? AND tenant_id = ?", a.ID, tenantID).
 		Update("adjustment_no", a.AdjustmentNo).Error
 }
 
-func (r *Repository) FindByID(ctx context.Context, id int64) (*Adjustment, error) {
+// FindByID returns id's row scoped to tenantID, or ErrNotFound — never
+// "found but belongs to another tenant" vs. "doesn't exist at all"
+// (tenant-isolation-security.md §6). A cross-tenant id now returns the
+// identical error a nonexistent one does.
+func (r *Repository) FindByID(ctx context.Context, tenantID, id int64) (*Adjustment, error) {
 	var a Adjustment
-	err := r.db.WithContext(ctx).First(&a, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&a, "id = ? AND tenant_id = ?", id, tenantID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
 	}
@@ -59,17 +66,21 @@ func (r *Repository) FindByID(ctx context.Context, id int64) (*Adjustment, error
 	return &a, nil
 }
 
-func (r *Repository) CreateItem(ctx context.Context, item *Item) error {
+func (r *Repository) CreateItem(ctx context.Context, tenantID int64, item *Item) error {
+	item.TenantID = tenantID
 	return r.db.WithContext(ctx).Create(item).Error
 }
 
 // FindItemByAdjustmentID returns the one line belonging to an
 // adjustment — every document currently has exactly one (see model.go's
 // doc); Service uses this rather than a list query since there is
-// never more than a single row to fetch.
-func (r *Repository) FindItemByAdjustmentID(ctx context.Context, adjustmentID int64) (*Item, error) {
+// never more than a single row to fetch. Scoped to tenantID so a
+// cross-tenant adjustmentID (which should never reach here once the
+// header lookup above has already rejected it, but kept consistent
+// defensively) can never return another tenant's line.
+func (r *Repository) FindItemByAdjustmentID(ctx context.Context, tenantID, adjustmentID int64) (*Item, error) {
 	var item Item
-	err := r.db.WithContext(ctx).First(&item, "stock_adjustment_id = ?", adjustmentID).Error
+	err := r.db.WithContext(ctx).First(&item, "stock_adjustment_id = ? AND tenant_id = ?", adjustmentID, tenantID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrItemNotFound
 	}
@@ -80,9 +91,11 @@ func (r *Repository) FindItemByAdjustmentID(ctx context.Context, adjustmentID in
 }
 
 // UpdateItemFields writes the editable line fields — only ever called
-// while the adjustment is still DRAFT (see Status.CanEdit).
-func (r *Repository) UpdateItemFields(ctx context.Context, item *Item) error {
-	return r.db.WithContext(ctx).Model(&Item{}).Where("id = ?", item.ID).Updates(map[string]any{
+// while the adjustment is still DRAFT (see Status.CanEdit). Scoped to
+// tenantID: a mismatched tenantID against a real item id affects zero
+// rows rather than silently updating a wrong-tenant row.
+func (r *Repository) UpdateItemFields(ctx context.Context, tenantID int64, item *Item) error {
+	return r.db.WithContext(ctx).Model(&Item{}).Where("id = ? AND tenant_id = ?", item.ID, tenantID).Updates(map[string]any{
 		"lot_no":      item.LotNo,
 		"adjust_type": item.AdjustType,
 		"adjust_qty":  item.AdjustQty,
@@ -94,16 +107,18 @@ func (r *Repository) UpdateItemFields(ctx context.Context, item *Item) error {
 // UpdateItemAfterApprove writes before_qty/after_qty — deliberately
 // separate from UpdateItemFields so Approve's own write can never
 // clobber a concurrent (theoretical, DRAFT-only) field edit, the same
-// field-scoped-write discipline Phase 9's race fix established.
-func (r *Repository) UpdateItemAfterApprove(ctx context.Context, item *Item) error {
-	return r.db.WithContext(ctx).Model(&Item{}).Where("id = ?", item.ID).Updates(map[string]any{
+// field-scoped-write discipline Phase 9's race fix established. Scoped
+// to tenantID, same reasoning as UpdateItemFields.
+func (r *Repository) UpdateItemAfterApprove(ctx context.Context, tenantID int64, item *Item) error {
+	return r.db.WithContext(ctx).Model(&Item{}).Where("id = ? AND tenant_id = ?", item.ID, tenantID).Updates(map[string]any{
 		"before_qty": item.BeforeQty,
 		"after_qty":  item.AfterQty,
 	}).Error
 }
 
-func (r *Repository) UpdateStatus(ctx context.Context, a *Adjustment) error {
-	return r.db.WithContext(ctx).Model(&Adjustment{}).Where("id = ?", a.ID).Updates(map[string]any{
+// UpdateStatus is scoped to tenantID, same reasoning as UpdateItemFields.
+func (r *Repository) UpdateStatus(ctx context.Context, tenantID int64, a *Adjustment) error {
+	return r.db.WithContext(ctx).Model(&Adjustment{}).Where("id = ? AND tenant_id = ?", a.ID, tenantID).Updates(map[string]any{
 		"status":      a.Status,
 		"approved_by": a.ApprovedBy,
 		"approved_at": a.ApprovedAt,
@@ -136,8 +151,10 @@ type listRow struct {
 // passed down from Service): used both to compute each row's own
 // IsOverdue and, when params.Overdue is set, as the actual SQL filter
 // cutoff — so "overdue" always means the same thing in the filter as it
-// does in the returned flag, never two different definitions.
-func (r *Repository) List(ctx context.Context, params ListParams, warningHours int) ([]ListResponse, int64, error) {
+// does in the returned flag, never two different definitions. Scoped to
+// tenantID: a cross-tenant row can never appear in another tenant's
+// list.
+func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams, warningHours int) ([]ListResponse, int64, error) {
 	base := `
 		FROM stock_adjustments sa
 		JOIN stock_adjustment_items sai ON sai.stock_adjustment_id = sa.id
@@ -155,7 +172,8 @@ func (r *Repository) List(ctx context.Context, params ListParams, warningHours i
 	// params.Status: an "overdue" adjustment is by definition still
 	// pending, so combining overdue=true with a contradictory status
 	// filter yields zero rows rather than a confusing partial match.
-	where := `WHERE (? = '' OR sa.adjustment_no LIKE ? OR p.sku LIKE ? OR sai.reason LIKE ?)
+	where := `WHERE sa.tenant_id = ?
+		AND (? = '' OR sa.adjustment_no LIKE ? OR p.sku LIKE ? OR sai.reason LIKE ?)
 		AND (? = '' OR sai.adjust_type = ?)
 		AND (? = '' OR sa.status = ?)
 		AND (? IS NULL OR CAST(sa.created_at AS DATE) = ?)
@@ -180,6 +198,7 @@ func (r *Repository) List(ctx context.Context, params ListParams, warningHours i
 
 	like := "%" + params.Search + "%"
 	args := []any{
+		tenantID,
 		params.Search, like, like, like,
 		string(params.Type), string(params.Type),
 		string(params.Status), string(params.Status),
@@ -262,8 +281,9 @@ type detailRow struct {
 // and have no source count at all. The LEFT JOIN to users (Phase 20)
 // resolves created_by to a display name, the same pattern Phase 14/18
 // already established for this codebase's other created_by_name/
-// cancelled_by_name columns.
-func (r *Repository) FindDetail(ctx context.Context, id int64) (*detailRow, error) {
+// cancelled_by_name columns. Scoped to tenantID — a cross-tenant id now
+// returns ErrNotFound exactly like a nonexistent one.
+func (r *Repository) FindDetail(ctx context.Context, tenantID, id int64) (*detailRow, error) {
 	var row detailRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT sa.id AS id, sa.adjustment_no AS adjustment_no,
@@ -281,8 +301,8 @@ func (r *Repository) FindDetail(ctx context.Context, id int64) (*detailRow, erro
 		JOIN locations l ON l.id = sai.location_id
 		LEFT JOIN stock_counts sc ON sc.id = sa.source_stock_count_id
 		LEFT JOIN users u ON u.id = sa.created_by
-		WHERE sa.id = ?
-	`, id).Scan(&row).Error
+		WHERE sa.id = ? AND sa.tenant_id = ?
+	`, id, tenantID).Scan(&row).Error
 	if err != nil {
 		return nil, err
 	}
@@ -297,17 +317,20 @@ func (r *Repository) FindDetail(ctx context.Context, id int64) (*detailRow, erro
 // internal/stockcount's GeneratedAdjustments. reason lives on the item
 // table, not the header, but every document CreateAdjustments produces
 // has exactly one line (the same "one line per generated document"
-// shape it always used), so this join is unambiguous.
-func (r *Repository) FindBySourceCountID(ctx context.Context, countID int64) ([]SourceCountSummary, error) {
+// shape it always used), so this join is unambiguous. Scoped to
+// tenantID — countID itself belongs to internal/stockcount (not yet
+// tenant-scoped as of this batch), but this package's own rows must
+// never leak across tenants regardless.
+func (r *Repository) FindBySourceCountID(ctx context.Context, tenantID, countID int64) ([]SourceCountSummary, error) {
 	var rows []SourceCountSummary
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT sa.id AS id, sa.adjustment_no AS adjustment_no, sa.status AS status,
 			sai.reason AS reason, sa.created_at AS created_at
 		FROM stock_adjustments sa
 		JOIN stock_adjustment_items sai ON sai.stock_adjustment_id = sa.id
-		WHERE sa.source_stock_count_id = ?
+		WHERE sa.source_stock_count_id = ? AND sa.tenant_id = ?
 		ORDER BY sa.id ASC
-	`, countID).Scan(&rows).Error
+	`, countID, tenantID).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -316,9 +339,10 @@ func (r *Repository) FindBySourceCountID(ctx context.Context, countID int64) ([]
 
 // InsertConfirmation is the idempotency guard itself — see
 // migrations/0025's doc. Must be called inside the same transaction as
-// the approval mutation it's guarding.
-func (r *Repository) InsertConfirmation(ctx context.Context, idempotencyKey string, adjustmentID int64) error {
-	err := r.db.WithContext(ctx).Create(&Confirmation{IdempotencyKey: idempotencyKey, AdjustmentID: adjustmentID}).Error
+// the approval mutation it's guarding. Stamps tenantID onto the guard
+// row too, matching every other row this package writes.
+func (r *Repository) InsertConfirmation(ctx context.Context, tenantID int64, idempotencyKey string, adjustmentID int64) error {
+	err := r.db.WithContext(ctx).Create(&Confirmation{IdempotencyKey: idempotencyKey, TenantID: tenantID, AdjustmentID: adjustmentID}).Error
 	if err != nil && isUniqueViolation(err) {
 		return ErrDuplicateIdempotencyKey
 	}
@@ -339,15 +363,28 @@ func isUniqueViolation(err error) bool {
 // caller). Scoped to only the columns ReminderCandidate actually needs
 // (see its own doc on why a reminder payload stays minimal), not the
 // full product/location joins List/FindDetail carry.
+//
+// Batch 1a (tenant isolation): deliberately left cross-tenant — NO
+// tenantID parameter — unlike every other method in this file. This is
+// a background worker scan (cmd/server's startStockAdjustmentReminderScanner),
+// not a request handler acting on behalf of one caller: there is no
+// single "current tenant" to scope it to, and the whole point of the
+// scan is to find every overdue PENDING adjustment across every tenant
+// so each one's own reminder gets published. The row's own real
+// tenant_id IS selected and carried into ReminderCandidate.TenantID
+// below specifically so nothing downstream (NewReminderMessage's
+// payload, and eventually the consumer) ever has to fall back to a
+// hardcoded tenant — each candidate always carries its own true tenant.
 func (r *Repository) FindOverduePending(ctx context.Context, cutoff time.Time) ([]ReminderCandidate, error) {
 	var rows []struct {
 		ID           int64
+		TenantID     int64
 		AdjustmentNo string
 		CreatedBy    *int64
 		UpdatedAt    time.Time
 	}
 	err := r.db.WithContext(ctx).Raw(`
-		SELECT id AS id, adjustment_no AS adjustment_no, created_by AS created_by, updated_at AS updated_at
+		SELECT id AS id, tenant_id AS tenant_id, adjustment_no AS adjustment_no, created_by AS created_by, updated_at AS updated_at
 		FROM stock_adjustments
 		WHERE status = 'PENDING' AND updated_at <= ?
 		ORDER BY id ASC
@@ -360,7 +397,7 @@ func (r *Repository) FindOverduePending(ctx context.Context, cutoff time.Time) (
 	candidates := make([]ReminderCandidate, 0, len(rows))
 	for _, row := range rows {
 		candidates = append(candidates, ReminderCandidate{
-			ID: row.ID, AdjustmentNo: row.AdjustmentNo, CreatedBy: row.CreatedBy,
+			ID: row.ID, TenantID: row.TenantID, AdjustmentNo: row.AdjustmentNo, CreatedBy: row.CreatedBy,
 			PendingSince: row.UpdatedAt, AgeHours: int(now.Sub(row.UpdatedAt).Hours()),
 		})
 	}

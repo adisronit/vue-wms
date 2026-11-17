@@ -389,9 +389,15 @@ func main() {
 	loadingPDFService.SetDocRender(docrenderService)
 	loading.NewHandler(loadingService, loadingPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
+	// Batch 1a (tenant isolation): stockadjustment now takes productRepo/
+	// locationRepo's own real tenant-scoped lookups directly instead of
+	// locationUnscoped — see internal/receiving/service.go's own doc for
+	// the identical reasoning. locationUnscoped itself stays alive below
+	// only because internal/stockcount still depends on it until its own
+	// Batch 1b.
 	stockAdjustmentRepo := stockadjustment.NewRepository(dbManager.DB())
-	stockAdjustmentService := stockadjustment.NewService(stockAdjustmentRepo, productRepo, locationUnscoped, inventoryService, cfg.StockAdjustmentPendingWarningHours)
-	stockadjustment.NewHandler(stockAdjustmentService).Register(v1, cfg.JWTSecret)
+	stockAdjustmentService := stockadjustment.NewService(stockAdjustmentRepo, productRepo, locationRepo, inventoryService, cfg.StockAdjustmentPendingWarningHours)
+	stockadjustment.NewHandler(stockAdjustmentService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	stockCountRepo := stockcount.NewRepository(dbManager.DB())
 	stockCountService := stockcount.NewService(stockCountRepo, warehouseRepo, zoneRepo, productRepo, locationUnscoped, inventoryService, stockAdjustmentService)

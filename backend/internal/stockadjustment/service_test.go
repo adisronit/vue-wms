@@ -161,7 +161,7 @@ func TestNewReminderMessage(t *testing.T) {
 	createdBy := int64(7)
 	pendingSince := time.Date(2026, 1, 8, 12, 0, 0, 0, time.UTC)
 	candidate := ReminderCandidate{
-		ID: 123, AdjustmentNo: "ADJ-000123", CreatedBy: &createdBy,
+		ID: 123, TenantID: 42, AdjustmentNo: "ADJ-000123", CreatedBy: &createdBy,
 		PendingSince: pendingSince, AgeHours: 50,
 	}
 
@@ -175,6 +175,11 @@ func TestNewReminderMessage(t *testing.T) {
 	}
 	if msg.Payload.AdjustmentID != 123 || msg.Payload.AdjustmentNo != "ADJ-000123" {
 		t.Errorf("Payload adjustment fields = %+v, want ID=123 No=ADJ-000123", msg.Payload)
+	}
+	// Batch 1a: the candidate's own real tenant must be carried straight
+	// into the payload — never a hardcoded tenant.
+	if msg.Payload.TenantID != 42 {
+		t.Errorf("Payload.TenantID = %d, want 42 (candidate's own real tenant, never hardcoded)", msg.Payload.TenantID)
 	}
 	if msg.Payload.CreatedBy == nil || *msg.Payload.CreatedBy != 7 {
 		t.Errorf("Payload.CreatedBy = %v, want 7", msg.Payload.CreatedBy)
@@ -220,7 +225,7 @@ type fakeProducts struct {
 	err error
 }
 
-func (f *fakeProducts) FindByID(context.Context, int64) (*product.Product, error) {
+func (f *fakeProducts) FindByIDForTenant(context.Context, int64, int64) (*product.Product, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -231,7 +236,7 @@ type fakeLocations struct {
 	err error
 }
 
-func (f *fakeLocations) FindByID(context.Context, int64) (*location.Location, error) {
+func (f *fakeLocations) FindByID(context.Context, int64, int64) (*location.Location, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -241,7 +246,7 @@ func (f *fakeLocations) FindByID(context.Context, int64) (*location.Location, er
 func TestCreate_RejectsInvalidAdjustType(t *testing.T) {
 	svc := NewService(nil, &fakeProducts{}, &fakeLocations{}, nil, 48)
 
-	_, err := svc.Create(context.Background(), CreateRequest{
+	_, err := svc.Create(context.Background(), 1, CreateRequest{
 		ProductID: 1, LocationID: 1, AdjustType: "SET", AdjustQty: 10, Reason: ReasonFoundGoods,
 	}, 1)
 
@@ -254,7 +259,7 @@ func TestCreate_RejectsInvalidAdjustType(t *testing.T) {
 func TestCreate_RejectsZeroAdjustQty(t *testing.T) {
 	svc := NewService(nil, &fakeProducts{}, &fakeLocations{}, nil, 48)
 
-	_, err := svc.Create(context.Background(), CreateRequest{
+	_, err := svc.Create(context.Background(), 1, CreateRequest{
 		ProductID: 1, LocationID: 1, AdjustType: AdjustIncrease, AdjustQty: 0, Reason: ReasonFoundGoods,
 	}, 1)
 
@@ -267,7 +272,7 @@ func TestCreate_RejectsZeroAdjustQty(t *testing.T) {
 func TestCreate_RejectsInvalidReason(t *testing.T) {
 	svc := NewService(nil, &fakeProducts{}, &fakeLocations{}, nil, 48)
 
-	_, err := svc.Create(context.Background(), CreateRequest{
+	_, err := svc.Create(context.Background(), 1, CreateRequest{
 		ProductID: 1, LocationID: 1, AdjustType: AdjustIncrease, AdjustQty: 10, Reason: "Not A Real Reason",
 	}, 1)
 
@@ -280,7 +285,7 @@ func TestCreate_RejectsInvalidReason(t *testing.T) {
 func TestCreate_RejectsUnknownProduct(t *testing.T) {
 	svc := NewService(nil, &fakeProducts{err: errors.New("not found")}, &fakeLocations{}, nil, 48)
 
-	_, err := svc.Create(context.Background(), CreateRequest{
+	_, err := svc.Create(context.Background(), 1, CreateRequest{
 		ProductID: 999, LocationID: 1, AdjustType: AdjustIncrease, AdjustQty: 10, Reason: ReasonFoundGoods,
 	}, 1)
 
@@ -292,7 +297,7 @@ func TestCreate_RejectsUnknownProduct(t *testing.T) {
 func TestCreate_RejectsUnknownLocation(t *testing.T) {
 	svc := NewService(nil, &fakeProducts{}, &fakeLocations{err: errors.New("not found")}, nil, 48)
 
-	_, err := svc.Create(context.Background(), CreateRequest{
+	_, err := svc.Create(context.Background(), 1, CreateRequest{
 		ProductID: 1, LocationID: 999, AdjustType: AdjustIncrease, AdjustQty: 10, Reason: ReasonFoundGoods,
 	}, 1)
 

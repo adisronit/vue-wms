@@ -31,13 +31,17 @@ var (
 
 // productChecker and locationChecker are the narrow slices of the
 // Phase 4/3 repositories this package needs — the same narrow-interface
-// pattern every prior phase established.
+// pattern every prior phase established. Batch 1a upgrades both from
+// their old unscoped FindByID to the real tenant-scoped lookups
+// (product.Repository.FindByIDForTenant, location.Repository.FindByID)
+// — matching internal/order/internal/picking's own productChecker/
+// locationChecker doc for the identical upgrade.
 type productChecker interface {
-	FindByID(ctx context.Context, id int64) (*product.Product, error)
+	FindByIDForTenant(ctx context.Context, tenantID, id int64) (*product.Product, error)
 }
 
 type locationChecker interface {
-	FindByID(ctx context.Context, id int64) (*location.Location, error)
+	FindByID(ctx context.Context, tenantID, id int64) (*location.Location, error)
 }
 
 // Service holds the Stock Adjustment workflow's business rules — the
@@ -61,7 +65,7 @@ func NewService(repo *Repository, products productChecker, locations locationChe
 	return &Service{repo: repo, products: products, locations: locations, inventory: inventorySvc, pendingWarningHours: pendingWarningHours}
 }
 
-func (s *Service) List(ctx context.Context, params ListParams) ([]ListResponse, int64, error) {
+func (s *Service) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
 	page, limit := params.Page, params.Limit
 	if page < 1 {
 		page = 1
@@ -70,20 +74,20 @@ func (s *Service) List(ctx context.Context, params ListParams) ([]ListResponse, 
 		limit = 20
 	}
 	params.Page, params.Limit = page, limit
-	return s.repo.List(ctx, params, s.pendingWarningHours)
+	return s.repo.List(ctx, tenantID, params, s.pendingWarningHours)
 }
 
 // ListForExport is Phase 22's CSV-export path — see internal/receiving's
 // own ListForExport doc for the shared reasoning.
-func (s *Service) ListForExport(ctx context.Context, params ListParams) ([]ListResponse, error) {
+func (s *Service) ListForExport(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, error) {
 	params.Page = 1
 	params.Limit = csvexport.MaxExportRows
-	rows, _, err := s.repo.List(ctx, params, s.pendingWarningHours)
+	rows, _, err := s.repo.List(ctx, tenantID, params, s.pendingWarningHours)
 	return rows, err
 }
 
-func (s *Service) Get(ctx context.Context, id int64) (*Response, error) {
-	row, err := s.repo.FindDetail(ctx, id)
+func (s *Service) Get(ctx context.Context, tenantID, id int64) (*Response, error) {
+	row, err := s.repo.FindDetail(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -107,8 +111,8 @@ func (s *Service) Get(ctx context.Context, id int64) (*Response, error) {
 // this package's own Repository type directly (the same narrow-
 // interface-over-Service pattern every cross-package dependency in this
 // codebase already uses).
-func (s *Service) FindBySourceCountID(ctx context.Context, countID int64) ([]SourceCountSummary, error) {
-	return s.repo.FindBySourceCountID(ctx, countID)
+func (s *Service) FindBySourceCountID(ctx context.Context, tenantID, countID int64) ([]SourceCountSummary, error) {
+	return s.repo.FindBySourceCountID(ctx, tenantID, countID)
 }
 
 // Create validates and snapshots a display-only "before" balance (never
@@ -116,8 +120,11 @@ func (s *Service) FindBySourceCountID(ctx context.Context, countID int64) ([]Sou
 // persists the header + its one line. No inventory mutation happens
 // here regardless of status: DRAFT and PENDING are both inert: only
 // Confirm's APPROVE action ever calls AddStockTx/RemoveStockTx.
-func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (*Response, error) {
-	if err := s.validateItemFields(ctx, req.ProductID, req.LocationID, req.AdjustType, req.AdjustQty, req.Reason); err != nil {
+// tenantID must be the caller's own verified tenant (middleware.
+// EnforcedTenantID at the handler) — never a value read from the
+// request body (CreateRequest carries no tenant_id field at all).
+func (s *Service) Create(ctx context.Context, tenantID int64, req CreateRequest, userID int64) (*Response, error) {
+	if err := s.validateItemFields(ctx, tenantID, req.ProductID, req.LocationID, req.AdjustType, req.AdjustQty, req.Reason); err != nil {
 		return nil, err
 	}
 
@@ -133,10 +140,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 	// location with no stock yet is valid (first stock ever placed
 	// there); before_qty is simply left nil (display-only, see doc).
 	var beforeQty *float64
-	// TenantID: inventory.UnverifiedCallerTenantID — stockadjustment has
-	// no verified per-request tenant context of its own yet (not yet a
-	// scheduled Phase 30 batch; see that constant's own doc).
-	if bal, err := s.inventory.FindBalance(ctx, inventory.UnverifiedCallerTenantID, req.ProductID, req.LocationID, req.LotNo); err == nil {
+	if bal, err := s.inventory.FindBalance(ctx, tenantID, req.ProductID, req.LocationID, req.LotNo); err == nil {
 		q := bal.Quantity
 		beforeQty = &q
 	} else if !errors.Is(err, inventory.ErrNotFound) {
@@ -152,7 +156,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 	var adjustmentID int64
 	start := time.Now()
 	err := s.repo.Transaction(ctx, func(tx *gorm.DB, txRepo *Repository) error {
-		id, err := createTx(ctx, txRepo, req, status, beforeQty, userID)
+		id, err := createTx(ctx, txRepo, tenantID, req, status, beforeQty, userID)
 		adjustmentID = id
 		return err
 	})
@@ -160,7 +164,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, adjustmentID)
+	return s.Get(ctx, tenantID, adjustmentID)
 }
 
 // CreateTx is Create's core logic (header + one line insert), but
@@ -176,8 +180,16 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, userID int64) (
 // itself (via its own already-open transaction, or after commit).
 // validateItemFields/status/before_qty are computed the same way Create
 // computes them — this does not skip any of Create's own validation.
-func (s *Service) CreateTx(ctx context.Context, tx *gorm.DB, req CreateRequest, userID int64) (int64, error) {
-	if err := s.validateItemFields(ctx, req.ProductID, req.LocationID, req.AdjustType, req.AdjustQty, req.Reason); err != nil {
+//
+// Batch 1a: tenantID is now a required parameter — it must be the
+// caller's own real tenant. internal/stockcount is this method's one
+// existing caller and will not compile against this new signature until
+// its own tenant-isolation batch (1b) updates its call site to pass its
+// own verified tenantID through — an expected, intentional cross-package
+// break for the duration between these two batches, not a regression
+// introduced carelessly here.
+func (s *Service) CreateTx(ctx context.Context, tenantID int64, tx *gorm.DB, req CreateRequest, userID int64) (int64, error) {
+	if err := s.validateItemFields(ctx, tenantID, req.ProductID, req.LocationID, req.AdjustType, req.AdjustQty, req.Reason); err != nil {
 		return 0, err
 	}
 
@@ -190,28 +202,25 @@ func (s *Service) CreateTx(ctx context.Context, tx *gorm.DB, req CreateRequest, 
 	}
 
 	var beforeQty *float64
-	// TenantID: inventory.UnverifiedCallerTenantID — stockadjustment has
-	// no verified per-request tenant context of its own yet (not yet a
-	// scheduled Phase 30 batch; see that constant's own doc).
-	if bal, err := s.inventory.FindBalance(ctx, inventory.UnverifiedCallerTenantID, req.ProductID, req.LocationID, req.LotNo); err == nil {
+	if bal, err := s.inventory.FindBalance(ctx, tenantID, req.ProductID, req.LocationID, req.LotNo); err == nil {
 		q := bal.Quantity
 		beforeQty = &q
 	} else if !errors.Is(err, inventory.ErrNotFound) {
 		return 0, err
 	}
 
-	return createTx(ctx, NewRepository(tx), req, status, beforeQty, userID)
+	return createTx(ctx, NewRepository(tx), tenantID, req, status, beforeQty, userID)
 }
 
 // createTx is the shared insert logic both Create (via its own
 // transaction) and CreateTx (via the caller's) run against a
 // transactional Repository.
-func createTx(ctx context.Context, txRepo *Repository, req CreateRequest, status Status, beforeQty *float64, userID int64) (int64, error) {
+func createTx(ctx context.Context, txRepo *Repository, tenantID int64, req CreateRequest, status Status, beforeQty *float64, userID int64) (int64, error) {
 	adjustment := &Adjustment{Status: status, CreatedBy: &userID, SourceStockCountID: req.SourceStockCountID}
-	if err := txRepo.CreateAdjustment(ctx, adjustment); err != nil {
+	if err := txRepo.CreateAdjustment(ctx, tenantID, adjustment); err != nil {
 		return 0, err
 	}
-	if err := txRepo.CreateItem(ctx, &Item{
+	if err := txRepo.CreateItem(ctx, tenantID, &Item{
 		AdjustmentID: adjustment.ID, ProductID: req.ProductID, LocationID: req.LocationID, LotNo: req.LotNo,
 		AdjustType: req.AdjustType, AdjustQty: req.AdjustQty, BeforeQty: beforeQty,
 		Reason: req.Reason, Remark: req.Remark,
@@ -223,8 +232,8 @@ func createTx(ctx context.Context, txRepo *Repository, req CreateRequest, status
 
 // Update edits the one line's fields (and optionally submits DRAFT ->
 // PENDING) only while the adjustment is still DRAFT (see Status.CanEdit).
-func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Response, error) {
-	adjustment, err := s.repo.FindByID(ctx, id)
+func (s *Service) Update(ctx context.Context, tenantID, id int64, req UpdateRequest) (*Response, error) {
+	adjustment, err := s.repo.FindByID(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -232,11 +241,11 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Res
 		return nil, ErrNotEditable
 	}
 
-	item, err := s.repo.FindItemByAdjustmentID(ctx, id)
+	item, err := s.repo.FindItemByAdjustmentID(ctx, tenantID, id)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.validateItemFields(ctx, item.ProductID, item.LocationID, req.AdjustType, req.AdjustQty, req.Reason); err != nil {
+	if err := s.validateItemFields(ctx, tenantID, item.ProductID, item.LocationID, req.AdjustType, req.AdjustQty, req.Reason); err != nil {
 		return nil, err
 	}
 
@@ -253,20 +262,25 @@ func (s *Service) Update(ctx context.Context, id int64, req UpdateRequest) (*Res
 	item.AdjustQty = req.AdjustQty
 	item.Reason = req.Reason
 	item.Remark = req.Remark
-	if err := s.repo.UpdateItemFields(ctx, item); err != nil {
+	if err := s.repo.UpdateItemFields(ctx, tenantID, item); err != nil {
 		return nil, err
 	}
 
 	if status != adjustment.Status {
 		adjustment.Status = status
-		if err := s.repo.UpdateStatus(ctx, adjustment); err != nil {
+		if err := s.repo.UpdateStatus(ctx, tenantID, adjustment); err != nil {
 			return nil, err
 		}
 	}
-	return s.Get(ctx, id)
+	return s.Get(ctx, tenantID, id)
 }
 
-func (s *Service) validateItemFields(ctx context.Context, productID, locationID int64, adjustType AdjustType, adjustQty float64, reason Reason) error {
+// validateItemFields resolves product/location ownership via
+// FindByIDForTenant/FindByID scoped to tenantID — a product or location
+// belonging to another tenant now returns ErrProductNotFound/
+// ErrLocationNotFound exactly like a nonexistent one, closing the IDOR
+// this validation previously had.
+func (s *Service) validateItemFields(ctx context.Context, tenantID, productID, locationID int64, adjustType AdjustType, adjustQty float64, reason Reason) error {
 	if !adjustType.IsValid() {
 		return ErrValidation{Message: "adjust_type must be INCREASE or DECREASE"}
 	}
@@ -276,10 +290,10 @@ func (s *Service) validateItemFields(ctx context.Context, productID, locationID 
 	if !reason.IsValid() {
 		return ErrValidation{Message: "reason must be one of Cycle Count Variance, Damaged Goods, Lost Goods, Found Goods, System Correction"}
 	}
-	if _, err := s.products.FindByID(ctx, productID); err != nil {
+	if _, err := s.products.FindByIDForTenant(ctx, tenantID, productID); err != nil {
 		return ErrProductNotFound
 	}
-	if _, err := s.locations.FindByID(ctx, locationID); err != nil {
+	if _, err := s.locations.FindByID(ctx, tenantID, locationID); err != nil {
 		return ErrLocationNotFound
 	}
 	return nil
@@ -291,8 +305,12 @@ func (s *Service) validateItemFields(ctx context.Context, productID, locationID 
 // only point in this package's lifecycle where inventory.quantity ever
 // changes, and always through Inventory Core's own atomic guarded
 // UPDATE, never a direct write. REJECT performs no inventory mutation
-// at all. Any failure rolls back the entire transaction.
-func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, userID int64) (*Response, error) {
+// at all. Any failure rolls back the entire transaction. tenantID must
+// be the caller's own verified tenant — a cross-tenant id now rejects
+// with the identical ErrNotFound a nonexistent id would, and the
+// AddStockTx/RemoveStockTx mutation below always lands under the
+// caller's own tenant's inventory balance, never tenant 1's.
+func (s *Service) Confirm(ctx context.Context, tenantID, id int64, req ConfirmRequest, userID int64) (*Response, error) {
 	ctx, cancel := dbctx.Detach(ctx)
 	defer cancel()
 
@@ -309,7 +327,7 @@ func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, use
 		// touching those packages is out of this phase's scope). This
 		// SELECT has no side effect, so moving it ahead of the INSERT
 		// does not weaken the idempotency guarantee at all.
-		adjustment, err := txRepo.FindByID(ctx, id)
+		adjustment, err := txRepo.FindByID(ctx, tenantID, id)
 		if err != nil {
 			return err
 		}
@@ -317,7 +335,7 @@ func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, use
 		// Idempotency guard: if this key was already used, the INSERT
 		// fails on the PRIMARY KEY constraint and everything below is
 		// skipped and rolled back — see migrations/0025's doc.
-		if err := txRepo.InsertConfirmation(ctx, req.IdempotencyKey, id); err != nil {
+		if err := txRepo.InsertConfirmation(ctx, tenantID, req.IdempotencyKey, id); err != nil {
 			return err
 		}
 
@@ -325,7 +343,7 @@ func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, use
 			return ErrInvalidTransition
 		}
 
-		item, err := txRepo.FindItemByAdjustmentID(ctx, id)
+		item, err := txRepo.FindItemByAdjustmentID(ctx, tenantID, id)
 		if err != nil {
 			return err
 		}
@@ -337,19 +355,20 @@ func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, use
 			refID := adjustment.AdjustmentNo
 			reason := string(item.Reason)
 
-			// TenantID: inventory.UnverifiedCallerTenantID on both branches —
-			// see the FindBalance call site above for why.
+			// tenantID is the caller's own verified tenant (Batch 1a) — the
+			// mutation below is guaranteed to land under this tenant's own
+			// inventory balance, never tenant 1's regardless of who calls.
 			var result *inventory.Inventory
 			if item.AdjustType == AdjustIncrease {
 				result, err = s.inventory.AddStockTx(ctx, invRepo, inventory.StockChangeRequest{
-					TenantID:  inventory.UnverifiedCallerTenantID,
+					TenantID:  tenantID,
 					ProductID: item.ProductID, LocationID: item.LocationID, LotNo: item.LotNo,
 					Quantity: item.AdjustQty, Type: inventory.TransactionAdjust,
 					ReferenceType: &refType, ReferenceID: &refID, Reason: &reason, CreatedBy: &userID,
 				})
 			} else {
 				result, err = s.inventory.RemoveStockTx(ctx, invRepo, inventory.StockChangeRequest{
-					TenantID:  inventory.UnverifiedCallerTenantID,
+					TenantID:  tenantID,
 					ProductID: item.ProductID, LocationID: item.LocationID, LotNo: item.LotNo,
 					Quantity: item.AdjustQty, Type: inventory.TransactionAdjust,
 					ReferenceType: &refType, ReferenceID: &refID, Reason: &reason, CreatedBy: &userID,
@@ -364,7 +383,7 @@ func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, use
 
 			afterQty := result.Quantity
 			item.AfterQty = &afterQty
-			if err := txRepo.UpdateItemAfterApprove(ctx, item); err != nil {
+			if err := txRepo.UpdateItemAfterApprove(ctx, tenantID, item); err != nil {
 				return err
 			}
 
@@ -379,7 +398,7 @@ func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, use
 			}
 			remark := req.Remark
 			item.Remark = &remark
-			if err := txRepo.UpdateItemFields(ctx, item); err != nil {
+			if err := txRepo.UpdateItemFields(ctx, tenantID, item); err != nil {
 				return err
 			}
 			adjustment.Status = StatusRejected
@@ -388,7 +407,7 @@ func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, use
 			return ErrValidation{Message: "action must be one of APPROVE, REJECT"}
 		}
 
-		return txRepo.UpdateStatus(ctx, adjustment)
+		return txRepo.UpdateStatus(ctx, tenantID, adjustment)
 	})
 	dbctx.LogTransaction(ctx, "stockadjustment.confirm", start, err)
 
@@ -396,10 +415,10 @@ func (s *Service) Confirm(ctx context.Context, id int64, req ConfirmRequest, use
 		// Already processed by an earlier call with this same key —
 		// return the current (already-correct) state as a successful,
 		// idempotent no-op rather than an error or a second mutation.
-		return s.Get(ctx, id)
+		return s.Get(ctx, tenantID, id)
 	}
 	if err != nil {
 		return nil, err
 	}
-	return s.Get(ctx, id)
+	return s.Get(ctx, tenantID, id)
 }
