@@ -73,6 +73,7 @@ import (
 	"wms-backend/internal/transferreceipt"
 	"wms-backend/internal/user"
 	"wms-backend/internal/warehouse"
+	"wms-backend/internal/warehouselayout"
 	"wms-backend/internal/zone"
 )
 
@@ -403,6 +404,16 @@ func main() {
 	deliveryReportRepo := deliveryreport.NewRepository(dbManager.DB())
 	deliveryReportService := deliveryreport.NewService(deliveryReportRepo, tenantRepo, userRepo)
 	deliveryreport.NewHandler(deliveryReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 34I: warehouselayout — unlike every other Phase 34 package,
+	// this one has a real write path (an authorized editor saves
+	// shapes/positions/a calibrated background image), gated on its
+	// own "layout" RBAC module rather than report.view/export. Reuses
+	// the same IMAGE_STORAGE_DIR config internal/product's own image
+	// upload already uses.
+	warehouseLayoutRepo := warehouselayout.NewRepository(dbManager.DB())
+	warehouseLayoutService := warehouselayout.NewService(warehouseLayoutRepo, userRepo, cfg.ImageStorageDir, cfg.ImageMaxUploadBytes)
+	warehouselayout.NewHandler(warehouseLayoutService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Phase 33C — Packing: a pure physical-handling/traceability layer
 	// over already-picked stock, sitting between Picking and Shipping.

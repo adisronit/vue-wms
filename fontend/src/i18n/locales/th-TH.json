@@ -1598,7 +1598,8 @@
       "warehouse": "ตั้งค่าคลังสินค้า",
       "product": "ข้อมูลสินค้าหลัก",
       "tenantUsers": "จัดการผู้ใช้งานในองค์กร",
-      "report": "รายงานและการวิเคราะห์"
+      "report": "รายงานและการวิเคราะห์",
+      "layout": "ผังคลังสินค้า"
     },
     "selectRolePrompt": "เลือกบทบาทเพื่อตั้งค่าสิทธิ์การเข้าถึง",
     "permissionConfigLabel": "การตั้งค่าสิทธิ์ของ {code}",
@@ -3384,6 +3385,55 @@
       "totalTrips": "จำนวนทริปโหลดสินค้า",
       "avgLoadingDuration": "เวลาโหลดสินค้าเฉลี่ย",
       "notAvailable": "ไม่มีข้อมูล"
+    }
+  },
+  "warehouseLayout": {
+    "title": "ผังคลังสินค้า 2 มิติแบบโต้ตอบ",
+    "selectWarehousePrompt": "เลือกคลังสินค้าเพื่อดูหรือแก้ไขผัง",
+    "viewingHistoricalVersion": "กำลังดูเวอร์ชัน {n} (อ่านอย่างเดียว)",
+    "actions": {
+      "edit": "แก้ไขผัง",
+      "save": "บันทึกผัง",
+      "saving": "กำลังบันทึก…",
+      "delete": "ลบรูปทรง",
+      "history": "ประวัติเวอร์ชัน",
+      "backToLatest": "กลับไปเวอร์ชันล่าสุด"
+    },
+    "toolbar": {
+      "addShape": "เพิ่มรูปทรง",
+      "backgroundImage": "ภาพพื้นหลัง",
+      "uploading": "กำลังอัปโหลด…",
+      "scale": "มาตราส่วน (พิกเซลต่อเมตร)",
+      "notCalibrated": "ยังไม่ได้ปรับมาตราส่วน",
+      "properties": "คุณสมบัติ"
+    },
+    "properties": {
+      "label": "ป้ายชื่อ",
+      "width": "ความกว้าง",
+      "height": "ความสูง",
+      "rotation": "การหมุน (องศา)",
+      "fillColor": "สีพื้น",
+      "strokeColor": "สีเส้นขอบ",
+      "linkedZone": "โซนที่เชื่อมโยง (ไม่บังคับ)"
+    },
+    "objectTypes": {
+      "ZONE": "โซน",
+      "LOCATION": "ตำแหน่งจัดเก็บ",
+      "RACK": "ชั้นวาง",
+      "AISLE": "ช่องทางเดิน",
+      "DOCK": "ท่าขนถ่าย",
+      "WALL": "ผนัง",
+      "LABEL": "ป้ายชื่อ",
+      "SHAPE": "รูปทรง"
+    },
+    "history": {
+      "title": "ประวัติเวอร์ชัน",
+      "version": "เวอร์ชัน",
+      "objectCount": "จำนวนรูปทรง",
+      "remark": "หมายเหตุ",
+      "createdBy": "สร้างโดย",
+      "createdAt": "สร้างเมื่อ",
+      "view": "ดู"
     }
   }
 }

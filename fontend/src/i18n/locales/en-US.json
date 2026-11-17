@@ -1598,7 +1598,8 @@
       "warehouse": "Warehouse Setup",
       "product": "Product Master",
       "tenantUsers": "Tenant User Management",
-      "report": "Reports & Analytics"
+      "report": "Reports & Analytics",
+      "layout": "Warehouse Layout"
     },
     "selectRolePrompt": "Select a role to configure permissions",
     "permissionConfigLabel": "{code} permission configuration",
@@ -3384,6 +3385,55 @@
       "totalTrips": "Total Loading Trips",
       "avgLoadingDuration": "Avg. Loading Duration",
       "notAvailable": "N/A"
+    }
+  },
+  "warehouseLayout": {
+    "title": "Interactive 2D Warehouse Layout",
+    "selectWarehousePrompt": "Select a warehouse to view or edit its layout.",
+    "viewingHistoricalVersion": "Viewing version {n} (read-only)",
+    "actions": {
+      "edit": "Edit Layout",
+      "save": "Save Layout",
+      "saving": "Saving…",
+      "delete": "Delete Shape",
+      "history": "Version History",
+      "backToLatest": "Back to latest"
+    },
+    "toolbar": {
+      "addShape": "Add Shape",
+      "backgroundImage": "Background Image",
+      "uploading": "Uploading…",
+      "scale": "Scale (pixels per meter)",
+      "notCalibrated": "Not calibrated",
+      "properties": "Properties"
+    },
+    "properties": {
+      "label": "Label",
+      "width": "Width",
+      "height": "Height",
+      "rotation": "Rotation (degrees)",
+      "fillColor": "Fill Color",
+      "strokeColor": "Stroke Color",
+      "linkedZone": "Linked Zone (optional)"
+    },
+    "objectTypes": {
+      "ZONE": "Zone",
+      "LOCATION": "Location",
+      "RACK": "Rack",
+      "AISLE": "Aisle",
+      "DOCK": "Dock",
+      "WALL": "Wall",
+      "LABEL": "Label",
+      "SHAPE": "Shape"
+    },
+    "history": {
+      "title": "Version History",
+      "version": "Version",
+      "objectCount": "Shapes",
+      "remark": "Remark",
+      "createdBy": "Created By",
+      "createdAt": "Created At",
+      "view": "View"
     }
   }
 }

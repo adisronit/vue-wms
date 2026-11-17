@@ -255,7 +255,7 @@ import StatusBadge from '../../components/ui/StatusBadge.vue'
 // translated.
 const MODULE_ORDER = [
   'dashboard', 'receiving', 'quality_check', 'putaway', 'stock_inquiry',
-  'stock_adjustment', 'order', 'picking', 'shipping', 'report', 'users', 'roles', 'warehouse', 'product',
+  'stock_adjustment', 'order', 'picking', 'shipping', 'report', 'layout', 'users', 'roles', 'warehouse', 'product',
   'tenant_users'
 ]
 // Maps each module code to its rolePermission.modules.* key suffix.
@@ -273,6 +273,7 @@ const MODULE_NAME_KEYS = {
   picking: 'picking',
   shipping: 'shipping',
   report: 'report',
+  layout: 'layout',
   users: 'users',
   roles: 'roles',
   warehouse: 'warehouse',

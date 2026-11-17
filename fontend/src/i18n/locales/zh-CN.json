@@ -1598,7 +1598,8 @@
       "warehouse": "仓库设置",
       "product": "产品主数据",
       "tenantUsers": "租户用户管理",
-      "report": "报表与分析"
+      "report": "报表与分析",
+      "layout": "仓库布局"
     },
     "selectRolePrompt": "选择一个角色以配置权限",
     "permissionConfigLabel": "{code} 权限配置",
@@ -3384,6 +3385,55 @@
       "totalTrips": "装车车次总数",
       "avgLoadingDuration": "平均装车用时",
       "notAvailable": "无数据"
+    }
+  },
+  "warehouseLayout": {
+    "title": "交互式二维仓库布局",
+    "selectWarehousePrompt": "请选择一个仓库以查看或编辑其布局",
+    "viewingHistoricalVersion": "正在查看版本 {n}(只读)",
+    "actions": {
+      "edit": "编辑布局",
+      "save": "保存布局",
+      "saving": "保存中…",
+      "delete": "删除图形",
+      "history": "版本历史",
+      "backToLatest": "返回最新版本"
+    },
+    "toolbar": {
+      "addShape": "添加图形",
+      "backgroundImage": "背景图片",
+      "uploading": "上传中…",
+      "scale": "比例(像素/米)",
+      "notCalibrated": "尚未校准",
+      "properties": "属性"
+    },
+    "properties": {
+      "label": "标签",
+      "width": "宽度",
+      "height": "高度",
+      "rotation": "旋转角度",
+      "fillColor": "填充颜色",
+      "strokeColor": "边框颜色",
+      "linkedZone": "关联区域(可选)"
+    },
+    "objectTypes": {
+      "ZONE": "区域",
+      "LOCATION": "货位",
+      "RACK": "货架",
+      "AISLE": "通道",
+      "DOCK": "装卸口",
+      "WALL": "墙体",
+      "LABEL": "标签",
+      "SHAPE": "图形"
+    },
+    "history": {
+      "title": "版本历史",
+      "version": "版本",
+      "objectCount": "图形数量",
+      "remark": "备注",
+      "createdBy": "创建人",
+      "createdAt": "创建时间",
+      "view": "查看"
     }
   }
 }

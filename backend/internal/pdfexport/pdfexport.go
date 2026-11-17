@@ -24,6 +24,8 @@ import (
 	_ "embed"
 	"fmt"
 	"image/png"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/boombuler/barcode"
@@ -450,6 +452,73 @@ func (d *Document) placeBarcodeImage(imgName string, bc barcode.Barcode, widthPx
 	d.pdf.RegisterImageOptionsReader(imgName, fpdf.ImageOptions{ImageType: "PNG"}, &buf)
 	d.pdf.ImageOptions(imgName, x, y, wMM, hMM, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
 	return nil
+}
+
+// hexToRGB parses a "#rrggbb" (or "rrggbb") string into its r/g/b
+// components, defaulting to black on any parse failure — callers
+// (Rect) always have a safe fallback rather than a rendering error
+// over a malformed color string.
+func hexToRGB(hex string) (r, g, b int) {
+	hex = strings.TrimPrefix(hex, "#")
+	if len(hex) != 6 {
+		return 0, 0, 0
+	}
+	v, err := strconv.ParseUint(hex, 16, 32)
+	if err != nil {
+		return 0, 0, 0
+	}
+	return int(v >> 16 & 0xFF), int(v >> 8 & 0xFF), int(v & 0xFF)
+}
+
+// Rect draws one filled-and-stroked rectangle at absolute page
+// coordinates (mm), the core primitive Phase 34I's Interactive 2D
+// Warehouse Layout PDF export needs that this package did not
+// previously expose (every prior caller only ever needed text/table
+// layout, never arbitrary shapes). fillHex/strokeHex are "#rrggbb" —
+// pass "" for either to skip that fill/stroke (an unfilled, outline-
+// only rect, or vice versa). label, if non-empty, is centered inside
+// the rect at fontSize (mm-equivalent pt, same unit every other text
+// primitive in this file already uses).
+func (d *Document) Rect(x, y, w, h float64, fillHex, strokeHex, label string, fontSize float64) {
+	pdf := d.pdf
+	style := ""
+	if fillHex != "" {
+		r, g, b := hexToRGB(fillHex)
+		pdf.SetFillColor(r, g, b)
+		style += "F"
+	}
+	if strokeHex != "" {
+		r, g, b := hexToRGB(strokeHex)
+		pdf.SetDrawColor(r, g, b)
+		style += "D"
+	}
+	if style == "" {
+		style = "D"
+		pdf.SetDrawColor(120, 120, 120)
+	}
+	pdf.Rect(x, y, w, h, style)
+
+	if label != "" {
+		if fontSize <= 0 {
+			fontSize = 7
+		}
+		pdf.SetFont(fontFamily, "", fontSize)
+		pdf.SetTextColor(0, 0, 0)
+		pdf.SetXY(x, y+h/2-fontSize/2/2.83)
+		pdf.CellFormat(w, fontSize/2.83, label, "", 0, "C", false, 0, "")
+		pdf.SetFont(fontFamily, "", 9)
+	}
+}
+
+// Image places a raster image (PNG or JPEG bytes, content detected
+// automatically by fpdf from the data itself) at absolute page
+// coordinates (mm), sized wMM x hMM — the generic counterpart to
+// Barcode/QRCode's own fixed-content image placement, needed for
+// Phase 34I's optional calibrated background image.
+func (d *Document) Image(imgName string, data []byte, imageType string, x, y, wMM, hMM float64) {
+	reader := bytes.NewReader(data)
+	d.pdf.RegisterImageOptionsReader(imgName, fpdf.ImageOptions{ImageType: imageType}, reader)
+	d.pdf.ImageOptions(imgName, x, y, wMM, hMM, false, fpdf.ImageOptions{ImageType: imageType}, 0, "")
 }
 
 // CursorY returns the document's current Y position (mm from the top of
