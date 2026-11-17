@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -21,6 +22,13 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
+// writeTenantUnauthorized is shared by every handler method's
+// EnforcedTenantID guard below — matches internal/stockadjustment/
+// internal/picking's own identically-named helper.
+func writeTenantUnauthorized(c *gin.Context) {
+	apihttp.Fail(c, http.StatusUnauthorized, "tenant context required", "UNAUTHORIZED")
+}
+
 // Register mounts the Replenishment endpoints on rg, using Phase 24's
 // new "replenishment" catalog module (view/create/update/approve —
 // added to internal/rbac/catalog.go, seeded to PUTAWAY alongside its
@@ -30,8 +38,18 @@ func NewHandler(service *Service) *Handler {
 // replenishment.approve, the same authority-level split Picking's own
 // Phase 13 Cancel established for "ends the task without completing
 // it" actions.
-func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
-	group := rg.Group("/replenishment", middleware.RequireJWT(jwtSecret))
+// Batch 1c (tenant isolation) upgrades the chain from RequireJWT-only
+// to RequireJWT -> RequireTenantContext -> RequirePermission, matching
+// internal/stockadjustment/internal/stockcount's own chain exactly —
+// every handler method below now extracts tenantID via
+// middleware.EnforcedTenantID and threads it through to Service,
+// including Recommend (a normal authenticated endpoint, not a
+// background job — see Service.Recommend's own doc).
+func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChecker middleware.MembershipChecker, membershipCacheTTL time.Duration) {
+	group := rg.Group("/replenishment",
+		middleware.RequireJWT(jwtSecret),
+		middleware.RequireTenantContext(membershipChecker, membershipCacheTTL),
+	)
 	group.GET("", middleware.RequirePermission("replenishment.view"), h.List)
 	group.GET("/recommendations", middleware.RequirePermission("replenishment.view"), h.Recommend)
 	group.GET("/:id", middleware.RequirePermission("replenishment.view"), h.Get)
@@ -60,12 +78,18 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
 //	@Failure		403			{object}	apihttp.ErrorResponse
 //	@Router			/replenishment [get]
 func (h *Handler) List(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	page, _ := strconv.Atoi(c.Query("page"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	warehouseID, _ := strconv.ParseInt(c.Query("warehouse_id"), 10, 64)
 	productID, _ := strconv.ParseInt(c.Query("product_id"), 10, 64)
 
-	rows, total, err := h.service.List(c.Request.Context(), ListParams{
+	rows, total, err := h.service.List(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), Status: Status(c.Query("status")),
 		WarehouseID: warehouseID, ProductID: productID, Page: page, Limit: limit,
 	})
@@ -105,13 +129,19 @@ func (h *Handler) List(c *gin.Context) {
 //	@Failure		404				{object}	apihttp.ErrorResponse
 //	@Router			/replenishment/recommendations [get]
 func (h *Handler) Recommend(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	warehouseID, err := strconv.ParseInt(c.Query("warehouse_id"), 10, 64)
 	if err != nil || warehouseID == 0 {
 		apihttp.Fail(c, http.StatusBadRequest, "warehouse_id is required", "INVALID_REQUEST")
 		return
 	}
 
-	recs, err := h.service.Recommend(c.Request.Context(), warehouseID)
+	recs, err := h.service.Recommend(c.Request.Context(), tenantID, warehouseID)
 	if errors.Is(err, ErrWarehouseNotFound) {
 		apihttp.Fail(c, http.StatusNotFound, "warehouse not found", "WAREHOUSE_NOT_FOUND")
 		return
@@ -136,12 +166,18 @@ func (h *Handler) Recommend(c *gin.Context) {
 //	@Failure		404	{object}	apihttp.ErrorResponse
 //	@Router			/replenishment/{id} [get]
 func (h *Handler) Get(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid replenishment task id", "INVALID_REQUEST")
 		return
 	}
-	resp, err := h.service.Get(c.Request.Context(), id)
+	resp, err := h.service.Get(c.Request.Context(), tenantID, id)
 	if errors.Is(err, ErrNotFound) {
 		apihttp.Fail(c, http.StatusNotFound, "replenishment task not found", "NOT_FOUND")
 		return
@@ -170,6 +206,12 @@ func (h *Handler) Get(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/replenishment [post]
 func (h *Handler) Create(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	var req CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid request body", "INVALID_REQUEST")
@@ -178,7 +220,7 @@ func (h *Handler) Create(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Create(ctx, req, userID)
+	resp, err := h.service.Create(ctx, tenantID, req, userID)
 	if err == nil {
 		apihttp.Status(c, http.StatusCreated, resp, "replenishment task created")
 		return
@@ -201,12 +243,18 @@ func (h *Handler) Create(c *gin.Context) {
 //	@Failure		409	{object}	apihttp.ErrorResponse
 //	@Router			/replenishment/{id}/start [post]
 func (h *Handler) Start(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid replenishment task id", "INVALID_REQUEST")
 		return
 	}
-	resp, err := h.service.Start(c.Request.Context(), id)
+	resp, err := h.service.Start(c.Request.Context(), tenantID, id)
 	if err == nil {
 		apihttp.OK(c, resp, "replenishment task started")
 		return
@@ -233,6 +281,12 @@ func (h *Handler) Start(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/replenishment/{id}/confirm [post]
 func (h *Handler) Confirm(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid replenishment task id", "INVALID_REQUEST")
@@ -246,7 +300,7 @@ func (h *Handler) Confirm(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Confirm(ctx, id, req, userID)
+	resp, err := h.service.Confirm(ctx, tenantID, id, req, userID)
 	if err == nil {
 		apihttp.OK(c, resp, "replenishment task confirmed")
 		return
@@ -271,6 +325,12 @@ func (h *Handler) Confirm(c *gin.Context) {
 //	@Failure		409		{object}	apihttp.ErrorResponse	"task is not in a cancellable status"
 //	@Router			/replenishment/{id}/cancel [post]
 func (h *Handler) Cancel(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid replenishment task id", "INVALID_REQUEST")
@@ -286,7 +346,7 @@ func (h *Handler) Cancel(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Cancel(ctx, id, req, userID)
+	resp, err := h.service.Cancel(ctx, tenantID, id, req, userID)
 	if err == nil {
 		apihttp.OK(c, resp, "replenishment task cancelled")
 		return
@@ -312,6 +372,12 @@ func (h *Handler) Cancel(c *gin.Context) {
 //	@Failure		409		{object}	apihttp.ErrorResponse
 //	@Router			/replenishment/{id}/issue [post]
 func (h *Handler) ReportIssue(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid replenishment task id", "INVALID_REQUEST")
@@ -322,7 +388,7 @@ func (h *Handler) ReportIssue(c *gin.Context) {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid request body", "INVALID_REQUEST")
 		return
 	}
-	resp, err := h.service.ReportIssue(c.Request.Context(), id, req)
+	resp, err := h.service.ReportIssue(c.Request.Context(), tenantID, id, req)
 	if err == nil {
 		apihttp.OK(c, resp, "replenishment issue reported")
 		return
