@@ -493,7 +493,7 @@ func main() {
 	report.NewHandler(reportService).Register(v1, cfg.JWTSecret)
 
 	dashboardService := dashboard.NewService(receivingService, pickingService, inventoryService)
-	dashboard.NewHandler(dashboardService).Register(v1, cfg.JWTSecret)
+	dashboard.NewHandler(dashboardService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Batch 1c (tenant isolation): productRepo/warehouseRepo already
 	// implement FindByIDForTenant (used by stockadjustment/stockcount

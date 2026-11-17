@@ -25,12 +25,9 @@ const recentInboundLimit = 5
 
 // receivingSummarizer is the slice of receiving.Service the dashboard
 // needs: an open-task count for the "Pending Receiving" card and a
-// small recent-activity page for the panel below it. Phase 31A added a
-// required tenantID parameter to both methods (Receiving is now itself
-// tenant-scoped); dashboard still has no verified per-request tenant
-// context of its own (not yet a scheduled Phase 30/31 batch), so it
-// passes inventory.UnverifiedCallerTenantID below, same as its own
-// pickingSummarizer/inventorySummarizer calls already do.
+// small recent-activity page for the panel below it. Both methods take
+// the caller's own re-verified tenantID (middleware.EnforcedTenantID),
+// threaded through from Handler.Summary — see Service.Summary's own doc.
 type receivingSummarizer interface {
 	CountOpen(ctx context.Context, tenantID int64) (int64, error)
 	List(ctx context.Context, tenantID int64, params receiving.ListParams) ([]receiving.ListResponse, int64, error)
@@ -38,11 +35,6 @@ type receivingSummarizer interface {
 
 // pickingSummarizer is the slice of picking.Service the dashboard
 // needs: just the open-task count for the "Pending Picking" card.
-// Phase 30 Batch 2 added a required tenantID parameter to CountOpen;
-// dashboard still has no verified per-request tenant context of its own
-// (not yet a scheduled Phase 30 batch), so it passes
-// inventory.UnverifiedCallerTenantID below, same as its own inventory
-// Summary() call already did.
 type pickingSummarizer interface {
 	CountOpen(ctx context.Context, tenantID int64) (int64, error)
 }
@@ -69,30 +61,29 @@ func NewService(receivingSvc receivingSummarizer, pickingSvc pickingSummarizer, 
 	return &Service{receiving: receivingSvc, picking: pickingSvc, inventory: inventorySvc}
 }
 
-// Summary answers GET /dashboard/summary.
-func (s *Service) Summary(ctx context.Context) (SummaryResponse, error) {
-	pendingReceiving, err := s.receiving.CountOpen(ctx, inventory.UnverifiedCallerTenantID)
+// Summary answers GET /dashboard/summary. tenantID must be the caller's
+// own re-verified active tenant (middleware.EnforcedTenantID, set by
+// RequireTenantContext) — never UnverifiedCallerTenantID, never a path/
+// query/body parameter. This closes the one remaining Dashboard gap
+// phase30d's own doc flagged: every number below is now scoped to the
+// same tenant the caller was just re-verified to belong to.
+func (s *Service) Summary(ctx context.Context, tenantID int64) (SummaryResponse, error) {
+	pendingReceiving, err := s.receiving.CountOpen(ctx, tenantID)
 	if err != nil {
 		return SummaryResponse{}, err
 	}
 
-	// TenantID: inventory.UnverifiedCallerTenantID — dashboard has no
-	// verified per-request tenant context of its own yet (not yet a
-	// scheduled Phase 30 batch; see that constant's own doc).
-	pendingPicking, err := s.picking.CountOpen(ctx, inventory.UnverifiedCallerTenantID)
+	pendingPicking, err := s.picking.CountOpen(ctx, tenantID)
 	if err != nil {
 		return SummaryResponse{}, err
 	}
 
-	// TenantID: inventory.UnverifiedCallerTenantID — dashboard has no
-	// verified per-request tenant context of its own yet (not yet a
-	// scheduled Phase 30 batch; see that constant's own doc).
-	invSummary, err := s.inventory.Summary(ctx, inventory.UnverifiedCallerTenantID)
+	invSummary, err := s.inventory.Summary(ctx, tenantID)
 	if err != nil {
 		return SummaryResponse{}, err
 	}
 
-	recent, _, err := s.receiving.List(ctx, inventory.UnverifiedCallerTenantID, receiving.ListParams{Page: 1, Limit: recentInboundLimit})
+	recent, _, err := s.receiving.List(ctx, tenantID, receiving.ListParams{Page: 1, Limit: recentInboundLimit})
 	if err != nil {
 		return SummaryResponse{}, err
 	}

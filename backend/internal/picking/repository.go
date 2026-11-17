@@ -284,11 +284,10 @@ type itemRow struct {
 // Status.CanConfirm() would accept (PENDING/IN_PROGRESS) — Phase 23's
 // Dashboard "Pending Picking" card. A single indexed COUNT(*)
 // (IX_picking_tasks_status), not a List() call, since the dashboard
-// only ever needs the number, never the rows. Phase 30 Batch 2: scoped
-// to tenantID; Dashboard itself is not yet tenant-scoped, so it still
-// passes inventory.UnverifiedCallerTenantID here (see dashboard's own
-// service.go comment) — the gap is now explicit at every layer rather
-// than silently absent from this query.
+// only ever needs the number, never the rows. Phase 30 Batch 2 scoped
+// this to tenantID; Dashboard now threads its own caller's re-verified
+// tenantID through (see dashboard/service.go's Summary doc) rather than
+// the old inventory.UnverifiedCallerTenantID placeholder.
 func (r *Repository) CountOpen(ctx context.Context, tenantID int64) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Model(&Task{}).
