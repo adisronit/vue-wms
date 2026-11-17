@@ -3165,5 +3165,45 @@
       "recountRate": "复盘率",
       "pendingApproval": "待审批"
     }
+  },
+  "reportsPicking": {
+    "title": "拣货与出库报表",
+    "batchAllocationNote": "每行代表一个订单在批量合并拣货中的自有份额。shared_task_picked_qty 仅作参考 —— 共享实物拣货行的总拣货量 —— 并非该行自身的独占数量;对同一拣货行的所有行的 allocated qty 求和即可还原总量而不会重复计算。",
+    "tabs": {
+      "detail": "拣货明细",
+      "batchAllocation": "批量/波次分配"
+    },
+    "filters": {
+      "searchPlaceholder": "拣货单号、订单号、SKU 或产品名称",
+      "batchSearchPlaceholder": "批次号或订单号"
+    },
+    "presets": {
+      "shortOnly": "仅显示缺拣"
+    },
+    "table": {
+      "pickNo": "拣货单号",
+      "orderNo": "订单号",
+      "pickingMode": "拣货模式",
+      "customer": "客户",
+      "requestedQty": "需求数量",
+      "pickedQty": "已拣数量",
+      "shortQty": "缺拣数量",
+      "dispatchedQty": "已发货数量",
+      "status": "状态",
+      "picker": "拣货员",
+      "batchNo": "批次号",
+      "allocatedQty": "分配数量",
+      "sortedQty": "已分拣数量",
+      "shortageQty": "缺口数量",
+      "sharedPickedQty": "共享行已拣数量"
+    },
+    "kpi": {
+      "totalTasks": "任务总数",
+      "completedTasks": "已完成任务数",
+      "totalRequested": "需求总数量",
+      "totalPicked": "已拣总数量",
+      "totalShort": "缺拣总数量",
+      "shortPickRate": "缺拣率"
+    }
   }
 }

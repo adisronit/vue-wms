@@ -3165,5 +3165,45 @@
       "recountRate": "อัตราการนับซ้ำ",
       "pendingApproval": "รออนุมัติ"
     }
+  },
+  "reportsPicking": {
+    "title": "รายงานการหยิบและเบิกสินค้า",
+    "batchAllocationNote": "แต่ละแถวคือส่วนแบ่งของออเดอร์หนึ่งจากการหยิบแบบรวมชุด (batch) shared_task_picked_qty เป็นข้อมูลอ้างอิงเท่านั้น — ยอดรวมของรายการที่หยิบจริงที่ใช้ร่วมกัน ไม่ใช่จำนวนเฉพาะของแถวนี้ — การรวม allocated qty ของทุกแถวในงานเดียวกันจะได้ยอดรวมที่ถูกต้องโดยไม่นับซ้ำ",
+    "tabs": {
+      "detail": "รายละเอียดการหยิบ",
+      "batchAllocation": "การแบ่งส่วน Batch / Wave"
+    },
+    "filters": {
+      "searchPlaceholder": "เลขที่หยิบ, เลขที่ออเดอร์, SKU หรือชื่อสินค้า",
+      "batchSearchPlaceholder": "เลขที่ Batch หรือเลขที่ออเดอร์"
+    },
+    "presets": {
+      "shortOnly": "เฉพาะที่หยิบขาด"
+    },
+    "table": {
+      "pickNo": "เลขที่ใบหยิบ",
+      "orderNo": "เลขที่ออเดอร์",
+      "pickingMode": "รูปแบบการหยิบ",
+      "customer": "ลูกค้า",
+      "requestedQty": "จำนวนที่ต้องการ",
+      "pickedQty": "จำนวนที่หยิบได้",
+      "shortQty": "จำนวนที่ขาด",
+      "dispatchedQty": "จำนวนที่จัดส่ง",
+      "status": "สถานะ",
+      "picker": "ผู้หยิบสินค้า",
+      "batchNo": "เลขที่ Batch",
+      "allocatedQty": "จำนวนที่จัดสรร",
+      "sortedQty": "จำนวนที่คัดแยกแล้ว",
+      "shortageQty": "จำนวนที่ขาด",
+      "sharedPickedQty": "จำนวนที่หยิบได้ของรายการร่วม"
+    },
+    "kpi": {
+      "totalTasks": "จำนวนงานทั้งหมด",
+      "completedTasks": "งานที่เสร็จสมบูรณ์",
+      "totalRequested": "จำนวนที่ต้องการทั้งหมด",
+      "totalPicked": "จำนวนที่หยิบได้ทั้งหมด",
+      "totalShort": "จำนวนที่ขาดทั้งหมด",
+      "shortPickRate": "อัตราการหยิบขาด"
+    }
   }
 }

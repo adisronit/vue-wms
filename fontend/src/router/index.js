@@ -46,6 +46,7 @@ import TenantDetailView from '../views/platform/TenantDetailView.vue'
 import ReportComingSoonView from '../views/reports/ReportComingSoonView.vue'
 import ReceivingReportView from '../views/reports/ReceivingReportView.vue'
 import StockCountReportView from '../views/reports/StockCountReportView.vue'
+import PickingReportView from '../views/reports/PickingReportView.vue'
 
 const routes = [
   {
@@ -291,8 +292,7 @@ const routes = [
       {
         path: 'reports/picking-issue',
         name: 'ReportsPickingIssue',
-        component: ReportComingSoonView,
-        props: { reportKey: 'pickingIssue' }
+        component: PickingReportView
       },
       {
         path: 'reports/inventory',

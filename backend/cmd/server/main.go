@@ -42,6 +42,7 @@ import (
 	"wms-backend/internal/packing"
 	"wms-backend/internal/picking"
 	"wms-backend/internal/pickingbatch"
+	"wms-backend/internal/pickingreport"
 	"wms-backend/internal/platform/database"
 	"wms-backend/internal/platform/dbctx"
 	apihttp "wms-backend/internal/platform/http"
@@ -355,6 +356,15 @@ func main() {
 	pickingPDFService := picking.NewPDFService(pickingService, tenantRepo, userRepo)
 	pickingPDFService.SetDocRender(docrenderService)
 	picking.NewHandler(pickingService, pickingPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 34D: pickingreport mirrors receivingreport/stockcountreport's
+	// own shape — raw SQL against picking_tasks/picking_task_items/
+	// picking_batches/picking_batch_allocations/shipment_items, no Go
+	// dependency on internal/picking/internal/pickingbatch/internal/
+	// shipping.
+	pickingReportRepo := pickingreport.NewRepository(dbManager.DB())
+	pickingReportService := pickingreport.NewService(pickingReportRepo, tenantRepo, userRepo)
+	pickingreport.NewHandler(pickingReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Phase 33C — Packing: a pure physical-handling/traceability layer
 	// over already-picked stock, sitting between Picking and Shipping.

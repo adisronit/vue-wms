@@ -3165,5 +3165,45 @@
       "recountRate": "Recount Rate",
       "pendingApproval": "Pending Approval"
     }
+  },
+  "reportsPicking": {
+    "title": "Picking & Stock Issue Report",
+    "batchAllocationNote": "Each row is one order's own share of a batch-consolidated pick. shared_task_picked_qty is cross-reference context — the shared physical line's total pick — not this row's own exclusive quantity; summing allocated qty across rows of the same task reconstructs the total without double-counting.",
+    "tabs": {
+      "detail": "Picking Detail",
+      "batchAllocation": "Batch / Wave Allocation"
+    },
+    "filters": {
+      "searchPlaceholder": "Pick no., order no., SKU, or product name",
+      "batchSearchPlaceholder": "Batch no. or order no."
+    },
+    "presets": {
+      "shortOnly": "Short Pick Only"
+    },
+    "table": {
+      "pickNo": "Pick No.",
+      "orderNo": "Order No.",
+      "pickingMode": "Picking Mode",
+      "customer": "Customer",
+      "requestedQty": "Requested",
+      "pickedQty": "Picked",
+      "shortQty": "Short",
+      "dispatchedQty": "Dispatched",
+      "status": "Status",
+      "picker": "Picker",
+      "batchNo": "Batch No.",
+      "allocatedQty": "Allocated",
+      "sortedQty": "Sorted",
+      "shortageQty": "Shortage",
+      "sharedPickedQty": "Shared Line Picked"
+    },
+    "kpi": {
+      "totalTasks": "Total Tasks",
+      "completedTasks": "Completed Tasks",
+      "totalRequested": "Total Requested Qty",
+      "totalPicked": "Total Picked Qty",
+      "totalShort": "Total Short Qty",
+      "shortPickRate": "Short Pick Rate"
+    }
   }
 }
