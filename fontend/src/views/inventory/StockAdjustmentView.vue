@@ -379,6 +379,8 @@ import { listProducts } from '../../services/products'
 import { listInventory } from '../../services/inventory'
 import { hasPermission } from '../../services/auth'
 import { showToast } from '../../services/toast'
+import { tabKeyFor } from '../../services/tabs'
+import { registerDirtyCheck, unregisterDirtyCheck } from '../../services/dirtyRegistry'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import FilterBar from '../../components/ui/FilterBar.vue'
 import DataTable from '../../components/ui/DataTable.vue'
@@ -440,11 +442,24 @@ export default {
       submitting: false,
 
       filters: { keyword: '', type: '', status: '', date: '' },
-      form: emptyForm()
+      form: emptyForm(),
+      // Snapshot taken the moment the drawer opens (see openNewAdjustment/
+      // openDetail) — isDirty below compares the live form against it, so
+      // "dirty" means "the user changed something since opening", not
+      // "the new-adjustment form has any value at all".
+      formSnapshot: null
     }
   },
 
   computed: {
+    // REQ-08: feeds the tab bar's close-confirmation via the dirty
+    // registry (registered in mounted() below). Only meaningful while
+    // the drawer is open — closing the tab with the drawer shut never
+    // prompts, even mid-filter.
+    isDirty() {
+      if (!this.showDrawer) return false
+      return JSON.stringify(this.form) !== this.formSnapshot
+    },
     calculatedNewQty() {
       const qty = Number(this.form.adjustQty || 0)
       const current = Number(this.form.currentQty || 0)
@@ -501,6 +516,13 @@ export default {
     if (adjustmentId) {
       this.openDetail({ id: adjustmentId })
     }
+
+    this.tabKey = tabKeyFor(this.$route)
+    registerDirtyCheck(this.tabKey, () => this.isDirty)
+  },
+
+  unmounted() {
+    unregisterDirtyCheck(this.tabKey)
   },
 
   methods: {
@@ -591,6 +613,7 @@ export default {
       this.form = emptyForm()
       this.drawerLocations = []
       this.showDrawer = true
+      this.formSnapshot = JSON.stringify(this.form)
       await this.fetchWarehouses()
     },
 
@@ -612,6 +635,7 @@ export default {
           ageHours: res.data.age_hours, isOverdue: res.data.is_overdue,
           pendingWarningHours: res.data.pending_warning_hours
         }
+        this.formSnapshot = JSON.stringify(this.form)
       } catch (err) {
         this.drawerError = err.message
       }
@@ -619,6 +643,7 @@ export default {
 
     closeDrawer() {
       this.showDrawer = false
+      this.formSnapshot = null
     },
 
     async resolveProductAndQty() {

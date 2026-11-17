@@ -84,3 +84,14 @@ export function isPlatformAdmin() {
 export function resetPlatformAdminStatus() {
   platformAdminStatus = null
 }
+
+// isPlatformAdminStatusKnown distinguishes "checked, and the answer is
+// false" from "hasn't been checked yet this session" (both read as
+// `false` from isPlatformAdmin() above). Tab restoration (services/tabs.js)
+// needs this distinction: a Platform-Admin-gated tab found in storage at
+// the synchronous, module-load-time restore point can't yet be evaluated
+// — it must be deferred for later re-evaluation, not dropped as if it
+// had already failed the check.
+export function isPlatformAdminStatusKnown() {
+  return platformAdminStatus !== null
+}

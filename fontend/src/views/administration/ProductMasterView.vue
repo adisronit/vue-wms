@@ -464,6 +464,8 @@ import { listBrands, getBrand } from '../../services/brands'
 import { listProductFamilies, getProductFamily } from '../../services/productFamilies'
 import { listSuppliers, getSupplier } from '../../services/suppliers'
 import { listWarehouses, listZones, getWarehouse } from '../../services/warehouses'
+import { tabKeyFor } from '../../services/tabs'
+import { registerDirtyCheck, unregisterDirtyCheck } from '../../services/dirtyRegistry'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import FilterBar from '../../components/ui/FilterBar.vue'
 import DataTable from '../../components/ui/DataTable.vue'
@@ -655,10 +657,18 @@ export default {
   mounted() {
     this.fetchProducts()
     this.fetchLookupCaches()
+    // this.$route is only absent outside a router context (e.g. an
+    // isolated unit test) — dirty-tab tracking is a no-op there.
+    this.tabKey = this.$route ? tabKeyFor(this.$route) : null
+    if (this.tabKey) registerDirtyCheck(this.tabKey, () => this.selectedProduct !== null && this.isDirty())
   },
 
   beforeUnmount() {
     window.removeEventListener('beforeunload', this.handleBeforeUnload)
+  },
+
+  unmounted() {
+    if (this.tabKey) unregisterDirtyCheck(this.tabKey)
   },
 
   methods: {

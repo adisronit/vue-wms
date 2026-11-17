@@ -90,9 +90,15 @@
         </div>
       </header>
 
+      <TabBar @navigate="goTo" />
+
       <!-- Page Content -->
-      <main class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-6">
-        <router-view />
+      <main ref="mainScroll" class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-6">
+        <router-view v-slot="{ Component, route }">
+          <keep-alive :include="openTabKeys">
+            <component :is="tabComponent(Component, route)" :key="tabKey(route)" />
+          </keep-alive>
+        </router-view>
       </main>
     </div>
 
@@ -103,14 +109,18 @@
 <script>
 import { currentUser, hasPermission, logout as clearSession, checkPlatformAdminStatus, isPlatformAdmin } from '../services/auth'
 import { listNotifications, markNotificationRead } from '../services/notifications'
+import { state as tabsState, tabKeyFor, clearAllTabs, reconcileDeferredTabs } from '../services/tabs'
+import { getTabComponent, pruneTabComponentCache } from '../services/tabComponentCache'
+import { clearAllDirtyChecks } from '../services/dirtyRegistry'
 import LanguageSwitcher from '../components/LanguageSwitcher.vue'
 import Sidebar from '../components/layout/Sidebar.vue'
+import TabBar from '../components/layout/TabBar.vue'
 import ToastHost from '../components/ui/ToastHost.vue'
 
 let notificationPoll = null
 
 export default {
-  components: { LanguageSwitcher, Sidebar, ToastHost },
+  components: { LanguageSwitcher, Sidebar, TabBar, ToastHost },
   data() {
     return {
       user: currentUser(),
@@ -123,11 +133,19 @@ export default {
       // very first render, before that check has resolved, must show
       // the nav item hidden (fail closed), not stale-true from a
       // previous session.
-      platformAdmin: false
+      platformAdmin: false,
+      // REQ-04 scroll position: keyed by tab key, not by the main
+      // content's own DOM node, because <main> is the shared, never-
+      // destroyed scroll container every tab's content renders into —
+      // its scrollTop alone can't tell two tabs' positions apart.
+      scrollPositions: {}
     }
   },
 
   computed: {
+    activeTabKey() {
+      return tabsState.activeKey
+    },
     userInitial() {
       return this.user?.full_name?.charAt(0)?.toUpperCase() || 'U'
     },
@@ -178,6 +196,34 @@ export default {
     },
     canViewPlatformAdmin() {
       return this.platformAdmin
+    },
+
+    // Drives both <keep-alive :include> and tabComponentCache's pruning
+    // directly off the open-tab list — see services/tabComponentCache.js
+    // for why identity is keyed per *tab*, not per route component.
+    openTabKeys() {
+      return tabsState.tabs.map((t) => t.key)
+    }
+  },
+
+  watch: {
+    // Fires on every tab switch (and on open/close, since those also
+    // change activeKey). oldKey is undefined on the very first
+    // navigation, when there's nothing to save yet.
+    activeTabKey(newKey, oldKey) {
+      const el = this.$refs.mainScroll
+      if (!el) return
+      if (oldKey) this.scrollPositions[oldKey] = el.scrollTop
+      this.$nextTick(() => {
+        if (this.$refs.mainScroll) this.$refs.mainScroll.scrollTop = this.scrollPositions[newKey] || 0
+      })
+    },
+
+    // A tab closing must release its cached component variant too (Task
+    // 2) — otherwise reopening the same route+params later could, in
+    // principle, find a stale cache entry instead of mounting fresh.
+    openTabKeys(newKeys) {
+      pruneTabComponentCache(newKeys)
     }
   },
 
@@ -188,6 +234,18 @@ export default {
     // usually a cheap, already-cached re-read, not a second real check.
     checkPlatformAdminStatus().then(() => {
       this.platformAdmin = isPlatformAdmin()
+      // REQ-05 fix: any persisted tab gated on Platform Admin status was
+      // held back by services/tabs.js's restore() at router-module-load
+      // time, because that status wasn't resolved yet. Re-evaluate it now
+      // that it is — still fails closed (isRouteAllowed is re-checked
+      // inside reconcileDeferredTabs), never force-restores anything.
+      reconcileDeferredTabs((name, params) => {
+        try {
+          return this.$router.resolve({ name, params })
+        } catch {
+          return null
+        }
+      })
     })
     this.fetchUnreadCount()
     // Light periodic refresh so the badge doesn't need a page reload to
@@ -201,8 +259,42 @@ export default {
   },
 
   methods: {
+    tabKey(route) {
+      return tabKeyFor(route)
+    },
+
+    // See services/tabComponentCache.js — gives each open tab its own
+    // KeepAlive identity so closing one tab evicts exactly its own cached
+    // instance, never a sibling tab's, even when both use the same
+    // underlying route component (Task 2).
+    tabComponent(Component, route) {
+      return getTabComponent(Component, this.tabKey(route))
+    },
+
+    // Centralizes TabBar's @navigate so clicking a tab or closing the
+    // active one both end up as a normal router push — keeps the single
+    // source of truth for "which tab is active" in the router guards
+    // (REQ-02/03/09), rather than TabBar mutating activeKey directly.
+    goTo(fullPath) {
+      this.$router.push(fullPath)
+    },
+
     logout() {
       clearSession()
+      // REQ-03 logout requirement: clear open tabs, persisted tab
+      // metadata, and any dirty-check registrations left behind — so
+      // nothing from this session is still visible or cached for
+      // whoever uses this browser next (a different user logging into
+      // the same tab, without a full page reload in between).
+      //
+      // pruneTabComponentCache is called directly here rather than left
+      // to the openTabKeys watcher alone: that watcher *does* fire once
+      // Vue's reactivity flush runs, but logout is a security boundary —
+      // this makes the cache clear deterministic and immediate rather
+      // than depending on watcher scheduling.
+      clearAllTabs()
+      pruneTabComponentCache([])
+      clearAllDirtyChecks()
       this.$router.push('/login')
     },
 

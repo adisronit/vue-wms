@@ -1,6 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { isAuthenticated, checkPlatformAdminStatus } from '../services/auth'
 import { setUnauthorizedHandler } from '../services/api'
+import { canOpen, openTab, clearAllTabs, restore as restoreTabs } from '../services/tabs'
+import { pruneTabComponentCache } from '../services/tabComponentCache'
+import { clearAllDirtyChecks } from '../services/dirtyRegistry'
+import { showToast } from '../services/toast'
+import i18n from '../i18n'
 import LoginView from '../views/auth/LoginView.vue'
 import MainLayout from '../layouts/MainLayout.vue'
 import DashboardView from '../views/dashboard/DashboardView.vue'
@@ -61,215 +66,254 @@ const routes = [
         path: 'dashboard',
         name: 'Dashboard',
         component: DashboardView,
+        meta: { titleKey: 'nav.dashboard' },
       },
       {
         path: 'inbound/receiving',
         name: 'Receiving',
         component: ReceiveView,
+        meta: { titleKey: 'nav.receiving' },
       },
       {
         path: 'inbound/quality-check',
         name: 'QualityCheck',
         component: QualityCheckView,
+        meta: { titleKey: 'nav.qualityCheck' },
       },
       {
         path: 'inbound/put-away',
         name: 'PutAway',
         component: PutawayView,
+        meta: { titleKey: 'nav.putaway' },
       },
       {
         path: 'inbound/transfer-receiving',
         name: 'TransferReceiving',
         component: TransferReceivingView,
+        meta: { titleKey: 'nav.transferReceiving' },
       },
       {
         path: 'inventory/stock-inquiry',
         name: 'StockInquiry',
         component: StockInquiryView,
+        meta: { titleKey: 'nav.stockInquiry' },
       },
       {
         path: 'inventory/stock-adjustment',
         name: 'StockAdjustment',
         component: StockAdjustmentView,
+        meta: { titleKey: 'nav.stockAdjustment' },
       },
       {
         path: 'outbound/orders',
         name: 'Orders',
         component: OrderView,
+        meta: { titleKey: 'nav.orders' },
       },
       {
         path: 'outbound/orders/new',
         name: 'NewOrder',
         component: OrderFormView,
+        meta: { titleKey: 'nav.newOrder' },
       },
       {
         path: 'outbound/orders/:id/edit',
         name: 'EditOrder',
         component: OrderFormView,
         props: true,
+        meta: { titleKey: 'nav.editOrder' },
       },
       {
         path: 'outbound/orders/:id/review',
         name: 'OrderReview',
         component: OrderReviewView,
         props: true,
+        meta: { titleKey: 'nav.orderReview' },
       },
       {
         path: 'outbound/orders/:id',
         name: 'OrderDetail',
         component: OrderDetailView,
         props: true,
+        meta: { titleKey: 'nav.orderDetail' },
       },
       {
         path: 'outbound/picking',
         name: 'Picking',
         component: PickingView,
+        meta: { titleKey: 'nav.picking' },
       },
       {
         path: 'outbound/picking-batches',
         name: 'PickingBatches',
         component: PickingBatchView,
+        meta: { titleKey: 'nav.pickingBatches' },
       },
       {
         path: 'outbound/picking-batches/new',
         name: 'NewPickingBatch',
         component: NewPickingBatchView,
+        meta: { titleKey: 'nav.newPickingBatch' },
       },
       {
         path: 'outbound/picking-batches/:id',
         name: 'PickingBatchDetail',
         component: PickingBatchDetailView,
         props: true,
+        meta: { titleKey: 'nav.pickingBatchDetail' },
       },
       {
         path: 'outbound/picking-batches/:id/sortation',
         name: 'Sortation',
         component: SortationView,
         props: true,
+        meta: { titleKey: 'nav.sortation' },
       },
       {
         path: 'outbound/packing',
         name: 'Packing',
         component: PackingView,
+        meta: { titleKey: 'nav.packing' },
       },
       {
         path: 'outbound/packing/:id',
         name: 'PackingDetail',
         component: PackingDetailView,
         props: true,
+        meta: { titleKey: 'nav.packingDetail' },
       },
       {
         path: 'outbound/shipping',
         name: 'Shipping',
         component: ShippingView,
+        meta: { titleKey: 'nav.shipping' },
       },
       {
         path: 'outbound/loading',
         name: 'Loading',
         component: LoadingView,
+        meta: { titleKey: 'nav.loading' },
       },
       {
         path: 'outbound/loading/:id',
         name: 'LoadingTripDetail',
         component: LoadingTripDetailView,
         props: true,
+        meta: { titleKey: 'nav.loadingTripDetail' },
       },
       {
         path: 'administration/user-management',
         name: 'UserManagement',
         component: UserManagementView,
+        meta: { titleKey: 'nav.userManagement' },
       },
       {
         path: 'administration/roles',
         name: 'Roles',
         component: RolePermissionView,
+        meta: { titleKey: 'nav.roles' },
       },
       {
         path: 'administration/warehouse',
         name: 'Warehouse',
         component: WarehouseView,
+        meta: { titleKey: 'nav.warehouse' },
       },
       {
         path: 'administration/locations',
         name: 'Locations',
         component: LocationView,
+        meta: { titleKey: 'nav.locations' },
       },
       {
         path: 'inbound/receiving/new',
         name: 'NewReceiving',
-        component: NewReceivingView
+        component: NewReceivingView,
+        meta: { titleKey: 'nav.newReceiving' }
       },
       {
         path: 'inbound/quality-check/new',
         name: 'NewQualityCheck',
-        component: NewQualityCheckView
+        component: NewQualityCheckView,
+        meta: { titleKey: 'nav.newQualityCheck' }
       },
       {
         path: 'inbound/putaway/new',
         name: 'NewPutAway',
-        component: NewPutawayView
+        component: NewPutawayView,
+        meta: { titleKey: 'nav.newPutaway' }
       },
       {
         path: 'inventory/check-stock',
         name: 'CheckStock',
-        component: CheckStockView
+        component: CheckStockView,
+        meta: { titleKey: 'nav.checkStock' }
       },
       {
         path: 'administration/products',
         name: 'ProductMaster',
-        component: ProductMasterView
+        component: ProductMasterView,
+        meta: { titleKey: 'nav.productMaster' }
       },
       {
         path: 'administration/product-categories',
         name: 'ProductCategories',
-        component: ProductCategoryView
+        component: ProductCategoryView,
+        meta: { titleKey: 'nav.productCategories' }
       },
       {
         path: 'administration/customers',
         name: 'Customers',
-        component: CustomerView
+        component: CustomerView,
+        meta: { titleKey: 'nav.customers' }
       },
       {
         path: 'administration/suppliers',
         name: 'Suppliers',
-        component: SupplierView
+        component: SupplierView,
+        meta: { titleKey: 'nav.suppliers' }
       },
       {
         path: 'administration/brands',
         name: 'Brands',
-        component: BrandView
+        component: BrandView,
+        meta: { titleKey: 'nav.brands' }
       },
       {
         path: 'administration/product-families',
         name: 'ProductFamilies',
-        component: ProductFamilyView
+        component: ProductFamilyView,
+        meta: { titleKey: 'nav.productFamilies' }
       },
       {
         path: 'inventory/replenishment',
         name: 'Replenishment',
-        component: ReplenishmentView
+        component: ReplenishmentView,
+        meta: { titleKey: 'nav.replenishment' }
       },
       {
         path: 'inventory/relocation',
         name: 'Relocation',
-        component: RelocationView
+        component: RelocationView,
+        meta: { titleKey: 'nav.relocation' }
       },
       {
         path: 'inventory/relocation/new',
         name: 'NewRelocation',
-        component: NewRelocationView
+        component: NewRelocationView,
+        meta: { titleKey: 'nav.newRelocation' }
       },
       {
         path: 'platform/tenants',
         name: 'PlatformTenants',
         component: TenantManagementView,
-        meta: { requiresPlatformAdmin: true }
+        meta: { requiresPlatformAdmin: true, titleKey: 'nav.platformTenants' }
       },
       {
         path: 'platform/tenants/:id',
         name: 'PlatformTenantDetail',
         component: TenantDetailView,
-        meta: { requiresPlatformAdmin: true }
+        meta: { requiresPlatformAdmin: true, titleKey: 'nav.platformTenantDetail' }
       }
     ]
   }
@@ -278,6 +322,25 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: routes,
+})
+
+// REQ-05: restore persisted tabs *before* the router's first navigation
+// fires (which happens once main.js mounts the app against this router,
+// strictly after this module finishes evaluating) — the first
+// navigation's afterEach below calls openTab() unconditionally, which
+// persists whatever is in memory at that moment. Restoring any later
+// (e.g. from MainLayout's mounted()) would already have been clobbered
+// by that first single-tab write. Known limitation: a tab gated on
+// Platform Admin status won't restore on a hard refresh, because that
+// status is resolved async (see services/auth.js) and isn't known yet at
+// this synchronous, module-load-time point — it fails closed rather than
+// risk restoring an unauthorized tab.
+restoreTabs((name, params) => {
+  try {
+    return router.resolve({ name, params })
+  } catch {
+    return null
+  }
 })
 
 // Guard: unauthenticated users are redirected to /login for any other
@@ -311,12 +374,40 @@ router.beforeEach(async (to) => {
     }
   }
 
+  // REQ-07: the 10-tab cap is enforced here, *before* the navigation
+  // commits, so a blocked attempt leaves the URL and visible workspace
+  // exactly as they were — not after redirecting and then having to
+  // explain why. Reactivating an already-open tab is always allowed
+  // (canOpen), regardless of count. Login/unnamed routes are never tabs.
+  if (to.name && to.name !== 'Login' && !canOpen(to)) {
+    showToast(i18n.global.t('tabs.maxReached'), 'error')
+    return false
+  }
+
   return true
 })
 
+// Registers/activates the internal tab for every committed navigation
+// into a tabbable route (REQ-02/03/09) — sidebar clicks, direct URL
+// entry, browser back/forward, and programmatic pushes (e.g. the
+// notification bell's deep link) all funnel through here the same way,
+// so none of them need their own tab-opening logic.
+router.afterEach((to) => {
+  if (to.name && to.name !== 'Login') {
+    openTab(to)
+  }
+})
+
 // A 401 from any API call (expired/invalidated token) sends the user
-// back to /login the same way the guard above does.
+// back to /login the same way the guard above does. Also clears tabs,
+// their cached component instances, and dirty-check registrations, the
+// same as a normal logout (MainLayout.vue's logout()) — an invalidated
+// session must not leave previously loaded protected tabs/cache sitting
+// around for whoever uses this browser next.
 setUnauthorizedHandler(() => {
+  clearAllTabs()
+  pruneTabComponentCache([])
+  clearAllDirtyChecks()
   if (router.currentRoute.value.path !== '/login') {
     router.push('/login')
   }

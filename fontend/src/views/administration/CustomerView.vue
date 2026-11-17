@@ -485,6 +485,8 @@ import {
   updateCustomerDeliveryLocation
 } from '../../services/customerDeliveryLocations'
 import { showToast } from '../../services/toast'
+import { tabKeyFor } from '../../services/tabs'
+import { registerDirtyCheck, unregisterDirtyCheck } from '../../services/dirtyRegistry'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import FilterBar from '../../components/ui/FilterBar.vue'
 import DataTable from '../../components/ui/DataTable.vue'
@@ -571,10 +573,25 @@ export default {
 
   mounted() {
     this.fetchCustomers()
+    // REQ-08: feeds the in-app tab-close confirmation off the same
+    // isDirty()/formSnapshot this view already uses for the native
+    // beforeunload guard — reused, not duplicated. Gated on
+    // selectedCustomer because isDirty() alone only distinguishes "form
+    // changed since formSnapshot", and formSnapshot starts as '' before
+    // any drawer has ever been opened.
+    // this.$route is only absent when this component is mounted outside
+    // a router context (e.g. an isolated unit test) — dirty-tab tracking
+    // is simply a no-op there, not an error.
+    this.tabKey = this.$route ? tabKeyFor(this.$route) : null
+    if (this.tabKey) registerDirtyCheck(this.tabKey, () => this.selectedCustomer !== null && this.isDirty())
   },
 
   beforeUnmount() {
     window.removeEventListener('beforeunload', this.handleBeforeUnload)
+  },
+
+  unmounted() {
+    if (this.tabKey) unregisterDirtyCheck(this.tabKey)
   },
 
   methods: {

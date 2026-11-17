@@ -400,7 +400,8 @@ export default {
       exporting: false,
       transactionJobStatus: '',
       transactionJobError: '',
-      transactionJobPoll: null
+      transactionJobPoll: null,
+      transactionJobId: null
     }
   },
 
@@ -437,6 +438,24 @@ export default {
     if (this.transactionJobPoll) clearInterval(this.transactionJobPoll)
   },
 
+  // KeepAlive-aware pause/resume (REQ-04: "prevent stale event listeners
+  // and duplicate polling") — deactivated fires when the user switches to
+  // another tab, activated when they switch back. Only the interval is
+  // paused/resumed; transactionJobStatus/transactionJobId stay as they
+  // were so the UI picks up exactly where it left off.
+  deactivated() {
+    if (this.transactionJobPoll) {
+      clearInterval(this.transactionJobPoll)
+      this.transactionJobPoll = null
+    }
+  },
+
+  activated() {
+    if (this.transactionJobId && (this.transactionJobStatus === 'PENDING' || this.transactionJobStatus === 'PROCESSING')) {
+      this.pollTransactionJob(this.transactionJobId)
+    }
+  },
+
   methods: {
     statusLabel,
 
@@ -464,6 +483,7 @@ export default {
           warehouseId: this.filters.warehouseId
         })
         const jobId = res.data.job_id
+        this.transactionJobId = jobId
         this.transactionJobStatus = 'PENDING'
         this.pollTransactionJob(jobId)
       } catch (err) {

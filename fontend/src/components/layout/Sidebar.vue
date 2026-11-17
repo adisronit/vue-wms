@@ -11,106 +11,57 @@
       </div>
     </div>
 
+    <div class="px-3 py-3 border-b border-slate-700 shrink-0">
+      <div class="relative">
+        <svg
+          class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          aria-hidden="true"
+        >
+          <circle cx="8.5" cy="8.5" r="5.5" />
+          <line x1="12.8" y1="12.8" x2="17" y2="17" stroke-linecap="round" />
+        </svg>
+        <input
+          ref="searchInput"
+          v-model="searchQuery"
+          type="text"
+          role="searchbox"
+          class="search-input w-full bg-slate-800 text-white placeholder-slate-500 text-sm rounded-lg pl-8 pr-8 py-2 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          :placeholder="$t('nav.searchPlaceholder')"
+          :aria-label="$t('nav.searchPlaceholder')"
+          @keydown.esc="clearSearch"
+        />
+        <button
+          v-if="searchQuery"
+          type="button"
+          class="clear-btn absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+          :aria-label="$t('nav.searchClear')"
+          @mousedown.prevent="clearSearch"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+
     <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto sidebar-scroll" aria-label="Primary">
-      <router-link to="/dashboard" class="menu-item" active-class="menu-active">
-        {{ $t('nav.dashboard') }}
-      </router-link>
-
-      <p class="menu-title">{{ $t('nav.sectionInbound') }}</p>
-      <router-link to="/inbound/receiving" class="menu-item" active-class="menu-active">
-        {{ $t('nav.receiving') }}
-      </router-link>
-      <router-link to="/inbound/quality-check" class="menu-item" active-class="menu-active">
-        {{ $t('nav.qualityCheck') }}
-      </router-link>
-      <router-link to="/inbound/put-away" class="menu-item" active-class="menu-active">
-        {{ $t('nav.putaway') }}
-      </router-link>
-      <router-link v-if="canViewTransferReceipt" to="/inbound/transfer-receiving" class="menu-item" active-class="menu-active">
-        {{ $t('nav.transferReceiving') }}
-      </router-link>
-
-      <p class="menu-title">{{ $t('nav.sectionInventory') }}</p>
-      <router-link to="/inventory/stock-inquiry" class="menu-item" active-class="menu-active">
-        {{ $t('nav.stockInquiry') }}
-      </router-link>
-      <router-link to="/inventory/stock-adjustment" class="menu-item" active-class="menu-active">
-        {{ $t('nav.stockAdjustment') }}
-      </router-link>
-      <router-link to="/inventory/check-stock" class="menu-item" active-class="menu-active">
-        {{ $t('nav.checkStock') }}
-      </router-link>
-      <router-link v-if="canViewReplenishment" to="/inventory/replenishment" class="menu-item" active-class="menu-active">
-        {{ $t('nav.replenishment') }}
-      </router-link>
-      <router-link v-if="canViewRelocation" to="/inventory/relocation" class="menu-item" active-class="menu-active">
-        {{ $t('nav.relocation') }}
-      </router-link>
-
-      <p class="menu-title">{{ $t('nav.sectionOutbound') }}</p>
-      <router-link to="/outbound/orders" class="menu-item" active-class="menu-active">
-        {{ $t('nav.orders') }}
-      </router-link>
-      <router-link to="/outbound/picking" class="menu-item" active-class="menu-active">
-        {{ $t('nav.picking') }}
-      </router-link>
-      <router-link v-if="canViewPickingBatches" to="/outbound/picking-batches" class="menu-item" active-class="menu-active">
-        {{ $t('nav.pickingBatches') }}
-      </router-link>
-      <router-link v-if="canViewPacking" to="/outbound/packing" class="menu-item" active-class="menu-active">
-        {{ $t('nav.packing') }}
-      </router-link>
-      <router-link to="/outbound/shipping" class="menu-item" active-class="menu-active">
-        {{ $t('nav.shipping') }}
-      </router-link>
-      <router-link v-if="canViewLoading" to="/outbound/loading" class="menu-item" active-class="menu-active">
-        {{ $t('nav.loading') }}
-      </router-link>
-
-      <template v-if="canViewWarehouses || canViewProducts || canViewProductCategories || canViewCustomers || canViewSuppliers || canViewBrands || canViewProductFamilies">
-        <p class="menu-title">{{ $t('nav.sectionMasterData') }}</p>
-        <router-link v-if="canViewWarehouses" to="/administration/warehouse" class="menu-item" active-class="menu-active">
-          {{ $t('nav.warehouse') }}
-        </router-link>
-        <router-link v-if="canViewWarehouses" to="/administration/locations" class="menu-item" active-class="menu-active">
-          {{ $t('nav.locations') }}
-        </router-link>
-        <router-link v-if="canViewProducts" to="/administration/products" class="menu-item" active-class="menu-active">
-          {{ $t('nav.productMaster') }}
-        </router-link>
-        <router-link v-if="canViewProductCategories" to="/administration/product-categories" class="menu-item" active-class="menu-active">
-          {{ $t('nav.productCategories') }}
-        </router-link>
-        <router-link v-if="canViewBrands" to="/administration/brands" class="menu-item" active-class="menu-active">
-          {{ $t('nav.brands') }}
-        </router-link>
-        <router-link v-if="canViewProductFamilies" to="/administration/product-families" class="menu-item" active-class="menu-active">
-          {{ $t('nav.productFamilies') }}
-        </router-link>
-        <router-link v-if="canViewCustomers" to="/administration/customers" class="menu-item" active-class="menu-active">
-          {{ $t('nav.customers') }}
-        </router-link>
-        <router-link v-if="canViewSuppliers" to="/administration/suppliers" class="menu-item" active-class="menu-active">
-          {{ $t('nav.suppliers') }}
-        </router-link>
+      <template v-if="filteredSections.length > 0">
+        <template v-for="section in filteredSections" :key="section.key">
+          <p v-if="section.titleKey" class="menu-title">{{ $t(section.titleKey) }}</p>
+          <router-link
+            v-for="item in section.items"
+            :key="item.to"
+            :to="item.to"
+            class="menu-item"
+            active-class="menu-active"
+          >
+            {{ $t(item.labelKey) }}
+          </router-link>
+        </template>
       </template>
-
-      <template v-if="canViewUsers || canViewRoles">
-        <p class="menu-title">{{ $t('nav.sectionAdministration') }}</p>
-        <router-link v-if="canViewUsers" to="/administration/user-management" class="menu-item" active-class="menu-active">
-          {{ $t('nav.userManagement') }}
-        </router-link>
-        <router-link v-if="canViewRoles" to="/administration/roles" class="menu-item" active-class="menu-active">
-          {{ $t('nav.roles') }}
-        </router-link>
-      </template>
-
-      <template v-if="canViewPlatformAdmin">
-        <p class="menu-title">{{ $t('nav.sectionPlatformAdmin') }}</p>
-        <router-link to="/platform/tenants" class="menu-item" active-class="menu-active">
-          {{ $t('nav.platformTenants') }}
-        </router-link>
-      </template>
+      <p v-else class="menu-empty">{{ $t('nav.searchNoResults') }}</p>
     </nav>
 
     <div class="p-3 border-t border-slate-700">
@@ -153,11 +104,145 @@ export default {
     canViewPlatformAdmin: { type: Boolean, default: false }
   },
 
-  emits: ['logout']
+  emits: ['logout'],
+
+  data() {
+    return {
+      searchQuery: ''
+    }
+  },
+
+  computed: {
+    searchTerm() {
+      return this.searchQuery.trim().toLowerCase()
+    },
+
+    // Single source of truth for the nav tree, mirroring the previous
+    // hardcoded template 1:1 (same groups, same items, same per-item
+    // permission gate) so both the normal render and the search filter
+    // read from one place instead of duplicating the menu twice.
+    menuSections() {
+      return [
+        {
+          key: 'dashboard',
+          titleKey: null,
+          items: [
+            { labelKey: 'nav.dashboard', to: '/dashboard', visible: true }
+          ]
+        },
+        {
+          key: 'inbound',
+          titleKey: 'nav.sectionInbound',
+          items: [
+            { labelKey: 'nav.receiving', to: '/inbound/receiving', visible: true },
+            { labelKey: 'nav.qualityCheck', to: '/inbound/quality-check', visible: true },
+            { labelKey: 'nav.putaway', to: '/inbound/put-away', visible: true },
+            { labelKey: 'nav.transferReceiving', to: '/inbound/transfer-receiving', visible: this.canViewTransferReceipt }
+          ]
+        },
+        {
+          key: 'inventory',
+          titleKey: 'nav.sectionInventory',
+          items: [
+            { labelKey: 'nav.stockInquiry', to: '/inventory/stock-inquiry', visible: true },
+            { labelKey: 'nav.stockAdjustment', to: '/inventory/stock-adjustment', visible: true },
+            { labelKey: 'nav.checkStock', to: '/inventory/check-stock', visible: true },
+            { labelKey: 'nav.replenishment', to: '/inventory/replenishment', visible: this.canViewReplenishment },
+            { labelKey: 'nav.relocation', to: '/inventory/relocation', visible: this.canViewRelocation }
+          ]
+        },
+        {
+          key: 'outbound',
+          titleKey: 'nav.sectionOutbound',
+          items: [
+            { labelKey: 'nav.orders', to: '/outbound/orders', visible: true },
+            { labelKey: 'nav.picking', to: '/outbound/picking', visible: true },
+            { labelKey: 'nav.pickingBatches', to: '/outbound/picking-batches', visible: this.canViewPickingBatches },
+            { labelKey: 'nav.packing', to: '/outbound/packing', visible: this.canViewPacking },
+            { labelKey: 'nav.shipping', to: '/outbound/shipping', visible: true },
+            { labelKey: 'nav.loading', to: '/outbound/loading', visible: this.canViewLoading }
+          ]
+        },
+        {
+          key: 'masterData',
+          titleKey: 'nav.sectionMasterData',
+          items: [
+            { labelKey: 'nav.warehouse', to: '/administration/warehouse', visible: this.canViewWarehouses },
+            { labelKey: 'nav.locations', to: '/administration/locations', visible: this.canViewWarehouses },
+            { labelKey: 'nav.productMaster', to: '/administration/products', visible: this.canViewProducts },
+            { labelKey: 'nav.productCategories', to: '/administration/product-categories', visible: this.canViewProductCategories },
+            { labelKey: 'nav.brands', to: '/administration/brands', visible: this.canViewBrands },
+            { labelKey: 'nav.productFamilies', to: '/administration/product-families', visible: this.canViewProductFamilies },
+            { labelKey: 'nav.customers', to: '/administration/customers', visible: this.canViewCustomers },
+            { labelKey: 'nav.suppliers', to: '/administration/suppliers', visible: this.canViewSuppliers }
+          ]
+        },
+        {
+          key: 'administration',
+          titleKey: 'nav.sectionAdministration',
+          items: [
+            { labelKey: 'nav.userManagement', to: '/administration/user-management', visible: this.canViewUsers },
+            { labelKey: 'nav.roles', to: '/administration/roles', visible: this.canViewRoles }
+          ]
+        },
+        {
+          key: 'platformAdmin',
+          titleKey: 'nav.sectionPlatformAdmin',
+          items: [
+            { labelKey: 'nav.platformTenants', to: '/platform/tenants', visible: this.canViewPlatformAdmin }
+          ]
+        }
+      ]
+    },
+
+    // RBAC gating happens here, before any search filtering is applied —
+    // an item or section the caller is not authorized for is dropped
+    // from this list entirely, so no search term can ever bring it back.
+    authorizedSections() {
+      return this.menuSections
+        .map(section => ({ ...section, items: section.items.filter(item => item.visible) }))
+        .filter(section => section.items.length > 0)
+    },
+
+    filteredSections() {
+      const term = this.searchTerm
+      if (!term) return this.authorizedSections
+
+      const sections = []
+      for (const section of this.authorizedSections) {
+        const titleMatches = Boolean(section.titleKey) && this.$t(section.titleKey).toLowerCase().includes(term)
+        const items = titleMatches
+          ? section.items
+          : section.items.filter(item => this.$t(item.labelKey).toLowerCase().includes(term))
+        if (items.length > 0) sections.push({ ...section, items })
+      }
+      return sections
+    }
+  },
+
+  methods: {
+    clearSearch() {
+      this.searchQuery = ''
+      this.$nextTick(() => this.$refs.searchInput && this.$refs.searchInput.focus())
+    }
+  }
 }
 </script>
 
 <style scoped>
+.search-input::-ms-clear {
+  display: none;
+}
+
+.clear-btn {
+  font-size: 13px;
+  line-height: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+}
+
 .menu-item {
   display: block;
   padding: 10px 12px;
@@ -189,6 +274,13 @@ export default {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 600;
+}
+
+.menu-empty {
+  margin: 16px 12px;
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
 }
 
 .logout-button {
