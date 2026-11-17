@@ -3,6 +3,7 @@ package inventory
 import (
 	"context"
 	"errors"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -245,6 +246,20 @@ func (s *Service) verifyOwnership(ctx context.Context, tenantID, productID, loca
 // Quantity, creating the balance row if this is the first stock ever
 // placed there, and appends a matching ledger row — both in one
 // database transaction.
+//
+// Several concurrent callers racing to create the exact same brand-new
+// (tenant_id, product_id, location_id, lot_no) balance row — e.g. two
+// receivers scanning the same new SKU/location at once — can make SQL
+// Server choose one of them as a deadlock victim (error 1205), on top
+// of the already-handled unique-violation race inside addStockTx. A
+// deadlock victim's transaction is always fully rolled back by SQL
+// Server itself before the error is returned, so retrying the whole
+// transaction here is safe and idempotent: nothing from the failed
+// attempt was committed. This is scoped to AddStock specifically
+// because it owns its own transaction boundary; AddStockTx below runs
+// inside a transaction its caller owns, so a deadlock there must bubble
+// up for that caller to decide whether to retry its own larger unit of
+// work.
 func (s *Service) AddStock(ctx context.Context, req StockChangeRequest) (*Inventory, error) {
 	if err := validateStockChange(req); err != nil {
 		return nil, err
@@ -259,17 +274,39 @@ func (s *Service) AddStock(ctx context.Context, req StockChangeRequest) (*Invent
 	ctx, cancel := dbctx.Detach(ctx)
 	defer cancel()
 
+	const maxDeadlockRetries = 6
 	var result *Inventory
-	start := time.Now()
-	err := s.repo.Transaction(ctx, func(txRepo *Repository) error {
-		inv, err := addStockTx(ctx, txRepo, req)
-		if err != nil {
-			return err
+	var err error
+	for attempt := 0; attempt < maxDeadlockRetries; attempt++ {
+		start := time.Now()
+		err = s.repo.Transaction(ctx, func(txRepo *Repository) error {
+			inv, txErr := addStockTx(ctx, txRepo, req)
+			if txErr != nil {
+				return txErr
+			}
+			result = inv
+			return nil
+		})
+		dbctx.LogTransaction(ctx, "inventory.add_stock", start, err)
+
+		if err == nil || !sqlerr.IsDeadlock(err) || attempt == maxDeadlockRetries-1 {
+			break
 		}
-		result = inv
-		return nil
-	})
-	dbctx.LogTransaction(ctx, "inventory.add_stock", start, err)
+		// Brief, increasing backoff before retrying, with jitter — every
+		// concurrent caller hit the same deadlock at roughly the same
+		// moment, so a deterministic backoff would have them all retry
+		// in lockstep and reproduce the same collision again. Still
+		// bounded by ctx's existing deadline (dbctx.Detach above), so a
+		// sustained lock-wait that never resolves still surfaces as a
+		// timeout rather than retrying forever.
+		backoff := time.Duration(attempt+1)*50*time.Millisecond + time.Duration(rand.Intn(50))*time.Millisecond
+		timer := time.NewTimer(backoff)
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			timer.Stop()
+		}
+	}
 	return result, err
 }
 

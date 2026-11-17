@@ -9,44 +9,16 @@ import (
 	"gorm.io/gorm"
 
 	"wms-backend/internal/location"
-	"wms-backend/internal/platform/database/sqlerr"
 	"wms-backend/internal/platform/testsupport"
 	"wms-backend/internal/product"
 )
 
-// addStockRetryingDeadlocks wraps svc.AddStock with a bounded retry on
-// SQL Server choosing this session as a deadlock victim (error 1205) —
-// a transient condition any real caller of this API must already
-// tolerate (see sqlerr.IsDeadlock's own doc: deadlock retry is
-// deliberately NOT addStockTx's job, it's a universally-expected
-// caller/platform concern orthogonal to this specific bug). It lives
-// here, in the test, rather than in addStockTx itself, so this test's
-// assertions isolate the one race this phase actually fixes — the
-// check-then-insert unique-violation race on CreateBalance — instead
-// of being flaky on a second, pre-existing, independent SQL Server
-// characteristic: concurrent sessions each inserting the same
-// brand-new unique-index key can deadlock each other, not just lose a
-// unique-constraint race. That characteristic is reproducible with or
-// without this phase's fix (confirmed by running this same shape
-// against the pre-fix code) and is explicitly out of scope for it, per
-// the task's "do not retry on any error other than a genuine
-// unique-violation" rule and sqlerr.go's existing "nothing in this
-// codebase currently retries on deadlock" policy.
-func addStockRetryingDeadlocks(svc *Service, req StockChangeRequest) (*Inventory, error) {
-	const maxDeadlockRetries = 5
-	var lastErr error
-	for i := 0; i < maxDeadlockRetries; i++ {
-		inv, err := svc.AddStock(context.Background(), req)
-		if err == nil {
-			return inv, nil
-		}
-		if !sqlerr.IsDeadlock(err) {
-			return nil, err
-		}
-		lastErr = err
-	}
-	return nil, lastErr
-}
+// AddStock itself now retries on SQL Server choosing this session as a
+// deadlock victim (error 1205) — see its doc comment in service.go.
+// This test used to carry its own test-local retry wrapper to absorb
+// that; it now calls svc.AddStock directly, which is the point: this
+// test proves the production retry (not a test-only one) is what makes
+// every concurrent caller converge to success.
 
 // TestService_AddStock_ConcurrentFirstInsert_NeverFails is the real
 // regression test for the addStockTx check-then-insert race: N
@@ -123,20 +95,23 @@ func TestService_AddStock_ConcurrentFirstInsert_NeverFails(t *testing.T) {
 		var wg sync.WaitGroup
 		var mu sync.Mutex
 		var errs []error
+		successCount := 0
 
 		for g := 0; g < concurrency; g++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				_, err := addStockRetryingDeadlocks(svc, StockChangeRequest{
+				_, err := svc.AddStock(context.Background(), StockChangeRequest{
 					TenantID: tenantID, ProductID: productID, LocationID: locationID, LotNo: lotNo,
 					Quantity: 1, Type: TransactionAdjust,
 				})
+				mu.Lock()
 				if err != nil {
-					mu.Lock()
 					errs = append(errs, err)
-					mu.Unlock()
+				} else {
+					successCount++
 				}
+				mu.Unlock()
 			}()
 		}
 		wg.Wait()
@@ -145,17 +120,30 @@ func TestService_AddStock_ConcurrentFirstInsert_NeverFails(t *testing.T) {
 			t.Errorf("iter=%d: AddStock returned an error, want none: %v", iter, err)
 		}
 
-		// Quantity conservation: exactly `concurrency` callers each added
-		// 1, so the committed balance must be exactly `concurrency` —
-		// anything else means a lost update (a caller's add silently
-		// didn't land) or double-counting (the retry applied an add
-		// twice).
+		// Quantity conservation: the committed balance must equal exactly
+		// successCount (not the fixed `concurrency`) — this is the
+		// invariant that actually matters: every caller AddStock reports
+		// as successful must have landed exactly once, and no caller it
+		// reports as failed may have landed at all. A mismatch here,
+		// independent of whether successCount == concurrency, is a real
+		// lost update or double-count; successCount < concurrency alone
+		// (with every failure captured in errs above) just means some
+		// callers genuinely failed, which the errs assertion above
+		// already catches.
 		var got Inventory
 		if err := db.Where("tenant_id = ? AND product_id = ? AND location_id = ? AND lot_no = ?", tenantID, productID, locationID, lotNo).First(&got).Error; err != nil {
 			t.Fatalf("iter=%d: read back balance: %v", iter, err)
 		}
-		if got.Quantity != float64(concurrency) {
-			t.Errorf("iter=%d: balance quantity = %v, want %v (lost update or double-count)", iter, got.Quantity, concurrency)
+		if got.Quantity != float64(successCount) {
+			t.Errorf("iter=%d: balance quantity = %v, want %v (successCount) — real lost update or double-count", iter, got.Quantity, successCount)
+		}
+
+		var ledgerCount int64
+		if err := db.Model(&Transaction{}).Where("tenant_id = ? AND product_id = ? AND location_id = ? AND lot_no = ?", tenantID, productID, locationID, lotNo).Count(&ledgerCount).Error; err != nil {
+			t.Fatalf("iter=%d: count ledger rows: %v", iter, err)
+		}
+		if ledgerCount != int64(successCount) {
+			t.Errorf("iter=%d: ledger rows = %v, want %v (successCount) — balance/ledger committed out of step", iter, ledgerCount, successCount)
 		}
 
 		db.Exec("DELETE FROM inventory_transactions WHERE tenant_id = ? AND location_id = ?", tenantID, locationID)
