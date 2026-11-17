@@ -3205,5 +3205,47 @@
       "totalShort": "Total Short Qty",
       "shortPickRate": "Short Pick Rate"
     }
+  },
+  "reportsInventory": {
+    "title": "Inventory Balance Report",
+    "asOfCaveat": "Reconstructed from the inventory transaction ledger up to the chosen timestamp. Reliable only if every balance's full history was captured in the ledger from its first unit — treat as a documented assumption, not a verified guarantee.",
+    "tabs": {
+      "balance": "Current Balance",
+      "movement": "Stock Movement",
+      "asOf": "Historical As-of"
+    },
+    "filters": {
+      "searchPlaceholder": "SKU, product name, or lot no.",
+      "movementType": "Movement Type",
+      "asOfDateTime": "As of Date/Time"
+    },
+    "lenses": {
+      "all": "All",
+      "lowStock": "Low Stock (below)",
+      "nearExpiry": "Near Expiry (days)",
+      "expired": "Expired",
+      "nonMoving": "Non-Moving (days)"
+    },
+    "table": {
+      "storageType": "Storage Type",
+      "expiry": "Expiry",
+      "onHand": "On-Hand",
+      "reserved": "Reserved",
+      "hold": "Hold",
+      "available": "Available",
+      "status": "Status",
+      "dateTime": "Date / Time",
+      "quantity": "Quantity",
+      "reference": "Reference",
+      "asOfQty": "As-of Qty"
+    },
+    "kpi": {
+      "totalOnHand": "Total On-Hand",
+      "totalAvailable": "Total Available",
+      "lowStockCount": "Low Stock Count",
+      "nearExpiryCount": "Near Expiry Count",
+      "expiredCount": "Expired Count",
+      "nonMovingCount": "Non-Moving Count"
+    }
   }
 }

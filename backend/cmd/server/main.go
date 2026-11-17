@@ -34,6 +34,7 @@ import (
 	"wms-backend/internal/health"
 	"wms-backend/internal/inbounddoc"
 	"wms-backend/internal/inventory"
+	"wms-backend/internal/inventoryreport"
 	"wms-backend/internal/loading"
 	"wms-backend/internal/location"
 	"wms-backend/internal/messaging/rabbitmq"
@@ -365,6 +366,14 @@ func main() {
 	pickingReportRepo := pickingreport.NewRepository(dbManager.DB())
 	pickingReportService := pickingreport.NewService(pickingReportRepo, tenantRepo, userRepo)
 	pickingreport.NewHandler(pickingReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 34E: inventoryreport mirrors every other Phase 34 report
+	// package's own shape — raw SQL against inventory/
+	// inventory_transactions/locations/zones/warehouses/products, no Go
+	// dependency on internal/inventory.
+	inventoryReportRepo := inventoryreport.NewRepository(dbManager.DB())
+	inventoryReportService := inventoryreport.NewService(inventoryReportRepo, tenantRepo, userRepo)
+	inventoryreport.NewHandler(inventoryReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	// Phase 33C — Packing: a pure physical-handling/traceability layer
 	// over already-picked stock, sitting between Picking and Shipping.

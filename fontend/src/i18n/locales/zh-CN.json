@@ -3205,5 +3205,47 @@
       "totalShort": "缺拣总数量",
       "shortPickRate": "缺拣率"
     }
+  },
+  "reportsInventory": {
+    "title": "库存余额报表",
+    "asOfCaveat": "根据库存交易台账截至所选时间点重新计算得出。仅当某余额从第一件起的全部历史都被台账完整记录时才可靠 —— 请视为一项已记录的假设,而非经过验证的保证。",
+    "tabs": {
+      "balance": "当前余额",
+      "movement": "库存变动",
+      "asOf": "历史回溯"
+    },
+    "filters": {
+      "searchPlaceholder": "SKU、产品名称或批号",
+      "movementType": "变动类型",
+      "asOfDateTime": "截止日期/时间"
+    },
+    "lenses": {
+      "all": "全部",
+      "lowStock": "低库存(低于)",
+      "nearExpiry": "即将到期(天)",
+      "expired": "已过期",
+      "nonMoving": "滞销(天)"
+    },
+    "table": {
+      "storageType": "存储类型",
+      "expiry": "到期日",
+      "onHand": "在库数量",
+      "reserved": "已预留",
+      "hold": "冻结",
+      "available": "可用数量",
+      "status": "状态",
+      "dateTime": "日期/时间",
+      "quantity": "数量",
+      "reference": "参考单据",
+      "asOfQty": "截止数量"
+    },
+    "kpi": {
+      "totalOnHand": "在库总数量",
+      "totalAvailable": "可用总数量",
+      "lowStockCount": "低库存数量",
+      "nearExpiryCount": "即将到期数量",
+      "expiredCount": "已过期数量",
+      "nonMovingCount": "滞销数量"
+    }
   }
 }
