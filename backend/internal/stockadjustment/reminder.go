@@ -23,9 +23,13 @@ const ReminderEventType = "stock_adjustment.pending_reminder"
 // carries end to end — deliberately narrower than Response/ListResponse:
 // this phase's own instruction is that a reminder message must contain
 // only the minimum identifiers/context needed, never a full adjustment
-// row.
+// row. TenantID (Batch 1a) is the adjustment's own real tenant — read
+// straight off the row by FindOverduePending's cross-tenant scan, never
+// a hardcoded value — so every downstream consumer of this candidate
+// can tell which tenant it belongs to.
 type ReminderCandidate struct {
 	ID           int64
+	TenantID     int64
 	AdjustmentNo string
 	CreatedBy    *int64
 	PendingSince time.Time
@@ -50,8 +54,18 @@ type ReminderMessage struct {
 // notification text), not a recipient list: the worker resolves who
 // actually gets notified (every user holding stock_adjustment.approve)
 // itself at consume time, nothing about recipients is published here.
+// TenantID (Batch 1a) carries the adjustment's own real tenant — see
+// ReminderCandidate's own doc. Known limitation: internal/notification's
+// current NotifyStockAdjustmentReminder resolves recipients globally
+// (FindActiveIDsWithPermission has no tenant filter of its own), so
+// this field is not yet consumed to scope notification recipients to
+// the adjustment's own tenant — that is a pre-existing gap in
+// internal/notification, out of this batch's scope (internal/
+// stockadjustment only), flagged here rather than silently left
+// untraceable.
 type ReminderPayload struct {
 	AdjustmentID int64     `json:"adjustment_id,string"`
+	TenantID     int64     `json:"tenant_id,string"`
 	AdjustmentNo string    `json:"adjustment_no"`
 	CreatedBy    *int64    `json:"created_by,string"`
 	PendingSince time.Time `json:"pending_since"`
@@ -69,6 +83,7 @@ func NewReminderMessage(c ReminderCandidate) ReminderMessage {
 		CorrelationID: uuid.NewString(),
 		Payload: ReminderPayload{
 			AdjustmentID: c.ID,
+			TenantID:     c.TenantID,
 			AdjustmentNo: c.AdjustmentNo,
 			CreatedBy:    c.CreatedBy,
 			PendingSince: c.PendingSince,

@@ -280,12 +280,6 @@ func main() {
 	inventoryService := inventory.NewService(inventoryRepo, productRepo, locationRepo)
 	inventory.NewHandler(inventoryService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
-	// locationUnscoped adapts locationRepo's new tenant-scoped FindByID
-	// back to the single-arg shape receiving/stockadjustment/stockcount's
-	// own locationChecker interfaces still require — see
-	// location.UnscopedAdapter's own doc.
-	locationUnscoped := location.NewUnscopedAdapter(locationRepo)
-
 	// Phase 31A: receivingService is now itself tenant-scoped, so it uses
 	// productRepo/warehouseRepo/locationRepo's real tenant-scoped lookups
 	// (FindByIDForTenant/FindByIDForTenant/FindByID) directly, not
@@ -400,13 +394,23 @@ func main() {
 	loadingPDFService.SetDocRender(docrenderService)
 	loading.NewHandler(loadingService, loadingPDFService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
+	// Batch 1a (tenant isolation): stockadjustment now takes productRepo/
+	// locationRepo's own real tenant-scoped lookups directly instead of
+	// locationUnscoped — see internal/receiving/service.go's own doc for
+	// the identical reasoning.
 	stockAdjustmentRepo := stockadjustment.NewRepository(dbManager.DB())
-	stockAdjustmentService := stockadjustment.NewService(stockAdjustmentRepo, productRepo, locationUnscoped, inventoryService, cfg.StockAdjustmentPendingWarningHours)
-	stockadjustment.NewHandler(stockAdjustmentService).Register(v1, cfg.JWTSecret)
+	stockAdjustmentService := stockadjustment.NewService(stockAdjustmentRepo, productRepo, locationRepo, inventoryService, cfg.StockAdjustmentPendingWarningHours)
+	stockadjustment.NewHandler(stockAdjustmentService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
+	// Batch 1b (tenant isolation): stockcount now takes locationRepo's own
+	// real tenant-scoped FindByID directly too — locationUnscoped's last
+	// caller was this line, so that adapter variable is now removed
+	// entirely from this file (location.UnscopedAdapter's own type/
+	// constructor in internal/location is left untouched for any future
+	// caller).
 	stockCountRepo := stockcount.NewRepository(dbManager.DB())
-	stockCountService := stockcount.NewService(stockCountRepo, warehouseRepo, zoneRepo, productRepo, locationUnscoped, inventoryService, stockAdjustmentService)
-	stockcount.NewHandler(stockCountService).Register(v1, cfg.JWTSecret)
+	stockCountService := stockcount.NewService(stockCountRepo, warehouseRepo, zoneRepo, productRepo, locationRepo, inventoryService, stockAdjustmentService)
+	stockcount.NewHandler(stockCountService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	notificationRepo := notification.NewRepository(dbManager.DB())
 	notificationService := notification.NewService(notificationRepo, userRepo)
@@ -424,9 +428,13 @@ func main() {
 	dashboardService := dashboard.NewService(receivingService, pickingService, inventoryService)
 	dashboard.NewHandler(dashboardService).Register(v1, cfg.JWTSecret)
 
+	// Batch 1c (tenant isolation): productRepo/warehouseRepo already
+	// implement FindByIDForTenant (used by stockadjustment/stockcount
+	// above), so no new adapter is needed here — only Register's own
+	// signature gained the tenant-context middleware arguments.
 	replenishmentRepo := replenishment.NewRepository(dbManager.DB())
 	replenishmentService := replenishment.NewService(replenishmentRepo, productRepo, warehouseRepo, inventoryService)
-	replenishment.NewHandler(replenishmentService).Register(v1, cfg.JWTSecret)
+	replenishment.NewHandler(replenishmentService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	orderRepo := order.NewRepository(dbManager.DB())
 	orderService := order.NewService(orderRepo, productRepo, warehouseRepo, customerRepo, customerDeliveryLocationRepo, pickingService, shippingService, inventoryService)

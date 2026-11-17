@@ -23,6 +23,13 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
+// writeTenantUnauthorized is shared by every handler method's
+// EnforcedTenantID guard below — matches internal/stockadjustment/
+// internal/picking/internal/order's own identically-named helper.
+func writeTenantUnauthorized(c *gin.Context) {
+	apihttp.Fail(c, http.StatusUnauthorized, "tenant context required", "UNAUTHORIZED")
+}
+
 // Register mounts the Stock Count endpoints on rg. Per the task's own
 // "reuse existing stock adjustment / stock count permissions... do not
 // create duplicate concepts" instruction, and since no separate
@@ -34,8 +41,17 @@ func NewHandler(service *Service) *Handler {
 // actually applies variance through Inventory Core) is gated on
 // stock_adjustment.approve, the same significant-action permission
 // Stock Adjustment's own Confirm uses.
-func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
-	group := rg.Group("/stock-counts", middleware.RequireJWT(jwtSecret))
+//
+// Batch 1b (tenant isolation) upgrades the chain from RequireJWT-only
+// to RequireJWT -> RequireTenantContext -> RequirePermission, matching
+// internal/stockadjustment's own Batch 1a chain exactly — every handler
+// method below now extracts tenantID via middleware.EnforcedTenantID
+// and threads it through to Service.
+func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string, membershipChecker middleware.MembershipChecker, membershipCacheTTL time.Duration) {
+	group := rg.Group("/stock-counts",
+		middleware.RequireJWT(jwtSecret),
+		middleware.RequireTenantContext(membershipChecker, membershipCacheTTL),
+	)
 	group.GET("", middleware.RequirePermission("stock_adjustment.view"), h.List)
 	group.GET("/export", middleware.RequirePermission("stock_adjustment.view"), h.Export)
 	group.GET("/:id", middleware.RequirePermission("stock_adjustment.view"), h.Get)
@@ -64,6 +80,12 @@ func (h *Handler) Register(rg *gin.RouterGroup, jwtSecret string) {
 //	@Failure		403				{object}	apihttp.ErrorResponse
 //	@Router			/stock-counts [get]
 func (h *Handler) List(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	page, _ := strconv.Atoi(c.Query("page"))
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	warehouseID, _ := strconv.ParseInt(c.Query("warehouse_id"), 10, 64)
@@ -75,7 +97,7 @@ func (h *Handler) List(c *gin.Context) {
 		}
 	}
 
-	responses, total, err := h.service.List(c.Request.Context(), ListParams{
+	responses, total, err := h.service.List(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), WarehouseID: warehouseID, Status: Status(c.Query("status")),
 		Date: date, Page: page, Limit: limit,
 	})
@@ -117,6 +139,12 @@ func (h *Handler) List(c *gin.Context) {
 //	@Failure		403				{object}	apihttp.ErrorResponse
 //	@Router			/stock-counts/export [get]
 func (h *Handler) Export(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	warehouseID, _ := strconv.ParseInt(c.Query("warehouse_id"), 10, 64)
 	var date *time.Time
 	if raw := c.Query("date"); raw != "" {
@@ -125,7 +153,7 @@ func (h *Handler) Export(c *gin.Context) {
 		}
 	}
 
-	rows, err := h.service.ListForExport(c.Request.Context(), ListParams{
+	rows, err := h.service.ListForExport(c.Request.Context(), tenantID, ListParams{
 		Search: c.Query("search"), WarehouseID: warehouseID, Status: Status(c.Query("status")), Date: date,
 	})
 	if err != nil {
@@ -166,13 +194,19 @@ func (h *Handler) Export(c *gin.Context) {
 //	@Failure		404	{object}	apihttp.ErrorResponse
 //	@Router			/stock-counts/{id} [get]
 func (h *Handler) Get(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid stock count id", "INVALID_REQUEST")
 		return
 	}
 
-	resp, err := h.service.Get(c.Request.Context(), id)
+	resp, err := h.service.Get(c.Request.Context(), tenantID, id)
 	if errors.Is(err, ErrNotFound) {
 		apihttp.Fail(c, http.StatusNotFound, "stock count not found", "NOT_FOUND")
 		return
@@ -201,6 +235,12 @@ func (h *Handler) Get(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/stock-counts [post]
 func (h *Handler) Create(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	var req CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid request body", "INVALID_REQUEST")
@@ -210,7 +250,7 @@ func (h *Handler) Create(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Create(ctx, req, userID)
+	resp, err := h.service.Create(ctx, tenantID, req, userID)
 	if err == nil {
 		apihttp.Status(c, http.StatusCreated, resp, "stock count created")
 		return
@@ -236,6 +276,12 @@ func (h *Handler) Create(c *gin.Context) {
 //	@Failure		409		{object}	apihttp.ErrorResponse
 //	@Router			/stock-counts/{id}/items [post]
 func (h *Handler) AddItem(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid stock count id", "INVALID_REQUEST")
@@ -249,7 +295,7 @@ func (h *Handler) AddItem(c *gin.Context) {
 	}
 
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
-	resp, err := h.service.AddItem(ctx, id, req)
+	resp, err := h.service.AddItem(ctx, tenantID, id, req)
 	if err == nil {
 		apihttp.Status(c, http.StatusCreated, resp, "item added")
 		return
@@ -277,6 +323,12 @@ func (h *Handler) AddItem(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/stock-counts/{id}/items/{itemId} [put]
 func (h *Handler) RecordCount(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid stock count id", "INVALID_REQUEST")
@@ -294,7 +346,7 @@ func (h *Handler) RecordCount(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.RecordCount(c.Request.Context(), id, itemID, req)
+	resp, err := h.service.RecordCount(c.Request.Context(), tenantID, id, itemID, req)
 	if err == nil {
 		apihttp.OK(c, resp, "")
 		return
@@ -321,6 +373,12 @@ func (h *Handler) RecordCount(c *gin.Context) {
 //	@Failure		422		{object}	apihttp.ErrorResponse
 //	@Router			/stock-counts/{id}/confirm [post]
 func (h *Handler) Confirm(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid stock count id", "INVALID_REQUEST")
@@ -336,7 +394,7 @@ func (h *Handler) Confirm(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.Confirm(ctx, id, req, userID)
+	resp, err := h.service.Confirm(ctx, tenantID, id, req, userID)
 	if err == nil {
 		apihttp.OK(c, resp, "stock count confirmed")
 		return
@@ -360,6 +418,12 @@ func (h *Handler) Confirm(c *gin.Context) {
 //	@Failure		422	{object}	apihttp.ErrorResponse	"no variance found"
 //	@Router			/stock-counts/{id}/create-adjustments [post]
 func (h *Handler) CreateAdjustments(c *gin.Context) {
+	tenantID, ok := middleware.EnforcedTenantID(c)
+	if !ok {
+		writeTenantUnauthorized(c)
+		return
+	}
+
 	id, err := parseID(c, "id")
 	if err != nil {
 		apihttp.Fail(c, http.StatusBadRequest, "invalid stock count id", "INVALID_REQUEST")
@@ -369,7 +433,7 @@ func (h *Handler) CreateAdjustments(c *gin.Context) {
 	userID, _ := middleware.CurrentUserID(c)
 	ctx := dbctx.WithRequestID(c.Request.Context(), middleware.GetRequestID(c))
 
-	resp, err := h.service.CreateAdjustments(ctx, id, userID)
+	resp, err := h.service.CreateAdjustments(ctx, tenantID, id, userID)
 	if err == nil {
 		apihttp.Status(c, http.StatusCreated, resp, "stock adjustments created")
 		return

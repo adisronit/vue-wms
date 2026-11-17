@@ -116,7 +116,7 @@ func (f *fakeZones) FindByID(context.Context, int64) (*zone.Zone, error) {
 func TestCreate_RejectsInvalidCountType(t *testing.T) {
 	svc := NewService(nil, &fakeWarehouses{}, &fakeZones{}, nil, nil, nil, nil)
 
-	_, err := svc.Create(context.Background(), CreateRequest{CountType: "ANNUAL_COUNT", WarehouseID: 1}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{CountType: "ANNUAL_COUNT", WarehouseID: 1}, 1)
 
 	var validationErr ErrValidation
 	if !errors.As(err, &validationErr) {
@@ -127,7 +127,7 @@ func TestCreate_RejectsInvalidCountType(t *testing.T) {
 func TestCreate_RejectsUnknownWarehouse(t *testing.T) {
 	svc := NewService(nil, &fakeWarehouses{err: errors.New("not found")}, &fakeZones{}, nil, nil, nil, nil)
 
-	_, err := svc.Create(context.Background(), CreateRequest{CountType: CountTypeCycle, WarehouseID: 999}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{CountType: CountTypeCycle, WarehouseID: 999}, 1)
 
 	if !errors.Is(err, ErrWarehouseNotFound) {
 		t.Fatalf("error = %v, want ErrWarehouseNotFound", err)
@@ -138,7 +138,7 @@ func TestCreate_RejectsUnknownZone(t *testing.T) {
 	zoneID := int64(999)
 	svc := NewService(nil, &fakeWarehouses{}, &fakeZones{err: errors.New("not found")}, nil, nil, nil, nil)
 
-	_, err := svc.Create(context.Background(), CreateRequest{CountType: CountTypeCycle, WarehouseID: 1, ZoneID: &zoneID}, 1)
+	_, err := svc.Create(context.Background(), 1, CreateRequest{CountType: CountTypeCycle, WarehouseID: 1, ZoneID: &zoneID}, 1)
 
 	if !errors.Is(err, ErrZoneNotFound) {
 		t.Fatalf("error = %v, want ErrZoneNotFound", err)

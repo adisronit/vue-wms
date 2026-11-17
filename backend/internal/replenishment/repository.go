@@ -46,21 +46,28 @@ func (r *Repository) Transaction(ctx context.Context, fn func(tx *gorm.DB, txRep
 	})
 }
 
-// CreateTask inserts the header, then derives task_no from the new
-// IDENTITY id in the same transaction — the same race-free-by-
-// construction approach as receipts.receipt_no / picking_tasks.pick_no.
-func (r *Repository) CreateTask(ctx context.Context, task *Task) error {
+// CreateTask stamps tenantID onto the header, inserts it, then derives
+// task_no from the new IDENTITY id in the same transaction — the same
+// race-free-by-construction approach as receipts.receipt_no /
+// picking_tasks.pick_no. Batch 1c (tenant isolation): tenantID must be
+// the caller's own verified tenant, never read from the request body.
+func (r *Repository) CreateTask(ctx context.Context, tenantID int64, task *Task) error {
+	task.TenantID = tenantID
 	if err := r.db.WithContext(ctx).Create(task).Error; err != nil {
 		return err
 	}
 	task.TaskNo = fmt.Sprintf("RPL-%06d", task.ID)
-	return r.db.WithContext(ctx).Model(&Task{}).Where("id = ?", task.ID).
+	return r.db.WithContext(ctx).Model(&Task{}).Where("id = ? AND tenant_id = ?", task.ID, tenantID).
 		Update("task_no", task.TaskNo).Error
 }
 
-func (r *Repository) FindTaskByID(ctx context.Context, id int64) (*Task, error) {
+// FindTaskByID returns id's row scoped to tenantID, or ErrNotFound —
+// never "found but belongs to another tenant" vs. "doesn't exist at
+// all" (tenant-isolation-security.md §6). A cross-tenant id now returns
+// the identical error a nonexistent one does.
+func (r *Repository) FindTaskByID(ctx context.Context, tenantID, id int64) (*Task, error) {
 	var task Task
-	err := r.db.WithContext(ctx).Where("id = ?", id).First(&task).Error
+	err := r.db.WithContext(ctx).Where("id = ? AND tenant_id = ?", id, tenantID).First(&task).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrNotFound
 	}
@@ -70,8 +77,11 @@ func (r *Repository) FindTaskByID(ctx context.Context, id int64) (*Task, error) 
 	return &task, nil
 }
 
-func (r *Repository) UpdateTask(ctx context.Context, task *Task) error {
-	return r.db.WithContext(ctx).Model(&Task{}).Where("id = ?", task.ID).Updates(map[string]any{
+// UpdateTask is scoped to tenantID: a mismatched tenantID against a
+// real task id affects zero rows rather than silently updating a
+// wrong-tenant row.
+func (r *Repository) UpdateTask(ctx context.Context, tenantID int64, task *Task) error {
+	return r.db.WithContext(ctx).Model(&Task{}).Where("id = ? AND tenant_id = ?", task.ID, tenantID).Updates(map[string]any{
 		"status":        task.Status,
 		"started_at":    task.StartedAt,
 		"completed_at":  task.CompletedAt,
@@ -114,7 +124,10 @@ type detailRow struct {
 	CancelRemark     *string
 }
 
-func (r *Repository) FindTaskDetail(ctx context.Context, id int64) (*detailRow, error) {
+// FindTaskDetail returns the joined header-detail row scoped to
+// tenantID — a cross-tenant id now returns ErrNotFound exactly like a
+// nonexistent one.
+func (r *Repository) FindTaskDetail(ctx context.Context, tenantID, id int64) (*detailRow, error) {
 	var row detailRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT rt.id AS id, rt.task_no AS task_no, rt.product_id AS product_id, p.sku AS sku, p.name AS product_name,
@@ -135,8 +148,8 @@ func (r *Repository) FindTaskDetail(ctx context.Context, id int64) (*detailRow, 
 		JOIN warehouses w ON w.id = rt.warehouse_id
 		LEFT JOIN users cu ON cu.id = rt.created_by
 		LEFT JOIN users xu ON xu.id = rt.cancelled_by
-		WHERE rt.id = ?
-	`, id).Scan(&row).Error
+		WHERE rt.id = ? AND rt.tenant_id = ?
+	`, id, tenantID).Scan(&row).Error
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +159,9 @@ func (r *Repository) FindTaskDetail(ctx context.Context, id int64) (*detailRow, 
 	return &row, nil
 }
 
-func (r *Repository) List(ctx context.Context, params ListParams) ([]ListResponse, int64, error) {
+// List is scoped to tenantID: a cross-tenant row can never appear in
+// another tenant's list.
+func (r *Repository) List(ctx context.Context, tenantID int64, params ListParams) ([]ListResponse, int64, error) {
 	base := `
 		FROM replenishment_tasks rt
 		JOIN products p ON p.id = rt.product_id
@@ -154,13 +169,15 @@ func (r *Repository) List(ctx context.Context, params ListParams) ([]ListRespons
 		JOIN locations tl ON tl.id = rt.to_location_id
 		JOIN warehouses w ON w.id = rt.warehouse_id
 	`
-	where := `WHERE (? = '' OR rt.task_no LIKE ? OR p.sku LIKE ? OR p.name LIKE ?)
+	where := `WHERE rt.tenant_id = ?
+		AND (? = '' OR rt.task_no LIKE ? OR p.sku LIKE ? OR p.name LIKE ?)
 		AND (? = '' OR rt.status = ?)
 		AND (? = 0 OR rt.warehouse_id = ?)
 		AND (? = 0 OR rt.product_id = ?)`
 
 	like := "%" + params.Search + "%"
 	args := []any{
+		tenantID,
 		params.Search, like, like, like,
 		string(params.Status), string(params.Status),
 		params.WarehouseID, params.WarehouseID,
@@ -198,15 +215,18 @@ type locationInfo struct {
 	Status      string
 }
 
-func (r *Repository) resolveLocation(ctx context.Context, locationID int64) (*locationInfo, error) {
+// resolveLocation is scoped to tenantID: a location belonging to
+// another tenant now returns ErrLocationNotFound exactly like a
+// nonexistent one, closing the IDOR this lookup previously had.
+func (r *Repository) resolveLocation(ctx context.Context, tenantID, locationID int64) (*locationInfo, error) {
 	var info locationInfo
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT w.id AS warehouse_id, l.status AS status
 		FROM locations l
 		JOIN zones z ON z.id = l.zone_id
 		JOIN warehouses w ON w.id = z.warehouse_id
-		WHERE l.id = ?
-	`, locationID).Scan(&info).Error
+		WHERE l.id = ? AND l.tenant_id = ?
+	`, locationID, tenantID).Scan(&info).Error
 	if err != nil {
 		return nil, err
 	}
@@ -218,9 +238,10 @@ func (r *Repository) resolveLocation(ctx context.Context, locationID int64) (*lo
 
 // InsertConfirmation is the idempotency guard itself — see
 // migrations/0037's doc. Must be called inside the same transaction as
-// MoveStockTx.
-func (r *Repository) InsertConfirmation(ctx context.Context, idempotencyKey string, taskID int64) error {
-	err := r.db.WithContext(ctx).Create(&Confirmation{IdempotencyKey: idempotencyKey, ReplenishmentTaskID: taskID}).Error
+// MoveStockTx. Stamps tenantID onto the guard row too, matching every
+// other row this package writes.
+func (r *Repository) InsertConfirmation(ctx context.Context, tenantID int64, idempotencyKey string, taskID int64) error {
+	err := r.db.WithContext(ctx).Create(&Confirmation{IdempotencyKey: idempotencyKey, TenantID: tenantID, ReplenishmentTaskID: taskID}).Error
 	if err != nil && sqlerr.IsUniqueViolation(err) {
 		return ErrDuplicateIdempotencyKey
 	}
@@ -246,7 +267,17 @@ type recommendRow struct {
 // own rows are sorted by available_qty descending — Service.Recommend
 // relies on that ordering to find "the location with the most surplus"
 // without a second query per product.
-func (r *Repository) ListForRecommend(ctx context.Context, warehouseID int64) ([]recommendRow, error) {
+//
+// Batch 1c (tenant isolation): unlike stockadjustment's own
+// FindOverduePending, this IS scoped by tenantID — GET
+// /replenishment/recommendations is a normal authenticated HTTP
+// endpoint (see handler.go's Register) reached with a real per-request
+// tenant context, not a background worker scan with no single caller
+// to scope to. Filtered on i.tenant_id: inventory rows always carry
+// their own true tenant, and warehouseID has already been verified to
+// belong to this same tenantID by Service.Recommend's own
+// warehouses.FindByIDForTenant call before this query ever runs.
+func (r *Repository) ListForRecommend(ctx context.Context, tenantID, warehouseID int64) ([]recommendRow, error) {
 	var rows []recommendRow
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT p.id AS product_id, p.sku AS sku, p.name AS product_name,
@@ -257,15 +288,15 @@ func (r *Repository) ListForRecommend(ctx context.Context, warehouseID int64) ([
 		JOIN products p ON p.id = i.product_id
 		JOIN locations l ON l.id = i.location_id
 		JOIN zones z ON z.id = l.zone_id
-		WHERE z.warehouse_id = ? AND p.status = 'ACTIVE'
+		WHERE z.warehouse_id = ? AND p.status = 'ACTIVE' AND i.tenant_id = ?
 		ORDER BY p.id, available_qty DESC
-	`, warehouseID).Scan(&rows).Error
+	`, warehouseID, tenantID).Scan(&rows).Error
 	return rows, err
 }
 
 // CancelTask persists a Cancel — same shape as UpdateTask, kept as its
 // own named method for readability at Service.Cancel's own call site,
 // matching internal/picking's own CancelTask precedent.
-func (r *Repository) CancelTask(ctx context.Context, task *Task) error {
-	return r.UpdateTask(ctx, task)
+func (r *Repository) CancelTask(ctx context.Context, tenantID int64, task *Task) error {
+	return r.UpdateTask(ctx, tenantID, task)
 }
