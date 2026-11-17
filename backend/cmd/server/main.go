@@ -54,6 +54,7 @@ import (
 	"wms-backend/internal/putaway"
 	"wms-backend/internal/qualitycheck"
 	"wms-backend/internal/receiving"
+	"wms-backend/internal/receivingreport"
 	"wms-backend/internal/relocation"
 	"wms-backend/internal/replenishment"
 	"wms-backend/internal/report"
@@ -335,6 +336,16 @@ func main() {
 	// without a cycle).
 	inbounddocService := inbounddoc.NewService(receivingService, qualitycheckService, putawayService, inventoryService, locationRepo, tenantRepo, userRepo)
 	inbounddoc.NewHandler(inbounddocService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
+
+	// Phase 34B: receivingreport reads receipts/receipt_items/
+	// receipt_item_splits/qc_inspection_items/qc_dispositions/
+	// putaway_task_items directly via raw SQL, the same "no Go
+	// dependency on the owning write-side package" shape qualitycheck
+	// established above — see its own package doc. Gated on the Phase
+	// 34A report module, not receiving.*/qualitycheck.*/putaway.*.
+	receivingReportRepo := receivingreport.NewRepository(dbManager.DB())
+	receivingReportService := receivingreport.NewService(receivingReportRepo, tenantRepo, userRepo)
+	receivingreport.NewHandler(receivingReportService).Register(v1, cfg.JWTSecret, tenantService, cfg.TenantMembershipCacheTTL)
 
 	pickingRepo := picking.NewRepository(dbManager.DB())
 	pickingService := picking.NewService(pickingRepo, productRepo, warehouseRepo, inventoryService)

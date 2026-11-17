@@ -3095,5 +3095,41 @@
       "close": "Close",
       "print": "Print"
     }
+  },
+  "reportsReceiving": {
+    "title": "Receiving Report",
+    "filters": {
+      "supplier": "Supplier",
+      "search": "Search",
+      "searchPlaceholder": "Receipt no., reference no., SKU, or product name",
+      "lotNo": "Lot / Batch No."
+    },
+    "charts": {
+      "trend": "Receiving Trend",
+      "bySupplier": "Receipts by Supplier",
+      "byWarehouse": "Receiving by Warehouse",
+      "byOperator": "Receiving by Operator"
+    },
+    "table": {
+      "receiptNo": "Receiving No.",
+      "receivingDate": "Receiving Date",
+      "sku": "SKU",
+      "expectedQty": "Expected Qty",
+      "receivedQty": "Received Qty",
+      "shortOverQty": "Short / Over",
+      "lotNo": "Lot No.",
+      "receivingStatus": "Receiving Status",
+      "qcStatus": "QC Status",
+      "putawayStatus": "Putaway Status"
+    },
+    "kpi": {
+      "totalReceipts": "Total Receipts",
+      "totalReceivedQty": "Total Received Qty",
+      "completionRate": "Completion Rate",
+      "leadTime": "Avg. Receiving Lead Time",
+      "pendingQc": "Pending QC Qty",
+      "pendingPutaway": "Pending Putaway Qty",
+      "notAvailable": "N/A"
+    }
   }
 }

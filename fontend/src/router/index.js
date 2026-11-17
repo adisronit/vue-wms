@@ -44,6 +44,7 @@ import NewRelocationView from '../views/inventory/NewRelocationView.vue'
 import TenantManagementView from '../views/platform/TenantManagementView.vue'
 import TenantDetailView from '../views/platform/TenantDetailView.vue'
 import ReportComingSoonView from '../views/reports/ReportComingSoonView.vue'
+import ReceivingReportView from '../views/reports/ReceivingReportView.vue'
 
 const routes = [
   {
@@ -279,8 +280,7 @@ const routes = [
       {
         path: 'reports/receiving',
         name: 'ReportsReceiving',
-        component: ReportComingSoonView,
-        props: { reportKey: 'receiving' }
+        component: ReceivingReportView
       },
       {
         path: 'reports/stock-count',

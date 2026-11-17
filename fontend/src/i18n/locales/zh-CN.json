@@ -3095,5 +3095,41 @@
       "close": "关闭",
       "print": "打印"
     }
+  },
+  "reportsReceiving": {
+    "title": "收货报表",
+    "filters": {
+      "supplier": "供应商",
+      "search": "搜索",
+      "searchPlaceholder": "收货单号、参考号、SKU 或产品名称",
+      "lotNo": "批号"
+    },
+    "charts": {
+      "trend": "收货趋势",
+      "bySupplier": "按供应商统计收货",
+      "byWarehouse": "按仓库统计收货",
+      "byOperator": "按操作员统计收货"
+    },
+    "table": {
+      "receiptNo": "收货单号",
+      "receivingDate": "收货日期",
+      "sku": "SKU",
+      "expectedQty": "预期数量",
+      "receivedQty": "实收数量",
+      "shortOverQty": "短溢数量",
+      "lotNo": "批号",
+      "receivingStatus": "收货状态",
+      "qcStatus": "质检状态",
+      "putawayStatus": "上架状态"
+    },
+    "kpi": {
+      "totalReceipts": "总收货单数",
+      "totalReceivedQty": "总收货数量",
+      "completionRate": "完成率",
+      "leadTime": "平均收货周期",
+      "pendingQc": "待质检数量",
+      "pendingPutaway": "待上架数量",
+      "notAvailable": "暂无数据"
+    }
   }
 }

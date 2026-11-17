@@ -3095,5 +3095,41 @@
       "close": "ปิด",
       "print": "พิมพ์"
     }
+  },
+  "reportsReceiving": {
+    "title": "รายงานการรับสินค้า",
+    "filters": {
+      "supplier": "ผู้จัดจำหน่าย",
+      "search": "ค้นหา",
+      "searchPlaceholder": "เลขที่รับสินค้า, เลขที่อ้างอิง, SKU หรือชื่อสินค้า",
+      "lotNo": "เลขที่ล็อต / แบตช์"
+    },
+    "charts": {
+      "trend": "แนวโน้มการรับสินค้า",
+      "bySupplier": "การรับสินค้าตามผู้จัดจำหน่าย",
+      "byWarehouse": "การรับสินค้าตามคลังสินค้า",
+      "byOperator": "การรับสินค้าตามผู้ปฏิบัติงาน"
+    },
+    "table": {
+      "receiptNo": "เลขที่รับสินค้า",
+      "receivingDate": "วันที่รับสินค้า",
+      "sku": "SKU",
+      "expectedQty": "จำนวนที่คาดหวัง",
+      "receivedQty": "จำนวนที่รับจริง",
+      "shortOverQty": "ขาด / เกิน",
+      "lotNo": "เลขที่ล็อต",
+      "receivingStatus": "สถานะการรับสินค้า",
+      "qcStatus": "สถานะการตรวจสอบคุณภาพ",
+      "putawayStatus": "สถานะการจัดเก็บ"
+    },
+    "kpi": {
+      "totalReceipts": "จำนวนการรับสินค้าทั้งหมด",
+      "totalReceivedQty": "จำนวนที่รับทั้งหมด",
+      "completionRate": "อัตราความสมบูรณ์",
+      "leadTime": "เวลาเฉลี่ยในการรับสินค้า",
+      "pendingQc": "จำนวนรอตรวจสอบคุณภาพ",
+      "pendingPutaway": "จำนวนรอจัดเก็บ",
+      "notAvailable": "ไม่มีข้อมูล"
+    }
   }
 }
